@@ -1,0 +1,46 @@
+.channels-table .ant-table-pagination {
+  display: none;
+}
+
+.channels-table .ant-table-tbody,
+.channels-table .ant-table-tbody * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.channels-table .ant-table-thead > tr:not(.workbench-table-query-row),
+.channels-table .ant-table-thead > tr:not(.workbench-table-query-row) * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.channels-table .workbench-table-query,
+.channels-table .workbench-table-query * {
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.channels-table .ant-table-selection-column {
+  position: relative;
+  z-index: 1;
+}
+
+.channels-selection-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.channels-selection-header .ant-checkbox,
+.channels-selection-header .ant-checkbox-wrapper,
+.channels-selection-header .ant-checkbox-input {
+  pointer-events: auto;
+}
+
+.channels-cell-selected {
+  background: #e6f4ff !important;
+}

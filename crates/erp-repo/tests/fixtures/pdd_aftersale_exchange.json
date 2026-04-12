@@ -1,0 +1,30 @@
+{
+  "order_sn": "PDD-20260106-0003",
+  "confirm_status": 1,
+  "order_status": 2,
+  "refund_status": 1,
+  "after_sales_status": 14,
+  "created_time": "2026-01-06T09:50:00Z",
+  "updated_time": "2026-01-06T11:20:00Z",
+  "pay_amount": "120.50",
+  "goods_amount": "120.50",
+  "postage": "0",
+  "buyer_name": "buyer_masked_003",
+  "receiver_name_mask": "王**",
+  "receiver_phone_mask": "137****2222",
+  "receiver_address_mask": "广东省 深圳市 **区 **街道",
+  "item_list": [
+    {
+      "outer_id": "LINE-3",
+      "goods_id": 9003,
+      "sku_id": 900301,
+      "goods_name": "PDD 测试商品C",
+      "goods_count": 1,
+      "goods_price": "120.50",
+      "after_sales_status": 14,
+      "refund_status": 1,
+      "after_sales_type": "exchange",
+      "after_sales_id": "AS-PDD-3001"
+    }
+  ]
+}

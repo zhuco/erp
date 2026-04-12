@@ -1,0 +1,111 @@
+.order-workbench-table-with-footer > .ant-space-vertical {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  row-gap: 0 !important;
+}
+
+.order-workbench-table-module-03 .server-table-stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-module-03 .server-table-stack > .ant-space-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-module-03 .server-table-stack > .ant-space-item:last-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.order-workbench-table-with-footer .ant-space-item:empty {
+  display: none;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-container,
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-content,
+.order-workbench-table-with-footer .ant-table-body {
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+.order-workbench-table-with-footer .ant-table-pagination {
+  display: none;
+}
+
+.order-workbench-table.order-workbench-table-with-footer {
+  overflow: visible;
+}
+
+.order-workbench-table-module-03 {
+  --erp-table-row-height: 21px;
+  --erp-table-header-height: 24px;
+  font-size: var(--erp-font-size-base);
+  line-height: var(--erp-line-height);
+}
+
+.order-workbench-table-module-03 .ant-table-tbody > tr > td {
+  padding: 3px 6px;
+  height: var(--erp-table-row-height);
+  line-height: var(--erp-table-row-height);
+}
+
+.order-workbench-table-module-03 .ant-table-tbody > tr > td,
+.order-workbench-table-module-03 .ant-table-thead > tr > th,
+.order-workbench-table-module-03 .ant-table-cell {
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-workbench-table-module-03 .ant-table-thead > tr > th {
+  padding: 4px 6px;
+  white-space: nowrap;
+  height: var(--erp-table-header-height);
+  line-height: var(--erp-table-header-height);
+}
+
+.order-workbench-table-module-03 .workbench-table-query-row th {
+  padding: 2px 4px;
+}
+
+.order-workbench-table-module-03 .workbench-table-query {
+  min-height: 20px;
+  gap: 4px;
+}
+
+.order-workbench-table-module-03 .workbench-table-query .ant-input,
+.order-workbench-table-module-03 .workbench-table-query .ant-select-selector {
+  width: 100%;
+  min-width: 0;
+}

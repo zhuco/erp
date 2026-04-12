@@ -1,0 +1,6 @@
+.order-tag-code-half {
+  display: inline-block;
+  width: 0.5em;
+  overflow: hidden;
+  vertical-align: bottom;
+}

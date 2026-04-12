@@ -1,0 +1,76 @@
+{
+  "uid": "erp-overview",
+  "title": "ERP Overview",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["erp", "metrics"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Worker Success Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(erp_worker_consume_success_total[5m])",
+          "legendFormat": "success/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Worker Failure Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(erp_worker_consume_failed_total[5m])",
+          "legendFormat": "failed/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Outbox Retry",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(erp_outbox_send_retry_total[5m])",
+          "legendFormat": "retry/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Shipping Failure Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(erp_shipping_failed_total[5m]) / clamp_min(rate(erp_shipping_success_total[5m]), 1)",
+          "legendFormat": "failure ratio"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HTTP Avg Latency (ms)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "erp_http_request_latency_ms_sum / clamp_min(erp_http_request_latency_ms_count, 1)",
+          "legendFormat": "avg ms"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+    }
+  ]
+}

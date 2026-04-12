@@ -1,0 +1,25 @@
+-- 0076: extend orders fields for OMS edit/detail
+
+alter table orders
+  add column if not exists order_type text,
+  add column if not exists sales_channel text,
+  add column if not exists order_source text,
+  add column if not exists salesperson text,
+  add column if not exists ship_warehouse_id uuid references warehouses(warehouse_id),
+  add column if not exists shipment_no text,
+  add column if not exists estimated_weight_gram int,
+  add column if not exists package_weight_gram int,
+  add column if not exists customer_account text,
+  add column if not exists receiver_tel text,
+  add column if not exists paid_amount_cent bigint,
+  add column if not exists subsidy_amount_cent bigint,
+  add column if not exists receivable_amount_cent bigint,
+  add column if not exists other_fee_cent bigint,
+  add column if not exists estimated_postage_cent bigint,
+  add column if not exists invoice_type text,
+  add column if not exists invoice_title text,
+  add column if not exists payment_status text,
+  add column if not exists freeze_reason text,
+  add column if not exists cancel_reason text,
+  add column if not exists exception_reason text,
+  add column if not exists extra_remark text;

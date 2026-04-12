@@ -1,0 +1,48 @@
+.order-review-bottom-table,
+.order-workbench-bottom-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.order-review-bottom-scrollbar-row,
+.order-workbench-bottom-scrollbar-row {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  padding-bottom: 0;
+  background: var(--erp-bg-panel);
+}
+
+.order-review-bottom-scrollbar,
+.order-workbench-bottom-scrollbar {
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 8px;
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+}
+
+.order-review-bottom-scrollbar::-webkit-scrollbar,
+.order-workbench-bottom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.order-review-bottom-scrollbar::-webkit-scrollbar-thumb,
+.order-workbench-bottom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.order-review-bottom-scrollbar::-webkit-scrollbar-track,
+.order-workbench-bottom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.order-review-bottom-scrollbar-inner,
+.order-workbench-bottom-scrollbar-inner {
+  height: 1px;
+}

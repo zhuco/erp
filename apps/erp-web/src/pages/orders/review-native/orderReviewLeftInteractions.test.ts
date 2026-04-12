@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+
+import type { ColumnFilters } from './types';
+import {
+  buildOrderReviewLeftCheckedKeys,
+  hasOrderReviewLeftManualFilter,
+  reduceOrderReviewFiltersByNode,
+  type OrderReviewLeftFilterNode,
+} from './orderReviewLeftInteractions';
+
+describe('orderReviewLeftInteractions', () => {
+  it('detects whether manual left filter is active', () => {
+    expect(hasOrderReviewLeftManualFilter({})).toBe(false);
+    expect(hasOrderReviewLeftManualFilter({ platform: ['TAOBAO'] })).toBe(true);
+    expect(hasOrderReviewLeftManualFilter({ tagState: ['has'] })).toBe(true);
+  });
+
+  it('builds checked keys for all supported dimensions', () => {
+    const filters: ColumnFilters = {
+      platform: ['TAOBAO'],
+      shopId: ['SHOP-1'],
+      status: ['normal'],
+      timeRange: ['within7d'],
+      exceptionType: ['frozen'],
+      warehouseId: ['WH-01'],
+      logisticsCompany: ['顺丰'],
+      remarkState: ['has'],
+      tagState: ['none'],
+    };
+    const checked = buildOrderReviewLeftCheckedKeys(filters);
+    expect(checked.has('platform:TAOBAO')).toBe(true);
+    expect(checked.has('shop:SHOP-1')).toBe(true);
+    expect(checked.has('status:normal')).toBe(true);
+    expect(checked.has('time:within7d')).toBe(true);
+    expect(checked.has('exception:frozen')).toBe(true);
+    expect(checked.has('warehouse:WH-01')).toBe(true);
+    expect(checked.has('logistics:顺丰')).toBe(true);
+    expect(checked.has('remark:has')).toBe(true);
+    expect(checked.has('tag:none')).toBe(true);
+  });
+
+  it('supports single-select toggle and all-node clear', () => {
+    const platformNode: OrderReviewLeftFilterNode = { key: 'platform:TAOBAO', nodeType: 'platform' };
+    const next = reduceOrderReviewFiltersByNode({}, platformNode);
+    expect(next.platform).toEqual(['TAOBAO']);
+
+    const toggled = reduceOrderReviewFiltersByNode(next, platformNode);
+    expect(toggled.platform).toBeUndefined();
+
+    const clearStatusNode: OrderReviewLeftFilterNode = { key: 'status:*', nodeType: 'status' };
+    const cleared = reduceOrderReviewFiltersByNode(
+      { platform: ['TAOBAO'], status: ['exception'], remarkState: ['has'] },
+      clearStatusNode,
+    );
+    expect(cleared.platform).toEqual(['TAOBAO']);
+    expect(cleared.status).toBeUndefined();
+    expect(cleared.remarkState).toEqual(['has']);
+  });
+});

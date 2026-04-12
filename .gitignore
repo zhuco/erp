@@ -1,0 +1,22 @@
+# Node 依赖与缓存
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+target/
+
+# 日志与临时文件
+*.log
+tmp/
+temp/
+
+# 本地环境与工具产物
+.env
+.env.*
+!.env.example
+!.env.staging.example
+.diff-backups/
+.superpowers/
+status_*.png

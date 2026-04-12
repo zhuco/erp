@@ -1,0 +1,56 @@
+groups:
+  - name: erp-core-alerts
+    rules:
+      - alert: ErpWorkerFailureRateHigh
+        expr: |
+          rate(erp_worker_consume_failed_total[5m])
+            / clamp_min(rate(erp_worker_consume_success_total[5m]), 1)
+            > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker failure rate high"
+          description: "erp-worker failed ratio > 1% for 5 minutes."
+
+      - alert: ErpWorkerDlqGrowth
+        expr: increase(erp_worker_dlq_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker DLQ growth detected"
+          description: "Messages are entering DLQ in the last 10 minutes."
+
+      - alert: ErpOutboxRetrySpike
+        expr: increase(erp_outbox_send_retry_total[10m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox retry spike"
+          description: "Outbox retries increased significantly in last 10 minutes."
+
+      - alert: ErpShippingFailureRateHigh
+        expr: |
+          rate(erp_shipping_failed_total[5m])
+            / clamp_min(rate(erp_shipping_success_total[5m]), 1)
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Shipping failure rate high"
+          description: "Shipping failures > 5% for 5 minutes."
+
+      - alert: ErpPrintJobFailureRateHigh
+        expr: |
+          rate(erp_print_jobs_failed_total[10m])
+            / clamp_min(rate(erp_print_jobs_success_total[10m]), 1)
+            > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Print job failure rate high"
+          description: "Print job failures > 5% for 10 minutes."

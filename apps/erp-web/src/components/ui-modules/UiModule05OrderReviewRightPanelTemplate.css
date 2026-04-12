@@ -1,0 +1,41 @@
+.ui-module-05-order-review-right-panel .ui-module-05-order-review-descriptions .ant-descriptions-item-label {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  white-space: nowrap;
+}
+
+.ui-module-05-order-review-right-panel .ui-module-05-order-review-descriptions .ant-descriptions-item-content {
+  width: calc(100% - 120px);
+}
+
+.ui-module-05-order-mark-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.ui-module-05-order-mark-inline-tags {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.ui-module-05-order-mark-inline-tags .ant-tag {
+  margin-inline-end: 0;
+  white-space: nowrap;
+}
+
+.ui-module-05-order-mark-inline .ant-dropdown-trigger {
+  flex-shrink: 0;
+}
+
+.ui-module-05-order-review-inline-select {
+  width: 100%;
+}

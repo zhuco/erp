@@ -1,0 +1,47 @@
+.inventory-alerts-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inventory-alerts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.inventory-alerts-kpi-card {
+  transition: all 0.2s ease;
+}
+
+.inventory-alerts-kpi-card.is-active {
+  border-color: var(--erp-color-primary);
+  box-shadow: 0 0 0 1px rgba(var(--erp-color-primary-rgb), 0.2);
+}
+
+.inventory-alerts-table-card .ant-tabs-nav {
+  margin-bottom: 8px;
+}
+
+.inventory-alerts-analysis-grid {
+  width: 100%;
+}
+
+.inventory-alerts-analysis-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.inventory-alerts-mini-table {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inventory-alerts-row-active {
+  background-color: rgba(var(--erp-color-primary-rgb), 0.08);
+}

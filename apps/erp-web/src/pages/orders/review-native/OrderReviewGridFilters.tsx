@@ -1,0 +1,398 @@
+﻿import { DatePicker } from 'antd';
+import dayjs from 'dayjs';
+import { useMemo, useState } from 'react';
+import type { DateFilterModel, FilterModel } from 'ag-grid-community';
+import type { CustomFloatingFilterProps } from 'ag-grid-react';
+
+import type { ColumnFilters } from './types';
+
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
+type SetFilterModel = {
+  filterType?: 'set';
+  values?: string[] | null;
+} | null;
+
+type TextFilterModel = {
+  filterType?: 'text';
+  type?: string | null;
+  filter?: string | null;
+} | null;
+
+type SelectFloatingFilterProps = CustomFloatingFilterProps & {
+  emptyLabel?: string;
+  options?: SelectOption[];
+  testId: string;
+};
+
+type TextFloatingFilterProps = CustomFloatingFilterProps & {
+  placeholder?: string;
+  testId: string;
+};
+
+type DateRangeFloatingFilterProps = CustomFloatingFilterProps & {
+  triggerTestId: string;
+};
+
+const normalizeKeyword = (value: string | undefined) => value?.trim() ?? '';
+const normalizeDateInput = (value: string | undefined) => value?.trim() ?? '';
+
+const readSetValue = (model: unknown) => {
+  if (!model || typeof model !== 'object' || !('values' in model)) {
+    return '';
+  }
+  const values = (model as { values?: unknown }).values;
+  if (!Array.isArray(values) || values.length === 0) {
+    return '';
+  }
+  return String(values[0] ?? '').trim();
+};
+
+const readTextValue = (model: unknown) => {
+  if (!model || typeof model !== 'object' || !('filter' in model)) {
+    return '';
+  }
+  return normalizeKeyword(String((model as { filter?: unknown }).filter ?? ''));
+};
+
+const readDateValue = (model: unknown, key: 'dateFrom' | 'dateTo') => {
+  if (!model || typeof model !== 'object' || !(key in model)) {
+    return '';
+  }
+  const raw = String((model as Record<'dateFrom' | 'dateTo', unknown>)[key] ?? '').trim();
+  return raw.slice(0, 10);
+};
+
+const formatDateWithoutYear = (value: string) => {
+  const normalized = normalizeDateInput(value);
+  if (!normalized) {
+    return '';
+  }
+  const parsed = dayjs(normalized, 'YYYY-MM-DD', true);
+  if (!parsed.isValid()) {
+    return normalized.slice(5);
+  }
+  return parsed.format('MM-DD');
+};
+
+const orderDateRange = (from: string, to: string) => {
+  const normalizedFrom = normalizeDateInput(from);
+  const normalizedTo = normalizeDateInput(to);
+  if (!normalizedFrom || !normalizedTo) {
+    return [normalizedFrom, normalizedTo] as const;
+  }
+
+  const fromDate = dayjs(normalizedFrom, 'YYYY-MM-DD', true);
+  const toDate = dayjs(normalizedTo, 'YYYY-MM-DD', true);
+  if (!fromDate.isValid() || !toDate.isValid()) {
+    return [normalizedFrom, normalizedTo] as const;
+  }
+
+  return fromDate.isAfter(toDate)
+    ? ([normalizedTo, normalizedFrom] as const)
+    : ([normalizedFrom, normalizedTo] as const);
+};
+
+const normalizeSetModel = (value: string): SetFilterModel =>
+  value ? { filterType: 'set', values: [value] } : null;
+
+const normalizeTextModel = (value: string): TextFilterModel =>
+  value ? { filterType: 'text', type: 'contains', filter: value } : null;
+
+const normalizeDateRangeModel = (from: string, to: string): DateFilterModel | null => {
+  const [normalizedFrom, normalizedTo] = orderDateRange(from, to);
+  if (!normalizedFrom && !normalizedTo) {
+    return null;
+  }
+  if (normalizedFrom && normalizedTo) {
+    return {
+      filterType: 'date',
+      type: 'inRange',
+      dateFrom: `${normalizedFrom} 00:00:00`,
+      dateTo: `${normalizedTo} 23:59:59`,
+    };
+  }
+  if (normalizedFrom) {
+    return {
+      filterType: 'date',
+      type: 'greaterThanOrEqual',
+      dateFrom: `${normalizedFrom} 00:00:00`,
+    };
+  }
+  return {
+    filterType: 'date',
+    type: 'lessThanOrEqual',
+    dateTo: `${normalizedTo} 23:59:59`,
+  };
+};
+
+export const hasMainGridColumnFilters = (filters: ColumnFilters) =>
+  Boolean(
+    normalizeKeyword(filters.orderIdKeyword) ||
+      normalizeKeyword(filters.platformOrderIdKeyword) ||
+      normalizeKeyword(filters.receiverNameKeyword) ||
+      normalizeKeyword(filters.receiverPhoneKeyword) ||
+      normalizeDateInput(filters.createdAtFrom) ||
+      normalizeDateInput(filters.createdAtTo),
+  );
+
+export const hasMainGridKeywordColumnFilters = hasMainGridColumnFilters;
+
+export const buildMainGridFilterModel = (filters: ColumnFilters): FilterModel => {
+  const nextModel: FilterModel = {};
+
+  const platformValue = String(filters.platform?.[0] ?? '').trim();
+  if (platformValue) {
+    nextModel.platform = normalizeSetModel(platformValue);
+  }
+
+  const shopValue = String(filters.shopId?.[0] ?? '').trim();
+  if (shopValue) {
+    nextModel.shop_id = normalizeSetModel(shopValue);
+  }
+
+  const logisticsValue = String(filters.logisticsCompany?.[0] ?? '').trim();
+  if (logisticsValue) {
+    nextModel.logistics_company = normalizeSetModel(logisticsValue);
+  }
+
+  const orderIdKeyword = normalizeKeyword(filters.orderIdKeyword);
+  if (orderIdKeyword) {
+    nextModel.id = normalizeTextModel(orderIdKeyword);
+  }
+
+  const platformOrderIdKeyword = normalizeKeyword(filters.platformOrderIdKeyword);
+  if (platformOrderIdKeyword) {
+    nextModel.platform_order_id = normalizeTextModel(platformOrderIdKeyword);
+  }
+
+  const receiverNameKeyword = normalizeKeyword(filters.receiverNameKeyword);
+  if (receiverNameKeyword) {
+    nextModel.receiver_name = normalizeTextModel(receiverNameKeyword);
+  }
+
+  const receiverPhoneKeyword = normalizeKeyword(filters.receiverPhoneKeyword);
+  if (receiverPhoneKeyword) {
+    nextModel.receiver_phone = normalizeTextModel(receiverPhoneKeyword);
+  }
+
+  const createdAtModel = normalizeDateRangeModel(
+    String(filters.createdAtFrom ?? ''),
+    String(filters.createdAtTo ?? ''),
+  );
+  if (createdAtModel) {
+    nextModel.created_at = createdAtModel;
+  }
+
+  return nextModel;
+};
+
+export const extractMainGridColumnFilters = (model: FilterModel | null | undefined) => ({
+  platform: (() => {
+    const value = readSetValue(model?.platform);
+    return value ? [value] : undefined;
+  })(),
+  shopId: (() => {
+    const value = readSetValue(model?.shop_id);
+    return value ? [value] : undefined;
+  })(),
+  logisticsCompany: (() => {
+    const value = readSetValue(model?.logistics_company);
+    return value ? [value] : undefined;
+  })(),
+  orderIdKeyword: readTextValue(model?.id) || undefined,
+  platformOrderIdKeyword: readTextValue(model?.platform_order_id) || undefined,
+  receiverNameKeyword: readTextValue(model?.receiver_name) || undefined,
+  receiverPhoneKeyword: readTextValue(model?.receiver_phone) || undefined,
+  createdAtFrom: readDateValue(model?.created_at, 'dateFrom') || undefined,
+  createdAtTo: readDateValue(model?.created_at, 'dateTo') || undefined,
+});
+
+export const hasSameMainGridColumnFilters = (left: ColumnFilters, right: ColumnFilters) =>
+  String(left.platform?.[0] ?? '').trim() === String(right.platform?.[0] ?? '').trim() &&
+  String(left.shopId?.[0] ?? '').trim() === String(right.shopId?.[0] ?? '').trim() &&
+  String(left.logisticsCompany?.[0] ?? '').trim() === String(right.logisticsCompany?.[0] ?? '').trim() &&
+  normalizeKeyword(left.orderIdKeyword) === normalizeKeyword(right.orderIdKeyword) &&
+  normalizeKeyword(left.platformOrderIdKeyword) === normalizeKeyword(right.platformOrderIdKeyword) &&
+  normalizeKeyword(left.receiverNameKeyword) === normalizeKeyword(right.receiverNameKeyword) &&
+  normalizeKeyword(left.receiverPhoneKeyword) === normalizeKeyword(right.receiverPhoneKeyword) &&
+  normalizeDateInput(left.createdAtFrom) === normalizeDateInput(right.createdAtFrom) &&
+  normalizeDateInput(left.createdAtTo) === normalizeDateInput(right.createdAtTo);
+
+export const OrderReviewSetFloatingFilter = ({
+  model,
+  onModelChange,
+  options = [],
+  emptyLabel = '全部',
+  testId,
+}: SelectFloatingFilterProps) => {
+  const value = readSetValue(model);
+
+  const normalizedOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          options
+            .map((option) => ({
+              label: String(option.label ?? '').trim(),
+              value: String(option.value ?? '').trim(),
+            }))
+            .filter((option) => option.value)
+            .map((option) => [option.value, option]),
+        ).values(),
+      ),
+    [options],
+  );
+
+  return (
+    <div
+      className="order-review-floating-filter-select-shell"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <select
+        className="order-review-floating-filter-select"
+        data-testid={testId}
+        value={value}
+        aria-label={testId}
+        onChange={(event) => {
+          onModelChange(normalizeSetModel(String(event.target.value ?? '').trim()));
+        }}
+      >
+        <option value="">{emptyLabel}</option>
+        {normalizedOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label || option.value}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+export const OrderReviewTextFloatingFilter = ({
+  model,
+  onModelChange,
+  placeholder,
+  testId,
+}: TextFloatingFilterProps) => {
+  const value = readTextValue(model);
+
+  return (
+    <div
+      className="order-review-floating-filter-text-shell"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <input
+        className="order-review-floating-filter-text-input"
+        data-testid={testId}
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => {
+          onModelChange(normalizeTextModel(String(event.target.value ?? '').trim()));
+        }}
+      />
+    </div>
+  );
+};
+
+export const OrderReviewDateRangeFloatingFilter = ({
+  model,
+  onModelChange,
+  triggerTestId,
+}: DateRangeFloatingFilterProps) => {
+  const fromValue = readDateValue(model, 'dateFrom');
+  const toValue = readDateValue(model, 'dateTo');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerValue =
+    fromValue && toValue ? ([dayjs(fromValue, 'YYYY-MM-DD', true), dayjs(toValue, 'YYYY-MM-DD', true)] as const) : null;
+  const displayFromValue = formatDateWithoutYear(fromValue);
+  const displayToValue = formatDateWithoutYear(toValue);
+  const canClear = Boolean(fromValue || toValue);
+
+  const triggerLabel =
+    displayFromValue && displayToValue
+      ? `${displayFromValue} ~ ${displayToValue}`
+      : displayFromValue
+        ? `${displayFromValue} 起`
+        : displayToValue
+          ? `${displayToValue} 止`
+          : '日期范围';
+
+  const triggerTitle =
+    fromValue && toValue
+      ? `${fromValue} ~ ${toValue}`
+      : fromValue
+        ? `${fromValue} 起`
+        : toValue
+          ? `${toValue} 止`
+          : '日期范围';
+
+  return (
+    <div
+      className="order-review-floating-filter-date-shell"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="order-review-floating-filter-date-trigger"
+        data-testid={triggerTestId}
+        title={triggerTitle}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setPickerOpen(true);
+        }}
+      >
+        <span className="order-review-floating-filter-date-trigger-text">{triggerLabel}</span>
+      </button>
+      <button
+        type="button"
+        className="order-review-floating-filter-date-clear"
+        aria-label="清空日期范围"
+        disabled={!canClear}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!canClear) {
+            return;
+          }
+          onModelChange(null);
+        }}
+      >
+        清
+      </button>
+      <div className="order-review-floating-filter-date-picker-anchor" aria-hidden="true">
+        <DatePicker.RangePicker
+          open={pickerOpen}
+          value={pickerValue}
+          format="YYYY-MM-DD"
+          order
+          allowClear={false}
+          inputReadOnly
+          placement="bottomLeft"
+          onOpenChange={(open) => {
+            setPickerOpen(open);
+          }}
+          onChange={(range) => {
+            if (!range?.[0] || !range[1]) {
+              onModelChange(null);
+              setPickerOpen(false);
+              return;
+            }
+            onModelChange(
+              normalizeDateRangeModel(range[0].format('YYYY-MM-DD'), range[1].format('YYYY-MM-DD')),
+            );
+            setPickerOpen(false);
+          }}
+        />
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,28 @@
+.ui-module-07-layout-title {
+  margin-bottom: 0;
+}
+
+.ui-module-07-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ui-module-07-section-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui-module-07-section-title .ant-typography {
+  margin-bottom: 0;
+}
+
+.ui-module-07-section-description {
+  display: block;
+}
+
+.ui-module-07-section-actions {
+  flex-shrink: 0;
+}

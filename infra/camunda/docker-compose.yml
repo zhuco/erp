@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  zeebe:
+    image: camunda/zeebe:8.5.11
+    container_name: erp-camunda-zeebe
+    restart: unless-stopped
+    environment:
+      - ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT=1
+      - ZEEBE_BROKER_CLUSTER_CLUSTERSIZE=1
+      - ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR=1
+      - ZEEBE_BROKER_GATEWAY_SECURITY_AUTHENTICATION_MODE=none
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL=http://elasticsearch:9200
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE=1
+    ports:
+      - "26500:26500"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9600 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  operate:
+    image: camunda/operate:8.5.11
+    container_name: erp-camunda-operate
+    restart: unless-stopped
+    environment:
+      - CAMUNDA_OPERATE_ZEEBE_GATEWAYADDRESS=zeebe:26500
+      - CAMUNDA_OPERATE_ELASTICSEARCH_URL=http://elasticsearch:9200
+      - CAMUNDA_OPERATE_ELASTICSEARCH_USERNAME=
+      - CAMUNDA_OPERATE_ELASTICSEARCH_PASSWORD=
+      - CAMUNDA_OPERATE_CAMUNDA_IDENTITY_BASEURL=
+      - CAMUNDA_OPERATE_MULTITENANCY_ENABLED=false
+    ports:
+      - "8081:8080"
+    depends_on:
+      - zeebe
+      - elasticsearch
+
+  tasklist:
+    image: camunda/tasklist:8.5.11
+    container_name: erp-camunda-tasklist
+    restart: unless-stopped
+    environment:
+      - CAMUNDA_TASKLIST_ZEEBE_GATEWAYADDRESS=zeebe:26500
+      - CAMUNDA_TASKLIST_ELASTICSEARCH_URL=http://elasticsearch:9200
+      - CAMUNDA_TASKLIST_CAMUNDA_IDENTITY_BASEURL=
+      - CAMUNDA_TASKLIST_MULTITENANCY_ENABLED=false
+    ports:
+      - "8082:8080"
+    depends_on:
+      - zeebe
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: erp-camunda-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+networks:
+  default:
+    name: erp-camunda-net

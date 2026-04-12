@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: Channel Ingest API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /healthz:
+    get:
+      summary: Health check (deep)
+      responses:
+        "200":
+          description: ok
+  /webhooks/{platform}/{shop_id}:
+    post:
+      summary: Webhook ingest (raw+dedup+inbox)
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [taobao, jd, pdd, douyin]
+        - name: shop_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {}
+      responses:
+        "200":
+          description: accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  duplicate: { type: boolean }
+                  inbox_event_id: { type: string }
+                  dedup_key: { type: string }

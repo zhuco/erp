@@ -1,0 +1,69 @@
+.app-layout {
+  min-height: 100vh;
+  background: var(--erp-bg-page);
+}
+
+.app-layout-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: auto;
+  padding: 8px 16px;
+  background: var(--erp-bg-panel);
+  border-bottom: 1px solid var(--erp-border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-layout-header-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-layout-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--erp-text-color);
+  white-space: nowrap;
+}
+
+.app-layout-menu {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border-bottom: none;
+}
+
+.app-layout-menu .ant-menu-overflow {
+  background: transparent;
+}
+
+.app-layout-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.app-layout-header-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.app-layout-content {
+  padding: 0 16px 24px;
+}
+
+.app-layout-tabs {
+  background: var(--erp-bg-panel);
+  padding: 0 8px;
+  border-radius: 8px;
+}
+
+.app-layout-body {
+  padding: 16px 0 0;
+}

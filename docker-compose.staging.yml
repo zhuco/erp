@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: erp-postgres
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: erp
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - erp-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7
+    container_name: erp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - erp-redis-data:/data
+
+  nats:
+    image: nats:2.10
+    container_name: erp-nats
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+
+  erp-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    image: erp-backend:staging
+    env_file: .env.staging
+    environment:
+      HTTP_PORT_API: ${HTTP_PORT_API:-8080}
+    ports:
+      - "${HTTP_PORT_API:-8080}:${HTTP_PORT_API:-8080}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nats:
+        condition: service_started
+    restart: unless-stopped
+
+  erp-worker:
+    image: erp-backend:staging
+    command: ["/app/erp-worker"]
+    env_file: .env.staging
+    environment:
+      WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9090}
+    ports:
+      - "${WORKER_METRICS_PORT:-9090}:${WORKER_METRICS_PORT:-9090}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nats:
+        condition: service_started
+    restart: unless-stopped
+
+  erp-channel:
+    image: erp-backend:staging
+    command: ["/app/erp-channel"]
+    env_file: .env.staging
+    environment:
+      HTTP_PORT_CHANNEL: ${HTTP_PORT_CHANNEL:-8081}
+    ports:
+      - "${HTTP_PORT_CHANNEL:-8081}:${HTTP_PORT_CHANNEL:-8081}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nats:
+        condition: service_started
+    restart: unless-stopped
+
+  erp-web:
+    build:
+      context: .
+      dockerfile: apps/erp-web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        VITE_BUILD_VERSION: ${VITE_BUILD_VERSION:-staging}
+    image: erp-web:staging
+    ports:
+      - "${WEB_PORT:-8088}:80"
+    depends_on:
+      erp-api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  erp-postgres-data:
+  erp-redis-data:

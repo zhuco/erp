@@ -1,0 +1,123 @@
+.order-workbench-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+.order-workbench-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.order-workbench-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.order-workbench-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--erp-gap-sm);
+  position: relative;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.order-workbench-toolbar-left,
+.order-workbench-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
+}
+
+.order-workbench-toolbar-right {
+  margin-left: auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.order-workbench-toolbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+}
+
+.order-workbench-toolbar-search-input {
+  width: 220px;
+}
+
+.order-workbench-toolbar-search-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .order-workbench-toolbar-search-input {
+    width: 180px;
+  }
+}
+
+.order-workbench-header {
+  margin-top: var(--erp-gap-sm);
+}
+
+.order-workbench-action {
+  margin-top: var(--erp-gap-sm);
+  flex-shrink: 0;
+}
+
+.order-workbench-table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.order-workbench-bottom-panel {
+  margin: -4px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.order-workbench-bottom-panel .ant-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.order-workbench-bottom-panel .ant-tabs-content-holder {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.order-workbench-bottom-panel .ant-tabs-content {
+  height: 100%;
+  padding: 0;
+}
+
+.order-workbench-bottom-panel .ant-tabs-tabpane {
+  height: 100%;
+  overflow: auto;
+  padding: 0;
+}

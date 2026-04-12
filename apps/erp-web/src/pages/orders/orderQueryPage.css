@@ -1,0 +1,231 @@
+.order-query-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+  margin: -4px;
+}
+
+.order-query-page .order-workbench-toolbar {
+  height: 32px;
+  min-height: 32px;
+  overflow: hidden;
+}
+
+.order-query-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--erp-gap-sm);
+}
+
+.order-query-toolbar-form {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.order-query-toolbar-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.order-query-toolbar-form .ant-form-item-label {
+  padding-bottom: 0;
+}
+
+.order-query-toolbar-form .ant-form-item-row {
+  align-items: center;
+}
+
+.order-query-toolbar-form .ant-form-item-control {
+  min-width: 0;
+}
+
+.order-query-search {
+  width: 160px;
+  min-width: 160px;
+}
+
+.order-query-search .ant-input-search {
+  width: 100%;
+}
+
+.order-query-search .ant-input-affix-wrapper {
+  padding: 0 6px;
+  height: 22px;
+}
+
+.order-query-search .ant-input {
+  height: 20px;
+}
+
+.order-query-search .ant-input-affix-wrapper .ant-input {
+  line-height: 20px;
+}
+
+.order-query-search .ant-input-search-button {
+  height: 22px;
+  min-width: 28px;
+  padding-inline: 6px;
+}
+
+.order-query-table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  margin-top: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.order-query-table > .ant-space-vertical {
+  row-gap: 0 !important;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-query-table .ant-space-item:empty {
+  display: none;
+}
+
+.order-query-table .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-query-table .ant-table-wrapper > .ant-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-query-table .ant-table-wrapper > .ant-table .ant-table-container,
+.order-query-table .ant-table-wrapper > .ant-table .ant-table-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.order-query-table .ant-table-wrapper > .ant-table .ant-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+
+.order-query-table .ant-table-tbody,
+.order-query-table .ant-table-tbody * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.order-query-table .ant-table-thead > tr:not(.workbench-table-query-row),
+.order-query-table .ant-table-thead > tr:not(.workbench-table-query-row) * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.order-query-table .workbench-table-query,
+.order-query-table .workbench-table-query * {
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.order-query-table .ant-table-selection-column {
+  position: relative;
+  z-index: 1;
+}
+
+.order-query-table .ant-table-selection-column .ant-checkbox,
+.order-query-table .ant-table-selection-column .ant-checkbox-wrapper {
+  pointer-events: auto;
+}
+
+
+.order-query-row-active > td {
+  background: var(--erp-row-selected-bg);
+}
+
+.order-query-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--erp-border-color);
+  border-radius: 8px;
+  background: var(--erp-bg-panel);
+}
+
+.order-query-tree .ant-tree {
+  background: transparent;
+}
+
+.order-query-tree-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-query-tag-muted {
+  margin-inline-start: 0;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.order-query-detail-loading,
+.order-query-detail-error {
+  padding: 12px 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.order-query-detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.order-query-detail-notes {
+  font-size: 12px;
+}
+
+.order-query-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.order-query-invalid-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.order-query-match-summary {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-query-left-screen-tip {
+  padding: 8px 10px;
+  line-height: 1.6;
+}

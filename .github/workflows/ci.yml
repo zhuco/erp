@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run backend release gate
+        run: node scripts/release_gate_backend.mjs
+
+  frontend-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Verify repository baseline
+        run: pnpm run repo:verify
+
+      - name: Run frontend acceptance gate
+        run: pnpm run accept:web
+
+      - name: Install Playwright Chromium
+        run: pnpm --dir apps/erp-web exec playwright install --with-deps chromium
+
+      - name: Run ErpDataGrid analysis gate
+        run: pnpm run test:gate:grid-analysis
+
+      - name: Run ErpDataGrid analysis performance tier gate
+        run: pnpm run test:e2e:grid-performance-tier
+
+      - name: Run release e2e gate
+        run: pnpm --dir apps/erp-web test:e2e:release-gate

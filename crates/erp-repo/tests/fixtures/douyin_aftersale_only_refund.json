@@ -1,0 +1,35 @@
+{
+  "order_id": "DY-20260106-1002",
+  "order_status": 2,
+  "create_time": "2026-01-06T09:25:00Z",
+  "update_time": "2026-01-06T10:30:00Z",
+  "pay_amount": 5600,
+  "order_amount": 5600,
+  "buyer_words": "仅退款场景",
+  "mask_post_receiver": "周**",
+  "mask_post_tel": "135****4444",
+  "mask_post_addr": {
+    "province": "江苏省",
+    "city": "南京市",
+    "district": "鼓楼区",
+    "street": "演示街",
+    "detail": "**号"
+  },
+  "sku_order_list": [
+    {
+      "sku_order_id": "DY-LINE-2",
+      "sku_id": "SKU-DY-1002",
+      "product_name": "抖店测试商品B",
+      "item_num": 1,
+      "goods_price": 5600,
+      "order_amount": 5600,
+      "after_sale_info": {
+        "refund_status": 1,
+        "after_sale_status": 2,
+        "refund_amount": 5600,
+        "after_sale_type_desc": "仅退款",
+        "after_sale_id": "AS-DY-1002"
+      }
+    }
+  ]
+}

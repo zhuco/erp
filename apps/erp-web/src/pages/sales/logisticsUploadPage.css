@@ -1,0 +1,114 @@
+.logistics-upload-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+  margin: -4px;
+}
+
+.logistics-upload-page .order-workbench-toolbar {
+  min-height: 32px;
+  height: 32px;
+  overflow: visible;
+}
+
+.logistics-upload-toolbar-left,
+.logistics-upload-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
+}
+
+.logistics-upload-toolbar-right {
+  margin-left: auto;
+}
+
+.logistics-upload-search {
+  width: 260px;
+}
+
+.logistics-upload-alert {
+  color: #cf1322;
+}
+
+.logistics-upload-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--erp-border-color);
+  border-radius: 8px;
+  background: var(--erp-bg-panel);
+}
+
+.logistics-upload-filter-panel .ant-tree {
+  background: transparent;
+}
+
+.logistics-upload-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logistics-upload-table {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  margin-top: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.logistics-upload-table > .ant-space-vertical {
+  row-gap: 0 !important;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.logistics-upload-table .ant-space-item:empty {
+  display: none;
+}
+
+.logistics-upload-table .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.logistics-upload-table .ant-table-wrapper > .ant-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.logistics-upload-table .ant-table-wrapper > .ant-table .ant-table-container,
+.logistics-upload-table .ant-table-wrapper > .ant-table .ant-table-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.logistics-upload-table .ant-table-wrapper > .ant-table .ant-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.logistics-upload-table .ant-table-content,
+.logistics-upload-table .ant-table-body {
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+.logistics-upload-row-active > td {
+  background: var(--erp-row-selected-bg);
+}

@@ -1,0 +1,40 @@
+[package]
+name = "erp-worker"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "erp-worker"
+
+[dependencies]
+anyhow.workspace = true
+async-nats.workspace = true
+axum.workspace = true
+chrono.workspace = true
+clap.workspace = true
+dotenvy.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+sqlx.workspace = true
+csv.workspace = true
+calamine.workspace = true
+
+erp-adapter = { path = "../erp-adapter" }
+erp-adapter-taobao = { path = "../adapter-taobao" }
+erp-adapter-jd = { path = "../adapter-jd" }
+erp-adapter-pdd = { path = "../adapter-pdd" }
+erp-adapter-douyin = { path = "../adapter-douyin" }
+
+erp-common = { path = "../erp-common" }
+erp-domain = { path = "../erp-domain" }
+erp-outbox = { path = "../erp-outbox" }
+erp-repo = { path = "../erp-repo" }
+erp-types = { path = "../erp-types" }
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

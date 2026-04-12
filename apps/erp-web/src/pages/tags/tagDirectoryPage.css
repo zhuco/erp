@@ -1,0 +1,20 @@
+.tag-directory-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.tag-directory-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tag-directory-table .ant-table-tbody > tr > td {
+  padding: 4px 6px;
+}
+
+.tag-directory-table .ant-table-thead > tr > th {
+  padding: 4px 6px;
+}

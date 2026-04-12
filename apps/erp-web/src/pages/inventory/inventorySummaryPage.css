@@ -1,0 +1,48 @@
+.inventory-summary-page {
+  min-height: 0;
+}
+
+.inventory-summary-table {
+  flex: 1;
+  min-height: 0;
+}
+
+.inventory-summary-row-active > td {
+  background: var(--erp-row-selected-bg);
+}
+
+.inventory-summary-table .workbench-table-query .ant-input-number {
+  width: 100%;
+}
+
+.inventory-summary-tree-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.inventory-summary-bottom-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--erp-gap-sm);
+  min-height: 0;
+}
+
+.inventory-summary-detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inventory-summary-detail-notes {
+  font-size: 12px;
+}
+
+.inventory-summary-image {
+  width: 100%;
+  max-width: 240px;
+  border-radius: 4px;
+  border: 1px solid #f0f0f0;
+}

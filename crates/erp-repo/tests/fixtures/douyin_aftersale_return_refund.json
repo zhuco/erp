@@ -1,0 +1,35 @@
+{
+  "order_id": "DY-20260106-1003",
+  "order_status": 5,
+  "create_time": "2026-01-06T09:35:00Z",
+  "update_time": "2026-01-06T12:20:00Z",
+  "pay_amount": 21800,
+  "order_amount": 21800,
+  "buyer_words": "退货退款场景",
+  "mask_post_receiver": "钱**",
+  "mask_post_tel": "134****5555",
+  "mask_post_addr": {
+    "province": "四川省",
+    "city": "成都市",
+    "district": "高新区",
+    "street": "示例路",
+    "detail": "**号"
+  },
+  "sku_order_list": [
+    {
+      "sku_order_id": "DY-LINE-3",
+      "sku_id": "SKU-DY-1003",
+      "product_name": "抖店测试商品C",
+      "item_num": 1,
+      "goods_price": 21800,
+      "order_amount": 21800,
+      "after_sale_info": {
+        "refund_status": 2,
+        "after_sale_status": 3,
+        "refund_amount": 21800,
+        "after_sale_type_desc": "退货退款",
+        "after_sale_id": "AS-DY-1003"
+      }
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+.workbench-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--erp-font-size-base);
+  line-height: var(--erp-line-height);
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+}
+
+.workbench-list-page .order-workbench-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.workbench-list-page .order-workbench-toolbar .ant-typography {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.workbench-list-page .order-workbench-toolbar .ant-typography-title {
+  margin-bottom: 0;
+}
+
+.workbench-list-page .order-workbench-toolbar-left,
+.workbench-list-page .order-workbench-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
+}
+
+.workbench-list-page .order-workbench-toolbar-right {
+  margin-left: auto;
+}
+
+.workbench-list-page .order-workbench-toolbar .ant-btn,
+.workbench-list-page .order-workbench-toolbar .ant-btn-icon-only {
+  height: var(--erp-control-height-sm);
+  padding: 0 10px;
+  font-size: var(--erp-font-size-base);
+}
+
+.workbench-list-page .order-workbench-toolbar .ant-btn-icon-only {
+  width: var(--erp-control-height-sm);
+  padding: 0;
+}
+
+.workbench-list-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-list-table > .ant-space-vertical {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-list-table .ant-space-item:empty {
+  display: none;
+}
+
+.workbench-list-table .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-list-table .ant-table-wrapper > .ant-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-list-table .ant-table-wrapper > .ant-table .ant-table-container,
+.workbench-list-table .ant-table-wrapper > .ant-table .ant-table-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.workbench-list-table .ant-table-wrapper > .ant-table .ant-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-list-table .ant-table-wrapper > .ant-table .ant-table-content {
+  overflow: auto;
+}
+
+.workbench-list-page .ant-table-pagination {
+  margin: auto 0 0;
+  padding-top: 4px;
+}
+
+.workbench-list-page .ant-table {
+  font-size: var(--erp-font-size-base);
+}
+
+.workbench-list-page .ant-table-thead > tr > th {
+  padding: 6px 8px;
+  background: var(--erp-bg-muted);
+}
+
+.workbench-list-page .ant-table-tbody > tr > td {
+  padding: 6px 8px;
+}
+
+.workbench-list-page .ant-table-tbody > tr:hover > td {
+  background: var(--erp-row-hover-bg);
+}
+
+.workbench-list-page .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: var(--erp-row-selected-bg);
+}
+
+.workbench-left-placeholder,
+.workbench-bottom-placeholder {
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.workbench-left-tabs .ant-tabs-nav {
+  margin-bottom: 8px;
+}
+
+.workbench-detail-block {
+  padding: 8px 0;
+}
+
+.workbench-detail-block .ant-descriptions {
+  font-size: var(--erp-font-size-base);
+}
+
+.workbench-detail-block .ant-descriptions-item-label,
+.workbench-detail-block .ant-descriptions-item-content {
+  padding: 4px 0;
+}
+
+.workbench-detail-block .ant-descriptions-row > th {
+  width: 96px;
+}

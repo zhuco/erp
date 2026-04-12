@@ -1,0 +1,20 @@
+.ag-grid-enterprise-page {
+  padding: 24px;
+}
+
+.ag-grid-enterprise-shell {
+  width: 100%;
+  min-height: 560px;
+  height: min(74vh, 860px);
+}
+
+@media (max-width: 768px) {
+  .ag-grid-enterprise-page {
+    padding: 12px;
+  }
+
+  .ag-grid-enterprise-shell {
+    min-height: 440px;
+    height: 64vh;
+  }
+}

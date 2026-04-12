@@ -1,0 +1,21 @@
+﻿stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> PENDING_APPROVAL: Submit
+    DRAFT --> VOIDED: Void
+    PENDING_APPROVAL --> APPROVED: Approve
+    PENDING_APPROVAL --> REJECTED: Reject
+    REJECTED --> PENDING_APPROVAL: Resubmit
+    REJECTED --> VOIDED: Void
+    APPROVED --> IN_PROGRESS: Confirm
+    IN_PROGRESS --> COMPLETED: Complete(已付款+已出库+已开票)
+    APPROVED --> CLOSED: Close
+    IN_PROGRESS --> CLOSED: Close
+    COMPLETED --> CLOSED: Close
+    CLOSED --> IN_PROGRESS: Reopen
+    IN_PROGRESS --> IN_PROGRESS: Refund
+    COMPLETED --> COMPLETED: Refund
+    DRAFT --> CLOSED: Split
+    APPROVED --> CLOSED: Split
+    IN_PROGRESS --> CLOSED: Split
+    DRAFT --> CLOSED: Merge
+    APPROVED --> CLOSED: Merge

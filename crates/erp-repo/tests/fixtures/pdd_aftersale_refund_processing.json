@@ -1,0 +1,31 @@
+{
+  "order_sn": "PDD-20260106-0001",
+  "confirm_status": 1,
+  "order_status": 2,
+  "refund_status": 2,
+  "after_sales_status": 2,
+  "created_time": "2026-01-06T09:30:00Z",
+  "updated_time": "2026-01-06T10:15:00Z",
+  "pay_amount": "99.00",
+  "goods_amount": "99.00",
+  "postage": "0",
+  "buyer_name": "buyer_masked_001",
+  "receiver_name_mask": "张**",
+  "receiver_phone_mask": "138****0000",
+  "receiver_address_mask": "浙江省 杭州市 **区 **路",
+  "item_list": [
+    {
+      "outer_id": "LINE-1",
+      "goods_id": 9001,
+      "sku_id": 900101,
+      "goods_name": "PDD 测试商品A",
+      "goods_count": 1,
+      "goods_price": "99.00",
+      "after_sales_status": 2,
+      "refund_status": 2,
+      "refund_amount": "99.00",
+      "after_sales_type": "refund",
+      "after_sales_id": "AS-PDD-1001"
+    }
+  ]
+}

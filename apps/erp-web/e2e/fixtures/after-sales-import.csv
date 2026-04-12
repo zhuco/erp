@@ -1,0 +1,2 @@
+order_id,after_sales_type,sku_id,qty,refund_cent,amount_cent,reason_code
+ORDER-NEW,RETURN_REFUND,SKU-NEW,1,1200,1200,DEFECT

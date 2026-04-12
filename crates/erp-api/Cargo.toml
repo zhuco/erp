@@ -1,0 +1,47 @@
+[package]
+name = "erp-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait = "0.1"
+axum.workspace = true
+chrono.workspace = true
+clap.workspace = true
+dotenvy.workspace = true
+async-nats.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+jsonwebtoken.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+csv.workspace = true
+secrecy.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+hex.workspace = true
+rand.workspace = true
+calamine.workspace = true
+base64.workspace = true
+
+erp-common = { path = "../erp-common" }
+erp-domain = { path = "../erp-domain" }
+erp-adapter = { path = "../erp-adapter" }
+erp-adapter-taobao = { path = "../adapter-taobao" }
+erp-adapter-jd = { path = "../adapter-jd" }
+erp-adapter-pdd = { path = "../adapter-pdd" }
+erp-adapter-douyin = { path = "../adapter-douyin" }
+erp-repo = { path = "../erp-repo" }
+erp-types = { path = "../erp-types" }
+erp-analytics = { path = "../erp-analytics" }
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { workspace = true, features = ["util"] }
