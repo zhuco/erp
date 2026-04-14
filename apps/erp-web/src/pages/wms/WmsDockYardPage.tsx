@@ -26,7 +26,7 @@ export const WmsDockYardPage = () => {
   const query = useQuery({
     queryKey: ['wms-dock-appointments', tenantId],
     queryFn: () => listWmsDockAppointments(tenantId, { offset: 0, limit: 50 }),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const checkinMutation = useMutation({

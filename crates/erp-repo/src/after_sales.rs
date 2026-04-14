@@ -6,7 +6,7 @@ use erp_types::{
 };
 use serde_json::Value;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use crate::inventory::{InventoryDelta, InventoryService};
 
@@ -981,7 +981,13 @@ impl<'a> AfterSalesRepo<'a> {
                     tenant_id, warehouse_id, doc_type, doc_no, status, ref_type, ref_id
                 ) values ($1,$2,$3,$4,$5,$6,$7)
                 on conflict (tenant_id, doc_no)
-                do update set status = excluded.status, updated_at = now()
+                do update set
+                    warehouse_id = excluded.warehouse_id,
+                    doc_type = excluded.doc_type,
+                    status = excluded.status,
+                    ref_type = excluded.ref_type,
+                    ref_id = excluded.ref_id,
+                    updated_at = now()
                 returning doc_id
                 "#,
             )
@@ -1330,28 +1336,61 @@ impl<'a> AfterSalesRepo<'a> {
         if docs.is_empty() {
             return Ok(Vec::new());
         }
-        let mut qb = QueryBuilder::<Postgres>::new(
+        let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
+        let mut existing_rows: Vec<ExchangeDocRow> = sqlx::query_as(
             r#"
-            insert into exchange_docs(
-                tenant_id, after_sales_id, exchange_status, outbound_doc_id, shipment_id
+            select
+                exchange_id, tenant_id, after_sales_id, exchange_status,
+                outbound_doc_id, shipment_id, created_at, updated_at
+            from exchange_docs
+            where tenant_id = $1 and after_sales_id = $2
+            for update
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(after_sales_id)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for doc in docs {
+            let key = (doc.outbound_doc_id, doc.shipment_id);
+            if !seen.insert(key) {
+                continue;
+            }
+
+            if let Some(existing) = existing_rows
+                .iter()
+                .find(|row| exchange_doc_matches(row, doc))
+                .cloned()
+            {
+                results.push(existing.into_doc());
+                continue;
+            }
+
+            let inserted: ExchangeDocRow = sqlx::query_as(
+                r#"
+                insert into exchange_docs(
+                    tenant_id, after_sales_id, exchange_status, outbound_doc_id, shipment_id
+                ) values ($1, $2, 'CREATED', $3, $4)
+                returning
+                    exchange_id, tenant_id, after_sales_id, exchange_status,
+                    outbound_doc_id, shipment_id, created_at, updated_at
+                "#,
             )
-            "#,
-        );
-        qb.push_values(docs, |mut b, doc| {
-            b.push_bind(uuid::Uuid::from(tenant_id))
-                .push_bind(after_sales_id)
-                .push_bind("CREATED")
-                .push_bind(doc.outbound_doc_id)
-                .push_bind(doc.shipment_id);
-        });
-        qb.push(
-            r#"
-            returning exchange_id, tenant_id, after_sales_id, exchange_status,
-                      outbound_doc_id, shipment_id, created_at, updated_at
-            "#,
-        );
-        let rows: Vec<ExchangeDocRow> = qb.build_query_as().fetch_all(self.pool).await?;
-        Ok(rows.into_iter().map(ExchangeDocRow::into_doc).collect())
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(after_sales_id)
+            .bind(doc.outbound_doc_id)
+            .bind(doc.shipment_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            existing_rows.push(inserted.clone());
+            results.push(inserted.into_doc());
+        }
+
+        tx.commit().await?;
+        Ok(results)
     }
 }
 
@@ -1547,7 +1586,7 @@ struct RefundDocRow {
     updated_at: DateTime<Utc>,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Clone)]
 struct ExchangeDocRow {
     exchange_id: uuid::Uuid,
     tenant_id: uuid::Uuid,
@@ -1599,6 +1638,17 @@ impl ExchangeDocRow {
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
+    }
+}
+
+fn exchange_doc_matches(row: &ExchangeDocRow, doc: &ExchangeDocCreateInput) -> bool {
+    match (doc.outbound_doc_id, doc.shipment_id) {
+        (Some(outbound_doc_id), Some(shipment_id)) => {
+            row.outbound_doc_id == Some(outbound_doc_id) && row.shipment_id == Some(shipment_id)
+        }
+        (Some(outbound_doc_id), None) => row.outbound_doc_id == Some(outbound_doc_id),
+        (None, Some(shipment_id)) => row.shipment_id == Some(shipment_id),
+        (None, None) => row.outbound_doc_id.is_none() && row.shipment_id.is_none(),
     }
 }
 

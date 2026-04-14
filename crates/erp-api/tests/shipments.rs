@@ -6,6 +6,8 @@ use axum::{
 use chrono::{Datelike, Utc};
 use erp_api::{build_app, AppState, Claims, JwtService};
 use erp_repo::db::Db;
+use erp_repo::shipments::{ShipmentsRepo, SHIPMENT_REQUESTED_EVENT};
+use erp_types::TenantId;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
@@ -1174,6 +1176,122 @@ async fn shipment_packages_update_order_status_inner() -> anyhow::Result<()> {
     .fetch_one(db.pool())
     .await?;
     assert_eq!(package_count, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn retry_failed_shipment_enqueues_single_outbox_event() -> anyhow::Result<()> {
+    if let Err(err) = retry_failed_shipment_enqueues_single_outbox_event_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping retry_failed_shipment_enqueues_single_outbox_event: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn retry_failed_shipment_enqueues_single_outbox_event_inner() -> anyhow::Result<()> {
+    let Ok(database_url) = std::env::var("DATABASE_URL") else {
+        return Ok(());
+    };
+
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let shipment_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month =
+        chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).expect("valid date");
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("retry-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id, name, shop_name, status)
+        values ($1, $2, $3, $4, $5, $5, 'AUTHORIZED')
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-RETRY")
+    .bind("retry-shop")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status
+        ) values ($1,$2,$3,$4,$5,$6,'PENDING_SHIPMENT')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("PLAT-RETRY-1")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shipments (
+            shipment_id, tenant_id, shop_id, order_id, platform, platform_order_id, status
+        ) values ($1,$2,$3,$4,$5,$6,'FAILED')
+        "#,
+    )
+    .bind(shipment_id)
+    .bind(tenant_id)
+    .bind(shop_id)
+    .bind(order_id)
+    .bind("taobao")
+    .bind("PLAT-RETRY-1")
+    .execute(db.pool())
+    .await?;
+
+    let tenant = TenantId(tenant_id);
+    let repo = ShipmentsRepo::new(db.pool());
+
+    repo.retry_failed_shipment(tenant, shipment_id).await?;
+    repo.retry_failed_shipment(tenant, shipment_id).await?;
+
+    let pending_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from outbox_events
+        where tenant_id = $1
+          and event_type = $2
+          and payload->>'shipment_id' = $3
+          and status in ('PENDING','FAILED','DISPATCHING')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(SHIPMENT_REQUESTED_EVENT)
+    .bind(shipment_id.to_string())
+    .fetch_one(db.pool())
+    .await?;
+
+    assert_eq!(
+        pending_count, 1,
+        "retry should be idempotent for pending shipment outbox"
+    );
 
     Ok(())
 }

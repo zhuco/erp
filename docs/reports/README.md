@@ -5,8 +5,8 @@
 
 ## 当前保留文档
 
-- （无）
-- 当前目录作为报告入口，报告正文统一归档到 `docs/reports/archive/`。
+- `docs/reports/更新说明_2026-04-14.md`
+- 其余历史阶段性报告统一归档到 `docs/reports/archive/`。
 
 ## 历史归档入口
 

@@ -361,9 +361,9 @@ impl<'a> ApPaymentPlansRepo<'a> {
         let row: Option<Row> = sqlx::query_as(
             r#"
             update ap_payment_plans
-            set status = $3,
-                paid_at = now(),
-                updated_at = now()
+            set status = case when status = $3 then status else $3 end,
+                paid_at = coalesce(paid_at, now()),
+                updated_at = case when status = $3 then updated_at else now() end
             where tenant_id = $1 and plan_id = $2
             returning plan_id, ap_id, supplier_id,
                       (select name from suppliers s where s.supplier_id = ap_payment_plans.supplier_id

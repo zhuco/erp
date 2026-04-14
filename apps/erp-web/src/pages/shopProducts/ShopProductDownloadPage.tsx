@@ -62,6 +62,9 @@ type FilterValues = {
   status?: ShopProductStatusFilter;
   keyword?: string;
   match_status?: string;
+  mapping_status?: string;
+  conflict_reason?: string;
+  match_source?: string;
   updated_range?: [dayjs.Dayjs, dayjs.Dayjs];
 };
 
@@ -101,6 +104,36 @@ const statusOptions = [
   { label: '全部', value: 'ALL' }
 ];
 
+const matchStatusOptions = [
+  { label: '已匹配', value: 'MATCHED' },
+  { label: '未匹配', value: 'UNMATCHED' },
+  { label: '自动匹配', value: 'AUTO' },
+  { label: '手动匹配', value: 'MANUAL' }
+];
+
+const mappingStatusOptions = [
+  { label: '映射有效', value: 'ACTIVE' },
+  { label: '匹配冲突', value: 'CONFLICT' },
+  { label: '映射失效', value: 'INACTIVE' }
+];
+
+const matchSourceOptions = [
+  { label: '自动', value: 'AUTO' },
+  { label: '手动', value: 'MANUAL' }
+];
+
+const conflictReasonOptions = [
+  { label: '无候选 SKU', value: 'NO_CANDIDATE' },
+  { label: '多候选 SKU', value: 'MULTI_CANDIDATE' },
+  { label: '候选 SKU 不可用', value: 'SKU_INACTIVE' }
+];
+
+const conflictReasonLabelMap: Record<string, string> = {
+  NO_CANDIDATE: '无候选 SKU',
+  MULTI_CANDIDATE: '多候选 SKU',
+  SKU_INACTIVE: '候选 SKU 不可用'
+};
+
 const normalizeStatus = (status?: ShopProductStatusFilter) => {
   if (!status || status === 'ALL') {
     return undefined;
@@ -109,6 +142,9 @@ const normalizeStatus = (status?: ShopProductStatusFilter) => {
 };
 
 const resolveMatchStatus = (record: ShopProductSku) => {
+  if (record.mapping_status === 'CONFLICT') {
+    return { label: '匹配冲突', color: 'red' };
+  }
   if (!record.mapping_id) {
     return { label: '未匹配', color: 'default' };
   }
@@ -218,6 +254,9 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       status: normalizeStatus(filters.status),
       keyword: filters.keyword?.trim() || undefined,
       match_status: filters.match_status,
+      mapping_status: filters.mapping_status,
+      conflict_reason: filters.conflict_reason,
+      match_source: filters.match_source,
       updated_from: filters.updated_range?.[0]?.toISOString(),
       updated_to: filters.updated_range?.[1]?.toISOString(),
       offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? 20),
@@ -301,6 +340,17 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         }
       },
       {
+        title: '映射状态',
+        dataIndex: 'mapping_status',
+        render: (value: string | null | undefined) => (value ? <Tag>{value}</Tag> : '-')
+      },
+      {
+        title: '冲突原因',
+        dataIndex: 'conflict_reason',
+        render: (value: string | null | undefined) =>
+          value ? conflictReasonLabelMap[value] ?? value : '-'
+      },
+      {
         title: '匹配货品',
         dataIndex: 'mapped_sku_code',
         render: (_, record) =>
@@ -372,6 +422,9 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     status: normalizeStatus(values.status),
     keyword: values.keyword?.trim() || undefined,
     match_status: values.match_status,
+    mapping_status: values.mapping_status,
+    conflict_reason: values.conflict_reason,
+    match_source: values.match_source,
     updated_from: values.updated_range?.[0]?.toISOString(),
     updated_to: values.updated_range?.[1]?.toISOString()
   });
@@ -623,20 +676,50 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 <Col xs={24}>
                   <Form.Item name="match_status" label="匹配状态">
                     <Select
+                      data-testid="shop-products-filter-match-status"
                       allowClear
-                      options={[
-                        { label: '已匹配', value: 'MATCHED' },
-                        { label: '未匹配', value: 'UNMATCHED' },
-                        { label: '自动匹配', value: 'AUTO' },
-                        { label: '手动匹配', value: 'MANUAL' }
-                      ]}
+                      options={matchStatusOptions}
                       placeholder="选择匹配状态"
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
+                  <Form.Item name="mapping_status" label="映射状态">
+                    <Select
+                      data-testid="shop-products-filter-mapping-status"
+                      allowClear
+                      options={mappingStatusOptions}
+                      placeholder="选择映射状态"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item name="match_source" label="匹配来源">
+                    <Select
+                      data-testid="shop-products-filter-match-source"
+                      allowClear
+                      options={matchSourceOptions}
+                      placeholder="选择匹配来源"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item name="conflict_reason" label="冲突原因">
+                    <Select
+                      data-testid="shop-products-filter-conflict-reason"
+                      allowClear
+                      options={conflictReasonOptions}
+                      placeholder="选择冲突原因"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
                   <Form.Item name="keyword" label="关键字">
-                    <Input allowClear placeholder="标题/商家编码/规格编码" />
+                    <Input
+                      data-testid="shop-products-filter-keyword"
+                      allowClear
+                      placeholder="标题/商家编码/规格编码"
+                    />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
@@ -646,10 +729,15 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 </Col>
                 <Col xs={24}>
                   <Space>
-                    <Button type="primary" htmlType="submit" size="small">
+                    <Button
+                      data-testid="shop-products-filter-submit"
+                      type="primary"
+                      htmlType="submit"
+                      size="small"
+                    >
                       查询
                     </Button>
-                    <Button onClick={handleReset} size="small">
+                    <Button data-testid="shop-products-filter-reset" onClick={handleReset} size="small">
                       重置
                     </Button>
                   </Space>
@@ -688,17 +776,28 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             <Dropdown
               menu={{
                 items: [
-                  { key: 'selected', label: '按勾选匹配' },
-                  { key: 'filtered', label: '按筛选匹配' }
+                  {
+                    key: 'selected',
+                    label: <span data-testid="shop-products-auto-match-selected">按勾选匹配</span>
+                  },
+                  {
+                    key: 'filtered',
+                    label: <span data-testid="shop-products-auto-match-filtered">按筛选匹配</span>
+                  }
                 ],
                 onClick: ({ key }) => handleAutoMatch(key as 'selected' | 'filtered')
               }}
             >
-              <Button loading={autoMatchLoading} disabled={!canWrite}>
+              <Button
+                data-testid="shop-products-auto-match-button"
+                loading={autoMatchLoading}
+                disabled={!canWrite}
+              >
                 自动匹配
               </Button>
             </Dropdown>
             <Button
+              data-testid="shop-products-manual-match-button"
               disabled={!canWrite}
               onClick={() => {
                 manualForm.resetFields();
@@ -892,6 +991,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             rules={[{ required: true, message: '请选择货品档案' }]}
           >
             <Select
+              data-testid="shop-products-manual-match-sku-select"
               showSearch
               loading={skuLoading}
               optionFilterProp="label"

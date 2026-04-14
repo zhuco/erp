@@ -1,16 +1,23 @@
 import {
   Alert,
   Button,
+  Card,
+  DatePicker,
+  Descriptions,
   Drawer,
+  Empty,
   Form,
   Input,
+  Modal,
   Progress,
+  Radio,
   Select,
   Space,
   Switch,
   Tag,
   TimePicker,
   Tooltip,
+  Typography,
   message
 } from 'antd';
 import type { TablePaginationConfig } from 'antd';
@@ -25,16 +32,31 @@ import {
 } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import type { SalesShopConfig, SalesShopConfigRequest } from '@/api/salesShops';
 import { listSalesShopConfigs, updateSalesShopConfig } from '@/api/salesShops';
-import type { SyncJob } from '@/api/syncJobs';
-import { listSyncJobs, runSyncJob } from '@/api/syncJobs';
+import type {
+  PlatformOrderNoDownloadResponse,
+  SyncJob
+} from '@/api/syncJobs';
+import {
+  downloadPlatformOrdersByOrderNos,
+  downloadPlatformOrdersByTimeRange,
+  downloadPlatformOrdersManual,
+  listSyncJobs,
+  runSyncJob
+} from '@/api/syncJobs';
 import type { Shop } from '@/api/shops';
-import { listShops, startShopAuthorize } from '@/api/shops';
+import {
+  listShops,
+  requestTokenRefresh,
+  startShopAuthorize,
+  submitShopAuthCallback
+} from '@/api/shops';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { PlatformTag } from '@/components/PlatformTag';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
@@ -42,6 +64,18 @@ import type { PlatformCode } from '@/features/platform';
 import { platformOptions } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import {
+  buildCreateChannelRoute,
+  buildShopAuthCallbackUrl,
+  parseShopAuthCallbackSearch
+} from '@/pages/channels/shopAccessModel';
+import { routerBasePath, routerMode } from '@/utils/env';
+
+import {
+  buildSalesShopPageWarnings,
+  buildSalesShopRows,
+  resolveSalesShopPageError
+} from './salesShopConfigModel';
 
 type ConfigFormValues = {
   auto_download_orders: boolean;
@@ -55,6 +89,7 @@ type ConfigFormValues = {
 };
 
 type DownloadMethod = 'realtime' | 'scheduled' | 'manual';
+type ManualDownloadMode = 'incremental' | 'order-nos' | 'time-range';
 
 type ColumnFilters = {
   channel?: string;
@@ -62,6 +97,14 @@ type ColumnFilters = {
   downloadStatus?: string;
   downloadMethod?: DownloadMethod;
   authStatus?: string;
+};
+
+type ManualDownloadFormValues = {
+  mode: ManualDownloadMode;
+  order_nos_text?: string;
+  time_range?: [Dayjs, Dayjs];
+  cursor?: string;
+  watermark?: string;
 };
 
 const intervalOptions = [5, 10, 15, 30, 60].map((value) => ({
@@ -86,6 +129,12 @@ const authStatusOptions = [
   { label: '授权正常', value: 'AUTHORIZED' },
   { label: '授权失败', value: 'EXPIRED' },
   { label: '未授权', value: 'DISABLED' }
+];
+
+const manualDownloadModeOptions: Array<{ label: string; value: ManualDownloadMode }> = [
+  { label: '增量下载', value: 'incremental' },
+  { label: '按订单号下载', value: 'order-nos' },
+  { label: '按日期下载', value: 'time-range' }
 ];
 
 const formatDateTime = (value?: string | null) =>
@@ -169,12 +218,34 @@ const resolveNextDownloadTime = (job: SyncJob | undefined, config: SalesShopConf
   return next.isValid() ? next.format('YYYY-MM-DD HH:mm') : '-';
 };
 
+const parseOrderNosInput = (value?: string) =>
+  (value ?? '')
+    .split(/[\n,，\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const isPlatformCode = (value?: string): value is PlatformCode =>
+  Boolean(value && platformOptions.some((option) => option.value === value));
+
 export const SalesShopConfigPage = () => {
   const tenantId = useTenantId();
   const canWrite = useCan('SYS.SETTINGS.WRITE');
+  const location = useLocation();
   const navigate = useNavigate();
+  const {
+    setLeftPanel,
+    setRightPanel,
+    setBottomPanel,
+    setLeftPanelVisible,
+    setRightPanelVisible,
+    setBottomPanelVisible,
+    setRightPanelWidth,
+    clearPanels
+  } = useWorkbenchPanels();
   const queryClient = useQueryClient();
   const [configForm] = Form.useForm<ConfigFormValues>();
+  const [manualDownloadForm] = Form.useForm<ManualDownloadFormValues>();
+  const manualDownloadMode = Form.useWatch('mode', manualDownloadForm);
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 20
@@ -183,11 +254,20 @@ export const SalesShopConfigPage = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [activeShopId, setActiveShopId] = useState<string | null>(null);
   const [editingConfig, setEditingConfig] = useState<SalesShopConfig | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [batchDownloading, setBatchDownloading] = useState(false);
+  const [manualDownloadOpen, setManualDownloadOpen] = useState(false);
+  const [manualDownloadTarget, setManualDownloadTarget] =
+    useState<SalesShopConfig | null>(null);
+  const [manualDownloadSubmitting, setManualDownloadSubmitting] = useState(false);
+  const [manualDownloadResult, setManualDownloadResult] =
+    useState<PlatformOrderNoDownloadResponse | null>(null);
+  const [refreshingTokenShopId, setRefreshingTokenShopId] = useState<string | null>(null);
+  const callbackRequestKeyRef = useRef<string | null>(null);
 
   const orderSyncFlag = useFeatureFlag('flows.order_auto_download');
   const mergeFlag = useFeatureFlag('flows.merge_outside_ship_time');
@@ -261,14 +341,60 @@ export const SalesShopConfigPage = () => {
   }, [syncJobsQuery.data?.items]);
 
   const configItems = data?.items ?? [];
+  const shopItems = shopsQuery.data?.items ?? [];
+  const baseItems = useMemo(
+    () => buildSalesShopRows(configItems, shopItems),
+    [configItems, shopItems]
+  );
   const configMap = useMemo(
-    () => new Map(configItems.map((config) => [config.shop_id, config])),
-    [configItems]
+    () => new Map(baseItems.map((config) => [config.shop_id, config])),
+    [baseItems]
+  );
+  const authCallbackState = useMemo(
+    () => parseShopAuthCallbackSearch(location.search),
+    [location.search]
+  );
+  const selectedConfigId = useMemo(() => {
+    if (activeShopId && configMap.has(activeShopId)) {
+      return activeShopId;
+    }
+    if (selectedRowKeys.length === 1 && configMap.has(selectedRowKeys[0])) {
+      return selectedRowKeys[0];
+    }
+    return null;
+  }, [activeShopId, configMap, selectedRowKeys]);
+  const selectedConfig = useMemo(
+    () => (selectedConfigId ? configMap.get(selectedConfigId) ?? null : null),
+    [configMap, selectedConfigId]
+  );
+  const selectedShop = useMemo(
+    () => (selectedConfig ? shopMap.get(selectedConfig.shop_id) ?? null : null),
+    [selectedConfig, shopMap]
+  );
+  const selectedSyncJob = useMemo(
+    () => (selectedConfig ? syncJobMap.get(selectedConfig.shop_id) : undefined),
+    [selectedConfig, syncJobMap]
+  );
+  const selectedAuthStatus = useMemo(
+    () => (selectedConfig ? resolveAuthStatus(selectedConfig, selectedShop) : null),
+    [selectedConfig, selectedShop]
+  );
+  const selectedCallbackUrl = useMemo(
+    () =>
+      selectedConfig
+        ? buildShopAuthCallbackUrl({
+            origin: window.location.origin,
+            routerMode,
+            routerBasePath,
+            shopId: selectedConfig.shop_id
+          })
+        : '-',
+    [selectedConfig]
   );
 
   const filteredItems = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
-    return configItems.filter((config) => {
+    return baseItems.filter((config) => {
       if (keyword) {
         const channel = config.name?.toLowerCase() ?? '';
         const platform = config.platform?.toLowerCase() ?? '';
@@ -305,7 +431,7 @@ export const SalesShopConfigPage = () => {
       }
       return true;
     });
-  }, [columnFilters, configItems, searchKeyword, shopMap, syncJobMap]);
+  }, [baseItems, columnFilters, searchKeyword, shopMap, syncJobMap]);
 
   const pagedItems = useMemo(() => {
     const current = pagination.current ?? 1;
@@ -314,39 +440,105 @@ export const SalesShopConfigPage = () => {
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, pagination.current, pagination.pageSize]);
 
-  const resolveDownloadDecision = (config: SalesShopConfig) => {
-    if (!orderSyncFlag.enabled) {
-      return { allowed: false, reason: orderSyncFlag.reason || '订单下载已关闭' };
-    }
-    if (config.status !== 'AUTHORIZED') {
-      return { allowed: false, reason: '网店未授权' };
-    }
-    return { allowed: true };
-  };
+  const resolveShopCallbackUrl = useCallback(
+    (shopId: string) =>
+      buildShopAuthCallbackUrl({
+        origin: window.location.origin,
+        routerMode,
+        routerBasePath,
+        shopId
+      }),
+    []
+  );
 
-  const openConfig = (record: SalesShopConfig) => {
-    setEditingConfig(record);
-    setDrawerOpen(true);
-    const range =
-      record.non_shipping_time_start && record.non_shipping_time_end
-        ? [
-            dayjs(record.non_shipping_time_start, 'HH:mm'),
-            dayjs(record.non_shipping_time_end, 'HH:mm')
-          ]
-        : undefined;
-    configForm.setFieldsValue({
-      auto_download_orders: record.auto_download_orders,
-      auto_to_review: record.auto_to_review,
-      download_interval_minutes: record.download_interval_minutes,
-      auto_merge_non_shipping_time: record.auto_merge_non_shipping_time,
-      non_shipping_time_range: range,
-      enable_stock_sync: record.enable_stock_sync,
-      enable_after_sales_download: record.enable_after_sales_download,
-      enable_logistics_upload: record.enable_logistics_upload
-    });
-  };
+  useEffect(() => {
+    if (!authCallbackState || !tenantId) {
+      callbackRequestKeyRef.current = null;
+      return;
+    }
 
-  const handleSave = async () => {
+    const requestKey = [
+      authCallbackState.shopId ?? '',
+      authCallbackState.code ?? '',
+      authCallbackState.error ?? '',
+      authCallbackState.state ?? ''
+    ].join('|');
+    if (callbackRequestKeyRef.current === requestKey) {
+      return;
+    }
+    callbackRequestKeyRef.current = requestKey;
+
+    if (!authCallbackState.shopId) {
+      message.error('授权回调缺少店铺ID，无法完成授权绑定。');
+      navigate('/channels/shops', { replace: true });
+      return;
+    }
+
+    void (async () => {
+      const shopId = authCallbackState.shopId as string;
+      try {
+        await submitShopAuthCallback(tenantId, shopId, {
+          code: authCallbackState.code,
+          state: authCallbackState.state,
+          error: authCallbackState.error,
+          error_description: authCallbackState.errorDescription,
+          redirect_uri: resolveShopCallbackUrl(shopId)
+        });
+        await queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
+        await queryClient.invalidateQueries({ queryKey: ['sales-shop-configs', tenantId] });
+        if (authCallbackState.hasError) {
+          message.error(authCallbackState.errorDescription || authCallbackState.error || '授权失败');
+        } else {
+          message.success('授权回调已接收，店铺状态已更新。');
+        }
+      } catch (callbackError) {
+        message.error(callbackError instanceof Error ? callbackError.message : '授权回调处理失败');
+      } finally {
+        navigate('/channels/shops', { replace: true });
+      }
+    })();
+  }, [authCallbackState, navigate, queryClient, resolveShopCallbackUrl, tenantId]);
+
+  const resolveDownloadDecision = useCallback(
+    (config: SalesShopConfig): DownloadDecision => {
+      if (!orderSyncFlag.enabled) {
+        return { allowed: false, reason: orderSyncFlag.reason || '订单下载已关闭。' };
+      }
+      const auth = resolveAuthStatus(config, shopMap.get(config.shop_id));
+      if (auth.key !== 'AUTHORIZED') {
+        return { allowed: false, reason: '网店尚未完成有效授权。' };
+      }
+      return { allowed: true };
+    },
+    [orderSyncFlag.enabled, orderSyncFlag.reason, shopMap]
+  );
+
+  const openConfig = useCallback(
+    (record: SalesShopConfig) => {
+      setEditingConfig(record);
+      setDrawerOpen(true);
+      const range =
+        record.non_shipping_time_start && record.non_shipping_time_end
+          ? [
+              dayjs(record.non_shipping_time_start, 'HH:mm'),
+              dayjs(record.non_shipping_time_end, 'HH:mm')
+            ]
+          : undefined;
+      configForm.setFieldsValue({
+        auto_download_orders: record.auto_download_orders,
+        auto_to_review: record.auto_to_review,
+        download_interval_minutes: record.download_interval_minutes,
+        auto_merge_non_shipping_time: record.auto_merge_non_shipping_time,
+        non_shipping_time_range: range,
+        enable_stock_sync: record.enable_stock_sync,
+        enable_after_sales_download: record.enable_after_sales_download,
+        enable_logistics_upload: record.enable_logistics_upload
+      });
+    },
+    [configForm]
+  );
+
+  const handleSave = useCallback(async () => {
     if (!editingConfig) {
       return;
     }
@@ -355,7 +547,7 @@ export const SalesShopConfigPage = () => {
       setSaving(true);
       const range = values.non_shipping_time_range;
       if (values.auto_merge_non_shipping_time && (!range || range.length < 2)) {
-        message.warning('请选择非发货时间段');
+        message.warning('请选择非发货时间段。');
         setSaving(false);
         return;
       }
@@ -377,40 +569,126 @@ export const SalesShopConfigPage = () => {
         enable_logistics_upload: values.enable_logistics_upload
       };
       await updateSalesShopConfig(tenantId, editingConfig.shop_id, payload);
-      message.success('网店配置已更新');
+      message.success('网店配置已更新。');
       setDrawerOpen(false);
       setEditingConfig(null);
       await queryClient.invalidateQueries({ queryKey: ['sales-shop-configs', tenantId] });
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        message.error(err.message);
+    } catch (saveError) {
+      if (saveError instanceof Error && saveError.message) {
+        message.error(saveError.message);
       }
     } finally {
       setSaving(false);
     }
-  };
+  }, [configForm, editingConfig, queryClient, tenantId]);
 
-  const handleRunSync = async (record: SalesShopConfig) => {
-    const decision = resolveDownloadDecision(record);
-    if (!decision.allowed) {
-      message.warning(decision.reason || '暂不可下载');
+  const handleRunSync = useCallback(
+    async (record: SalesShopConfig) => {
+      const decision = resolveDownloadDecision(record);
+      if (!decision.allowed) {
+        message.warning(decision.reason || '暂不可下载。');
+        return;
+      }
+      try {
+        setSyncingId(record.shop_id);
+        await runSyncJob(tenantId, record.shop_id, { job_type: 'order_sync' });
+        message.success('下载任务已提交。');
+        await queryClient.invalidateQueries({ queryKey: ['sync-jobs', tenantId] });
+      } catch (syncError) {
+        message.error(syncError instanceof Error ? syncError.message : '下载任务提交失败');
+      } finally {
+        setSyncingId(null);
+      }
+    },
+    [queryClient, resolveDownloadDecision, tenantId]
+  );
+
+  const openManualDownload = useCallback(
+    (record: SalesShopConfig) => {
+      setManualDownloadTarget(record);
+      setManualDownloadResult(null);
+      manualDownloadForm.setFieldsValue({
+        mode: 'incremental',
+        order_nos_text: '',
+        time_range: undefined,
+        cursor: undefined,
+        watermark: undefined
+      });
+      setManualDownloadOpen(true);
+    },
+    [manualDownloadForm]
+  );
+
+  const handleManualDownload = useCallback(async () => {
+    if (!manualDownloadTarget) {
       return;
     }
     try {
-      setSyncingId(record.shop_id);
-      await runSyncJob(tenantId, record.shop_id, { job_type: 'order_sync' });
-      message.success('下载任务已提交');
+      const values = await manualDownloadForm.validateFields();
+      setManualDownloadSubmitting(true);
+      setManualDownloadResult(null);
+      if (values.mode === 'order-nos') {
+        const orderNos = parseOrderNosInput(values.order_nos_text);
+        if (!orderNos.length) {
+          message.warning('请至少输入一个订单号。');
+          setManualDownloadSubmitting(false);
+          return;
+        }
+        const result = await downloadPlatformOrdersByOrderNos(tenantId, manualDownloadTarget.shop_id, {
+          order_nos: orderNos
+        });
+        setManualDownloadResult(result);
+        message.success(`已处理 ${result.total} 条订单号下载请求。`);
+      } else if (values.mode === 'time-range') {
+        const range = values.time_range;
+        if (!range || range.length < 2) {
+          message.warning('请选择下载日期范围。');
+          setManualDownloadSubmitting(false);
+          return;
+        }
+        await downloadPlatformOrdersByTimeRange(tenantId, manualDownloadTarget.shop_id, {
+          start_time: range[0].toISOString(),
+          end_time: range[1].toISOString(),
+          cursor: values.cursor?.trim() || undefined
+        });
+        message.success('按日期下载任务已提交。');
+      } else {
+        await downloadPlatformOrdersManual(tenantId, manualDownloadTarget.shop_id, {
+          cursor: values.cursor?.trim() || undefined,
+          watermark: values.watermark?.trim() || undefined
+        });
+        message.success('增量下载任务已提交。');
+      }
       await queryClient.invalidateQueries({ queryKey: ['sync-jobs', tenantId] });
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '下载任务提交失败');
+      await queryClient.invalidateQueries({ queryKey: ['sales-shop-configs', tenantId] });
+    } catch (manualError) {
+      if (manualError instanceof Error) {
+        message.error(manualError.message);
+      }
     } finally {
-      setSyncingId(null);
+      setManualDownloadSubmitting(false);
     }
-  };
+  }, [manualDownloadForm, manualDownloadTarget, queryClient, tenantId]);
 
-  const handleBatchDownload = async () => {
+  const handleRefreshToken = useCallback(
+    async (record: SalesShopConfig) => {
+      try {
+        setRefreshingTokenShopId(record.shop_id);
+        await requestTokenRefresh(tenantId, record.shop_id);
+        message.success('Token 刷新任务已提交。');
+        await queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
+      } catch (refreshError) {
+        message.error(refreshError instanceof Error ? refreshError.message : '刷新 Token 失败');
+      } finally {
+        setRefreshingTokenShopId(null);
+      }
+    },
+    [queryClient, tenantId]
+  );
+
+  const handleBatchDownload = useCallback(async () => {
     if (!selectedRowKeys.length) {
-      message.warning('请先选择网店');
+      message.warning('请先选择网店。');
       return;
     }
     const selectedConfigs = selectedRowKeys
@@ -420,7 +698,7 @@ export const SalesShopConfigPage = () => {
       (config) => resolveDownloadDecision(config).allowed
     );
     if (!allowedConfigs.length) {
-      message.warning('所选网店暂不可下载');
+      message.warning('所选网店暂不可下载。');
       return;
     }
     try {
@@ -430,36 +708,47 @@ export const SalesShopConfigPage = () => {
           runSyncJob(tenantId, config.shop_id, { job_type: 'order_sync' })
         )
       );
-      message.success('下载任务已提交');
+      message.success('批量下载任务已提交。');
       await queryClient.invalidateQueries({ queryKey: ['sync-jobs', tenantId] });
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '下载任务提交失败');
+    } catch (batchError) {
+      message.error(batchError instanceof Error ? batchError.message : '批量下载任务提交失败');
     } finally {
       setBatchDownloading(false);
     }
-  };
+  }, [configMap, queryClient, resolveDownloadDecision, selectedRowKeys, tenantId]);
 
-  const handleAuthorize = async (record: SalesShopConfig) => {
-    try {
-      const response = await startShopAuthorize(tenantId, record.shop_id, {
-        redirect_uri: window.location.origin
-      });
-      window.open(response.authorize_url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '发起授权失败');
-    }
-  };
+  const handleAuthorize = useCallback(
+    async (record: SalesShopConfig) => {
+      try {
+        const response = await startShopAuthorize(tenantId, record.shop_id, {
+          redirect_uri: resolveShopCallbackUrl(record.shop_id)
+        });
+        window.open(response.authorize_url, '_blank', 'noopener,noreferrer');
+      } catch (authorizeError) {
+        message.error(authorizeError instanceof Error ? authorizeError.message : '发起授权失败');
+      }
+    },
+    [resolveShopCallbackUrl, tenantId]
+  );
 
-  const handleSearch = (value: string) => {
+  const handleCreateShop = useCallback(() => {
+    const preferredPlatform = selectedConfig?.platform;
+    const routePlatform = isPlatformCode(preferredPlatform)
+      ? preferredPlatform
+      : columnFilters.platform;
+    navigate(buildCreateChannelRoute(routePlatform));
+  }, [columnFilters.platform, navigate, selectedConfig?.platform]);
+
+  const handleSearch = useCallback((value: string) => {
     setSearchValue(value);
-    setSearchKeyword(value);
+    setSearchKeyword(value.trim());
     setPagination((prev) => ({ ...prev, current: 1 }));
-  };
+  }, []);
 
-  const updateColumnFilters = (patch: Partial<ColumnFilters>) => {
+  const updateColumnFilters = useCallback((patch: Partial<ColumnFilters>) => {
     setColumnFilters((prev) => ({ ...prev, ...patch }));
     setPagination((prev) => ({ ...prev, current: 1 }));
-  };
+  }, []);
 
   const columns = useMemo<ColumnsType<SalesShopConfig>>(
     () => {
@@ -547,7 +836,7 @@ export const SalesShopConfigPage = () => {
                 icon={<DownloadOutlined />}
                 disabled={!decision.allowed || !canWrite}
                 loading={syncingId === record.shop_id}
-                onClick={() => handleRunSync(record)}
+                onClick={() => void handleRunSync(record)}
               >
                 下载
               </Button>
@@ -559,7 +848,7 @@ export const SalesShopConfigPage = () => {
                   type="link"
                   icon={<KeyOutlined />}
                   disabled={!canWrite}
-                  onClick={() => handleAuthorize(record)}
+                  onClick={() => void handleAuthorize(record)}
                 >
                   授权
                 </Button>
@@ -587,6 +876,9 @@ export const SalesShopConfigPage = () => {
     },
     [
       canWrite,
+      handleAuthorize,
+      handleRunSync,
+      openConfig,
       pagination.current,
       pagination.pageSize,
       resolveDownloadDecision,
@@ -659,7 +951,7 @@ export const SalesShopConfigPage = () => {
         type="primary"
         icon={<PlusOutlined />}
         disabled={!canWrite}
-        onClick={() => message.info('新增网店功能待接入')}
+        onClick={handleCreateShop}
       >
         新增网店
       </Button>
@@ -667,35 +959,26 @@ export const SalesShopConfigPage = () => {
         icon={<DownloadOutlined />}
         disabled={!canWrite}
         loading={batchDownloading}
-        onClick={handleBatchDownload}
+        onClick={() => void handleBatchDownload()}
       >
-        下载订单
+        批量下载订单
       </Button>
       <Button
         icon={<SettingOutlined />}
         disabled={!canWrite}
         onClick={() => {
-          if (!selectedRowKeys.length) {
-            message.warning('请先选择网店');
+          if (!selectedConfig) {
+            message.warning('请先在表格中选择一个网店。');
             return;
           }
-          if (selectedRowKeys.length > 1) {
-            message.warning('一次只能修改一个网店');
-            return;
-          }
-          const selected = configMap.get(selectedRowKeys[0]);
-          if (!selected) {
-            message.warning('未找到选中的网店');
-            return;
-          }
-          openConfig(selected);
+          openConfig(selectedConfig);
         }}
       >
         修改网店配置
       </Button>
       <Button
         icon={<FileSearchOutlined />}
-        onClick={() => navigate('/sales/sync-job-runs')}
+        onClick={() => navigate('/channels/sync-jobs')}
       >
         网店日志
       </Button>
@@ -709,7 +992,7 @@ export const SalesShopConfigPage = () => {
       placeholder="请输入销售渠道或销售平台名称查询"
       onSearch={handleSearch}
       onChange={(event) => setSearchValue(event.target.value)}
-      style={{ width: 280 }}
+      style={{ width: 320 }}
     />
   );
 
@@ -717,39 +1000,230 @@ export const SalesShopConfigPage = () => {
     <Space size={8}>
       <Button
         icon={<QuestionCircleOutlined />}
-        onClick={() => message.info('帮助功能待接入')}
+        onClick={() =>
+          message.info('右侧面板提供授权与下载入口，日常建议使用增量下载或平台推送。')
+        }
       >
         帮助
       </Button>
     </Space>
   );
 
-  const header = disabledFlows.length ? (
+  const dataWarnings = useMemo(
+    () =>
+      buildSalesShopPageWarnings({
+        shopsError: shopsQuery.error,
+        syncJobsError: syncJobsQuery.error
+      }),
+    [shopsQuery.error, syncJobsQuery.error]
+  );
+
+  const headerMessages = [
+    ...(disabledFlows.length ? [`以下流程已关闭：${disabledFlows.join('、')}`] : []),
+    ...dataWarnings
+  ];
+
+  const header = headerMessages.length ? (
     <Alert
       type="warning"
       showIcon
-      message={`以下流程已关闭：${disabledFlows.join('、')}`}
+      message={headerMessages[0]}
+      description={headerMessages.length > 1 ? headerMessages.slice(1).join(' ') : undefined}
     />
   ) : null;
 
-  const mergedLoading =
-    isLoading ||
-    isFetching ||
-    shopsQuery.isLoading ||
-    shopsQuery.isFetching ||
-    syncJobsQuery.isLoading ||
-    syncJobsQuery.isFetching;
-  const mergedError = error || shopsQuery.error || syncJobsQuery.error;
+  const shouldWaitForFallbackData =
+    !configItems.length && !error && (shopsQuery.isLoading || shopsQuery.isFetching);
+
+  const mergedLoading = isLoading || isFetching || shouldWaitForFallbackData;
+  const mergedError = resolveSalesShopPageError({
+    hasRows: baseItems.length > 0,
+    configError: error,
+    shopsError: shopsQuery.error,
+    syncJobsError: syncJobsQuery.error
+  });
 
   const handleRetry = () => {
-    refetch();
-    shopsQuery.refetch();
-    syncJobsQuery.refetch();
+    void refetch();
+    void shopsQuery.refetch();
+    void syncJobsQuery.refetch();
   };
+
+  const rightPanel = useMemo(() => {
+    if (!selectedConfig) {
+      return (
+        <div data-testid="shop-access-right-panel-empty">
+          <Card size="small" title="店铺授权与订购中心">
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="请在左侧列表选择一个网店后继续。"
+            />
+          </Card>
+          <Card size="small" title="工业化规范" style={{ marginTop: 12 }}>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+              系统已按平台适配接口差异、订单数据差异和售后差异，下载链路统一进入标准任务中心。
+            </Typography.Paragraph>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+              日常下载建议使用增量下载，平台支持时可通过推送方式驱动。
+            </Typography.Paragraph>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              未发货退款订单在 WMS 出库前会自动触发取消与释放。
+            </Typography.Paragraph>
+          </Card>
+        </div>
+      );
+    }
+
+    const decision = resolveDownloadDecision(selectedConfig);
+    const tokenStatus = selectedShop?.token_status;
+
+    return (
+      <div data-testid="shop-access-right-panel">
+        <Card size="small" title="店铺授权">
+          <Descriptions size="small" column={1}>
+            <Descriptions.Item label="店铺">
+              {selectedConfig.name || selectedConfig.shop_id}
+            </Descriptions.Item>
+            <Descriptions.Item label="平台">
+              <PlatformTag platform={selectedConfig.platform} />
+            </Descriptions.Item>
+            <Descriptions.Item label="授权状态">
+              {selectedAuthStatus ? (
+                <Tag color={selectedAuthStatus.color}>{selectedAuthStatus.label}</Tag>
+              ) : (
+                '-'
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Token 到期">
+              {tokenStatus?.expires_at ? formatDateTime(tokenStatus.expires_at) : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="授权范围">
+              {tokenStatus?.scopes || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="回调地址">
+              <Typography.Text copyable={{ text: selectedCallbackUrl }} style={{ wordBreak: 'break-all' }}>
+                {selectedCallbackUrl}
+              </Typography.Text>
+            </Descriptions.Item>
+          </Descriptions>
+          <Space style={{ marginTop: 12 }} wrap>
+            <Button
+              type="primary"
+              icon={<KeyOutlined />}
+              disabled={!canWrite}
+              onClick={() => void handleAuthorize(selectedConfig)}
+            >
+              发起授权
+            </Button>
+            <Button
+              loading={refreshingTokenShopId === selectedConfig.shop_id}
+              disabled={!canWrite}
+              onClick={() => void handleRefreshToken(selectedConfig)}
+            >
+              刷新 Token
+            </Button>
+          </Space>
+        </Card>
+
+        <Card size="small" title="订单下载" style={{ marginTop: 12 }}>
+          <Descriptions size="small" column={1}>
+            <Descriptions.Item label="上次下载时间">
+              {formatDateTime(selectedSyncJob?.last_time)}
+            </Descriptions.Item>
+            <Descriptions.Item label="下载状态">
+              {(() => {
+                const status = resolveJobStatus(selectedSyncJob);
+                return <Tag color={status.color}>{status.label}</Tag>;
+              })()}
+            </Descriptions.Item>
+            <Descriptions.Item label="策略说明">
+              <Typography.Text type="secondary">
+                日常采用增量下载；平台支持时可切换为推送；手动支持按订单号和按日期下载。
+              </Typography.Text>
+            </Descriptions.Item>
+          </Descriptions>
+
+          {!decision.allowed ? (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={decision.reason || '当前店铺不可下载。'}
+            />
+          ) : null}
+
+          <Space style={{ marginTop: 12 }} wrap>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              disabled={!canWrite || !decision.allowed}
+              loading={syncingId === selectedConfig.shop_id}
+              onClick={() => void handleRunSync(selectedConfig)}
+            >
+              立即增量下载
+            </Button>
+            <Button disabled={!canWrite} onClick={() => openManualDownload(selectedConfig)}>
+              手动下载
+            </Button>
+          </Space>
+        </Card>
+
+        <Card size="small" title="工业化规范" style={{ marginTop: 12 }}>
+          <Space direction="vertical" size={6}>
+            <Typography.Text type="secondary">
+              1. 统一抽象多平台接口差异（鉴权、分页、限流、字段映射、售后状态机）。
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              2. 下载任务统一写入任务中心，支持增量水位、按号重放与按日期补采。
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              3. 未发货退款订单会在 WMS 出库前自动取消订单，避免误发。
+            </Typography.Text>
+          </Space>
+        </Card>
+      </div>
+    );
+  }, [
+    canWrite,
+    handleAuthorize,
+    handleRefreshToken,
+    handleRunSync,
+    openManualDownload,
+    refreshingTokenShopId,
+    resolveDownloadDecision,
+    selectedAuthStatus,
+    selectedCallbackUrl,
+    selectedConfig,
+    selectedShop,
+    selectedSyncJob,
+    syncingId
+  ]);
+
+  useEffect(() => {
+    setLeftPanel(undefined);
+    setRightPanel(rightPanel);
+    setBottomPanel(undefined);
+    setLeftPanelVisible(false);
+    setRightPanelVisible(true);
+    setBottomPanelVisible(false);
+    setRightPanelWidth(420);
+    return () => clearPanels();
+  }, [
+    clearPanels,
+    rightPanel,
+    setBottomPanel,
+    setBottomPanelVisible,
+    setLeftPanel,
+    setLeftPanelVisible,
+    setRightPanel,
+    setRightPanelVisible,
+    setRightPanelWidth
+  ]);
 
   return (
     <>
       <UiModule03MainTableSection<SalesShopConfig>
+        dataTestId="sales-shop-config-grid"
         toolbarLeft={toolbarLeft}
         toolbarCenter={toolbarCenter}
         toolbarRight={toolbarRight}
@@ -768,8 +1242,23 @@ export const SalesShopConfigPage = () => {
         columnSettingsKey="sales.shop.download.columns"
         rowSelection={{
           selectedRowKeys,
-          onChange: (keys) => setSelectedRowKeys(keys as string[])
+          onChange: (keys) => {
+            const normalized = keys.map((key) => String(key));
+            setSelectedRowKeys(normalized);
+            setActiveShopId((previous) => {
+              if (!normalized.length) {
+                return null;
+              }
+              if (previous && normalized.includes(previous)) {
+                return previous;
+              }
+              return normalized[0];
+            });
+          }
         }}
+        onRow={(record) => ({
+          onClick: () => setActiveShopId(record.shop_id)
+        })}
         queryCells={queryCells}
       />
 
@@ -782,7 +1271,7 @@ export const SalesShopConfigPage = () => {
         footer={
           <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
-            <Button type="primary" loading={saving} onClick={handleSave}>
+            <Button type="primary" loading={saving} onClick={() => void handleSave()}>
               保存
             </Button>
           </Space>
@@ -844,6 +1333,122 @@ export const SalesShopConfigPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <Modal
+        title={
+          manualDownloadTarget
+            ? `手动下载 - ${manualDownloadTarget.name || manualDownloadTarget.shop_id}`
+            : '手动下载'
+        }
+        open={manualDownloadOpen}
+        onCancel={() => setManualDownloadOpen(false)}
+        destroyOnClose
+        width={760}
+        okText="提交下载"
+        cancelText="取消"
+        confirmLoading={manualDownloadSubmitting}
+        onOk={() => void handleManualDownload()}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Alert
+            type="info"
+            showIcon
+            message="日常建议使用增量下载或平台推送；手动下载用于补采与对账。"
+          />
+
+          <Form
+            form={manualDownloadForm}
+            layout="vertical"
+            initialValues={{ mode: 'incremental' as ManualDownloadMode }}
+          >
+            <Form.Item name="mode" label="下载模式" rules={[{ required: true }]}>
+              <Radio.Group
+                options={manualDownloadModeOptions}
+                optionType="button"
+                buttonStyle="solid"
+              />
+            </Form.Item>
+
+            {manualDownloadMode === 'order-nos' ? (
+              <Form.Item
+                name="order_nos_text"
+                label="订单号"
+                extra="支持换行、英文逗号、中文逗号、空格分隔。"
+              >
+                <Input.TextArea rows={5} placeholder="示例：PDD20260413001,PDD20260413002" />
+              </Form.Item>
+            ) : null}
+
+            {manualDownloadMode === 'time-range' ? (
+              <Form.Item
+                name="time_range"
+                label="下载日期范围"
+                rules={[{ required: true, message: '请选择日期范围' }]}
+              >
+                <DatePicker.RangePicker
+                  style={{ width: '100%' }}
+                  showTime={{ format: 'HH:mm' }}
+                  format="YYYY-MM-DD HH:mm"
+                />
+              </Form.Item>
+            ) : null}
+
+            <Form.Item
+              name="cursor"
+              label="游标（可选）"
+              extra="用于平台侧的断点重试或分页续传。"
+            >
+              <Input placeholder="输入平台游标（可选）" />
+            </Form.Item>
+
+            {manualDownloadMode === 'incremental' ? (
+              <Form.Item
+                name="watermark"
+                label="增量水位（可选）"
+                extra="例如平台更新时间戳或业务水位键。"
+              >
+                <Input placeholder="输入增量水位（可选）" />
+              </Form.Item>
+            ) : null}
+          </Form>
+
+          {manualDownloadResult ? (
+            <Card
+              size="small"
+              title={`订单号下载结果（成功 ${manualDownloadResult.success_count} / 失败 ${manualDownloadResult.failure_count}）`}
+            >
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {manualDownloadResult.items.length ? (
+                  manualDownloadResult.items.map((item) => (
+                    <div
+                      key={`${item.platform_order_id}-${item.order_id ?? 'none'}`}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        borderBottom: '1px solid var(--ant-color-border-secondary)',
+                        paddingBottom: 6
+                      }}
+                    >
+                      <Typography.Text>{item.platform_order_id}</Typography.Text>
+                      <Space size={8}>
+                        <Tag color={item.success ? 'green' : 'red'}>
+                          {item.success ? '成功' : '失败'}
+                        </Tag>
+                        <Typography.Text type="secondary">
+                          {item.message || item.order_id || '-'}
+                        </Typography.Text>
+                      </Space>
+                    </div>
+                  ))
+                ) : (
+                  <Typography.Text type="secondary">无返回明细。</Typography.Text>
+                )}
+              </Space>
+            </Card>
+          ) : null}
+        </Space>
+      </Modal>
     </>
   );
 };

@@ -53,6 +53,8 @@ pub const OP_ACTION_OMS_SHIPMENT_SHIPPED: &str = "OMS.SHIPMENT_SHIPPED";
 pub const OP_ACTION_OMS_RESEND_CREATED: &str = "OMS.RESEND_CREATED";
 pub const OP_ACTION_OMS_RESERVATION_RELEASED: &str = "OMS.RESERVATION_RELEASED";
 pub const OP_ACTION_OMS_SHIPMENT_CANCEL_REQUESTED: &str = "OMS.SHIPMENT_CANCEL_REQUESTED";
+pub const OP_ACTION_SHOP_PRODUCT_AUTO_MATCH: &str = "SHOP_PRODUCTS.AUTO_MATCH";
+pub const OP_ACTION_SHOP_PRODUCT_MANUAL_MATCH: &str = "SHOP_PRODUCTS.MANUAL_MATCH";
 pub const OP_ACTION_WMS_OUTBOUND_CREATED: &str = "WMS.OUTBOUND_CREATED";
 pub const OP_ACTION_WMS_OUTBOUND_PACKED: &str = "WMS.PACKED";
 pub const OP_ACTION_WMS_OUTBOUND_INSPECTED: &str = "WMS.INSPECTED";
@@ -82,6 +84,14 @@ pub const OP_ACTION_WMS_OUTBOUND_CHECKED: &str = "WMS.OUTBOUND_CHECKED";
 pub const OP_ACTION_WMS_OUTBOUND_WEIGHED: &str = "WMS.OUTBOUND_WEIGHED";
 pub const OP_ACTION_AP_DOC_PAID: &str = "FINANCE.AP_DOC_PAID";
 pub const OP_ACTION_AP_DOC_CLOSED: &str = "FINANCE.AP_DOC_CLOSED";
+pub const OP_ACTION_SYSTEM_FRONTEND_ROUTE_DIAGNOSTIC: &str = "SYSTEM.FRONTEND_ROUTE_DIAGNOSTIC";
+
+fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
+    if value.trim().is_empty() {
+        return Err(anyhow!("{field} must not be blank"));
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationLog {
@@ -166,6 +176,8 @@ impl<'a> OperationLogsRepo<'a> {
     where
         T: sqlx::Executor<'t, Database = Postgres>,
     {
+        ensure_non_blank("actor_type", &input.actor_type)?;
+        ensure_non_blank("action", &input.action)?;
         let metadata = input.metadata.unwrap_or_else(|| serde_json::json!({}));
         let row: OperationLogRow = sqlx::query_as(
             r#"
@@ -250,6 +262,18 @@ impl<'a> OperationLogsRepo<'a> {
         let items = rows.into_iter().map(OperationLogRow::into_log).collect();
 
         Ok(OperationLogListResult { items, next_cursor })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_non_blank;
+
+    #[test]
+    fn ensure_non_blank_rejects_blank_values() {
+        assert!(ensure_non_blank("actor_type", " ").is_err());
+        assert!(ensure_non_blank("actor_type", "\r\n").is_err());
+        assert!(ensure_non_blank("actor_type", "USER").is_ok());
     }
 }
 

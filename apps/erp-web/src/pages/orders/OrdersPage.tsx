@@ -73,6 +73,7 @@ import type { PlatformCode } from '@/features/platform';
 import { platformOptions } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { buildCourierOptionLabel, resolveCourierOptionValue } from './shared/courierDisplay';
 import { OrderQueryLeftPanel } from './components/OrderQueryLeftPanel';
 import {
   buildOrderQueryLeftCheckedKeys,
@@ -732,9 +733,11 @@ export const OrdersPage = ({
       const value = String(courier.name ?? '').trim();
       if (!value) return;
       const code = String(courier.code ?? '').trim();
-      map.set(value, {
-        label: code ? `${value} (${code})` : value,
-        value,
+      const optionValue = resolveCourierOptionValue(value, code);
+      if (!optionValue) return;
+      map.set(optionValue, {
+        label: buildCourierOptionLabel(value, code),
+        value: optionValue,
       });
     });
     if (detailLogisticsCompany && !map.has(detailLogisticsCompany)) {

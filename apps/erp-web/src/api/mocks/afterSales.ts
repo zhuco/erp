@@ -1,9 +1,20 @@
 import dayjs from 'dayjs';
 
+import type { AfterSaleCaseDetail, AfterSaleListResponse } from '../afterSales';
 import type {
-  AfterSaleCaseDetail,
-  AfterSalesInspection,
+  AfterSalesDetail,
   AfterSalesImportJob,
+  AfterSalesListResponse as AfterSalesOpsListResponse,
+  AfterSalesSummary,
+  AfterSalesType,
+  AfterSalesStatus,
+  RefundChannel,
+  RefundDoc,
+  RefundDocListResponse,
+  RefundStatus,
+} from '../afterSalesOps';
+import type {
+  AfterSalesInspection,
   AfterSalesImportJobListQuery,
   AfterSalesIntercept,
   AfterSalesInspectionCreatePayload,
@@ -18,6 +29,7 @@ import type {
   AfterSalesSlaRuleUpdatePayload,
   AfterSalesOpsCreatePayload,
   AfterSalesOpsListQuery,
+  AfterSalesOpsRecord,
   RefundDocListQuery
 } from './data';
 import {
@@ -33,7 +45,115 @@ import {
   mockUserId
 } from './data';
 
-export const getMockAfterSalesList = (query: AfterSalesListQuery) => {
+const normalizeAfterSalesType = (value?: string): AfterSalesType => {
+  switch (value) {
+    case 'REFUND_ONLY':
+    case 'RETURN_REFUND':
+    case 'EXCHANGE':
+    case 'RESEND':
+      return value;
+    default:
+      return 'RETURN_REFUND';
+  }
+};
+
+const normalizeAfterSalesStatus = (value?: string): AfterSalesStatus => {
+  switch (value) {
+    case 'OPEN':
+    case 'APPROVED':
+    case 'RECEIVED':
+    case 'REFUNDED':
+    case 'CLOSED':
+    case 'REJECTED':
+      return value;
+    default:
+      return 'OPEN';
+  }
+};
+
+const normalizeRefundStatus = (value?: string): RefundStatus => {
+  switch (value) {
+    case 'PENDING':
+    case 'SENT':
+    case 'FAILED':
+    case 'DONE':
+      return value;
+    default:
+      return 'PENDING';
+  }
+};
+
+const normalizeRefundChannel = (value?: string): RefundChannel => {
+  switch (value) {
+    case 'PLATFORM':
+    case 'MANUAL':
+      return value;
+    default:
+      return 'MANUAL';
+  }
+};
+
+const normalizeInspectionResult = (
+  value?: string
+): AfterSalesInspection['result_code'] => {
+  switch (value) {
+    case 'PENDING':
+    case 'RESALE':
+    case 'REPAIR':
+    case 'SCRAP':
+      return value;
+    default:
+      return 'PENDING';
+  }
+};
+
+const normalizeSlaStatus = (value?: string): AfterSalesSlaRule['status'] =>
+  value === 'DISABLED' ? 'DISABLED' : 'ACTIVE';
+
+const toAfterSalesSummary = (record: AfterSalesOpsRecord): AfterSalesSummary => ({
+  id: record.id,
+  tenant_id: record.tenant_id,
+  order_id: record.order_id,
+  type: normalizeAfterSalesType(record.type),
+  status: normalizeAfterSalesStatus(record.status),
+  reason_code: record.reason_code ?? null,
+  amount_cent: record.amount_cent,
+  created_at: record.created_at,
+  updated_at: record.updated_at,
+});
+
+const toRefundDoc = (doc: {
+  id: string;
+  after_sales_id: string;
+  amount_cent: number;
+  status?: string;
+  channel?: string;
+  created_at: string;
+  updated_at: string;
+}): RefundDoc => ({
+  id: doc.id,
+  after_sales_id: doc.after_sales_id,
+  amount_cent: doc.amount_cent,
+  status: normalizeRefundStatus(doc.status),
+  channel: normalizeRefundChannel(doc.channel),
+  created_at: doc.created_at,
+  updated_at: doc.updated_at,
+});
+
+const resolveAfterSalesOpsRecord = (afterSalesId: string): AfterSalesOpsRecord =>
+  mockAfterSalesOps.find((item) => item.id === afterSalesId) ?? mockAfterSalesOps[0] ?? {
+    id: afterSalesId,
+    tenant_id: mockTenantId,
+    order_id: `ORDER-${afterSalesId}`,
+    type: 'RETURN_REFUND',
+    status: 'OPEN',
+    reason_code: null,
+    amount_cent: 0,
+    created_at: dayjs().toISOString(),
+    updated_at: dayjs().toISOString(),
+  };
+
+export const getMockAfterSalesList = (query: AfterSalesListQuery): AfterSaleListResponse => {
   const filtered = mockAfterSales.filter((item) => {
     if (query.platform && item.platform !== query.platform) {
       return false;
@@ -59,26 +179,43 @@ export const getMockAfterSalesList = (query: AfterSalesListQuery) => {
     }
     return true;
   });
-  const limit = query.limit ?? query.page_size ?? 20;
-  const offset = query.offset ?? 0;
+  const limit = query.page_size ?? 20;
+  const offset = query.page_token ? Number(query.page_token) || 0 : 0;
   return {
-    items: applyPagination(filtered, offset, limit),
-    total: filtered.length,
-    next_page_token: null
+    data: applyPagination(filtered, offset, limit).map((item) => ({
+      case_id: item.case_id,
+      tenant_id: mockTenantId,
+      shop_id: item.shop_id,
+      platform: item.platform,
+      case_status: item.case_status,
+      platform_order_id: item.platform_order_id ?? null,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    })),
+    next_page_token: offset + limit < filtered.length ? String(offset + limit) : null,
   };
 };
 
 export const getMockAfterSaleDetail = (caseId: string): AfterSaleCaseDetail => {
-  return (
-    mockAfterSaleDetails.get(caseId) ?? {
-      case: {
-        case_id: caseId,
-        platform: 'taobao',
-        shop_id: 'SHOP-taobao-1'
-      },
-      items: []
-    }
-  );
+  return mockAfterSaleDetails.get(caseId) ?? {
+    case: {
+      case_id: caseId,
+      tenant_id: mockTenantId,
+      platform: 'taobao',
+      shop_id: 'SHOP-taobao-1',
+      after_sale_id: `AFTER-${caseId}`,
+      after_sale_type: 'refund',
+      refund_state: 'UNKNOWN',
+      after_sale_state: 'UNKNOWN',
+      refund_amount_cent: 0,
+      item_count: 0,
+      total_qty: 0,
+      order_count: 0,
+      created_at: dayjs().toISOString(),
+      updated_at: dayjs().toISOString(),
+    },
+    items: [],
+  };
 };
 
 export const getMockAfterSaleRaw = (caseId: string) => {
@@ -91,7 +228,9 @@ export const getMockAfterSaleRaw = (caseId: string) => {
   };
 };
 
-export const getMockAfterSalesOpsList = (query: AfterSalesOpsListQuery) => {
+export const getMockAfterSalesOpsList = (
+  query: AfterSalesOpsListQuery
+): AfterSalesOpsListResponse => {
   const filtered = mockAfterSalesOps.filter((item) => {
     if (query.status && item.status !== query.status) {
       return false;
@@ -108,19 +247,18 @@ export const getMockAfterSalesOpsList = (query: AfterSalesOpsListQuery) => {
   const limit = query.limit ?? filtered.length;
   const items = filtered.slice(offset, offset + limit);
   return {
-    items,
+    items: items.map(toAfterSalesSummary),
     total: filtered.length,
     limit,
     offset
   };
 };
 
-export const getMockAfterSalesOpsDetail = (afterSalesId: string) => {
-  const record =
-    mockAfterSalesOps.find((item) => item.id === afterSalesId) ?? mockAfterSalesOps[0];
+export const getMockAfterSalesOpsDetail = (afterSalesId: string): AfterSalesDetail => {
+  const record = resolveAfterSalesOpsRecord(afterSalesId);
   const now = new Date().toISOString();
   return {
-    after_sales: record,
+    after_sales: toAfterSalesSummary(record),
     items: [
       {
         sku_id: 'SKU-001',
@@ -147,8 +285,8 @@ export const getMockAfterSalesOpsDetail = (afterSalesId: string) => {
             id: `RF-${record.id}`,
             after_sales_id: record.id,
             amount_cent: record.amount_cent,
-            status: 'DONE',
-            channel: 'MANUAL',
+            status: normalizeRefundStatus('DONE'),
+            channel: normalizeRefundChannel('MANUAL'),
             created_at: now,
             updated_at: now
           }
@@ -196,8 +334,8 @@ export const getMockAfterSalesOpsCreate = (payload: AfterSalesOpsCreatePayload) 
       id: `AS-${Date.now()}`,
       tenant_id: mockTenantId,
       order_id: payload.order_id,
-      type: payload.type,
-      status: 'OPEN',
+      type: normalizeAfterSalesType(payload.type),
+      status: normalizeAfterSalesStatus('OPEN'),
       reason_code: payload.reason_code ?? null,
       amount_cent:
         payload.amount_cent ?? payload.items.reduce((sum, item) => sum + item.refund_cent, 0),
@@ -224,9 +362,9 @@ export const getMockAfterSalesOpsCreate = (payload: AfterSalesOpsCreatePayload) 
 export const getMockRefundDoc = (
   afterSalesId: string,
   payload: { amount_cent?: number; channel?: string }
-) => {
+): RefundDoc => {
   const now = new Date().toISOString();
-  return {
+  return toRefundDoc({
     id: `RF-${afterSalesId}-${Date.now()}`,
     after_sales_id: afterSalesId,
     amount_cent: payload.amount_cent ?? 1200,
@@ -234,13 +372,13 @@ export const getMockRefundDoc = (
     channel: payload.channel ?? 'MANUAL',
     created_at: now,
     updated_at: now
-  };
+  });
 };
 
-export const getMockRefundDocs = (query: RefundDocListQuery) => {
+export const getMockRefundDocs = (query: RefundDocListQuery): RefundDocListResponse => {
   const now = new Date().toISOString();
   const docs = [
-    {
+    toRefundDoc({
       id: 'RF-001',
       after_sales_id: 'AS-1',
       amount_cent: 1200,
@@ -248,7 +386,7 @@ export const getMockRefundDocs = (query: RefundDocListQuery) => {
       channel: 'MANUAL',
       created_at: now,
       updated_at: now
-    }
+    })
   ];
   const filtered = docs.filter((item) => {
     if (query.status && item.status !== query.status) {
@@ -459,7 +597,7 @@ export const createMockAfterSalesInspection = (
     sku_id: payload.sku_id,
     warehouse_id: payload.warehouse_id ?? null,
     qty: payload.qty,
-    result_code: payload.result_code ?? 'PENDING',
+    result_code: normalizeInspectionResult(payload.result_code),
     inspector_name: payload.inspector_name ?? null,
     inspected_at: payload.inspected_at ?? null,
     created_at: now,
@@ -482,7 +620,7 @@ export const updateMockAfterSalesInspection = (
       sku_id: 'SKU-UNKNOWN',
       warehouse_id: payload.warehouse_id ?? null,
       qty: payload.qty ?? 1,
-      result_code: (payload.result_code as AfterSalesInspection['result_code']) ?? 'PENDING',
+      result_code: normalizeInspectionResult(payload.result_code),
       inspector_name: payload.inspector_name ?? null,
       inspected_at: payload.inspected_at ?? null,
       created_at: now,
@@ -498,7 +636,7 @@ export const updateMockAfterSalesInspection = (
     target.qty = payload.qty;
   }
   if (payload.result_code) {
-    target.result_code = payload.result_code as AfterSalesInspection['result_code'];
+    target.result_code = normalizeInspectionResult(payload.result_code);
   }
   if (payload.inspector_name !== undefined) {
     target.inspector_name = payload.inspector_name ?? null;
@@ -536,11 +674,11 @@ export const createMockAfterSalesSlaRule = (
   const now = dayjs().toISOString();
   const record: AfterSalesSlaRule = {
     rule_id: `SLA-${Date.now()}`,
-    after_sales_type: payload.after_sales_type,
+    after_sales_type: normalizeAfterSalesType(payload.after_sales_type),
     response_hours: payload.response_hours,
     resolution_hours: payload.resolution_hours,
     escalation_role: payload.escalation_role ?? null,
-    status: payload.status ?? 'ACTIVE',
+    status: normalizeSlaStatus(payload.status),
     created_at: now,
     updated_at: now
   };
@@ -557,11 +695,11 @@ export const updateMockAfterSalesSlaRule = (
   if (!target) {
     const fallback: AfterSalesSlaRule = {
       rule_id: ruleId,
-      after_sales_type: payload.after_sales_type ?? 'REFUND_ONLY',
+      after_sales_type: normalizeAfterSalesType(payload.after_sales_type),
       response_hours: payload.response_hours ?? 4,
       resolution_hours: payload.resolution_hours ?? 24,
       escalation_role: payload.escalation_role ?? null,
-      status: payload.status ?? 'ACTIVE',
+      status: normalizeSlaStatus(payload.status),
       created_at: now,
       updated_at: now
     };
@@ -569,7 +707,7 @@ export const updateMockAfterSalesSlaRule = (
     return fallback;
   }
   if (payload.after_sales_type) {
-    target.after_sales_type = payload.after_sales_type;
+    target.after_sales_type = normalizeAfterSalesType(payload.after_sales_type);
   }
   if (payload.response_hours != null) {
     target.response_hours = payload.response_hours;
@@ -581,7 +719,7 @@ export const updateMockAfterSalesSlaRule = (
     target.escalation_role = payload.escalation_role ?? null;
   }
   if (payload.status) {
-    target.status = payload.status;
+    target.status = normalizeSlaStatus(payload.status);
   }
   target.updated_at = now;
   return target;

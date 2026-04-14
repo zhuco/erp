@@ -70,6 +70,7 @@ pub struct ShopProductSkuView {
     pub mapped_sku_name: Option<String>,
     pub match_source: Option<String>,
     pub mapping_status: Option<String>,
+    pub conflict_reason: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -115,6 +116,9 @@ pub struct ShopProductSkuListFilters {
     pub status: Option<String>,
     pub keyword: Option<String>,
     pub match_status: Option<String>,
+    pub mapping_status: Option<String>,
+    pub conflict_reason: Option<String>,
+    pub match_source: Option<String>,
     pub updated_from: Option<DateTime<Utc>>,
     pub updated_to: Option<DateTime<Utc>>,
     pub offset: i64,
@@ -340,6 +344,7 @@ impl<'a> ShopProductsRepo<'a> {
                 s.spec_text, s.price_cent, s.stock_qty, s.status, s.barcode, s.image_url,
                 s.platform_updated_at,
                 m.mapping_id, m.sku_id as mapped_sku_id, m.match_source, m.status as mapping_status,
+                m.conflict_reason,
                 k.sku_code as mapped_sku_code, k.name as mapped_sku_name,
                 s.created_at, s.updated_at
             from shop_product_skus s
@@ -391,6 +396,7 @@ impl<'a> ShopProductsRepo<'a> {
             mapped_sku_id: Option<uuid::Uuid>,
             match_source: Option<String>,
             mapping_status: Option<String>,
+            conflict_reason: Option<String>,
             mapped_sku_code: Option<String>,
             mapped_sku_name: Option<String>,
             created_at: DateTime<Utc>,
@@ -426,6 +432,7 @@ impl<'a> ShopProductsRepo<'a> {
                 mapped_sku_name: row.mapped_sku_name,
                 match_source: row.match_source,
                 mapping_status: row.mapping_status,
+                conflict_reason: row.conflict_reason,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
             });
@@ -451,6 +458,7 @@ impl<'a> ShopProductsRepo<'a> {
                 s.spec_text, s.price_cent, s.stock_qty, s.status, s.barcode, s.image_url,
                 s.platform_updated_at,
                 m.mapping_id, m.sku_id as mapped_sku_id, m.match_source, m.status as mapping_status,
+                m.conflict_reason,
                 k.sku_code as mapped_sku_code, k.name as mapped_sku_name,
                 s.created_at, s.updated_at
             from shop_product_skus s
@@ -498,6 +506,7 @@ impl<'a> ShopProductsRepo<'a> {
             mapped_sku_id: Option<uuid::Uuid>,
             match_source: Option<String>,
             mapping_status: Option<String>,
+            conflict_reason: Option<String>,
             mapped_sku_code: Option<String>,
             mapped_sku_name: Option<String>,
             created_at: DateTime<Utc>,
@@ -533,6 +542,7 @@ impl<'a> ShopProductsRepo<'a> {
                 mapped_sku_name: row.mapped_sku_name,
                 match_source: row.match_source,
                 mapping_status: row.mapping_status,
+                conflict_reason: row.conflict_reason,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
             });
@@ -607,5 +617,17 @@ fn apply_sku_filters<'a>(
             }
             _ => {}
         }
+    }
+    if let Some(mapping_status) = filters.mapping_status.as_deref() {
+        qb.push(" and m.status = ");
+        qb.push_bind(mapping_status);
+    }
+    if let Some(conflict_reason) = filters.conflict_reason.as_deref() {
+        qb.push(" and m.conflict_reason = ");
+        qb.push_bind(conflict_reason);
+    }
+    if let Some(match_source) = filters.match_source.as_deref() {
+        qb.push(" and m.match_source = ");
+        qb.push_bind(match_source);
     }
 }

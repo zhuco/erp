@@ -35,6 +35,41 @@ export type SyncJobRunPayload = {
   last_time?: string;
 };
 
+export type PlatformOrderManualDownloadPayload = {
+  cursor?: string;
+  watermark?: string;
+  last_time?: string;
+};
+
+export type PlatformOrderTimeRangeDownloadPayload = {
+  start_time: string;
+  end_time: string;
+  cursor?: string;
+};
+
+export type PlatformOrderNoDownloadPayload = {
+  order_nos: string[];
+};
+
+export type PlatformOrderDownloadResponse = {
+  job: SyncJob;
+  criteria: Record<string, unknown>;
+};
+
+export type PlatformOrderNoDownloadItem = {
+  platform_order_id: string;
+  success: boolean;
+  order_id?: string | null;
+  message?: string | null;
+};
+
+export type PlatformOrderNoDownloadResponse = {
+  total: number;
+  success_count: number;
+  failure_count: number;
+  items: PlatformOrderNoDownloadItem[];
+};
+
 const requestJson = async <T>(input: RequestInfo, init: RequestInit, message: string) => {
   const response = await fetchWithAuth(input, init);
   let payload: unknown = undefined;
@@ -71,6 +106,9 @@ const buildQueryString = (query: SyncJobListQuery): string => {
   return serialized ? `?${serialized}` : '';
 };
 
+const buildShopBasePath = (tenantId: string, shopId: string) =>
+  `${apiBaseUrl}/v1/tenants/${tenantId}/channels/shops/${shopId}`;
+
 export const listSyncJobs = async (
   tenantId: string,
   query: SyncJobListQuery
@@ -94,7 +132,7 @@ export const runSyncJob = async (
     return runMockSyncJob(shopId, payload);
   }
   return requestJson<SyncJob>(
-    `${apiBaseUrl}/v1/tenants/${tenantId}/channels/shops/${shopId}/sync-jobs/run`,
+    `${buildShopBasePath(tenantId, shopId)}/sync-jobs/run`,
     {
       method: 'POST',
       headers: {
@@ -104,5 +142,111 @@ export const runSyncJob = async (
       body: JSON.stringify(payload)
     },
     '触发同步任务失败'
+  );
+};
+
+export const downloadPlatformOrdersManual = async (
+  tenantId: string,
+  shopId: string,
+  payload: PlatformOrderManualDownloadPayload
+): Promise<PlatformOrderDownloadResponse> => {
+  if (useMocks) {
+    const job = runMockSyncJob(shopId, {
+      job_type: 'order_sync',
+      cursor: payload.cursor,
+      last_time: payload.watermark ?? payload.last_time
+    });
+    return {
+      job,
+      criteria: {
+        mode: 'MANUAL',
+        cursor: payload.cursor ?? null,
+        watermark: payload.watermark ?? payload.last_time ?? null
+      }
+    };
+  }
+
+  return requestJson<PlatformOrderDownloadResponse>(
+    `${buildShopBasePath(tenantId, shopId)}/platform-orders/download/manual`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders()
+      },
+      body: JSON.stringify(payload)
+    },
+    '触发手动下载失败'
+  );
+};
+
+export const downloadPlatformOrdersByTimeRange = async (
+  tenantId: string,
+  shopId: string,
+  payload: PlatformOrderTimeRangeDownloadPayload
+): Promise<PlatformOrderDownloadResponse> => {
+  if (useMocks) {
+    const job = runMockSyncJob(shopId, {
+      job_type: 'order_sync',
+      cursor: payload.cursor,
+      last_time: payload.start_time
+    });
+    return {
+      job,
+      criteria: {
+        mode: 'TIME_RANGE',
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        cursor: payload.cursor ?? null
+      }
+    };
+  }
+
+  return requestJson<PlatformOrderDownloadResponse>(
+    `${buildShopBasePath(tenantId, shopId)}/platform-orders/download/by-time-range`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders()
+      },
+      body: JSON.stringify(payload)
+    },
+    '按时间段下载失败'
+  );
+};
+
+export const downloadPlatformOrdersByOrderNos = async (
+  tenantId: string,
+  shopId: string,
+  payload: PlatformOrderNoDownloadPayload
+): Promise<PlatformOrderNoDownloadResponse> => {
+  if (useMocks) {
+    const orderNos = (payload.order_nos ?? []).map((value) => value.trim()).filter(Boolean);
+    const items = orderNos.map((orderNo, index) => ({
+      platform_order_id: orderNo,
+      success: true,
+      order_id: `ORDER-${shopId}-${index + 1}`,
+      message: null
+    }));
+    return {
+      total: items.length,
+      success_count: items.length,
+      failure_count: 0,
+      items
+    };
+  }
+
+  return requestJson<PlatformOrderNoDownloadResponse>(
+    `${buildShopBasePath(tenantId, shopId)}/platform-orders/download/by-order-nos`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders()
+      },
+      body: JSON.stringify(payload)
+    },
+    '按订单号下载失败'
   );
 };

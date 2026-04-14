@@ -3,12 +3,16 @@ import { expect, test, loginAndSelectTenant } from './fixtures';
 test('release gate cross-chain smoke covers oms wms after-sales planning and observability', async ({
   page
 }) => {
-  await page.goto('/system/integrations');
+  await page.goto('/integrations/center');
   await loginAndSelectTenant(page);
   await expect(page.getByTestId('system-integrations-overview-section')).toBeVisible();
 
   await page.goto('/orders/review');
-  await expect(page.getByTestId('order-review-search')).toBeVisible();
+  await expect(page.getByTestId('order-review-page')).toBeVisible();
+
+  await page.goto('/wms/waves');
+  await expect(page.getByTestId('wms-waves-table')).toBeVisible();
+  await expect(page.getByTestId('wms-wave-run-button')).toBeVisible();
 
   await page.goto('/wms/ship');
   await expect(page.getByTestId('ship-title')).toBeVisible();

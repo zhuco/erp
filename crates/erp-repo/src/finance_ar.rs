@@ -510,9 +510,9 @@ impl<'a> ArDocsRepo<'a> {
         let row: Option<Row> = sqlx::query_as(
             r#"
             update ar_docs
-            set status = $3,
-                written_off_at = now(),
-                updated_at = now()
+            set status = case when status = $3 then status else $3 end,
+                written_off_at = coalesce(written_off_at, now()),
+                updated_at = case when status = $3 then updated_at else now() end
             where tenant_id = $1 and ar_id = $2
             returning ar_id, customer_id,
                       (select name from customers c where c.customer_id = ar_docs.customer_id

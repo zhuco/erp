@@ -1,151 +1,60 @@
-import { Suspense, lazy } from 'react';
+﻿import { Suspense, lazy, useEffect } from 'react';
 import type { ComponentType } from 'react';
-import { Navigate, createBrowserRouter, createHashRouter } from 'react-router-dom';
+import { Navigate, createBrowserRouter, createHashRouter, useLocation } from 'react-router-dom';
 
 import { AuthGuard } from '@/app/guards/AuthGuard';
 import { PermissionGuard } from '@/app/guards/PermissionGuard';
 import { TenantGuard } from '@/app/guards/TenantGuard';
 import { WorkbenchLayout } from '@/app/layout/WorkbenchLayout';
-import { AfterSalesDetailPage } from '@/pages/afterSales/AfterSalesDetailPage';
-import { AfterSalesExchangesPage } from '@/pages/afterSales/AfterSalesExchangesPage';
-import { AfterSalesBulkEditPage } from '@/pages/afterSales/AfterSalesBulkEditPage';
-import { AfterSalesInterceptsPage } from '@/pages/afterSales/AfterSalesInterceptsPage';
-import { AfterSalesInspectionsPage } from '@/pages/afterSales/AfterSalesInspectionsPage';
-import { AfterSalesListPage } from '@/pages/afterSales/AfterSalesListPage';
-import { AfterSalesReceivePage } from '@/pages/afterSales/AfterSalesReceivePage';
-import { AfterSalesSlaPage } from '@/pages/afterSales/AfterSalesSlaPage';
-import { AfterSalesSettingsPage } from '@/pages/afterSales/AfterSalesSettingsPage';
-import { AfterSaleCaseDetailPage } from '@/pages/afterSales/AfterSaleCaseDetailPage';
-import { AfterSaleCaseListPage } from '@/pages/afterSales/AfterSaleCaseListPage';
-import { RefundDocsPage } from '@/pages/afterSales/RefundDocsPage';
-import { ForbiddenPage } from '@/pages/Forbidden';
-import { LoginPage } from '@/pages/LoginPage';
-import { NotFoundPage } from '@/pages/NotFound';
-import { FailureQueuePage } from '@/pages/failureQueue/FailureQueuePage';
-import { DashboardPage } from '@/pages/Dashboard';
-import { InventoryCostsPage } from '@/pages/inventory/InventoryCostsPage';
-import { InventoryLedgerPage } from '@/pages/inventory/InventoryLedgerPage';
-import { InventoryLocksPage } from '@/pages/inventory/InventoryLocksPage';
-import { InventoryPage } from '@/pages/inventory/InventoryPage';
-import { InventoryAlertsPage } from '@/pages/inventory/InventoryAlertsPage';
-import { InventorySummaryPage } from '@/pages/inventory/InventorySummaryPage';
-import { InventorySyncJobsPage } from '@/pages/inventory/InventorySyncJobsPage';
-import { StocktakesPage } from '@/pages/inventory/StocktakesPage';
-import { StocktakeTasksPage } from '@/pages/inventory/StocktakeTasksPage';
-import { InboundDetailPage } from '@/pages/inbounds/InboundDetailPage';
-import { InboundInspectPage } from '@/pages/inbounds/InboundInspectPage';
-import { InboundListPage } from '@/pages/inbounds/InboundListPage';
-import { InboundPutawayPage } from '@/pages/inbounds/InboundPutawayPage';
-import { InboundReceivePage } from '@/pages/inbounds/InboundReceivePage';
-import { InboundQuickReceivePage } from '@/pages/inbounds/InboundQuickReceivePage';
-import { InboundRejectsPage } from '@/pages/inbounds/InboundRejectsPage';
-import { InboundSearchPage } from '@/pages/inbounds/InboundSearchPage';
-import { ReturnInboundPage } from '@/pages/inbounds/ReturnInboundPage';
-import { ChannelDirectoryPage } from '@/pages/channels/ChannelDirectoryPage';
-import { CouriersPage } from '@/pages/couriers/CouriersPage';
-import { LogisticsExceptionsPage } from '@/pages/logistics/LogisticsExceptionsPage';
-import { LogisticsInterfacesPage } from '@/pages/logistics/LogisticsInterfacesPage';
-import { LogisticsProductsPage } from '@/pages/logistics/LogisticsProductsPage';
-import { LogisticsPricesPage } from '@/pages/logistics/LogisticsPricesPage';
-import { LogisticsInstallationsPage } from '@/pages/logistics/LogisticsInstallationsPage';
-import { LogisticsSettlementsPage } from '@/pages/logistics/LogisticsSettlementsPage';
-import { WarehouseOptimizationPage } from '@/pages/logistics/WarehouseOptimizationPage';
-import { WarehousesPage } from '@/pages/warehouses/WarehousesPage';
-import { ReportsPage } from '@/pages/reports/ReportsPage';
-import { ExportJobsPage } from '@/pages/exports/ExportJobsPage';
-import { KitEditorPage } from '@/pages/kits/KitEditorPage';
-import { KitsPage } from '@/pages/kits/KitsPage';
-import { ShipmentsPage } from '@/pages/shipments/ShipmentsPage';
-import { OmsShipmentsPage } from '@/pages/shipments/OmsShipmentsPage';
-import { LogisticsTrackingPage } from '@/pages/logistics/LogisticsTrackingPage';
-import { ShipmentPushFailuresPage } from '@/pages/shipments/ShipmentPushFailuresPage';
-import { OrderDetailPage } from '@/pages/orders/OrderDetailPage';
-import { OrdersPage } from '@/pages/orders/OrdersPage';
-import { OrderExceptionSlaPage } from '@/pages/orders/OrderExceptionSlaPage';
-import { OrderExceptionsPage } from '@/pages/orders/OrderExceptionsPage';
-import { OrderReconciliationsPage } from '@/pages/orders/OrderReconciliationsPage';
-import { OrderReviewPage } from '@/pages/orders/OrderReviewPage';
-import { OrderReviewRulesPage } from '@/pages/orders/OrderReviewRulesPage';
-import { OrderSettlementPage } from '@/pages/orders/OrderSettlementPage';
-import { OrderSplitMergePage } from '@/pages/orders/OrderSplitMergePage';
-import { ChannelMappingsPage } from '@/pages/mappings/ChannelMappingsPage';
-import { SalesOrderCreatePage } from '@/pages/sales/SalesOrderCreatePage';
-import { SalesOrderImportPage } from '@/pages/sales/SalesOrderImportPage';
-import { SalesSettingsPage } from '@/pages/sales/SalesSettingsPage';
-import { SalesShopConfigPage } from '@/pages/sales/SalesShopConfigPage';
-import { SalesProductMatchPage } from '@/pages/sales/SalesProductMatchPage';
-import { SalesStrategySettingsPage } from '@/pages/sales/SalesStrategySettingsPage';
-import { ShopOrderQueryPage } from '@/pages/sales/ShopOrderQueryPage';
-import { LogisticsUploadPage } from '@/pages/sales/LogisticsUploadPage';
-import { SyncJobRunsPage } from '@/pages/sales/SyncJobRunsPage';
-import { PrintJobsPage } from '@/pages/printJobs/PrintJobsPage';
-import { PrintTemplatesPage } from '@/pages/printTemplates/PrintTemplatesPage';
-import { InventoryFreezesPage } from '@/pages/wms/InventoryFreezesPage';
-import { PickRecommendStrategiesPage } from '@/pages/wms/PickRecommendStrategiesPage';
-import { ShipmentPreprocessStrategiesPage } from '@/pages/wms/ShipmentPreprocessStrategiesPage';
-import { StockAdjustmentsPage } from '@/pages/wms/StockAdjustmentsPage';
-import { StockCountStrategiesPage } from '@/pages/wms/StockCountStrategiesPage';
-import { StockMovesPage } from '@/pages/wms/StockMovesPage';
-import { StockTransfersPage } from '@/pages/wms/StockTransfersPage';
-import { WmsOutboundsPage } from '@/pages/wms/WmsOutboundsPage';
-import { WmsWavesPage } from '@/pages/wms/WmsWavesPage';
-import { WmsPickTasksPage } from '@/pages/wms/WmsPickTasksPage';
-import { WmsPackPage } from '@/pages/wms/WmsPackPage';
-import { WmsShipPage } from '@/pages/wms/WmsShipPage';
-import { WmsOutboundConfirmPage } from '@/pages/wms/WmsOutboundConfirmPage';
-import { WmsLaborPage } from '@/pages/wms/WmsLaborPage';
-import { WmsSlottingPage } from '@/pages/wms/WmsSlottingPage';
-import { WmsReplenishmentPage } from '@/pages/wms/WmsReplenishmentPage';
-import { WmsDockYardPage } from '@/pages/wms/WmsDockYardPage';
-import { WarehouseAreasPage } from '@/pages/wms/WarehouseAreasPage';
-import { WarehouseLocationsPage } from '@/pages/wms/WarehouseLocationsPage';
-import { ContainersPage } from '@/pages/wms/ContainersPage';
-import { SenderAddressesPage } from '@/pages/wms/SenderAddressesPage';
-import { LocationBalancesPage } from '@/pages/wms/LocationBalancesPage';
-import { WorkflowConfigPage } from '@/pages/wms/WorkflowConfigPage';
-import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
-import { CustomerCategoriesPage } from '@/pages/customers/CustomerCategoriesPage';
-import { CustomerDetailPage } from '@/pages/customers/CustomerDetailPage';
-import { CustomerLifecyclePage } from '@/pages/customers/CustomerLifecyclePage';
-import { CustomerLoyaltyPage } from '@/pages/customers/CustomerLoyaltyPage';
-import { CustomerSegmentsPage } from '@/pages/customers/CustomerSegmentsPage';
-import { CustomerServiceTicketsPage } from '@/pages/customers/CustomerServiceTicketsPage';
-import { CustomersPage } from '@/pages/customers/CustomersPage';
-import { CustomerTagsPage } from '@/pages/customers/CustomerTagsPage';
-import { MemberLevelsPage } from '@/pages/customers/MemberLevelsPage';
-import { PurchaseOrdersPage } from '@/pages/procurement/PurchaseOrdersPage';
-import { PurchaseOrderDetailPage } from '@/pages/procurement/PurchaseOrderDetailPage';
-import { PurchaseReceiptsPage } from '@/pages/procurement/PurchaseReceiptsPage';
-import { PurchaseSuggestionsPage } from '@/pages/procurement/PurchaseSuggestionsPage';
-import { PurchaseReturnsPage } from '@/pages/procurement/PurchaseReturnsPage';
-import { ProcurementRequestsPage } from '@/pages/procurement/ProcurementRequestsPage';
-import { ProcurementPlansPage } from '@/pages/procurement/ProcurementPlansPage';
-import { ProcurementSourcingPage } from '@/pages/procurement/ProcurementSourcingPage';
-import { ProcurementInspectionsPage } from '@/pages/procurement/ProcurementInspectionsPage';
-import { ProcurementReconciliationsPage } from '@/pages/procurement/ProcurementReconciliationsPage';
-import { SupplierPerformancePage } from '@/pages/procurement/SupplierPerformancePage';
-import { ProductBarcodesPage } from '@/pages/products/ProductBarcodesPage';
-import { ProductChannelAvailabilityPage } from '@/pages/products/ProductChannelAvailabilityPage';
-import { ProductChangeControlPage } from '@/pages/products/ProductChangeControlPage';
-import { ProductDiffPage } from '@/pages/products/ProductDiffPage';
-import { ProductLifecyclePage } from '@/pages/products/ProductLifecyclePage';
-import { ProductPackagingSpecsPage } from '@/pages/products/ProductPackagingSpecsPage';
-import { ProductsPage } from '@/pages/products/ProductsPage';
-import { ProductUnitsPage } from '@/pages/products/ProductUnitsPage';
-import { SyncJobsPage } from '@/pages/shops/SyncJobsPage';
-import { ShopProductDownloadPage } from '@/pages/shopProducts/ShopProductDownloadPage';
-import { OrderTagDefinitionsPage } from '@/pages/tags/OrderTagDefinitionsPage';
-import { SkuTagDefinitionsPage } from '@/pages/tags/SkuTagDefinitionsPage';
-import { TagDirectoryPage } from '@/pages/tags/TagDirectoryPage';
+import {
+  markRouteLoadingReady,
+  markRouteLoadingStart,
+  useRouteLoadingSnapshot,
+} from '@/app/navigation/routeLoadingDiagnostics';
+import {
+  attachRoutePrefetch,
+  installRoutePrefetchRegistry,
+} from '@/app/navigation/routePrefetch';
+import {
+  getLegacyRedirectTarget,
+  routeAliases,
+  toRelativeRoutePath
+} from '@/app/navigation/routeAliases';
 import { routerBasePath, routerMode } from '@/utils/env';
 
 function RouteLoadingFallback() {
-  return <div data-testid="route-page-loading">页面加载中...</div>;
+  const location = useLocation();
+  const routeSnapshot = useRouteLoadingSnapshot(location.pathname);
+
+  useEffect(() => {
+    markRouteLoadingStart(location.pathname);
+  }, [location.pathname]);
+
+  return (
+    <div
+      data-testid="route-page-loading"
+      data-route-loading-status={routeSnapshot.status}
+      data-route-loading-path={location.pathname}
+    >
+      页面加载中...
+      {routeSnapshot.status === 'timeout' ? (
+        <div data-testid="route-page-loading-hint">当前页面加载较慢，系统仍在继续尝试打开。</div>
+      ) : null}
+    </div>
+  );
 }
 
 function lazyNamedPage(loader: () => Promise<Record<string, unknown>>, exportName: string) {
+  let modulePromise: Promise<Record<string, unknown>> | null = null;
+  const loadModule = () => {
+    if (!modulePromise) {
+      modulePromise = loader();
+    }
+    return modulePromise;
+  };
+
   const LazyPage = lazy(async () => {
-    const module = await loader();
+    const module = await loadModule();
     const component = module[exportName];
     if (!component) {
       throw new Error(`页面导出不存在: ${exportName}`);
@@ -154,6 +63,14 @@ function lazyNamedPage(loader: () => Promise<Record<string, unknown>>, exportNam
   });
 
   function WrappedPage() {
+    const location = useLocation();
+
+    useEffect(() => {
+      markRouteLoadingReady(location.pathname, {
+        routeLabel: exportName,
+      });
+    }, [location.pathname]);
+
     return (
       <Suspense fallback={<RouteLoadingFallback />}>
         <LazyPage />
@@ -162,8 +79,149 @@ function lazyNamedPage(loader: () => Promise<Record<string, unknown>>, exportNam
   }
 
   WrappedPage.displayName = `LazyPage(${exportName})`;
-  return WrappedPage;
+  return attachRoutePrefetch(WrappedPage, {
+    routeLabel: exportName,
+    prefetch: async () => {
+      await loadModule();
+    },
+  });
 }
+
+const AfterSalesDetailPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesDetailPage'), 'AfterSalesDetailPage');
+const AfterSalesExchangesPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesExchangesPage'), 'AfterSalesExchangesPage');
+const AfterSalesBulkEditPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesBulkEditPage'), 'AfterSalesBulkEditPage');
+const AfterSalesInterceptsPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesInterceptsPage'), 'AfterSalesInterceptsPage');
+const AfterSalesInspectionsPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesInspectionsPage'), 'AfterSalesInspectionsPage');
+const AfterSalesListPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesListPage'), 'AfterSalesListPage');
+const AfterSalesReceivePage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesReceivePage'), 'AfterSalesReceivePage');
+const AfterSalesSlaPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesSlaPage'), 'AfterSalesSlaPage');
+const AfterSalesSettingsPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSalesSettingsPage'), 'AfterSalesSettingsPage');
+const AfterSaleCaseDetailPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSaleCaseDetailPage'), 'AfterSaleCaseDetailPage');
+const AfterSaleCaseListPage = lazyNamedPage(() => import('@/pages/afterSales/AfterSaleCaseListPage'), 'AfterSaleCaseListPage');
+const RefundDocsPage = lazyNamedPage(() => import('@/pages/afterSales/RefundDocsPage'), 'RefundDocsPage');
+const ForbiddenPage = lazyNamedPage(() => import('@/pages/Forbidden'), 'ForbiddenPage');
+const LoginPage = lazyNamedPage(() => import('@/pages/LoginPage'), 'LoginPage');
+const NotFoundPage = lazyNamedPage(() => import('@/pages/NotFound'), 'NotFoundPage');
+const FailureQueuePage = lazyNamedPage(() => import('@/pages/failureQueue/FailureQueuePage'), 'FailureQueuePage');
+const DashboardPage = lazyNamedPage(() => import('@/pages/Dashboard'), 'DashboardPage');
+const InventoryCostsPage = lazyNamedPage(() => import('@/pages/inventory/InventoryCostsPage'), 'InventoryCostsPage');
+const InventoryLedgerPage = lazyNamedPage(() => import('@/pages/inventory/InventoryLedgerPage'), 'InventoryLedgerPage');
+const InventoryLocksPage = lazyNamedPage(() => import('@/pages/inventory/InventoryLocksPage'), 'InventoryLocksPage');
+const InventoryPage = lazyNamedPage(() => import('@/pages/inventory/InventoryPage'), 'InventoryPage');
+const InventoryAlertsPage = lazyNamedPage(() => import('@/pages/inventory/InventoryAlertsPage'), 'InventoryAlertsPage');
+const InventorySummaryPage = lazyNamedPage(() => import('@/pages/inventory/InventorySummaryPage'), 'InventorySummaryPage');
+const InventorySyncJobsPage = lazyNamedPage(() => import('@/pages/inventory/InventorySyncJobsPage'), 'InventorySyncJobsPage');
+const StocktakesPage = lazyNamedPage(() => import('@/pages/inventory/StocktakesPage'), 'StocktakesPage');
+const StocktakeTasksPage = lazyNamedPage(() => import('@/pages/inventory/StocktakeTasksPage'), 'StocktakeTasksPage');
+const InboundDetailPage = lazyNamedPage(() => import('@/pages/inbounds/InboundDetailPage'), 'InboundDetailPage');
+const InboundInspectPage = lazyNamedPage(() => import('@/pages/inbounds/InboundInspectPage'), 'InboundInspectPage');
+const InboundListPage = lazyNamedPage(() => import('@/pages/inbounds/InboundListPage'), 'InboundListPage');
+const InboundPutawayPage = lazyNamedPage(() => import('@/pages/inbounds/InboundPutawayPage'), 'InboundPutawayPage');
+const InboundReceivePage = lazyNamedPage(() => import('@/pages/inbounds/InboundReceivePage'), 'InboundReceivePage');
+const InboundQuickReceivePage = lazyNamedPage(() => import('@/pages/inbounds/InboundQuickReceivePage'), 'InboundQuickReceivePage');
+const InboundRejectsPage = lazyNamedPage(() => import('@/pages/inbounds/InboundRejectsPage'), 'InboundRejectsPage');
+const InboundSearchPage = lazyNamedPage(() => import('@/pages/inbounds/InboundSearchPage'), 'InboundSearchPage');
+const ReturnInboundPage = lazyNamedPage(() => import('@/pages/inbounds/ReturnInboundPage'), 'ReturnInboundPage');
+const CouriersPage = lazyNamedPage(() => import('@/pages/couriers/CouriersPage'), 'CouriersPage');
+const LogisticsExceptionsPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsExceptionsPage'), 'LogisticsExceptionsPage');
+const LogisticsInterfacesPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsInterfacesPage'), 'LogisticsInterfacesPage');
+const LogisticsProductsPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsProductsPage'), 'LogisticsProductsPage');
+const LogisticsPricesPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsPricesPage'), 'LogisticsPricesPage');
+const LogisticsInstallationsPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsInstallationsPage'), 'LogisticsInstallationsPage');
+const LogisticsSettlementsPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsSettlementsPage'), 'LogisticsSettlementsPage');
+const WarehouseOptimizationPage = lazyNamedPage(() => import('@/pages/logistics/WarehouseOptimizationPage'), 'WarehouseOptimizationPage');
+const WarehousesPage = lazyNamedPage(() => import('@/pages/warehouses/WarehousesPage'), 'WarehousesPage');
+const ReportsPage = lazyNamedPage(() => import('@/pages/reports/ReportsPage'), 'ReportsPage');
+const ExportJobsPage = lazyNamedPage(() => import('@/pages/exports/ExportJobsPage'), 'ExportJobsPage');
+const KitEditorPage = lazyNamedPage(() => import('@/pages/kits/KitEditorPage'), 'KitEditorPage');
+const KitsPage = lazyNamedPage(() => import('@/pages/kits/KitsPage'), 'KitsPage');
+const ShipmentsPage = lazyNamedPage(() => import('@/pages/shipments/ShipmentsPage'), 'ShipmentsPage');
+const OmsShipmentsPage = lazyNamedPage(() => import('@/pages/shipments/OmsShipmentsPage'), 'OmsShipmentsPage');
+const LogisticsTrackingPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsTrackingPage'), 'LogisticsTrackingPage');
+const ShipmentPushFailuresPage = lazyNamedPage(() => import('@/pages/shipments/ShipmentPushFailuresPage'), 'ShipmentPushFailuresPage');
+const OrderDetailPage = lazyNamedPage(() => import('@/pages/orders/OrderDetailPage'), 'OrderDetailPage');
+const OrdersPage = lazyNamedPage(() => import('@/pages/orders/OrdersPage'), 'OrdersPage');
+const OrderExceptionsPage = lazyNamedPage(() => import('@/pages/orders/OrderExceptionsPage'), 'OrderExceptionsPage');
+const OrderReconciliationsPage = lazyNamedPage(() => import('@/pages/orders/OrderReconciliationsPage'), 'OrderReconciliationsPage');
+const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
+const OrderReviewPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewPage'), 'OrderReviewPage');
+const OrderReviewRulesPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewRulesPage'), 'OrderReviewRulesPage');
+const OrderSettlementPage = lazyNamedPage(() => import('@/pages/orders/OrderSettlementPage'), 'OrderSettlementPage');
+const SalesOrderCreatePage = lazyNamedPage(() => import('@/pages/sales/SalesOrderCreatePage'), 'SalesOrderCreatePage');
+const SalesOrderImportPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderImportPage'), 'SalesOrderImportPage');
+const SalesSettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesSettingsPage'), 'SalesSettingsPage');
+const SalesStrategySettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesStrategySettingsPage'), 'SalesStrategySettingsPage');
+const ShopOrderDownloadPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
+  'ShopOrderDownloadPage'
+);
+const ShopProductMatchQueryPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
+  'ShopProductMatchQueryPage'
+);
+const ShopInventorySyncPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
+  'ShopInventorySyncPage'
+);
+const PrintJobsPage = lazyNamedPage(() => import('@/pages/printJobs/PrintJobsPage'), 'PrintJobsPage');
+const PrintTemplatesPage = lazyNamedPage(() => import('@/pages/printTemplates/PrintTemplatesPage'), 'PrintTemplatesPage');
+const InventoryFreezesPage = lazyNamedPage(() => import('@/pages/wms/InventoryFreezesPage'), 'InventoryFreezesPage');
+const PickRecommendStrategiesPage = lazyNamedPage(() => import('@/pages/wms/PickRecommendStrategiesPage'), 'PickRecommendStrategiesPage');
+const ShipmentPreprocessStrategiesPage = lazyNamedPage(() => import('@/pages/wms/ShipmentPreprocessStrategiesPage'), 'ShipmentPreprocessStrategiesPage');
+const StockAdjustmentsPage = lazyNamedPage(() => import('@/pages/wms/StockAdjustmentsPage'), 'StockAdjustmentsPage');
+const StockCountStrategiesPage = lazyNamedPage(() => import('@/pages/wms/StockCountStrategiesPage'), 'StockCountStrategiesPage');
+const StockMovesPage = lazyNamedPage(() => import('@/pages/wms/StockMovesPage'), 'StockMovesPage');
+const StockTransfersPage = lazyNamedPage(() => import('@/pages/wms/StockTransfersPage'), 'StockTransfersPage');
+const WmsOutboundsPage = lazyNamedPage(() => import('@/pages/wms/WmsOutboundsPage'), 'WmsOutboundsPage');
+const WmsWavesPage = lazyNamedPage(() => import('@/pages/wms/WmsWavesPage'), 'WmsWavesPage');
+const WmsPickTasksPage = lazyNamedPage(() => import('@/pages/wms/WmsPickTasksPage'), 'WmsPickTasksPage');
+const WmsPackPage = lazyNamedPage(() => import('@/pages/wms/WmsPackPage'), 'WmsPackPage');
+const WmsShipPage = lazyNamedPage(() => import('@/pages/wms/WmsShipPage'), 'WmsShipPage');
+const WmsOutboundConfirmPage = lazyNamedPage(() => import('@/pages/wms/WmsOutboundConfirmPage'), 'WmsOutboundConfirmPage');
+const WmsLaborPage = lazyNamedPage(() => import('@/pages/wms/WmsLaborPage'), 'WmsLaborPage');
+const WmsSlottingPage = lazyNamedPage(() => import('@/pages/wms/WmsSlottingPage'), 'WmsSlottingPage');
+const WmsReplenishmentPage = lazyNamedPage(() => import('@/pages/wms/WmsReplenishmentPage'), 'WmsReplenishmentPage');
+const WmsDockYardPage = lazyNamedPage(() => import('@/pages/wms/WmsDockYardPage'), 'WmsDockYardPage');
+const WarehouseAreasPage = lazyNamedPage(() => import('@/pages/wms/WarehouseAreasPage'), 'WarehouseAreasPage');
+const WarehouseLocationsPage = lazyNamedPage(() => import('@/pages/wms/WarehouseLocationsPage'), 'WarehouseLocationsPage');
+const ContainersPage = lazyNamedPage(() => import('@/pages/wms/ContainersPage'), 'ContainersPage');
+const SenderAddressesPage = lazyNamedPage(() => import('@/pages/wms/SenderAddressesPage'), 'SenderAddressesPage');
+const LocationBalancesPage = lazyNamedPage(() => import('@/pages/wms/LocationBalancesPage'), 'LocationBalancesPage');
+const WorkflowConfigPage = lazyNamedPage(() => import('@/pages/wms/WorkflowConfigPage'), 'WorkflowConfigPage');
+const SuppliersPage = lazyNamedPage(() => import('@/pages/suppliers/SuppliersPage'), 'SuppliersPage');
+const CustomerCategoriesPage = lazyNamedPage(() => import('@/pages/customers/CustomerCategoriesPage'), 'CustomerCategoriesPage');
+const CustomerDetailPage = lazyNamedPage(() => import('@/pages/customers/CustomerDetailPage'), 'CustomerDetailPage');
+const CustomerLifecyclePage = lazyNamedPage(() => import('@/pages/customers/CustomerLifecyclePage'), 'CustomerLifecyclePage');
+const CustomerLoyaltyPage = lazyNamedPage(() => import('@/pages/customers/CustomerLoyaltyPage'), 'CustomerLoyaltyPage');
+const CustomerSegmentsPage = lazyNamedPage(() => import('@/pages/customers/CustomerSegmentsPage'), 'CustomerSegmentsPage');
+const CustomerServiceTicketsPage = lazyNamedPage(() => import('@/pages/customers/CustomerServiceTicketsPage'), 'CustomerServiceTicketsPage');
+const CustomersPage = lazyNamedPage(() => import('@/pages/customers/CustomersPage'), 'CustomersPage');
+const CustomerTagsPage = lazyNamedPage(() => import('@/pages/customers/CustomerTagsPage'), 'CustomerTagsPage');
+const MemberLevelsPage = lazyNamedPage(() => import('@/pages/customers/MemberLevelsPage'), 'MemberLevelsPage');
+const PurchaseOrdersPage = lazyNamedPage(() => import('@/pages/procurement/PurchaseOrdersPage'), 'PurchaseOrdersPage');
+const PurchaseOrderDetailPage = lazyNamedPage(() => import('@/pages/procurement/PurchaseOrderDetailPage'), 'PurchaseOrderDetailPage');
+const PurchaseReceiptsPage = lazyNamedPage(() => import('@/pages/procurement/PurchaseReceiptsPage'), 'PurchaseReceiptsPage');
+const PurchaseSuggestionsPage = lazyNamedPage(() => import('@/pages/procurement/PurchaseSuggestionsPage'), 'PurchaseSuggestionsPage');
+const PurchaseReturnsPage = lazyNamedPage(() => import('@/pages/procurement/PurchaseReturnsPage'), 'PurchaseReturnsPage');
+const ProcurementRequestsPage = lazyNamedPage(() => import('@/pages/procurement/ProcurementRequestsPage'), 'ProcurementRequestsPage');
+const ProcurementPlansPage = lazyNamedPage(() => import('@/pages/procurement/ProcurementPlansPage'), 'ProcurementPlansPage');
+const ProcurementSourcingPage = lazyNamedPage(() => import('@/pages/procurement/ProcurementSourcingPage'), 'ProcurementSourcingPage');
+const ProcurementInspectionsPage = lazyNamedPage(() => import('@/pages/procurement/ProcurementInspectionsPage'), 'ProcurementInspectionsPage');
+const ProcurementReconciliationsPage = lazyNamedPage(() => import('@/pages/procurement/ProcurementReconciliationsPage'), 'ProcurementReconciliationsPage');
+const SupplierPerformancePage = lazyNamedPage(() => import('@/pages/procurement/SupplierPerformancePage'), 'SupplierPerformancePage');
+const ProductBarcodesPage = lazyNamedPage(() => import('@/pages/products/ProductBarcodesPage'), 'ProductBarcodesPage');
+const ProductChannelAvailabilityPage = lazyNamedPage(() => import('@/pages/products/ProductChannelAvailabilityPage'), 'ProductChannelAvailabilityPage');
+const ProductChangeControlPage = lazyNamedPage(() => import('@/pages/products/ProductChangeControlPage'), 'ProductChangeControlPage');
+const ProductDiffPage = lazyNamedPage(() => import('@/pages/products/ProductDiffPage'), 'ProductDiffPage');
+const ProductLifecyclePage = lazyNamedPage(() => import('@/pages/products/ProductLifecyclePage'), 'ProductLifecyclePage');
+const ProductPackagingSpecsPage = lazyNamedPage(() => import('@/pages/products/ProductPackagingSpecsPage'), 'ProductPackagingSpecsPage');
+const ProductsPage = lazyNamedPage(() => import('@/pages/products/ProductsPage'), 'ProductsPage');
+const ProductUnitsPage = lazyNamedPage(() => import('@/pages/products/ProductUnitsPage'), 'ProductUnitsPage');
+const SyncJobsPage = lazyNamedPage(() => import('@/pages/shops/SyncJobsPage'), 'SyncJobsPage');
+const ShopProductDownloadPage = lazyNamedPage(() => import('@/pages/shopProducts/ShopProductDownloadPage'), 'ShopProductDownloadPage');
+const OrderTagDefinitionsPage = lazyNamedPage(() => import('@/pages/tags/OrderTagDefinitionsPage'), 'OrderTagDefinitionsPage');
+const SkuTagDefinitionsPage = lazyNamedPage(() => import('@/pages/tags/SkuTagDefinitionsPage'), 'SkuTagDefinitionsPage');
+const TagDirectoryPage = lazyNamedPage(() => import('@/pages/tags/TagDirectoryPage'), 'TagDirectoryPage');
 
 const AuditLogsPage = lazyNamedPage(() => import('@/pages/system/AuditLogsPage'), 'AuditLogsPage');
 const DataScopesPage = lazyNamedPage(() => import('@/pages/system/DataScopesPage'), 'DataScopesPage');
@@ -218,6 +276,30 @@ const SystemSettingsPage = lazyNamedPage(
   'SystemSettingsPage'
 );
 const UsersPage = lazyNamedPage(() => import('@/pages/system/UsersPage'), 'UsersPage');
+const ChannelDirectoryPage = lazyNamedPage(
+  () => import('@/pages/channels/ChannelDirectoryPage'),
+  'ChannelDirectoryPage'
+);
+const ShopAccessPage = lazyNamedPage(
+  () => import('@/pages/channels/ShopAccessPage'),
+  'ShopAccessPage'
+);
+const SalesProductMatchPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesProductMatchPage'),
+  'SalesProductMatchPage'
+);
+const ShopOrderQueryPage = lazyNamedPage(
+  () => import('@/pages/sales/ShopOrderQueryPage'),
+  'ShopOrderQueryPage'
+);
+const LogisticsUploadPage = lazyNamedPage(
+  () => import('@/pages/sales/LogisticsUploadPage'),
+  'LogisticsUploadPage'
+);
+const SyncJobRunsPage = lazyNamedPage(
+  () => import('@/pages/sales/SyncJobRunsPage'),
+  'SyncJobRunsPage'
+);
 
 const MarketingCouponsPage = lazyNamedPage(
   () => import('@/pages/marketing/MarketingCouponsPage'),
@@ -318,6 +400,17 @@ const TransferSuggestionsPage = lazyNamedPage(
   'TransferSuggestionsPage'
 );
 
+function LegacyRouteRedirect() {
+  const location = useLocation();
+  const target = getLegacyRedirectTarget(location.pathname, location.search, location.hash);
+  return target ? <Navigate to={target} replace /> : <NotFoundPage />;
+}
+
+const legacyRouteRedirects = routeAliases.map(({ legacyPath }) => ({
+  path: toRelativeRoutePath(legacyPath),
+  element: <LegacyRouteRedirect />
+}));
+
 const routeConfig = [
   {
     path: '/login',
@@ -382,6 +475,14 @@ const routeConfig = [
                 )
               },
               {
+                path: 'orders/recheck',
+                element: (
+                  <PermissionGuard permission="orders.read">
+                    <OrderRecheckPage />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'orders/exceptions',
                 element: (
                   <PermissionGuard permission="orders.read">
@@ -390,34 +491,10 @@ const routeConfig = [
                 )
               },
               {
-                path: 'orders/exception-sla',
-                element: (
-                  <PermissionGuard permission="orders.read">
-                    <OrderExceptionSlaPage />
-                  </PermissionGuard>
-                )
-              },
-              {
-                path: 'orders/split-merge',
-                element: (
-                  <PermissionGuard permission="orders.read">
-                    <OrderSplitMergePage />
-                  </PermissionGuard>
-                )
-              },
-              {
                 path: 'orders/review-rules',
                 element: (
                   <PermissionGuard permission="orders.read">
                     <OrderReviewRulesPage />
-                  </PermissionGuard>
-                )
-              },
-              {
-                path: 'mappings',
-                element: (
-                  <PermissionGuard permission="channel_sku_mappings.read">
-                    <ChannelMappingsPage />
                   </PermissionGuard>
                 )
               },
@@ -446,15 +523,23 @@ const routeConfig = [
                 )
               },
               {
-                path: 'sales/shops',
+                path: 'sales/shop-order-download',
                 element: (
-                  <PermissionGuard permission="settings.read">
-                    <SalesShopConfigPage />
+                  <PermissionGuard permission="orders.read">
+                    <ShopOrderDownloadPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'sales/product-match',
+                path: 'channels/shops',
+                element: (
+                  <PermissionGuard permission="settings.read">
+                    <ShopAccessPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'channels/product-match',
                 element: (
                   <PermissionGuard permission="shop_products.read">
                     <SalesProductMatchPage />
@@ -462,7 +547,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'sales/shop-orders',
+                path: 'channels/shop-orders',
                 element: (
                   <PermissionGuard permission="orders.read">
                     <ShopOrderQueryPage />
@@ -478,7 +563,23 @@ const routeConfig = [
                 )
               },
               {
-                path: 'sales/sync-job-runs',
+                path: 'sales/shop-product-match-query',
+                element: (
+                  <PermissionGuard permission="shop_products.read">
+                    <ShopProductMatchQueryPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'sales/shop-inventory-sync',
+                element: (
+                  <PermissionGuard permission="inventory.read">
+                    <ShopInventorySyncPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'channels/sync-jobs',
                 element: (
                   <PermissionGuard permission="settings.read">
                     <SyncJobRunsPage />
@@ -1102,7 +1203,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'warehouses',
+                path: 'wms/warehouses',
                 element: (
                   <PermissionGuard permission="warehouses.read">
                     <WarehousesPage />
@@ -1110,7 +1211,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'couriers',
+                path: 'logistics/couriers',
                 element: (
                   <PermissionGuard permission="couriers.read">
                     <CouriersPage />
@@ -1150,7 +1251,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'suppliers',
+                path: 'procurement/suppliers',
                 element: (
                   <PermissionGuard permission="suppliers.read">
                     <SuppliersPage />
@@ -1582,7 +1683,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/integrations',
+                path: 'integrations/center',
                 element: (
                   <PermissionGuard permission="SYS.SETTINGS.READ">
                     <SystemIntegrationsPage />
@@ -1590,7 +1691,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/sync-jobs',
+                path: 'integrations/sync-jobs',
                 element: (
                   <PermissionGuard permission="SYS.SETTINGS.READ">
                     <SystemSyncJobsPage />
@@ -1606,7 +1707,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/print-devices',
+                path: 'integrations/print-devices',
                 element: (
                   <PermissionGuard permission="print_devices.read">
                     <PrintDevicesPage />
@@ -1614,7 +1715,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/print-mappings',
+                path: 'integrations/print-mappings',
                 element: (
                   <PermissionGuard permission="print_mappings.read">
                     <PrintMappingsPage />
@@ -1625,6 +1726,14 @@ const routeConfig = [
                 path: 'system/observability',
                 element: (
                   <PermissionGuard permission="SYS.DLQ.READ">
+                    <ObservabilityPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'system/frontend-route-observability',
+                element: (
+                  <PermissionGuard permission="operation_logs.read">
                     <ObservabilityPage />
                   </PermissionGuard>
                 )
@@ -1749,6 +1858,7 @@ const routeConfig = [
                   </PermissionGuard>
                 )
               },
+              ...legacyRouteRedirects,
               {
                 path: '*',
                 element: <NotFoundPage />
@@ -1761,7 +1871,11 @@ const routeConfig = [
   }
 ];
 
+installRoutePrefetchRegistry(routeConfig);
+
 const createRouter = routerMode === 'hash' ? createHashRouter : createBrowserRouter;
 const routerBasename = routerMode === 'hash' ? '/' : routerBasePath;
 
 export const router = createRouter(routeConfig, { basename: routerBasename });
+
+

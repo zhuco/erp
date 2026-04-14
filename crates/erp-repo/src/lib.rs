@@ -1,4 +1,4 @@
-pub mod after_sale_cases;
+﻿pub mod after_sale_cases;
 pub mod after_sales;
 pub mod after_sales_import_jobs;
 pub mod after_sales_inspections;
@@ -30,6 +30,7 @@ pub mod finance_consignment;
 pub mod finance_costing;
 pub mod finance_expenses;
 pub mod finance_tax;
+pub mod frontend_route_diagnostics;
 pub mod fulfillment;
 pub mod idempotency;
 pub mod inbound_rejects;
@@ -129,3 +130,4 @@ pub mod wms;
 pub mod wms_qc_sampling_rules;
 pub mod wms_scan_rules;
 pub mod worker_effects;
+pub mod workflow_engine;

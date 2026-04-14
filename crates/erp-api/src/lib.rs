@@ -16585,6 +16585,8 @@ async fn reconcile_payment_statement(
         paid_amount_cent: Option<i64>,
         total_amount_cent: Option<i64>,
         discount_amount_cent: Option<i64>,
+        refund_cumulative_cent: i64,
+        refund_period_cent: i64,
     }
 
     let rows: Vec<PaymentReconcileRow> = sqlx::query_as(
@@ -16596,7 +16598,9 @@ async fn reconcile_payment_statement(
             o.order_id,
             o.paid_amount_cent,
             o.total_amount_cent,
-            o.discount_amount_cent
+            o.discount_amount_cent,
+            coalesce(refunds.refund_cumulative_cent, 0) as refund_cumulative_cent,
+            coalesce(refunds.refund_period_cent, 0) as refund_period_cent
         from payment_statement_lines l
         join payment_statements s
           on s.tenant_id = l.tenant_id and s.statement_id = l.statement_id
@@ -16607,6 +16611,51 @@ async fn reconcile_payment_statement(
           on o.tenant_id = k.tenant_id
          and o.order_id = k.order_id
          and o.order_month = k.order_month
+        left join lateral (
+            select
+                coalesce(
+                    sum(
+                        case
+                            when rd.status = 'DONE'
+                             and rd.created_at::date <= coalesce(
+                                 l.occurred_at::date,
+                                 s.period_end,
+                                 s.period_start,
+                                 current_date
+                             )
+                            then rd.amount_cent
+                            else 0
+                        end
+                    ),
+                    0
+                )::bigint as refund_cumulative_cent,
+                coalesce(
+                    sum(
+                        case
+                            when rd.status = 'DONE'
+                             and rd.created_at::date >= coalesce(
+                                 s.period_start,
+                                 s.period_end,
+                                 current_date
+                             )
+                             and rd.created_at::date <= coalesce(
+                                 s.period_end,
+                                 s.period_start,
+                                 current_date
+                             )
+                            then rd.amount_cent
+                            else 0
+                        end
+                    ),
+                    0
+                )::bigint as refund_period_cent
+            from after_sales af
+            join refund_docs rd
+              on rd.tenant_id = af.tenant_id
+             and rd.after_sales_id = af.id
+            where af.tenant_id = l.tenant_id
+              and af.order_id = o.order_id
+        ) refunds on true
         where l.tenant_id = $1 and l.statement_id = $2
         "#,
     )
@@ -16627,20 +16676,54 @@ async fn reconcile_payment_statement(
             None
         };
         if let Some(expected_cent) = expected {
-            let diff_cent = row.paid_cent - expected_cent;
+            let refund_cumulative_cent = row.refund_cumulative_cent.max(0);
+            let refund_period_cent = row.refund_period_cent.max(0);
+            let mut expected_candidates = vec![
+                ("ORDER_PAID", expected_cent),
+                (
+                    "NET_AFTER_REFUND",
+                    expected_cent.saturating_sub(refund_cumulative_cent),
+                ),
+            ];
+            if refund_period_cent > 0 {
+                expected_candidates.push(("REFUND_DELTA", refund_period_cent.saturating_mul(-1)));
+            }
+
+            let (expected_basis, reconcile_expected_cent) = expected_candidates
+                .iter()
+                .copied()
+                .min_by_key(|(_, candidate)| {
+                    (i128::from(row.paid_cent) - i128::from(*candidate)).abs()
+                })
+                .unwrap_or(("ORDER_PAID", expected_cent));
+
+            let diff_cent = row.paid_cent - reconcile_expected_cent;
             if diff_cent != 0 {
+                let candidate_values: Vec<Value> = expected_candidates
+                    .iter()
+                    .map(|(basis, candidate)| {
+                        serde_json::json!({
+                            "basis": basis,
+                            "expected_cent": candidate,
+                        })
+                    })
+                    .collect();
                 items.push(PaymentReconcileItemCreate {
                     tenant_id,
                     job_id,
                     platform_order_id: row.platform_order_id.clone(),
                     order_id: row.order_id.map(OrderId),
-                    expected_cent,
+                    expected_cent: reconcile_expected_cent,
                     actual_cent: row.paid_cent,
                     diff_cent,
                     diff_reason: Some(RECONCILE_REASON_AMOUNT_MISMATCH.to_string()),
                     raw_json: serde_json::json!({
                         "platform_order_id": row.platform_order_id,
                         "statement_line": row.raw_json,
+                        "expected_basis": expected_basis,
+                        "expected_candidates": candidate_values,
+                        "refund_cumulative_cent": refund_cumulative_cent,
+                        "refund_period_cent": refund_period_cent,
                     }),
                 });
             }
@@ -23778,6 +23861,11 @@ async fn report_frontend_route_diagnostics(
         Err(_) => return bad_request("bad tenant_id").into_response(),
     };
     if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) =
+        ensure_permission_any(&ctx, &["stats.read", "reports.read", "operation_logs.read"])
+    {
         return resp.into_response();
     }
     if req.events.len() > 200 {

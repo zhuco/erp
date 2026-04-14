@@ -1,5 +1,6 @@
 import {
   Badge,
+  Empty,
   Button,
   Card,
   Col,
@@ -11,25 +12,26 @@ import {
   Tag,
   Typography
 } from 'antd';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { appMenuItems, flattenMenuItems } from '@/app/layout/menu';
+import { isFeatureEnabled } from '@/features/featureFlags';
+import { hasPermission } from '@/features/rbac';
 import { useSessionStore } from '@/features/sessionStore';
 import { apiBaseUrl, buildVersion } from '@/utils/env';
+import {
+  buildDashboardQuickLinks,
+  buildDashboardWorkbenchCards
+} from './dashboardWorkbenchModel';
+
+import './dashboardPage.css';
 
 const summaryCards = [
   { key: 'review', title: '待复核订单', value: 128, suffix: '单', trend: '+12', trendColor: 'blue' },
   { key: 'ship', title: '待发货订单', value: 86, suffix: '单', trend: '+6', trendColor: 'gold' },
   { key: 'stock', title: '库存预警', value: 23, suffix: 'SKU', trend: '需关注', trendColor: 'red' },
   { key: 'after', title: '售后待处理', value: 14, suffix: '单', trend: '+2', trendColor: 'orange' }
-];
-
-const quickLinks = [
-  { key: 'review', label: '订单审核', path: '/orders/review' },
-  { key: 'orders', label: '订单查询', path: '/orders' },
-  { key: 'ship', label: '发货包裹', path: '/shipments' },
-  { key: 'inventory', label: '库存总览', path: '/inventory' },
-  { key: 'print', label: '打印任务', path: '/print-jobs' },
-  { key: 'settings', label: '系统设置', path: '/system/settings' }
 ];
 
 const todoList = [
@@ -58,6 +60,27 @@ export const DashboardPage = () => {
   const featureFlags = useSessionStore((state) => state.featureFlags);
   const capabilityMatrix = useSessionStore((state) => state.capabilityMatrix);
 
+  const accessibleMenuLeaves = useMemo(
+    () =>
+      flattenMenuItems(appMenuItems).filter((item) => {
+        if (item.permission && !hasPermission(permissions, item.permission)) {
+          return false;
+        }
+        if (item.feature && !isFeatureEnabled(featureFlags, item.feature)) {
+          return false;
+        }
+        return true;
+      }),
+    [featureFlags, permissions]
+  );
+  const roleCards = useMemo(
+    () => buildDashboardWorkbenchCards(accessibleMenuLeaves),
+    [accessibleMenuLeaves]
+  );
+  const quickLinks = useMemo(
+    () => buildDashboardQuickLinks(accessibleMenuLeaves),
+    [accessibleMenuLeaves]
+  );
   const enabledFeatures = Object.values(featureFlags).filter((flag) => flag === 'enabled').length;
   const capabilityCount = Object.values(capabilityMatrix).reduce(
     (count, platformCaps) => count + Object.values(platformCaps).filter(Boolean).length,
@@ -66,13 +89,73 @@ export const DashboardPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card
+        title="岗位作业台"
+        extra={<Typography.Text type="secondary">按当前权限自动推荐可执行工作面</Typography.Text>}
+      >
+        {roleCards.length ? (
+          <Row gutter={[16, 16]}>
+            {roleCards.map((card) => (
+              <Col xs={24} md={12} xl={6} key={card.key}>
+                <div
+                  className="dashboard-role-card"
+                  data-testid={`dashboard-role-card-${card.key}`}
+                >
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <div className="dashboard-role-header">
+                      <Space direction="vertical" size={4}>
+                        <Typography.Title level={5} style={{ margin: 0 }}>
+                          {card.title}
+                        </Typography.Title>
+                        <Typography.Text type="secondary">{card.summary}</Typography.Text>
+                      </Space>
+                      <Tag color="blue">{card.availableCount} 项可达</Tag>
+                    </div>
+
+                    <Space wrap size={[8, 8]}>
+                      {card.focusTags.map((tag) => (
+                        <Tag key={`${card.key}-${tag}`} className="dashboard-role-tag">
+                          {tag}
+                        </Tag>
+                      ))}
+                    </Space>
+
+                    <Space wrap size={[8, 8]}>
+                      <Button
+                        type="primary"
+                        data-testid={`dashboard-role-primary-${card.key}`}
+                        onClick={() => navigate(card.primaryAction.path)}
+                      >
+                        {card.primaryAction.label}
+                      </Button>
+                      {card.actions.map((action) => (
+                        <Button
+                          key={`${card.key}-${action.path}`}
+                          onClick={() => navigate(action.path)}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                    </Space>
+                  </Space>
+                </div>
+              </Col>
+            ))}
+          </Row>
+        ) : (
+          <Empty description="当前账号暂无可推荐的岗位工作台" />
+        )}
+      </Card>
+
       <Row gutter={[16, 16]}>
         {summaryCards.map((item) => (
           <Col xs={24} md={12} lg={6} key={item.key}>
-            <Card>
+            <Card className="dashboard-summary-card">
               <Space direction="vertical" size={8}>
                 <Statistic title={item.title} value={item.value} suffix={item.suffix} />
-                <Tag color={item.trendColor}>{item.trend}</Tag>
+                <Tag color={item.trendColor} className="dashboard-summary-tag">
+                  {item.trend}
+                </Tag>
               </Space>
             </Card>
           </Col>
@@ -123,9 +206,9 @@ export const DashboardPage = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
           <Card title="快捷入口">
-            <Space wrap>
+            <Space wrap size={[8, 8]}>
               {quickLinks.map((link) => (
-                <Button key={link.key} onClick={() => navigate(link.path)}>
+                <Button key={link.path} onClick={() => navigate(link.path)}>
                   {link.label}
                 </Button>
               ))}

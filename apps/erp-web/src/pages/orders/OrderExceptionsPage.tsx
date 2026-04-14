@@ -34,6 +34,7 @@ import { UiModule03ContextMenu, UiModule05OrderReviewRightPanelTemplate } from '
 import { auditStatusLabels, exceptionStatusLabels } from '@/features/oms-wms-main-chain/statuses';
 import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
+import { buildCourierOptionLabel, resolveCourierOptionValue } from './shared/courierDisplay';
 
 import { OrderExceptionsMainGrid } from './exceptions-native/OrderExceptionsMainGrid';
 import { toOrderExceptionsGridRows } from './exceptions-native/orderExceptionsGridRows';
@@ -93,27 +94,6 @@ const toGoodsRows = (rows: Record<string, unknown>[]) =>
 const formatCurrency = (value?: number | null) => (value == null ? '-' : `¥${(value / 100).toFixed(2)}`);
 
 const formatDateTime = (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-');
-
-const formatDuration = (value?: string | null) => {
-  if (!value) {
-    return '-';
-  }
-
-  const start = dayjs(value);
-  if (!start.isValid()) {
-    return '-';
-  }
-
-  const diffMinutes = Math.max(dayjs().diff(start, 'minute'), 0);
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-
-  if (hours > 0) {
-    return `${hours}小时${minutes}分钟`;
-  }
-
-  return `${minutes}分钟`;
-};
 
 const resolveAuditLabel = (status?: string | null) => {
   const normalized = String(status ?? '').trim().toUpperCase();
@@ -496,9 +476,11 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       const value = String(courier.name ?? '').trim();
       if (!value) return;
       const code = String(courier.code ?? '').trim();
-      map.set(value, {
-        label: code ? `${value} (${code})` : value,
-        value,
+      const optionValue = resolveCourierOptionValue(value, code);
+      if (!optionValue) return;
+      map.set(optionValue, {
+        label: buildCourierOptionLabel(value, code),
+        value: optionValue,
       });
     });
     if (detailLogisticsCompany && !map.has(detailLogisticsCompany)) {

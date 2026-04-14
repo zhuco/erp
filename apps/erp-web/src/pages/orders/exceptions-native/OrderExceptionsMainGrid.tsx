@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CellContextMenuEvent,
   ColDef,
-  ICellRendererParams,
   ColumnHeaderContextMenuEvent,
   GetMainMenuItemsParams,
   GetRowIdParams,
@@ -15,11 +14,12 @@ import type {
   SelectionChangedEvent,
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
-import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { AgGridReact } from 'ag-grid-react';
 
 import type { OrderExceptionSummary } from '@/api/orders';
+import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
 import {
+  buildAgGridApplyColumnState,
   buildAgGridColumnStateStorageKey,
   ERP_AG_GRID_LOCALE_TEXT_ZH_CN,
   persistAgGridColumnState,
@@ -34,13 +34,16 @@ import {
 } from '@/pages/orders/review-native/OrderReviewGridFilters';
 import { formatDateTime, money, platformLabel } from '@/pages/orders/review-native/helpers';
 import { toggleAgGridHeaderSelection } from '@/pages/orders/shared/agGridSelectionHelpers';
-import { AgGridSelectionHeaderCheckbox } from '@/pages/orders/shared/AgGridSelectionHeaderCheckbox';
 import { redrawFocusedRows } from '@/pages/orders/shared/agGridFocusRefreshHelpers';
+import {
+  buildAgGridWorkbenchStructuralColDefs,
+  ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS,
+} from '@/pages/orders/shared/agGridWorkbenchStructuralColumns';
 import { useAgGridWorkbenchSelection } from '@/pages/orders/shared/useAgGridWorkbenchSelection';
 
-ModuleRegistry.registerModules([AllEnterpriseModule]);
+ModuleRegistry.registerModules([...ORDER_WORKBENCH_ENTERPRISE_MODULES]);
 
-const mainGridStructuralColumnIds = new Set(['__erpSelection', '__erpRowIndex']);
+const mainGridStructuralColumnIds = ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS;
 
 type FilterOption = {
   label: string;
@@ -78,6 +81,18 @@ type OrderExceptionsMainGridProps = {
   onRetry: () => void;
 };
 
+type SelectionColumnSnapshot = {
+  columnExists: boolean;
+  columnHidden: boolean;
+  columnWidth: number;
+  displayedRowCount: number;
+  headerCheckboxCount: number;
+  renderedCheckboxCount: number;
+  renderedSelectionCellCount: number;
+};
+
+const selectionColumnDiagnosticsEnabled = import.meta.env.DEV || import.meta.env.MODE === 'test';
+
 export const OrderExceptionsMainGrid = ({
   rows,
   quickFilterExpanded,
@@ -101,9 +116,11 @@ export const OrderExceptionsMainGrid = ({
   const shouldResetViewportRef = useRef(false);
   const previousFocusedRowKeyRef = useRef<string | null>(null);
   const [gridApi, setGridApi] = useState<GridApi<OrderExceptionSummary> | null>(null);
+  const [selectionColumnSnapshot, setSelectionColumnSnapshot] = useState<SelectionColumnSnapshot | null>(null);
   const syncingSelectionRef = useRef(false);
   const columnStatePersistTimerRef = useRef<number | null>(null);
   const applyingPersistedColumnStateRef = useRef(false);
+  const recoveringSelectionColumnRef = useRef(false);
   const tenantId = useSessionStore((state) => state.selectedTenantId);
   const userId = useSessionStore((state) => state.userId);
 
@@ -118,8 +135,126 @@ export const OrderExceptionsMainGrid = ({
     [rows, selectedKeySet],
   );
 
+  const refreshSelectionColumn = useCallback((api?: GridApi<OrderExceptionSummary> | null) => {
+    const targetApi = api ?? apiRef.current;
+    if (!targetApi) {
+      return;
+    }
+
+    targetApi.refreshHeader();
+    targetApi.refreshCells({
+      force: true,
+      columns: ['__erpSelection'],
+    });
+  }, []);
+
+  const collectSelectionColumnSnapshot = useCallback(
+    (api?: GridApi<OrderExceptionSummary> | null): SelectionColumnSnapshot | null => {
+      const targetApi = api ?? apiRef.current;
+      if (!targetApi) {
+        return null;
+      }
+
+      const selectionColumn = targetApi.getColumn?.('__erpSelection') ?? null;
+      const root = shellRef.current;
+      const renderedSelectionCells = root?.querySelectorAll('.ag-cell[col-id="__erpSelection"]') ?? null;
+      const renderedCheckboxes =
+        root?.querySelectorAll('.ag-cell[col-id="__erpSelection"] .ag-selection-checkbox') ?? null;
+      const headerCheckboxes =
+        root?.querySelectorAll('[data-testid="erp-selection-header-checkbox"]') ?? null;
+
+      return {
+        columnExists: Boolean(selectionColumn),
+        columnHidden: selectionColumn?.isVisible?.() === false,
+        columnWidth: selectionColumn?.getActualWidth?.() ?? 0,
+        displayedRowCount: targetApi.getDisplayedRowCount(),
+        headerCheckboxCount: headerCheckboxes?.length ?? 0,
+        renderedCheckboxCount: renderedCheckboxes?.length ?? 0,
+        renderedSelectionCellCount: renderedSelectionCells?.length ?? 0,
+      };
+    },
+    [],
+  );
+
+  const publishSelectionColumnSnapshot = useCallback(
+    (api?: GridApi<OrderExceptionSummary> | null) => {
+      if (!selectionColumnDiagnosticsEnabled) {
+        return null;
+      }
+      const snapshot = collectSelectionColumnSnapshot(api);
+      setSelectionColumnSnapshot(snapshot);
+      return snapshot;
+    },
+    [collectSelectionColumnSnapshot],
+  );
+
+  const ensureSelectionColumnRendered = useCallback(
+    (api?: GridApi<OrderExceptionSummary> | null) => {
+      const targetApi = api ?? apiRef.current;
+      if (!targetApi || recoveringSelectionColumnRef.current) {
+        return;
+      }
+
+      const snapshot = publishSelectionColumnSnapshot(targetApi) ?? collectSelectionColumnSnapshot(targetApi);
+      if (!snapshot) {
+        return;
+      }
+
+      const shouldRecover =
+        snapshot.columnExists &&
+        !snapshot.columnHidden &&
+        snapshot.displayedRowCount > 0 &&
+        snapshot.renderedSelectionCellCount > 0 &&
+        snapshot.renderedCheckboxCount === 0;
+
+      if (!shouldRecover) {
+        return;
+      }
+
+      recoveringSelectionColumnRef.current = true;
+      targetApi.redrawRows();
+      refreshSelectionColumn(targetApi);
+      if (typeof window === 'undefined') {
+        recoveringSelectionColumnRef.current = false;
+        return;
+      }
+
+      window.requestAnimationFrame(() => {
+        refreshSelectionColumn(targetApi);
+        publishSelectionColumnSnapshot(targetApi);
+        recoveringSelectionColumnRef.current = false;
+      });
+    },
+    [collectSelectionColumnSnapshot, publishSelectionColumnSnapshot, refreshSelectionColumn],
+  );
+
+  const scheduleSelectionColumnRefresh = useCallback((api?: GridApi<OrderExceptionSummary> | null) => {
+    const targetApi = api ?? apiRef.current;
+    if (!targetApi) {
+      return;
+    }
+
+    refreshSelectionColumn(targetApi);
+    publishSelectionColumnSnapshot(targetApi);
+    ensureSelectionColumnRendered(targetApi);
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      refreshSelectionColumn(targetApi);
+      publishSelectionColumnSnapshot(targetApi);
+      ensureSelectionColumnRendered(targetApi);
+      window.requestAnimationFrame(() => {
+        refreshSelectionColumn(targetApi);
+        publishSelectionColumnSnapshot(targetApi);
+        ensureSelectionColumnRendered(targetApi);
+      });
+    });
+  }, [ensureSelectionColumnRendered, publishSelectionColumnSnapshot, refreshSelectionColumn]);
+
   useEffect(() => {
-    const api = apiRef.current;
+    const api = gridApi ?? apiRef.current;
     if (!api) return;
     syncingSelectionRef.current = true;
     api.forEachNode((node) => {
@@ -131,7 +266,8 @@ export const OrderExceptionsMainGrid = ({
       }
     });
     syncingSelectionRef.current = false;
-  }, [selectedKeySet]);
+    scheduleSelectionColumnRefresh(api);
+  }, [gridApi, rows, scheduleSelectionColumnRefresh, selectedKeySet]);
 
   useEffect(() => {
     redrawFocusedRows({
@@ -374,7 +510,7 @@ export const OrderExceptionsMainGrid = ({
 
       applyingPersistedColumnStateRef.current = true;
       api.applyColumnState({
-        state: persistedState,
+        state: buildAgGridApplyColumnState(persistedState),
         applyOrder: true,
       });
       queueMicrotask(() => {
@@ -452,6 +588,7 @@ export const OrderExceptionsMainGrid = ({
       }
       shouldResetViewportRef.current = false;
       resetViewportToTop(event.api);
+      scheduleSelectionColumnRefresh(event.api);
       if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => {
           resetViewportToTop(event.api);
@@ -461,12 +598,13 @@ export const OrderExceptionsMainGrid = ({
         });
       }
     },
-    [onDisplayedRowsChange, resetViewportToTop],
+    [onDisplayedRowsChange, resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   const handleFirstDataRendered = useCallback(
     (api: GridApi<OrderExceptionSummary>) => {
       resetViewportToTop(api);
+      scheduleSelectionColumnRefresh(api);
       if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => {
           resetViewportToTop(api);
@@ -476,7 +614,7 @@ export const OrderExceptionsMainGrid = ({
         });
       }
     },
-    [resetViewportToTop],
+    [resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   const getRowId = useCallback((params: GetRowIdParams<OrderExceptionSummary>) => {
@@ -513,6 +651,7 @@ export const OrderExceptionsMainGrid = ({
         </div>
       ) : (
         <AgGridReact<OrderExceptionSummary>
+          theme="legacy"
           rowData={rows}
           columnDefs={colDefs}
           defaultColDef={defaultColDef}
@@ -549,6 +688,7 @@ export const OrderExceptionsMainGrid = ({
             setGridApi(event.api);
             queueMicrotask(() => {
               resetViewportToTop(event.api);
+              scheduleSelectionColumnRefresh(event.api);
             });
           }}
           onFirstDataRendered={(event) => {
@@ -604,8 +744,19 @@ export const OrderExceptionsMainGrid = ({
           data-col-id={selectionDiagnostic?.colId ?? ''}
           data-hit-zone={selectionDiagnostic?.hitZone ?? 'idle'}
           data-row-key={selectionDiagnostic?.rowKey ?? ''}
+          data-selection-column-exists={selectionColumnSnapshot?.columnExists ? 'true' : 'false'}
+          data-selection-column-hidden={selectionColumnSnapshot?.columnHidden ? 'true' : 'false'}
+          data-selection-column-width={String(selectionColumnSnapshot?.columnWidth ?? 0)}
+          data-selection-column-rendered-cells={String(selectionColumnSnapshot?.renderedSelectionCellCount ?? 0)}
+          data-selection-column-rendered-checkboxes={String(selectionColumnSnapshot?.renderedCheckboxCount ?? 0)}
         >
-          {selectionDiagnostic?.summary ?? '点击诊断：等待操作'}
+          {`${selectionDiagnostic?.summary ?? '点击诊断：等待操作'} | 选择列: ${
+            selectionColumnSnapshot?.columnExists ? '存在' : '缺失'
+          }, 隐藏=${selectionColumnSnapshot?.columnHidden ? '是' : '否'}, 宽度=${
+            selectionColumnSnapshot?.columnWidth ?? 0
+          }, 单元格=${selectionColumnSnapshot?.renderedSelectionCellCount ?? 0}, 复选框=${
+            selectionColumnSnapshot?.renderedCheckboxCount ?? 0
+          }`}
         </div>
       ) : null}
     </div>
@@ -623,56 +774,9 @@ export const buildOrderExceptionsMainGridColDefs = ({
   resolveAuditLabel,
   resolveExceptionLabel,
 }: BuildOrderExceptionsMainGridColDefsOptions): ColDef<OrderExceptionSummary>[] => [
-  {
-    colId: '__erpSelection',
-    headerName: '',
-    width: 36,
-    minWidth: 28,
-    maxWidth: 44,
-    resizable: true,
-    sortable: false,
-    filter: false,
-    headerClass: 'order-review-main-header-center order-review-main-selection-header-cell',
-    cellClass: 'order-review-main-selection-cell',
-    cellRenderer: (params: ICellRendererParams<OrderExceptionSummary>) => {
-      const rowNode = params.node;
-      if (!rowNode?.data) return null;
-
-      return (
-        <label
-          className={`ag-selection-checkbox${rowNode.isSelected() ? ' is-checked' : ''}`}
-          title="勾选/取消勾选"
-        >
-          <input
-            type="checkbox"
-            className="ag-checkbox-input"
-            checked={Boolean(rowNode.isSelected())}
-            readOnly
-            tabIndex={-1}
-            aria-label="勾选/取消勾选"
-          />
-        </label>
-      );
-    },
-    headerComponent: AgGridSelectionHeaderCheckbox,
-    headerComponentParams: {
-      onToggleAllSelection,
-      testId: 'erp-selection-header-checkbox',
-    },
-  },
-  {
-    colId: '__erpRowIndex',
-    headerName: '',
-    width: 48,
-    minWidth: 38,
-    maxWidth: 58,
-    sortable: false,
-    filter: false,
-    resizable: true,
-    valueGetter: (params) => Number(params.node?.rowIndex ?? 0) + 1,
-    headerClass: 'order-review-main-header-center order-review-main-row-index-header',
-    cellClass: 'order-review-main-row-index-cell',
-  },
+  ...buildAgGridWorkbenchStructuralColDefs<OrderExceptionSummary>({
+    onToggleAllSelection,
+  }),
   {
     colId: 'order_no',
     headerName: '订单号',

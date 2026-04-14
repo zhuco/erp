@@ -1,8 +1,9 @@
-import {
+﻿import {
   Alert,
   Button,
   Card,
   Col,
+  DatePicker,
   Drawer,
   Form,
   Input,
@@ -29,6 +30,7 @@ import {
   listWmsWaves,
   printWmsWave,
   runWmsWave,
+  shipWmsWave,
   updateWmsWaveRule,
   type WmsWave,
   type WmsWaveCreatePayload,
@@ -37,7 +39,9 @@ import {
   type WmsWaveRule,
   type WmsWaveRuleCreatePayload,
   type WmsWaveRuleUpdatePayload,
-  type WmsWaveRunPayload
+  type WmsWaveRunPayload,
+  type WmsWaveShipRequest,
+  type WmsWaveShipResponse
 } from '@/api/wms';
 import { listWarehouses } from '@/api/warehouses';
 import { getWarehouseWorkflowConfig } from '@/api/workflowConfigs';
@@ -58,6 +62,11 @@ type WaveRuleFormValues = {
   max_qty?: number;
   cutoff_time?: dayjs.Dayjs;
   strategy?: string;
+};
+
+type WaveShipFormValues = {
+  continue_on_error: boolean;
+  shipped_at?: dayjs.Dayjs;
 };
 
 const normalizeWaveRule = (rule?: WmsWaveRule | null): WaveRuleFormValues => {
@@ -109,8 +118,11 @@ export const WmsWavesPage = () => {
   const [ruleOpen, setRuleOpen] = useState(false);
   const [ruleSaving, setRuleSaving] = useState(false);
   const [runSubmitting, setRunSubmitting] = useState(false);
+  const [shipSubmitting, setShipSubmitting] = useState(false);
+  const [shipResult, setShipResult] = useState<WmsWaveShipResponse | null>(null);
   const [createForm] = Form.useForm<WmsWaveCreatePayload>();
   const [ruleForm] = Form.useForm<WaveRuleFormValues>();
+  const [shipForm] = Form.useForm<WaveShipFormValues>();
   const [filterForm] = Form.useForm<FilterValues>();
 
   const warehousesQuery = useQuery({
@@ -164,7 +176,7 @@ export const WmsWavesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['wms-waves', tenantId, query],
     queryFn: () => listWmsWaves(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<WmsWave>>(
@@ -195,6 +207,8 @@ export const WmsWavesPage = () => {
               try {
                 const detailResponse = await getWmsWave(tenantId, record.wave_id);
                 setDetail(detailResponse);
+                setShipResult(null);
+                shipForm.resetFields();
                 setDetailOpen(true);
               } catch (err) {
                 message.error(err instanceof Error ? err.message : '加载波次失败');
@@ -245,6 +259,34 @@ export const WmsWavesPage = () => {
       message.error(err instanceof Error ? err.message : '打印波次失败');
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const handleShipWave = async () => {
+    if (!detail) {
+      return;
+    }
+    try {
+      const values = await shipForm.validateFields();
+      const payload: WmsWaveShipRequest = {
+        continue_on_error: values.continue_on_error,
+        shipped_at: values.shipped_at ? values.shipped_at.toISOString() : undefined
+      };
+      setShipSubmitting(true);
+      const response = await shipWmsWave(tenantId, detail.wave.wave_id, payload);
+      setShipResult(response);
+      message.success('波次发货已执行');
+      await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+      const latest = await getWmsWave(tenantId, detail.wave.wave_id);
+      setDetail(latest);
+    } catch (err) {
+      if (err instanceof Error && err.message) {
+        message.error(err.message);
+      } else {
+        message.error('波次发货失败');
+      }
+    } finally {
+      setShipSubmitting(false);
     }
   };
 
@@ -404,7 +446,11 @@ export const WmsWavesPage = () => {
       <Drawer
         title="波次详情"
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => {
+          setDetailOpen(false);
+          setShipResult(null);
+          shipForm.resetFields();
+        }}
         width={720}
         destroyOnClose
         data-testid="wms-wave-detail-drawer"
@@ -421,6 +467,60 @@ export const WmsWavesPage = () => {
                 打印拣货单
               </Button>
             </Space>
+            <Card size="small" title="波次发货">
+              <Form<WaveShipFormValues>
+                form={shipForm}
+                layout="vertical"
+                initialValues={{ continue_on_error: true }}
+                onFinish={handleShipWave}
+              >
+                <Row gutter={12}>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="continue_on_error"
+                      label="失败继续"
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item name="shipped_at" label="发货时间">
+                      <DatePicker showTime style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Space>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={shipSubmitting}
+                    disabled={!canWrite}
+                  >
+                    波次发货
+                  </Button>
+                  <Button onClick={() => shipForm.resetFields()} disabled={shipSubmitting}>
+                    重置
+                  </Button>
+                </Space>
+              </Form>
+              {shipResult ? (
+                <Space direction="vertical" size={4} style={{ marginTop: 12 }}>
+                  <Typography.Text>
+                    总数 {shipResult.total} / 成功 {shipResult.success} / 失败{' '}
+                    {shipResult.failed}
+                  </Typography.Text>
+                  {shipResult.items.length === 0
+                    ? '暂无详情'
+                    : shipResult.items.map((item) => (
+                        <Typography.Text key={item.outbound_doc_id}>
+                          {item.outbound_doc_id} / {item.status}
+                          {item.message ? ` / ${item.message}` : ''}
+                        </Typography.Text>
+                      ))}
+                </Space>
+              ) : null}
+            </Card>
             <Typography.Text>波次：{detail.wave.wave_id}</Typography.Text>
             <Typography.Text>仓库：{detail.wave.warehouse_id}</Typography.Text>
             <Typography.Text>状态：{detail.wave.status}</Typography.Text>
@@ -503,3 +603,4 @@ export const WmsWavesPage = () => {
     </>
   );
 };
+

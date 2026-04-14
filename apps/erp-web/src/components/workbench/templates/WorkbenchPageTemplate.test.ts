@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -47,5 +49,14 @@ describe('WorkbenchPageTemplate', () => {
     expect(markup).not.toContain('order-workbench-right');
     expect(markup).not.toContain('order-workbench-bottom');
     expect(markup).not.toContain('order-workbench-footer');
+  });
+
+  it('owns its base layout stylesheet import', () => {
+    const source = readFileSync(
+      resolve(__dirname, 'WorkbenchPageTemplate.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("import './WorkbenchPageTemplate.css';");
   });
 });

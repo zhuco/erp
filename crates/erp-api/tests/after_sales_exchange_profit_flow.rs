@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::{Datelike, Utc};
 use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_repo::after_sales::{AfterSalesRepo, ExchangeDocCreateInput};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
@@ -106,14 +107,31 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
         )
         "#,
         r#"
+        create table if not exists after_sales (
+          id uuid primary key,
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          type text not null,
+          status text not null,
+          after_sale_status text not null,
+          amount_cent bigint not null default 0,
+          raw_json jsonb not null default '{}'::jsonb,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
         create table if not exists shops (
           shop_id uuid primary key,
           tenant_id uuid not null references tenants(tenant_id),
           platform text not null,
-          name text not null,
+          platform_shop_id text not null,
+          shop_name text not null default '',
           status text not null default 'ACTIVE',
+          credentials jsonb not null default '{}'::jsonb,
           created_at timestamptz not null default now(),
-          updated_at timestamptz not null default now()
+          updated_at timestamptz not null default now(),
+          unique (tenant_id, platform, platform_shop_id)
         )
         "#,
         r#"
@@ -212,6 +230,18 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
         )
         "#,
         r#"
+        create table if not exists exchange_docs (
+          exchange_id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null references tenants(tenant_id),
+          after_sales_id uuid not null references after_sales(id) on delete cascade,
+          exchange_status text not null default 'CREATED',
+          outbound_doc_id uuid,
+          shipment_id uuid,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
         create table if not exists shipping_statement_lines (
           tenant_id uuid not null references tenants(tenant_id),
           line_id uuid not null default gen_random_uuid(),
@@ -259,6 +289,80 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     for stmt in statements {
         sqlx::query(stmt).execute(pool).await?;
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn after_sales_exchange_docs_should_be_idempotent_for_same_shipment() -> Result<()> {
+    let Some(db) =
+        connect_test_db("after_sales_exchange_docs_should_be_idempotent_for_same_shipment").await
+    else {
+        return Ok(());
+    };
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let after_sales_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let shipment_id = uuid::Uuid::new_v4();
+    let outbound_doc_id = uuid::Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("exchange-doc-tenant")
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into after_sales(id, tenant_id, order_id, type, status, after_sale_status, amount_cent, raw_json)
+        values ($1, $2, $3, 'EXCHANGE', 'APPROVED', 'WAIT_BUYER_RETURN_GOODS', 6800, '{}'::jsonb)
+        "#,
+    )
+    .bind(after_sales_id)
+    .bind(tenant_id)
+    .bind(order_id)
+    .execute(db.pool())
+    .await?;
+
+    let repo = AfterSalesRepo::new(db.pool());
+    let first = repo
+        .create_exchange_docs(
+            erp_types::TenantId(tenant_id),
+            after_sales_id,
+            &[ExchangeDocCreateInput {
+                outbound_doc_id: Some(outbound_doc_id),
+                shipment_id: Some(shipment_id),
+            }],
+        )
+        .await?;
+    let second = repo
+        .create_exchange_docs(
+            erp_types::TenantId(tenant_id),
+            after_sales_id,
+            &[ExchangeDocCreateInput {
+                outbound_doc_id: Some(outbound_doc_id),
+                shipment_id: Some(shipment_id),
+            }],
+        )
+        .await?;
+
+    assert_eq!(first.len(), 1);
+    assert_eq!(second.len(), 1);
+    assert_eq!(first[0].exchange_id, second[0].exchange_id);
+
+    let exchange_doc_count: i64 =
+        sqlx::query_scalar("select count(*) from exchange_docs where tenant_id = $1 and after_sales_id = $2")
+            .bind(tenant_id)
+            .bind(after_sales_id)
+            .fetch_one(db.pool())
+            .await?;
+    assert_eq!(exchange_doc_count, 1);
+
     Ok(())
 }
 
@@ -361,13 +465,14 @@ async fn logistics_resolve_triggers_profit_snapshot_write_and_read() -> Result<(
 
     sqlx::query(
         r#"
-        insert into shops (shop_id, tenant_id, platform, name, status)
-        values ($1, $2, $3, $4, 'ACTIVE')
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id, shop_name, status)
+        values ($1, $2, $3, $4, $5, 'ACTIVE')
         "#,
     )
     .bind(shop_id)
     .bind(tenant_id)
     .bind("taobao")
+    .bind("TASK6-SHOP-1")
     .bind("task6-profit-shop")
     .execute(db.pool())
     .await?;

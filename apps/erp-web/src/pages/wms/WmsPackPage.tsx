@@ -128,7 +128,7 @@ export const WmsPackPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['wms-pack-outbounds', tenantId, query],
     queryFn: () => listWmsOutbounds(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<WmsOutboundDoc>>(

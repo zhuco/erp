@@ -24,10 +24,10 @@ import type {
   FrontendRouteDiagnosticReport,
   FrontendRouteDiagnosticStatus,
   FrontendRouteDiagnosticsPathSummary,
-} from '@/api/frontendRouteDiagnostics';
-import { getFrontendRouteDiagnostics } from '@/api/frontendRouteDiagnostics';
+  MetricsSnapshot,
+} from '@/api/system';
+import { fetchMetrics, getFrontendRouteDiagnostics } from '@/api/system';
 import { getStatsInfraHealth } from '@/api/stats';
-import { fetchMetrics, type MetricsSnapshot } from '@/api/system';
 import {
   ROUTE_LOADING_TIMEOUT_MS,
   getAllRouteLoadingSnapshots,
@@ -1361,3 +1361,4 @@ export const ObservabilityPage = () => {
     </UiModule07SettingsLayout>
   );
 };
+

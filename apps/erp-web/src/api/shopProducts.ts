@@ -36,6 +36,7 @@ export type ShopProductSku = {
   mapped_sku_name?: string | null;
   match_source?: string | null;
   mapping_status?: string | null;
+  conflict_reason?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -47,6 +48,9 @@ export type ShopProductSkuListQuery = {
   status?: string;
   keyword?: string;
   match_status?: string;
+  mapping_status?: string;
+  conflict_reason?: string;
+  match_source?: string;
   updated_from?: string;
   updated_to?: string;
   offset?: number;
@@ -179,6 +183,15 @@ const buildSkuQueryString = (query: ShopProductSkuListQuery): string => {
   }
   if (query.match_status) {
     params.set('match_status', query.match_status);
+  }
+  if (query.mapping_status) {
+    params.set('mapping_status', query.mapping_status);
+  }
+  if (query.conflict_reason) {
+    params.set('conflict_reason', query.conflict_reason);
+  }
+  if (query.match_source) {
+    params.set('match_source', query.match_source);
   }
   if (query.updated_from) {
     params.set('updated_from', query.updated_from);

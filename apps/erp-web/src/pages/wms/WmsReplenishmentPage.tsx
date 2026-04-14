@@ -24,7 +24,7 @@ export const WmsReplenishmentPage = () => {
   const query = useQuery({
     queryKey: ['wms-replenishment-tasks', tenantId],
     queryFn: () => listWmsReplenishmentTasks(tenantId, { offset: 0, limit: 50 }),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const claimMutation = useMutation({

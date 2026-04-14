@@ -78,6 +78,11 @@ export type ShopAuthorizeResponse = {
 };
 
 export type ShopAuthCallbackPayload = {
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+  redirect_uri?: string;
   access_token?: string;
   refresh_token?: string;
   expires_at?: string;

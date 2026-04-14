@@ -12,6 +12,9 @@
   z-index: 4;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   background: var(--erp-bg-panel);
 }
 
@@ -34,15 +37,19 @@
 .order-review-scrollbar-row,
 .order-workbench-scrollbar-row {
   display: flex;
-  align-items: center;
-  padding-top: 5px;
+  align-items: flex-end;
+  padding-top: 0;
   flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
   background: var(--erp-bg-panel);
 }
 
 .order-review-scrollbar,
 .order-workbench-scrollbar {
   flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   height: 12px;
@@ -59,7 +66,10 @@
   align-items: center;
   gap: var(--erp-gap-sm);
   padding-top: 4px;
+  padding-bottom: 2px;
   flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
   background: var(--erp-bg-panel);
 }
 

@@ -10,7 +10,6 @@ import {
   MinusSquareOutlined,
   PieChartOutlined,
   PlusSquareOutlined,
-  SaveOutlined,
   SearchOutlined,
   ShopOutlined,
 } from '@ant-design/icons';
@@ -69,6 +68,7 @@ import {
   type OrderReviewAgLeftNode,
   type OrderReviewAgLeftRow,
 } from './orderReviewAgLeftModel';
+import { buildCourierOptionLabel, resolveCourierOptionValue } from './shared/courierDisplay';
 
 import './orderReviewPage.css';
 
@@ -237,7 +237,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
 
   const [detailWarehouseId, setDetailWarehouseId] = useState<string | undefined>(undefined);
   const [detailLogistics, setDetailLogistics] = useState<string | undefined>(undefined);
-  const [detailSaving, setDetailSaving] = useState(false);
+  const [detailUpdatingField, setDetailUpdatingField] = useState<'warehouse' | 'logistics' | null>(null);
 
   const [splitModalOpen, setSplitModalOpen] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
@@ -303,10 +303,12 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
 
   const courierOptions = useMemo(
     () =>
-      courierData?.items?.map((courier) => ({
-        label: `${courier.name} (${courier.code})`,
-        value: courier.name,
-      })) ?? [],
+      (courierData?.items ?? [])
+        .map((courier) => ({
+          label: buildCourierOptionLabel(String(courier.name ?? ''), String(courier.code ?? '')),
+          value: resolveCourierOptionValue(String(courier.name ?? ''), String(courier.code ?? '')),
+        }))
+        .filter((option) => String(option.value ?? '').trim().length > 0),
     [courierData?.items],
   );
 
@@ -1166,6 +1168,25 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     });
   }, [actionOrderIds, resolveOrderActionId, rows]);
 
+  const checkActionOrdersHasEmptyLogistics = useCallback(async (): Promise<boolean> => {
+    if (!tenantId || !actionOrderIds.length) {
+      return false;
+    }
+
+    const detailList = await Promise.all(
+      actionOrderIds.map((orderId) =>
+        queryClient.fetchQuery({
+          queryKey: ['orders', 'detail', tenantId, orderId],
+          queryFn: ({ signal }) => getOrderDetail(tenantId, orderId, { signal }),
+          staleTime: 45_000,
+          gcTime: 300_000,
+        }),
+      ),
+    );
+
+    return detailList.some((detail) => !String(detail.order?.logistics_company ?? '').trim());
+  }, [actionOrderIds, queryClient, tenantId]);
+
   const selectedAmountCent = useMemo(() => {
     if (!selectedOrderIds.length) return 0;
     const selected = new Set(selectedOrderIds);
@@ -1339,6 +1360,17 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
       message.warning('含无效货品的订单不允许审核或强制审核');
       return;
     }
+    let hasEmptyLogistics = false;
+    try {
+      hasEmptyLogistics = await checkActionOrdersHasEmptyLogistics();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '校验物流公司失败');
+      return;
+    }
+    if (hasEmptyLogistics) {
+      message.warning('物流公司为空的订单不允许审核或强制审核');
+      return;
+    }
 
     setActionLoading((prev) => ({ ...prev, review: true }));
     try {
@@ -1357,7 +1389,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     } finally {
       setActionLoading((prev) => ({ ...prev, review: false }));
     }
-  }, [actionHasInvalidGoods, actionOrderIds, canWriteOrders, detailQuery, refetch, tenantId]);
+  }, [actionHasInvalidGoods, actionOrderIds, canWriteOrders, checkActionOrdersHasEmptyLogistics, detailQuery, refetch, tenantId]);
 
   const performForceReview = useCallback(async () => {
     if (!actionOrderIds.length) {
@@ -1373,6 +1405,17 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     }
     if (actionHasInvalidGoods) {
       message.warning('含无效货品的订单不允许审核或强制审核');
+      return;
+    }
+    let hasEmptyLogistics = false;
+    try {
+      hasEmptyLogistics = await checkActionOrdersHasEmptyLogistics();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '校验物流公司失败');
+      return;
+    }
+    if (hasEmptyLogistics) {
+      message.warning('物流公司为空的订单不允许审核或强制审核');
       return;
     }
 
@@ -1393,7 +1436,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     } finally {
       setActionLoading((prev) => ({ ...prev, force: false }));
     }
-  }, [actionHasInvalidGoods, actionOrderIds, canWriteOrders, detailQuery, refetch, tenantId]);
+  }, [actionHasInvalidGoods, actionOrderIds, canWriteOrders, checkActionOrdersHasEmptyLogistics, detailQuery, refetch, tenantId]);
 
   const performMergeOrders = useCallback(async () => {
     if (actionOrderIds.length < 2) {
@@ -1458,27 +1501,69 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     }
   }, [actionOrderIds, canWriteOrders, detailQuery, refetch, splitCount, tenantId]);
 
-  const handleSaveQuickEdit = useCallback(async () => {
-    if (!tenantId || !detailOrder) return;
-    if (!canWriteOrders) {
-      message.warning('暂无订单修改权限');
-      return;
-    }
+  const handleDetailWarehouseChange = useCallback(
+    async (nextValue: string | undefined) => {
+      const nextWarehouseId = String(nextValue ?? '').trim() || undefined;
+      if (nextWarehouseId === detailWarehouseId) {
+        return;
+      }
+      if (!detailOrder?.id || !tenantId) {
+        setDetailWarehouseId(nextWarehouseId);
+        return;
+      }
+      if (!canWriteOrders) {
+        message.warning('暂无订单修改权限');
+        return;
+      }
 
-    setDetailSaving(true);
-    try {
-      await updateOrder(tenantId, detailOrder.id, {
-        ship_warehouse_id: detailWarehouseId,
-        logistics_company: detailLogistics?.trim() || undefined,
-      });
-      message.success('详情快捷修改已保存');
-      await Promise.all([refetch(), detailQuery.refetch()]);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
-    } finally {
-      setDetailSaving(false);
-    }
-  }, [canWriteOrders, detailLogistics, detailOrder, detailQuery, detailWarehouseId, refetch, tenantId]);
+      const previousWarehouseId = detailWarehouseId;
+      setDetailWarehouseId(nextWarehouseId);
+      setDetailUpdatingField('warehouse');
+      try {
+        await updateOrder(tenantId, detailOrder.id, { ship_warehouse_id: nextWarehouseId });
+        message.success('发货仓库已更新');
+        await Promise.all([refetch(), detailQuery.refetch()]);
+      } catch (error) {
+        setDetailWarehouseId(previousWarehouseId);
+        message.error(error instanceof Error ? error.message : '更新发货仓库失败');
+      } finally {
+        setDetailUpdatingField(null);
+      }
+    },
+    [canWriteOrders, detailOrder?.id, detailQuery, detailWarehouseId, refetch, tenantId],
+  );
+
+  const handleDetailLogisticsChange = useCallback(
+    async (nextValue: string | undefined) => {
+      const nextLogistics = String(nextValue ?? '').trim() || undefined;
+      if (nextLogistics === detailLogistics) {
+        return;
+      }
+      if (!detailOrder?.id || !tenantId) {
+        setDetailLogistics(nextLogistics);
+        return;
+      }
+      if (!canWriteOrders) {
+        message.warning('暂无订单修改权限');
+        return;
+      }
+
+      const previousLogistics = detailLogistics;
+      setDetailLogistics(nextLogistics);
+      setDetailUpdatingField('logistics');
+      try {
+        await updateOrder(tenantId, detailOrder.id, { logistics_company: nextLogistics });
+        message.success('物流公司已更新');
+        await Promise.all([refetch(), detailQuery.refetch()]);
+      } catch (error) {
+        setDetailLogistics(previousLogistics);
+        message.error(error instanceof Error ? error.message : '更新物流公司失败');
+      } finally {
+        setDetailUpdatingField(null);
+      }
+    },
+    [canWriteOrders, detailLogistics, detailOrder?.id, detailQuery, refetch, tenantId],
+  );
 
   const selectedOrderKeySet = useMemo(() => new Set(selectedRowKeys.map((item) => String(item))), [selectedRowKeys]);
   const selectedInMainGridCount = useMemo(
@@ -1657,6 +1742,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
               gridShellClassName="ag-theme-quartz order-review-left-ag-grid-shell"
             >
               <AgGridReact<OrderReviewAgLeftRenderRow>
+                theme="legacy"
                 rowData={leftRowsForRender}
                 columnDefs={leftColDefs}
                 getRowId={(params) => params.data.key}
@@ -1755,7 +1841,11 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
                   placeholder="发货仓库"
                   options={warehouseOptions}
                   value={detailWarehouseId}
-                  onChange={(value) => setDetailWarehouseId(value ?? undefined)}
+                  loading={detailUpdatingField === 'warehouse'}
+                  disabled={detailUpdatingField === 'warehouse' || detailUpdatingField === 'logistics'}
+                  onChange={(value) => {
+                    void handleDetailWarehouseChange(value ?? undefined);
+                  }}
                 />
                 <Select
                   size="small"
@@ -1765,17 +1855,12 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
                   placeholder="快递公司"
                   options={courierOptions}
                   value={detailLogistics}
-                  onChange={(value) => setDetailLogistics(value ?? undefined)}
+                  loading={detailUpdatingField === 'logistics'}
+                  disabled={detailUpdatingField === 'warehouse' || detailUpdatingField === 'logistics'}
+                  onChange={(value) => {
+                    void handleDetailLogisticsChange(value ?? undefined);
+                  }}
                 />
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  loading={detailSaving}
-                  onClick={handleSaveQuickEdit}
-                >
-                  保存
-                </Button>
               </Space>
             ),
           },
@@ -1799,11 +1884,12 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
     ),
     [
       courierOptions,
+      detailUpdatingField,
       detailLogistics,
       detailOrder,
-      detailSaving,
       detailWarehouseId,
-      handleSaveQuickEdit,
+      handleDetailLogisticsChange,
+      handleDetailWarehouseChange,
       warehouseOptions,
     ],
   );
@@ -2173,6 +2259,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
               </div>
             ) : (
               <AgGridReact<OrderSummary>
+                theme="legacy"
                 rowData={rows}
                 columnDefs={mainGridColDefs}
                 defaultColDef={mainGridDefaultColDef}

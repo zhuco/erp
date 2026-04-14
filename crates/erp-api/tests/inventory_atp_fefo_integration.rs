@@ -16,6 +16,11 @@ use tower::ServiceExt;
 mod support;
 
 async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
+    let mut tx = pool.begin().await?;
+    sqlx::query("select pg_advisory_xact_lock(9101001)")
+        .execute(&mut *tx)
+        .await?;
+
     let statements = [
         "create extension if not exists pgcrypto",
         r#"
@@ -143,9 +148,10 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     ];
 
     for stmt in statements {
-        sqlx::query(stmt).execute(pool).await?;
+        sqlx::query(stmt).execute(&mut *tx).await?;
     }
 
+    tx.commit().await?;
     Ok(())
 }
 
@@ -227,14 +233,14 @@ async fn seed_data(pool: &sqlx::PgPool) -> Result<SeedData> {
         (
             batch_a,
             "BATCH-A",
-            Some((now + Duration::days(7)).to_rfc3339()),
+            Some(now + Duration::days(7)),
             8_i64,
             0_i64,
         ),
         (
             batch_b,
             "BATCH-B",
-            Some((now + Duration::days(20)).to_rfc3339()),
+            Some(now + Duration::days(20)),
             30_i64,
             5_i64,
         ),

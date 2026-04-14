@@ -30,7 +30,7 @@ export const WmsSlottingPage = () => {
   const query = useQuery({
     queryKey: ['wms-slotting-suggestions', tenantId],
     queryFn: () => listWmsSlottingSuggestions(tenantId, { offset: 0, limit: 50 }),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const applyMutation = useMutation({

@@ -6,7 +6,8 @@ import type { components, paths } from './generated/schema';
 
 export type AfterSaleCaseSummary = components['schemas']['AfterSaleCaseSummary'];
 export type AfterSaleCaseDetail = components['schemas']['AfterSaleCaseDetail'];
-export type AfterSaleListResponse = components['schemas']['AfterSaleCaseListResponse'];
+export type AfterSaleListResponse =
+  paths['/v1/tenants/{tenant_id}/after-sale-cases']['get']['responses'][200]['content']['application/json'];
 export type AfterSaleListQuery = NonNullable<
   paths['/v1/tenants/{tenant_id}/after-sale-cases']['get']['parameters']['query']
 >;

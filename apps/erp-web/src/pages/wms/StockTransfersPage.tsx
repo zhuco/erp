@@ -89,7 +89,7 @@ export const StockTransfersPage = () => {
     queryKey: ['stock-transfers', tenantId, listQuery],
     queryFn: () => listStockTransfers(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({

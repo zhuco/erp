@@ -180,7 +180,9 @@ export const UiModule08OrderReviewLeftPanelTemplate = ({
               animateRows={false}
               rowBuffer={8}
               onCellClicked={onLeftRowClick}
-              getRowClass={(params) => (params.data?.checked ? 'order-review-left-ag-row-checked' : undefined)}
+              rowClassRules={{
+                'order-review-left-ag-row-checked': (params) => Boolean(params.data?.checked),
+              }}
             />
           </div>
 

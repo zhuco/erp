@@ -148,6 +148,86 @@ export type SettingUpsertRequest = {
 
 export type MetricsSnapshot = Record<string, number>;
 
+export type FrontendRouteDiagnosticEventType =
+  | 'loading-ready'
+  | 'loading-timeout'
+  | 'loading-error'
+  | 'prefetch-ready'
+  | 'prefetch-error'
+  | 'prefetch-skipped';
+
+export type FrontendRouteDiagnosticStatus = 'ready' | 'timeout' | 'error' | 'loading' | 'idle';
+
+export type FrontendRouteDiagnosticReport = {
+  session_id: string;
+  path: string;
+  route_label?: string;
+  event_type: FrontendRouteDiagnosticEventType;
+  status: FrontendRouteDiagnosticStatus;
+  duration_ms?: number;
+  prefetch_status?: 'prefetching' | 'ready' | 'error' | 'skipped';
+  prefetch_source?: 'hover' | 'open' | 'search' | 'recommendation' | 'programmatic';
+  prefetch_duration_ms?: number;
+  error_summary?: string;
+  detail?: string;
+  event_at: number;
+  created_at?: string;
+  page_url: string;
+  build_version: string;
+  user_agent: string;
+};
+
+export type FrontendRouteDiagnosticsQuery = {
+  pathKeyword?: string;
+  status?: FrontendRouteDiagnosticStatus | 'all';
+  eventType?: FrontendRouteDiagnosticEventType | 'all';
+  windowHours?: number;
+  limit?: number;
+};
+
+export type FrontendRouteDiagnosticsSummary = {
+  totalEvents: number;
+  uniqueRoutes: number;
+  readyEvents: number;
+  timeoutEvents: number;
+  errorEvents: number;
+  slowEvents: number;
+  prefetchHits: number;
+  affectedSessions: number;
+  measuredFirstLoads: number;
+  successfulFirstLoads: number;
+  firstLoadAvgDurationMs?: number;
+  prefetchShortCircuitCount: number;
+};
+
+export type FrontendRouteDiagnosticsPathSummary = {
+  path: string;
+  routeLabel?: string;
+  totalEvents: number;
+  readyEvents: number;
+  timeoutEvents: number;
+  errorEvents: number;
+  slowEvents: number;
+  prefetchHits: number;
+  avgDurationMs?: number;
+  maxDurationMs?: number;
+  measuredFirstLoads: number;
+  successfulFirstLoads: number;
+  firstLoadAvgDurationMs?: number;
+  prefetchShortCircuitCount: number;
+  lastSeenAt: string;
+};
+
+export type FrontendRouteDiagnosticsResponse = {
+  summary: FrontendRouteDiagnosticsSummary;
+  paths: FrontendRouteDiagnosticsPathSummary[];
+  events: FrontendRouteDiagnosticReport[];
+};
+
+export type FrontendRouteDiagnosticsReportResponse = {
+  accepted: number;
+};
+
 const REQUEST_TIMEOUT_MS = 15000;
 
 const requestJson = async <T>(input: RequestInfo, init: RequestInit, message: string) => {
@@ -216,6 +296,27 @@ const buildQueryString = (query: Record<string, string | undefined>) => {
     }
     params.set(key, value);
   });
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+};
+
+const buildFrontendRouteDiagnosticsQueryString = (query: FrontendRouteDiagnosticsQuery) => {
+  const params = new URLSearchParams();
+  if (query.pathKeyword?.trim()) {
+    params.set('path_keyword', query.pathKeyword.trim());
+  }
+  if (query.status && query.status !== 'all') {
+    params.set('status', query.status);
+  }
+  if (query.eventType && query.eventType !== 'all') {
+    params.set('event_type', query.eventType);
+  }
+  if (typeof query.windowHours === 'number' && Number.isFinite(query.windowHours)) {
+    params.set('window_hours', String(Math.max(1, Math.round(query.windowHours))));
+  }
+  if (typeof query.limit === 'number' && Number.isFinite(query.limit)) {
+    params.set('limit', String(Math.max(1, Math.round(query.limit))));
+  }
   const serialized = params.toString();
   return serialized ? `?${serialized}` : '';
 };
@@ -600,4 +701,59 @@ export const fetchMetrics = async (): Promise<MetricsSnapshot> => {
     '获取监控指标失败'
   );
   return parseMetricsText(text);
+};
+
+export const reportFrontendRouteDiagnostics = async (
+  tenantId: string,
+  payload: { events: FrontendRouteDiagnosticReport[] }
+): Promise<FrontendRouteDiagnosticsReportResponse> => {
+  if (payload.events.length === 0) {
+    return { accepted: 0 };
+  }
+  if (useMocks) {
+    return { accepted: payload.events.length };
+  }
+  return requestJson<FrontendRouteDiagnosticsReportResponse>(
+    `${apiBaseUrl}/v1/tenants/${tenantId}/system/frontend-route-diagnostics`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders()
+      },
+      body: JSON.stringify(payload),
+      keepalive: true
+    },
+    '上报前端路由观测失败'
+  );
+};
+
+export const getFrontendRouteDiagnostics = async (
+  tenantId: string,
+  query: FrontendRouteDiagnosticsQuery
+): Promise<FrontendRouteDiagnosticsResponse> => {
+  if (useMocks) {
+    return {
+      summary: {
+        totalEvents: 0,
+        uniqueRoutes: 0,
+        readyEvents: 0,
+        timeoutEvents: 0,
+        errorEvents: 0,
+        slowEvents: 0,
+        prefetchHits: 0,
+        affectedSessions: 0,
+        measuredFirstLoads: 0,
+        successfulFirstLoads: 0,
+        prefetchShortCircuitCount: 0
+      },
+      paths: [],
+      events: []
+    };
+  }
+  return requestJson<FrontendRouteDiagnosticsResponse>(
+    `${apiBaseUrl}/v1/tenants/${tenantId}/system/frontend-route-diagnostics${buildFrontendRouteDiagnosticsQueryString(query)}`,
+    { headers: buildAuthHeaders() },
+    '获取前端路由观测失败'
+  );
 };

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement, createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -21,7 +23,11 @@ describe('WorkbenchMainTableTemplate', () => {
           pageSize: 100,
           pageSizeOptions: ['50', '100', '200'],
         },
-        footerSummary: createElement('span', { 'data-testid': 'summary-slot' }, '总数 123 条，本页 100 条'),
+        footerSummary: createElement(
+          'span',
+          { 'data-testid': 'summary-slot' },
+          '总数 123 条，本页 100 条',
+        ),
         onPaginationChange: () => undefined,
       }),
     );
@@ -30,8 +36,17 @@ describe('WorkbenchMainTableTemplate', () => {
     expect(markup).toContain('data-testid="toolbar-slot"');
     expect(markup).toContain('data-testid="header-slot"');
     expect(markup).toContain('data-testid="table-slot"');
-    expect(markup).toContain('order-workbench-table order-review-table order-workbench-table-with-footer');
+    expect(markup).toContain(
+      'order-workbench-table order-review-table order-workbench-table-with-footer',
+    );
     expect(markup).toContain('order-review-pagination');
     expect(markup).toContain('data-testid="summary-slot"');
+  });
+
+  it('does not manage shared bottom panels unless the template explicitly receives bottom panel props', () => {
+    const source = readFileSync(resolve(__dirname, 'WorkbenchMainTableTemplate.tsx'), 'utf8');
+
+    expect(source).toContain("hasOwn.call(props, 'bottomPanel')");
+    expect(source).toContain('if (!workbenchPanels || !shouldSyncBottomPanel)');
   });
 });

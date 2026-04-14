@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::Utc;
 use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_repo::after_sales::{AfterSalesRepo, ReturnReceiptCreateInput};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use sqlx::postgres::PgPoolOptions;
@@ -92,11 +93,45 @@ async fn connect_test_db(case_name: &str) -> Option<Db> {
 
 async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     let statements = [
+        "create extension if not exists pgcrypto",
         r#"
         create table if not exists tenants (
           tenant_id uuid primary key,
           name text not null default 'test-tenant',
           status text not null default 'ACTIVE',
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists products (
+          product_id uuid primary key,
+          tenant_id uuid not null,
+          name text not null,
+          attrs jsonb not null default '{}'::jsonb,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists warehouses (
+          warehouse_id uuid primary key,
+          tenant_id uuid not null,
+          name text not null,
+          code text,
+          is_default boolean not null default false,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists skus (
+          sku_id uuid primary key,
+          tenant_id uuid not null,
+          product_id uuid not null,
+          sku_code text not null,
+          spec jsonb not null default '{}'::jsonb,
+          is_active boolean not null default true,
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now()
         )
@@ -131,6 +166,60 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
           ip text,
           ua text,
           created_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists after_sales_items (
+          tenant_id uuid not null,
+          after_sales_id uuid not null,
+          sku_id uuid not null,
+          qty bigint not null default 0,
+          refund_cent bigint not null default 0,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          primary key (tenant_id, after_sales_id, sku_id)
+        )
+        "#,
+        r#"
+        create table if not exists return_receipts (
+          id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null,
+          after_sales_id uuid not null,
+          warehouse_id uuid not null,
+          status text not null,
+          return_status text not null,
+          received_at timestamptz,
+          putaway_at timestamptz,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists inbound_docs (
+          doc_id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null,
+          warehouse_id uuid not null,
+          doc_type text not null,
+          doc_no text not null,
+          status text not null,
+          ref_type text,
+          ref_id text,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          unique (tenant_id, doc_no)
+        )
+        "#,
+        r#"
+        create table if not exists inbound_doc_items (
+          tenant_id uuid not null,
+          doc_id uuid not null,
+          sku_id uuid not null,
+          planned_qty bigint not null default 0,
+          received_qty bigint not null default 0,
+          putaway_qty bigint not null default 0,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          primary key (tenant_id, doc_id, sku_id)
         )
         "#,
         "alter table after_sales add column if not exists after_sale_status text not null default 'WAIT_SELLER_AGREE'",
@@ -295,6 +384,156 @@ async fn after_sales_state_machine_reject_then_approve_should_conflict() -> Resu
         receive_body.get("code").and_then(|v| v.as_str()),
         Some("conflict")
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn after_sales_redo_receive_should_refresh_linked_inbound_doc_warehouse() -> Result<()> {
+    let Some(db) =
+        connect_test_db("after_sales_redo_receive_should_refresh_linked_inbound_doc_warehouse")
+            .await
+    else {
+        return Ok(());
+    };
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let after_sales_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let product_id = uuid::Uuid::new_v4();
+    let sku_id = uuid::Uuid::new_v4();
+    let warehouse_a = uuid::Uuid::new_v4();
+    let warehouse_b = uuid::Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        insert into tenants(tenant_id, name, status)
+        values ($1, 'redo-receive-tenant', 'ACTIVE')
+        on conflict (tenant_id) do nothing
+        "#,
+    )
+    .bind(tenant_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into products(product_id, tenant_id, name, attrs)
+        values ($1, $2, 'redo-receive-product', '{}'::jsonb)
+        on conflict (product_id) do nothing
+        "#,
+    )
+    .bind(product_id)
+    .bind(tenant_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into warehouses(warehouse_id, tenant_id, name, code, is_default)
+        values ($1, $2, 'redo-receive-wh-a', 'RR-A', true),
+               ($3, $2, 'redo-receive-wh-b', 'RR-B', false)
+        on conflict (warehouse_id) do nothing
+        "#,
+    )
+    .bind(warehouse_a)
+    .bind(tenant_id)
+    .bind(warehouse_b)
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into skus(sku_id, tenant_id, product_id, sku_code, spec, is_active)
+        values ($1, $2, $3, 'redo-receive-sku', '{}'::jsonb, true)
+        on conflict (sku_id) do nothing
+        "#,
+    )
+    .bind(sku_id)
+    .bind(tenant_id)
+    .bind(product_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into after_sales(id, tenant_id, order_id, type, status, after_sale_status, amount_cent, raw_json)
+        values ($1, $2, $3, 'RETURN_REFUND', 'APPROVED', 'WAIT_BUYER_RETURN_GOODS', 3600, '{}'::jsonb)
+        "#,
+    )
+    .bind(after_sales_id)
+    .bind(tenant_id)
+    .bind(order_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query(
+        r#"
+        insert into after_sales_items(tenant_id, after_sales_id, sku_id, qty, refund_cent)
+        values ($1, $2, $3, 1, 3600)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(after_sales_id)
+    .bind(sku_id)
+    .execute(db.pool())
+    .await?;
+
+    let repo = AfterSalesRepo::new(db.pool());
+    repo.receive_return(ReturnReceiptCreateInput {
+        tenant_id: erp_types::TenantId(tenant_id),
+        after_sales_id,
+        warehouse_id: warehouse_a,
+        putaway_done: false,
+        received_at: Some(Utc::now()),
+        link_inbound: true,
+    })
+    .await?;
+
+    let original_doc_id: uuid::Uuid = sqlx::query_scalar(
+        "select doc_id from inbound_docs where tenant_id = $1 and doc_no = $2",
+    )
+    .bind(tenant_id)
+    .bind(format!("RETURN-{after_sales_id}"))
+    .fetch_one(db.pool())
+    .await?;
+
+    repo.cancel_return_receipt(erp_types::TenantId(tenant_id), after_sales_id)
+        .await?;
+
+    repo.redo_return_receipt(ReturnReceiptCreateInput {
+        tenant_id: erp_types::TenantId(tenant_id),
+        after_sales_id,
+        warehouse_id: warehouse_b,
+        putaway_done: false,
+        received_at: Some(Utc::now()),
+        link_inbound: true,
+    })
+    .await?;
+
+    #[derive(sqlx::FromRow)]
+    struct InboundDocRow {
+        doc_id: uuid::Uuid,
+        warehouse_id: uuid::Uuid,
+        status: String,
+    }
+
+    let inbound_doc: InboundDocRow = sqlx::query_as(
+        "select doc_id, warehouse_id, status from inbound_docs where tenant_id = $1 and doc_no = $2",
+    )
+    .bind(tenant_id)
+    .bind(format!("RETURN-{after_sales_id}"))
+    .fetch_one(db.pool())
+    .await?;
+
+    assert_eq!(inbound_doc.doc_id, original_doc_id);
+    assert_eq!(inbound_doc.warehouse_id, warehouse_b);
+    assert_eq!(inbound_doc.status, "RECEIVING");
+
+    let receipt_warehouse_id: uuid::Uuid = sqlx::query_scalar(
+        "select warehouse_id from return_receipts where tenant_id = $1 and after_sales_id = $2",
+    )
+    .bind(tenant_id)
+    .bind(after_sales_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(receipt_warehouse_id, warehouse_b);
 
     Ok(())
 }

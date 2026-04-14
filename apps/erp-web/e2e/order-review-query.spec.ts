@@ -7,7 +7,7 @@ test('order review filters quickly by order id', async ({ page }) => {
   const grid = page.getByTestId('order-review-data-grid');
   await expect(grid).toBeVisible();
 
-  const rows = grid.locator('.erp-data-grid-row');
+  const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
   await expect(rows.first()).toBeVisible();
   const initialCount = await rows.count();
@@ -17,12 +17,14 @@ test('order review filters quickly by order id', async ({ page }) => {
   const orderId = (await orderIdCell.textContent())?.trim() ?? '';
   expect(orderId).not.toBe('');
 
-  const orderInput = grid.getByPlaceholder('订单编号');
+  const orderInput = grid.getByTestId('order-review-floating-filter-id');
   await expect(orderInput).toBeVisible();
   await orderInput.fill(orderId);
   await expect(orderInput).toHaveValue(orderId);
 
-  const visibleOrderIds = grid.locator('.erp-data-grid-row .ag-cell[col-id="id"]');
+  const visibleOrderIds = grid.locator(
+    '.ag-center-cols-container .ag-row.erp-data-grid-row .ag-cell[col-id="id"]',
+  );
   await expect
     .poll(async () => {
       const values = (await visibleOrderIds.allTextContents())
@@ -44,7 +46,7 @@ test('order review clears active target after filtering active row out of view',
   const grid = page.getByTestId('order-review-data-grid');
   await expect(grid).toBeVisible();
 
-  const rows = grid.locator('.erp-data-grid-row');
+  const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
 
   const firstRow = rows.nth(0);
@@ -59,12 +61,14 @@ test('order review clears active target after filtering active row out of view',
   await expect(firstRow).toHaveClass(/erp-data-grid-row-active/);
   await expect(page.getByTestId('order-review-approve')).toBeEnabled();
 
-  const orderInput = grid.getByPlaceholder('订单编号');
+  const orderInput = grid.getByTestId('order-review-floating-filter-id');
   await expect(orderInput).toBeVisible();
   await orderInput.fill(secondRowOrderId);
   await expect(orderInput).toHaveValue(secondRowOrderId);
 
-  const visibleOrderIds = grid.locator('.erp-data-grid-row .ag-cell[col-id="id"]');
+  const visibleOrderIds = grid.locator(
+    '.ag-center-cols-container .ag-row.erp-data-grid-row .ag-cell[col-id="id"]',
+  );
   await expect
     .poll(async () => {
       const values = (await visibleOrderIds.allTextContents())

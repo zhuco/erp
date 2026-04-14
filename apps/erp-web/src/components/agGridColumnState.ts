@@ -15,6 +15,7 @@ type PersistedAgGridColumnStatePayload = {
 
 const ERP_AG_GRID_STATE_STORAGE_PREFIX = 'erp.aggrid.columns';
 const ERP_AG_GRID_STRUCTURAL_COLUMN_IDS = new Set(['__erpSelection', '__erpRowIndex']);
+const ERP_AG_GRID_STRUCTURAL_COLUMN_ORDER = ['__erpSelection', '__erpRowIndex'] as const;
 
 const normalizeScopeSegment = (value: string | undefined, fallback: string) => {
   const normalized = String(value ?? '').trim();
@@ -118,6 +119,18 @@ export const normalizePersistedColumnState = (states: ColumnState[] | null | und
   return states
     .map((state) => normalizeColumnStateItem(state))
     .filter((state): state is ColumnState => state != null);
+};
+
+export const buildAgGridApplyColumnState = (states: ColumnState[] | null | undefined): ColumnState[] => {
+  const normalizedStates = normalizePersistedColumnState(states);
+
+  return [
+    ...ERP_AG_GRID_STRUCTURAL_COLUMN_ORDER.map<ColumnState>((colId) => ({
+      colId,
+      hide: false,
+    })),
+    ...normalizedStates,
+  ];
 };
 
 export const resolveAgGridMainMenuItems = (colId: string | null | undefined) => {

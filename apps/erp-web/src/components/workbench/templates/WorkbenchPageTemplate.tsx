@@ -1,3 +1,5 @@
+import './WorkbenchPageTemplate.css';
+
 import type { ReactNode } from 'react';
 
 export type WorkbenchPageTemplateProps = {

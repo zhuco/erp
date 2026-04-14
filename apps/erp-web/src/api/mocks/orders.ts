@@ -456,7 +456,7 @@ mockOrderReceiverAddresses.set(
   '鍦板潃寮傚父锛氱己灏戣閬撲笌妤煎眰淇℃伅'
 );
 mockOrderLogisticsCompany.set(specialOrderIds.noLogistics, '');
-mockOrderLogisticsCompany.set(specialOrderIds.merged, '浜笢鐗╂祦');
+mockOrderLogisticsCompany.set(specialOrderIds.merged, '京东物流');
 mockOrderLogisticsCompany.set(specialOrderIds.split, '圆通速递');
 mockOrderWarehouseId.set(specialOrderIds.merged, 'WH-EAST');
 mockOrderWarehouseId.set(specialOrderIds.split, 'WH-DEFAULT');
@@ -519,16 +519,20 @@ mockOrderDetailOverrides.set(specialOrderIds.split, {
 });
 
 export const getMockOrderList = (query: OrderListQuery) => {
-  const filtered = mockOrders.filter((order) => {
-    const orderIndex = mockOrders.findIndex((item) => item.id === order.id);
-    const resolvedWarehouseId =
+  const resolvedOrders = mockOrders.map((order, orderIndex) => ({
+    ...order,
+    ship_warehouse_id:
       mockOrderWarehouseId.get(order.id) ??
       mockWarehouses[orderIndex % mockWarehouses.length]?.warehouse_id ??
-      null;
+      null,
+    logistics_company: mockOrderLogisticsCompany.get(order.id) ?? '',
+  }));
+
+  const filtered = resolvedOrders.filter((order, orderIndex) => {
+    const resolvedWarehouseId = order.ship_warehouse_id ?? null;
     const resolvedReceiverAddress =
       mockOrderReceiverAddresses.get(order.id) ?? '';
-    const resolvedLogisticsCompany =
-      mockOrderLogisticsCompany.get(order.id) ?? '椤轰赴閫熻繍';
+    const resolvedLogisticsCompany = order.logistics_company ?? '';
     const resolvedItems =
       mockOrderItems.get(order.id) ??
       Array.from({ length: 3 }, (_, index) => buildOrderItem(order, index));
@@ -725,8 +729,7 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
     Array.from({ length: 3 }, (_, index) => buildOrderItem(order, index));
   const receiverAddress =
     mockOrderReceiverAddresses.get(order.id) ?? '上海市浦东新区示例路 100 号';
-  const logisticsCompany =
-    mockOrderLogisticsCompany.get(order.id) ?? '椤轰赴閫熻繍';
+  const logisticsCompany = mockOrderLogisticsCompany.get(order.id) ?? '';
   const shipWarehouseId =
     mockOrderWarehouseId.get(order.id) ??
     mockWarehouses[orderIndex % mockWarehouses.length]?.warehouse_id ??

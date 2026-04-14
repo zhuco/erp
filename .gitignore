@@ -4,6 +4,7 @@ node_modules/
 
 # 构建产物
 dist/
+dist-*/
 build/
 target/
 
@@ -11,6 +12,9 @@ target/
 *.log
 tmp/
 temp/
+test-results/
+tmp.force.json
+tmp.review.json
 
 # 本地环境与工具产物
 .env
@@ -20,3 +24,7 @@ temp/
 .diff-backups/
 .superpowers/
 status_*.png
+
+# Web 前端实验构建目录
+apps/erp-web/dist-*/
+apps/erp-web/test-results/

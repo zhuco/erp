@@ -3,14 +3,15 @@ import { useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { AllEnterpriseModule } from 'ag-grid-enterprise';
 
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 
+import { ENTERPRISE_DEMO_MODULES } from '@/components/agGridEnterpriseModules';
+
 import './agGridEnterpriseDemoPage.css';
 
-ModuleRegistry.registerModules([AllEnterpriseModule]);
+ModuleRegistry.registerModules([...ENTERPRISE_DEMO_MODULES]);
 
 type EnterpriseRow = {
   id: string;
@@ -143,7 +144,7 @@ export const AgGridEnterpriseDemoPage = () => {
           AG Grid Enterprise 功能演示
         </Typography.Title>
         <Typography.Text type="secondary">
-          用于验证企业版效果：分组、透视、侧边栏、状态栏、范围选择和图表能力。
+          用于验证企业版效果：分组、透视、侧边栏、状态栏与范围选择等核心交互能力。
         </Typography.Text>
         <Alert
           type="info"
@@ -178,6 +179,7 @@ export const AgGridEnterpriseDemoPage = () => {
         <Card size="small">
           <div className="ag-theme-quartz ag-grid-enterprise-shell">
             <AgGridReact<EnterpriseRow>
+              theme="legacy"
               rowData={rowData}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
@@ -197,7 +199,6 @@ export const AgGridEnterpriseDemoPage = () => {
               rowGroupPanelShow="always"
               pivotPanelShow={mode === 'pivot' ? 'always' : 'never'}
               pivotMode={mode === 'pivot'}
-              enableCharts
               cellSelection
               suppressAggFuncInHeader
             />

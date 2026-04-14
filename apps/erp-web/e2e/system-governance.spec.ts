@@ -24,7 +24,7 @@ test('system governance workflow metadata can be edited and observed across syst
   await page.goto('/system/custom-fields');
   await expect(page.getByTestId('system-custom-fields-governance-summary')).toBeVisible();
 
-  await page.goto('/system/integrations');
+  await page.goto('/integrations/center');
   await expect(page.getByTestId('system-integrations-governance-summary')).toBeVisible();
 
   await page.goto('/system/audit-reports');

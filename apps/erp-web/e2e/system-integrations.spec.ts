@@ -1,7 +1,7 @@
 import { expect, loginAndSelectTenant, test } from './fixtures';
 
 test('系统集成页展示平台店铺接入总览并支持刷新 Token 入口', async ({ page }) => {
-  await page.goto('/system/integrations');
+  await page.goto('/integrations/center');
   await loginAndSelectTenant(page);
 
   await expect(page.getByTestId('system-integrations-title')).toBeVisible();

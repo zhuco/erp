@@ -38,6 +38,8 @@ const mockShopProductSkus: ShopProductSku[] = [
     barcode: '6900000001',
     image_url: 'https://placehold.co/64x64',
     platform_updated_at: dayjs().subtract(2, 'day').toISOString(),
+    mapping_status: 'CONFLICT',
+    conflict_reason: 'NO_CANDIDATE',
     created_at: dayjs().subtract(3, 'day').toISOString(),
     updated_at: dayjs().subtract(2, 'day').toISOString()
   },
@@ -166,6 +168,15 @@ export const getMockShopProductSkuList = (
         return false;
       }
     }
+    if (query.mapping_status && sku.mapping_status !== query.mapping_status) {
+      return false;
+    }
+    if (query.conflict_reason && sku.conflict_reason !== query.conflict_reason) {
+      return false;
+    }
+    if (query.match_source && sku.match_source !== query.match_source) {
+      return false;
+    }
     if (normalizedKeyword) {
       const combined =
         `${sku.platform_sku_id} ${sku.merchant_sku_code ?? ''} ${sku.product_title} ${sku.sku_title ?? ''}`.toLowerCase();
@@ -234,6 +245,7 @@ export const createMockShopProductSkuTask = (
       target.mapped_sku_name = `${target.product_title}-${target.spec_text ?? ''}`;
       target.match_source = 'AUTO';
       target.mapping_status = 'ACTIVE';
+      target.conflict_reason = null;
     }
   });
   const task = buildTask('CREATE_SKUS', ids.length, ids.length, 0, 'SUCCESS', payload);
@@ -256,6 +268,16 @@ export const createMockShopProductMatchTask = (
       });
       return;
     }
+    if (target.conflict_reason === 'NO_CANDIDATE') {
+      failures.push({
+        sku_record_id: id,
+        platform_sku_id: target.platform_sku_id,
+        merchant_sku_code: target.merchant_sku_code ?? null,
+        reason: '无可用候选SKU'
+      });
+      target.mapping_status = 'CONFLICT';
+      return;
+    }
     if (!target.mapping_id) {
       target.mapping_id = `map-${Date.now()}`;
       target.mapped_sku_id = 'sku-auto';
@@ -263,6 +285,7 @@ export const createMockShopProductMatchTask = (
       target.mapped_sku_name = `${target.product_title}-${target.spec_text ?? ''}`;
       target.match_source = 'AUTO';
       target.mapping_status = 'ACTIVE';
+      target.conflict_reason = null;
     }
   });
   const task = buildTask(
@@ -292,6 +315,7 @@ export const manualMockShopProductMatch = (
     target.mapped_sku_name = target.product_title;
     target.match_source = 'MANUAL';
     target.mapping_status = 'ACTIVE';
+    target.conflict_reason = null;
   });
   const task = buildTask(
     'MANUAL_MATCH',
@@ -319,6 +343,7 @@ export const deleteMockShopProductMatches = (
     target.mapped_sku_name = null;
     target.match_source = null;
     target.mapping_status = null;
+    target.conflict_reason = null;
   });
   const task = buildTask(
     'DELETE_MATCH',
@@ -331,3 +356,4 @@ export const deleteMockShopProductMatches = (
   mockTasks.unshift(task);
   return { task };
 };
+

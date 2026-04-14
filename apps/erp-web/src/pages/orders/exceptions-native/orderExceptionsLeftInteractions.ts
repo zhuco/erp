@@ -42,6 +42,16 @@ const clearKeyToFilterField: Record<string, keyof OrderExceptionsLeftFilters> = 
   'warehouse:*': 'warehouseId',
 };
 
+const clearAllLeftFilterFields = (
+  previous: OrderExceptionsLeftFilters,
+): OrderExceptionsLeftFilters => ({
+  ...previous,
+  status: undefined,
+  assignee: undefined,
+  sla: undefined,
+  warehouseId: undefined,
+});
+
 export const isOverdueExceptionRow = (
   row: OrderExceptionSummary,
   nowTs: number,
@@ -75,26 +85,27 @@ export const reduceOrderExceptionsFiltersByNode = (
   previous: OrderExceptionsLeftFilters,
   node: OrderExceptionsLeftFilterNode,
 ): OrderExceptionsLeftFilters => {
+  const cleared = clearAllLeftFilterFields(previous);
   const clearField = clearKeyToFilterField[node.key];
   if (clearField) {
-    return { ...previous, [clearField]: undefined };
+    return { ...cleared, [clearField]: undefined };
   }
 
   if (node.nodeType === 'status' && node.key.startsWith('status:')) {
-    return { ...previous, status: singleSelectValue(previous.status, node.key.slice('status:'.length)) };
+    return { ...cleared, status: singleSelectValue(previous.status, node.key.slice('status:'.length)) };
   }
   if (node.nodeType === 'assignee' && node.key.startsWith('assignee:')) {
-    return { ...previous, assignee: singleSelectValue(previous.assignee, node.key.slice('assignee:'.length)) };
+    return { ...cleared, assignee: singleSelectValue(previous.assignee, node.key.slice('assignee:'.length)) };
   }
   if (node.nodeType === 'sla' && node.key.startsWith('sla:')) {
     return {
-      ...previous,
+      ...cleared,
       sla: singleSelectValue(previous.sla, node.key.slice('sla:'.length)) as Array<'overdue' | 'normal' | 'mine'> | undefined,
     };
   }
   if (node.nodeType === 'warehouse' && node.key.startsWith('warehouse:')) {
     return {
-      ...previous,
+      ...cleared,
       warehouseId: singleSelectValue(previous.warehouseId, node.key.slice('warehouse:'.length)),
     };
   }

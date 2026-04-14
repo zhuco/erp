@@ -79,3 +79,26 @@ async fn suppliers_create_forbidden_without_perm() {
         serde_json::from_slice(&body).expect("error response should be json");
     assert_eq!(json.get("code").and_then(|v| v.as_str()), Some("forbidden"));
 }
+
+#[tokio::test]
+async fn purchase_return_confirm_forbidden_without_perm() {
+    let (app, jwt) = build_state();
+    let tenant = tenant_id();
+    let token = build_token(&jwt, &tenant, vec![]);
+    let return_id = uuid::Uuid::new_v4();
+
+    let request = Request::builder()
+        .uri(format!(
+            "/v1/tenants/{tenant}/purchase-returns/{return_id}/confirm"
+        ))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("error response should be json");
+    assert_eq!(json.get("code").and_then(|v| v.as_str()), Some("forbidden"));
+}

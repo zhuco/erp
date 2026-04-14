@@ -26,7 +26,6 @@ import type {
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { AllEnterpriseModule } from 'ag-grid-enterprise';
 
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -37,15 +36,17 @@ import {
   type OrderQuickFilterOption,
 } from './OrderQuickFilterCells';
 import {
+  buildAgGridApplyColumnState,
   buildAgGridColumnStateStorageKey,
   ERP_AG_GRID_LOCALE_TEXT_ZH_CN,
   persistAgGridColumnState,
   readPersistedAgGridColumnState,
   resolveAgGridMainMenuItems,
 } from './agGridColumnState';
+import { ERP_DATA_GRID_ENTERPRISE_MODULES } from './agGridEnterpriseModules';
 import { useSessionStore } from '@/features/sessionStore';
 
-ModuleRegistry.registerModules([AllEnterpriseModule]);
+ModuleRegistry.registerModules([...ERP_DATA_GRID_ENTERPRISE_MODULES]);
 
 declare global {
   interface Window {
@@ -599,7 +600,7 @@ export {
   type OrderQuickFilterOption,
 };
 
-export const ErpDataGrid = <T extends { id?: string }>({
+export const ErpDataGrid = <T extends object>({
   className,
   data,
   columns,
@@ -1061,7 +1062,7 @@ export const ErpDataGrid = <T extends { id?: string }>({
 
       applyingPersistedColumnStateRef.current = true;
       api.applyColumnState({
-        state: persistedState,
+        state: buildAgGridApplyColumnState(persistedState),
         applyOrder: true,
       });
       queueMicrotask(() => {
@@ -1511,6 +1512,7 @@ export const ErpDataGrid = <T extends { id?: string }>({
         <div className={`erp-data-grid-table${variant === 'next' ? ' erp-data-grid-next__table' : ''}`}>
           <div className="ag-theme-quartz erp-data-grid-shell">
             <AgGridReact<T>
+              theme="legacy"
               rowData={filteredRows}
               columnDefs={colDefs}
               defaultColDef={defaultColDef}

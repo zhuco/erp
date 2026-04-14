@@ -39,6 +39,10 @@ describe('OrderReviewMainGrid column config', () => {
 
     expect(colDefMap.get('__erpSelection')?.sortable).toBe(false);
     expect(colDefMap.get('__erpRowIndex')?.sortable).toBe(false);
+    expect(colDefMap.get('__erpSelection')?.pinned).toBe('left');
+    expect(colDefMap.get('__erpRowIndex')?.pinned).toBe('left');
+    expect(colDefMap.get('__erpSelection')?.suppressMovable).toBe(true);
+    expect(colDefMap.get('__erpRowIndex')?.suppressMovable).toBe(true);
     expect(colDefMap.get('id')?.sortable).toBe(true);
     expect(colDefMap.get('created_at')?.sortable).toBe(true);
     expect(colDefMap.get('receiver_name')?.sortable).toBe(true);

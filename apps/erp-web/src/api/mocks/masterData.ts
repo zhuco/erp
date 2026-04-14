@@ -1042,21 +1042,35 @@ export const startMockShopAuthorize = (
 };
 
 export const submitMockShopAuth = (shopId: string, payload: ShopAuthCallbackPayload): Shop => {
+  const hasError = Boolean(payload.error?.trim());
+  const derivedAccessToken =
+    payload.access_token ?? (payload.code ? `mock-access-${payload.code}` : 'token');
+  const derivedRefreshToken =
+    payload.refresh_token ?? (payload.code ? `mock-refresh-${payload.code}` : 'refresh');
   const expiresAt = payload.expires_at ?? dayjs().add(2, 'hour').toISOString();
   const now = dayjs();
   const tokenStatus: NonNullable<Shop['token_status']> = {
-    has_access_token: Boolean(payload.access_token ?? 'token'),
-    has_refresh_token: Boolean(payload.refresh_token ?? 'refresh'),
+    has_access_token: !hasError && Boolean(derivedAccessToken),
+    has_refresh_token: !hasError && Boolean(derivedRefreshToken),
     expires_at: expiresAt,
-    expires_in_minutes: dayjs(expiresAt).diff(now, 'minute'),
-    is_expired: dayjs(expiresAt).isBefore(now),
-    is_expiring_soon: dayjs(expiresAt).isBefore(now.add(30, 'minute')),
+    expires_in_minutes: hasError ? 0 : dayjs(expiresAt).diff(now, 'minute'),
+    is_expired: hasError || dayjs(expiresAt).isBefore(now),
+    is_expiring_soon: !hasError && dayjs(expiresAt).isBefore(now.add(30, 'minute')),
     scopes: payload.scopes ?? 'orders,shipping',
     last_refresh_at: now.toISOString(),
-    last_error: '',
+    last_error: payload.error ?? '',
     updated_at: now.toISOString()
   };
-  const updated = updateMockShop(shopId, { status: 'AUTHORIZED' });
+  const updated = updateMockShop(shopId, {
+    status: hasError ? 'EXPIRED' : 'AUTHORIZED',
+    auth_meta_json: {
+      oauth_status: hasError ? 'FAILED' : 'SUCCESS',
+      oauth_state: payload.state ?? null,
+      oauth_error: payload.error ?? null,
+      oauth_error_description: payload.error_description ?? null,
+      oauth_updated_at: now.toISOString()
+    }
+  });
   updated.token_status = tokenStatus;
   return updated;
 };

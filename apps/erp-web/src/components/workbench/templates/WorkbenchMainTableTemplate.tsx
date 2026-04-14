@@ -7,6 +7,8 @@ import { UiModule03TableFooter } from '@/components/ui-modules';
 
 import { WorkbenchPageTemplate } from './WorkbenchPageTemplate';
 
+const hasOwn = Object.prototype.hasOwnProperty;
+
 type WorkbenchMainTableTemplateProps = {
   className?: string;
   toolbar?: ReactNode;
@@ -32,32 +34,37 @@ type WorkbenchMainTableTemplateProps = {
   bottomPanelHeight?: number;
 };
 
-export const WorkbenchMainTableTemplate = ({
-  className,
-  toolbar,
-  toolbarLeft,
-  toolbarCenter,
-  toolbarRight,
-  header,
-  actionBar,
-  tableContainerRef,
-  tableClassName,
-  tableContent,
-  tableFooter,
-  footerSummary,
-  footerSyncKey,
-  total,
-  pagination,
-  onPaginationChange,
-  showFooterScrollbarRow = false,
-  bottomPanel,
-  bottomPanelVisible = Boolean(bottomPanel),
-  leftPanelWidth,
-  rightPanelWidth,
-  bottomPanelHeight,
-}: WorkbenchMainTableTemplateProps) => {
+export const WorkbenchMainTableTemplate = (props: WorkbenchMainTableTemplateProps) => {
+  const {
+    className,
+    toolbar,
+    toolbarLeft,
+    toolbarCenter,
+    toolbarRight,
+    header,
+    actionBar,
+    tableContainerRef,
+    tableClassName,
+    tableContent,
+    tableFooter,
+    footerSummary,
+    footerSyncKey,
+    total,
+    pagination,
+    onPaginationChange,
+    showFooterScrollbarRow = false,
+    bottomPanel,
+    bottomPanelVisible = Boolean(bottomPanel),
+    leftPanelWidth,
+    rightPanelWidth,
+    bottomPanelHeight,
+  } = props;
   const workbenchPanels = useWorkbenchPanelsOptional();
   const internalTableContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldSyncBottomPanel =
+    hasOwn.call(props, 'bottomPanel') ||
+    hasOwn.call(props, 'bottomPanelVisible') ||
+    hasOwn.call(props, 'bottomPanelHeight');
 
   const handleTableContainerRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -82,7 +89,7 @@ export const WorkbenchMainTableTemplate = ({
   );
 
   useEffect(() => {
-    if (!workbenchPanels) {
+    if (!workbenchPanels || !shouldSyncBottomPanel) {
       return;
     }
     if (!wrappedBottomPanel) {
@@ -96,7 +103,7 @@ export const WorkbenchMainTableTemplate = ({
       workbenchPanels.setBottomPanel(undefined);
       workbenchPanels.setBottomPanelVisible(false);
     };
-  }, [bottomPanelVisible, workbenchPanels, wrappedBottomPanel]);
+  }, [bottomPanelVisible, shouldSyncBottomPanel, workbenchPanels, wrappedBottomPanel]);
 
   useEffect(() => {
     if (!workbenchPanels || !leftPanelWidth) {

@@ -605,9 +605,9 @@ impl<'a> InboundsRepo<'a> {
             let summary: ReceiptSummary = sqlx::query_as(
                 r#"
                 select
-                    coalesce(sum(planned_qty), 0) as total_planned,
-                    coalesce(sum(received_qty), 0) as total_received,
-                    count(*) filter (where received_qty > 0) as received_items
+                    coalesce(sum(planned_qty), 0)::bigint as total_planned,
+                    coalesce(sum(received_qty), 0)::bigint as total_received,
+                    (count(*) filter (where received_qty > 0))::bigint as received_items
                 from inbound_doc_items
                 where tenant_id = $1 and doc_id = $2
                 "#,

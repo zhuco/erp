@@ -4,6 +4,13 @@ use erp_types::{OrderId, TenantId, UserId};
 use serde_json::Value;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
+fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
+    if value.trim().is_empty() {
+        return Err(anyhow!("{field} must not be blank"));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub struct OrderStatusHistory {
     pub history_id: uuid::Uuid,
@@ -72,6 +79,10 @@ impl<'a> OrderStatusHistoryRepo<'a> {
         &self,
         input: OrderStatusHistoryCreate,
     ) -> anyhow::Result<OrderStatusHistory> {
+        ensure_non_blank("to_status", &input.to_status)?;
+        if let Some(action_code) = input.action_code.as_deref() {
+            ensure_non_blank("action_code", action_code)?;
+        }
         let payload = input.payload.unwrap_or_else(|| serde_json::json!({}));
         let row: OrderStatusHistoryRow = sqlx::query_as(
             r#"
@@ -163,6 +174,18 @@ impl<'a> OrderStatusHistoryRepo<'a> {
             .collect();
 
         Ok(OrderStatusHistoryListResult { items, next_cursor })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_non_blank;
+
+    #[test]
+    fn ensure_non_blank_rejects_blank_values() {
+        assert!(ensure_non_blank("to_status", " ").is_err());
+        assert!(ensure_non_blank("to_status", "\n").is_err());
+        assert!(ensure_non_blank("to_status", "PENDING_ALLOCATE").is_ok());
     }
 }
 

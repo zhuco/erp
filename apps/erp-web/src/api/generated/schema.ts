@@ -10136,6 +10136,73 @@ export interface paths {
       };
     };
   };
+  "/v1/tenants/{tenant_id}/wms/outbounds/{outbound_doc_id}/verify/start": {
+    /** Start outbound verify flow */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+          outbound_doc_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["WmsOutboundVerifyStartRequest"];
+        };
+      };
+      responses: {
+        /** @description verify state */
+        200: {
+          content: {
+            "application/json": components["schemas"]["WmsOutboundVerifyStateResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/wms/outbounds/{outbound_doc_id}/verify/scan-item": {
+    /** Scan item for outbound verify */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+          outbound_doc_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["WmsOutboundVerifyScanItemRequest"];
+        };
+      };
+      responses: {
+        /** @description verify state */
+        200: {
+          content: {
+            "application/json": components["schemas"]["WmsOutboundVerifyStateResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/wms/outbounds/{outbound_doc_id}/verify/finish": {
+    /** Finish outbound verify flow */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+          outbound_doc_id: string;
+        };
+      };
+      responses: {
+        /** @description verify state */
+        200: {
+          content: {
+            "application/json": components["schemas"]["WmsOutboundVerifyStateResponse"];
+          };
+        };
+      };
+    };
+  };
   "/v1/tenants/{tenant_id}/wms/outbounds/{outbound_doc_id}/check": {
     /** Check outbound pack */
     post: {
@@ -15560,6 +15627,30 @@ export interface paths {
       };
     };
   };
+  "/v1/tenants/{tenant_id}/oms/orders/{order_id}/submit-shipment": {
+    /** Submit order shipment to WMS (skeleton) */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+          order_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["OmsSubmitShipmentRequest"];
+        };
+      };
+      responses: {
+        /** @description submit shipment response */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OmsSubmitShipmentResponse"];
+          };
+        };
+      };
+    };
+  };
   "/v1/tenants/{tenant_id}/oms/orders/{order_id}/cancel": {
     /** Cancel order (alias) */
     post: {
@@ -16263,6 +16354,97 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["OrderReviewRule"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/oms/review-settings": {
+    /** Get OMS review settings */
+    get: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      responses: {
+        /** @description review settings */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OmsReviewSettingsResponse"];
+          };
+        };
+      };
+    };
+    /** Update OMS review settings */
+    put: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["OmsReviewSettingsPayload"];
+        };
+      };
+      responses: {
+        /** @description review settings */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OmsReviewSettingsResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/oms/orders/recheck-queue": {
+    /** List OMS recheck queue */
+    get: {
+      parameters: {
+        query?: {
+          shop_id?: string;
+          platform?: string;
+          sales_channel?: string;
+          order_source?: string;
+          min_estimated_profit_rate_bp?: string;
+          max_estimated_profit_rate_bp?: string;
+          sku_id?: string;
+          offset?: number;
+          limit?: number;
+        };
+        path: {
+          tenant_id: string;
+        };
+      };
+      responses: {
+        /** @description recheck queue */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OmsOrderListResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/oms/orders/recheck-queue/batch-review": {
+    /** Batch review OMS recheck queue */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["OmsRecheckBatchReviewRequest"];
+        };
+      };
+      responses: {
+        /** @description batch review result */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OmsRecheckBatchReviewResponse"];
           };
         };
       };
@@ -19277,6 +19459,88 @@ export interface paths {
       };
     };
   };
+  "/v1/tenants/{tenant_id}/system/frontend-route-diagnostics": {
+    /** List frontend route diagnostics */
+    get: {
+      parameters: {
+        query?: {
+          path_keyword?: string;
+          status?: string;
+          event_type?: string;
+          window_hours?: number;
+          limit?: number;
+        };
+        path: {
+          tenant_id: string;
+        };
+      };
+      responses: {
+        /** @description frontend route diagnostics */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FrontendRouteDiagnosticsResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+    /** Report frontend route diagnostics events */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["FrontendRouteDiagnosticsReportRequest"];
+        };
+      };
+      responses: {
+        /** @description accepted frontend route diagnostic events */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FrontendRouteDiagnosticsReportResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
   "/v1/tenants/{tenant_id}/audit-logs": {
     /** List audit logs */
     get: {
@@ -22146,6 +22410,263 @@ export interface paths {
       };
     };
   };
+  "/v1/tenants/{tenant_id}/shop-products/skus": {
+    /** List platform shop product SKUs */
+    get: {
+      parameters: {
+        query?: {
+          platform?: string;
+          shop_ids?: string;
+          product_type?: string;
+          status?: string;
+          keyword?: string;
+          match_status?: string;
+          mapping_status?: string;
+          conflict_reason?: string;
+          match_source?: string;
+          updated_from?: string;
+          updated_to?: string;
+          offset?: number;
+          limit?: number;
+        };
+        path: {
+          tenant_id: string;
+        };
+      };
+      responses: {
+        /** @description shop product SKU list */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductSkuListResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/download": {
+    /** Download platform shop products and upsert SKU records */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ShopProductDownloadRequest"];
+        };
+      };
+      responses: {
+        /** @description download task accepted */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductDownloadResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/tasks": {
+    /** List shop product async tasks */
+    get: {
+      parameters: {
+        query?: {
+          task_type?: string;
+          status?: string;
+          offset?: number;
+          limit?: number;
+        };
+        path: {
+          tenant_id: string;
+        };
+      };
+      responses: {
+        /** @description task list */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductTaskListResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/create-skus": {
+    /** Create internal SKUs from platform shop product SKUs */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ShopProductCreateSkuRequest"];
+        };
+      };
+      responses: {
+        /** @description create SKU task */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductTaskResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/auto-match": {
+    /** Auto match platform shop product SKUs */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ShopProductAutoMatchRequest"];
+        };
+      };
+      responses: {
+        /** @description auto match result */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductMatchResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/manual-match": {
+    /** Manual match platform shop product SKUs */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ShopProductManualMatchRequest"];
+        };
+      };
+      responses: {
+        /** @description manual match task */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductTaskResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
   "/v1/tenants/{tenant_id}/shop-products/parse": {
     /** Parse platform shop products to local SKU candidates */
     post: {
@@ -22166,11 +22687,29 @@ export interface paths {
             "application/json": components["schemas"]["ShopProductParseResponse"];
           };
         };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
       };
     };
   };
   "/v1/tenants/{tenant_id}/shop-products/bundle-match/auto": {
-    /** Auto match bundle/platform shop product SKUs */
+    /** Alias of /shop-products/auto-match for backward compatibility */
     post: {
       parameters: {
         path: {
@@ -22183,17 +22722,35 @@ export interface paths {
         };
       };
       responses: {
-        /** @description auto match task */
+        /** @description auto match result */
         200: {
           content: {
-            "application/json": components["schemas"]["ShopProductTaskResponse"];
+            "application/json": components["schemas"]["ShopProductMatchResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
           };
         };
       };
     };
   };
   "/v1/tenants/{tenant_id}/shop-products/bundle-match/manual": {
-    /** Manual match bundle/platform shop product SKUs */
+    /** Alias of /shop-products/manual-match for backward compatibility */
     post: {
       parameters: {
         path: {
@@ -22210,6 +22767,65 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["ShopProductTaskResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/v1/tenants/{tenant_id}/shop-products/delete-match": {
+    /** Delete existing SKU matches for shop product records */
+    post: {
+      parameters: {
+        path: {
+          tenant_id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ShopProductDeleteMatchRequest"];
+        };
+      };
+      responses: {
+        /** @description delete match task */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShopProductTaskResponse"];
+          };
+        };
+        /** @description invalid request */
+        400: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description unauthorized */
+        401: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
+          };
+        };
+        /** @description forbidden */
+        403: {
+          content: {
+            "application/json": components["schemas"]["ErrorResponse"];
           };
         };
       };
@@ -25304,6 +25920,26 @@ export interface components {
       passed: boolean;
       reason?: string | null;
     };
+    WmsOutboundVerifyStartRequest: {
+      shipment_no: string;
+      tracking_no?: string | null;
+      package_no?: string | null;
+    };
+    WmsOutboundVerifyScanItemRequest: {
+      barcode: string;
+      /** Format: int64 */
+      qty: number;
+    };
+    WmsOutboundVerifyStateResponse: {
+      outbound_doc_id: string;
+      verify_status: string;
+      /** Format: int64 */
+      scanned_total_qty: number;
+      /** Format: int64 */
+      missing_total_qty: number;
+      /** Format: int64 */
+      extra_total_qty: number;
+    };
     WmsOutboundWeighRequest: {
       package_no: string;
       /** Format: int32 */
@@ -25611,7 +26247,7 @@ export interface components {
       sla_remaining_minutes: number;
       blocking_reasons: string[];
       action_logs: components["schemas"]["OrderExceptionActionRecordResponse"][];
-      order: Record<string, unknown>;
+      order: components["schemas"]["OmsOrderDetailResponse"];
     };
     OrderSettlementRuleUpdateRequest: {
       stack_mode: string;
@@ -25983,6 +26619,50 @@ export interface components {
       conditions_json?: Record<string, never>;
       action?: string;
       reason?: string;
+    };
+    OmsReviewSettingsPayload: {
+      review_enabled: boolean;
+      auto_review_enabled: boolean;
+      recheck_enabled: boolean;
+      default_unmatched_action: string;
+      manual_order_force_recheck: boolean;
+    };
+    OmsReviewSettingsResponse: {
+      tenant_id: string;
+      review_enabled: boolean;
+      auto_review_enabled: boolean;
+      recheck_enabled: boolean;
+      default_unmatched_action: string;
+      manual_order_force_recheck: boolean;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    OmsRecheckBatchReviewRequest: {
+      order_ids: string[];
+      action: string;
+      reason?: string | null;
+    };
+    OmsRecheckBatchReviewResponse: {
+      /** Format: int64 */
+      total: number;
+      /** Format: int64 */
+      accepted: number;
+      /** Format: int64 */
+      rejected: number;
+      action: string;
+      reason?: string | null;
+    };
+    OmsSubmitShipmentRequest: {
+      warehouse_id?: string | null;
+      carrier_code?: string | null;
+      logistics_product_code?: string | null;
+      priority?: string | null;
+      remark?: string | null;
+    };
+    OmsSubmitShipmentResponse: {
+      order_id: string;
+      outbound_doc_id?: string | null;
+      wms_status: string;
     };
     CustomerBlacklistEntry: {
       blacklist_id: string;
@@ -27056,10 +27736,147 @@ export interface components {
       status?: string | null;
       keyword?: string | null;
       match_status?: string | null;
+      mapping_status?: string | null;
+      conflict_reason?: string | null;
+      match_source?: string | null;
       /** Format: date-time */
       updated_from?: string | null;
       /** Format: date-time */
       updated_to?: string | null;
+    };
+    ShopProductSkuListItem: {
+      sku_record_id: string;
+      shop_id: string;
+      platform: string;
+      platform_product_id?: string | null;
+      platform_sku_id: string;
+      merchant_code?: string | null;
+      merchant_sku_code?: string | null;
+      product_title?: string | null;
+      sku_title?: string | null;
+      spec_text?: string | null;
+      /** Format: int64 */
+      price_cent?: number | null;
+      /** Format: int64 */
+      stock_qty?: number | null;
+      status?: string | null;
+      mapping_id?: string | null;
+      mapped_sku_id?: string | null;
+      mapped_sku_code?: string | null;
+      mapped_sku_name?: string | null;
+      match_status?: string | null;
+      mapping_status?: string | null;
+      conflict_reason?: string | null;
+      match_source?: string | null;
+      /** Format: date-time */
+      platform_updated_at?: string | null;
+      /** Format: date-time */
+      created_at?: string | null;
+      /** Format: date-time */
+      updated_at?: string | null;
+    };
+    ShopProductSkuListResponse: {
+      items: components["schemas"]["ShopProductSkuListItem"][];
+      /** Format: int64 */
+      total: number;
+    };
+    ShopProductTask: {
+      task_id: string;
+      task_type: string;
+      status: string;
+      shop_id?: string | null;
+      platform?: string | null;
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      result_json?: {
+        [key: string]: unknown;
+      } | null;
+      /** Format: int64 */
+      total_count?: number | null;
+      /** Format: int64 */
+      success_count?: number | null;
+      /** Format: int64 */
+      failure_count?: number | null;
+      error?: string | null;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    ShopProductTaskListResponse: {
+      items: components["schemas"]["ShopProductTask"][];
+      /** Format: int64 */
+      total: number;
+    };
+    ShopProductMatchFailure: {
+      sku_record_id: string;
+      platform_sku_id: string;
+      merchant_sku_code?: string | null;
+      reason: string;
+    };
+    ShopProductMatchResponse: {
+      task: components["schemas"]["ShopProductTask"];
+      failures: components["schemas"]["ShopProductMatchFailure"][];
+    };
+    ShopProductDownloadSku: {
+      platform_sku_id: string;
+      merchant_sku_code?: string | null;
+      title?: string | null;
+      spec_text?: string | null;
+      /** Format: int64 */
+      price_cent?: number | null;
+      /** Format: int64 */
+      stock_qty?: number | null;
+      status?: string | null;
+      barcode?: string | null;
+      image_url?: string | null;
+      /** Format: date-time */
+      updated_at?: string | null;
+      raw_json?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    ShopProductDownloadItem: {
+      platform_product_id: string;
+      merchant_code?: string | null;
+      title: string;
+      product_type?: string | null;
+      status?: string | null;
+      /** Format: date-time */
+      updated_at?: string | null;
+      raw_json?: {
+        [key: string]: unknown;
+      } | null;
+      skus: components["schemas"]["ShopProductDownloadSku"][];
+    };
+    ShopProductDownloadRequest: {
+      platform?: string | null;
+      shop_ids?: string[] | null;
+      product_type?: string | null;
+      status?: string | null;
+      /** Format: date-time */
+      updated_from?: string | null;
+      /** Format: date-time */
+      updated_to?: string | null;
+      keyword?: string | null;
+      auto_match?: boolean | null;
+      products?: components["schemas"]["ShopProductDownloadItem"][] | null;
+    };
+    ShopProductDownloadResponse: {
+      task: components["schemas"]["ShopProductTask"];
+      auto_match_task?: components["schemas"]["ShopProductTask"] | null;
+      auto_match_failures: components["schemas"]["ShopProductMatchFailure"][];
+    };
+    ShopProductCreateSkuRequest: {
+      sku_record_ids?: string[] | null;
+      filters?: components["schemas"]["ShopProductSkuFilterPayload"];
+      import_price?: boolean | null;
+      import_image?: boolean | null;
+      import_stock?: boolean | null;
+      warehouse_id?: string | null;
     };
     ShopProductParseRequest: {
       sku_record_ids?: string[] | null;
@@ -27090,10 +27907,11 @@ export interface components {
       sku_record_ids: string[];
       sku_id: string;
     };
+    ShopProductDeleteMatchRequest: {
+      sku_record_ids: string[];
+    };
     ShopProductTaskResponse: {
-      task: {
-        [key: string]: unknown;
-      };
+      task: components["schemas"]["ShopProductTask"];
     };
     ShopCreateRequest: {
       platform: string;
@@ -28221,6 +29039,96 @@ export interface components {
     OperationLogListResponse: {
       data: components["schemas"]["OperationLog"][];
       next_cursor?: string | null;
+    };
+    FrontendRouteDiagnosticReport: {
+      session_id: string;
+      path: string;
+      route_label?: string | null;
+      event_type: string;
+      status: string;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      prefetch_status?: string | null;
+      prefetch_source?: string | null;
+      /** Format: int64 */
+      prefetch_duration_ms?: number | null;
+      error_summary?: string | null;
+      detail?: string | null;
+      /** Format: int64 */
+      event_at: number;
+      /** Format: date-time */
+      created_at?: string | null;
+      page_url: string;
+      build_version: string;
+      user_agent: string;
+    };
+    FrontendRouteDiagnosticsReportRequest: {
+      events: components["schemas"]["FrontendRouteDiagnosticReport"][];
+    };
+    FrontendRouteDiagnosticsReportResponse: {
+      /** Format: int64 */
+      accepted: number;
+    };
+    FrontendRouteDiagnosticsSummary: {
+      /** Format: int64 */
+      totalEvents: number;
+      /** Format: int64 */
+      uniqueRoutes: number;
+      /** Format: int64 */
+      readyEvents: number;
+      /** Format: int64 */
+      timeoutEvents: number;
+      /** Format: int64 */
+      errorEvents: number;
+      /** Format: int64 */
+      slowEvents: number;
+      /** Format: int64 */
+      prefetchHits: number;
+      /** Format: int64 */
+      affectedSessions: number;
+      /** Format: int64 */
+      measuredFirstLoads: number;
+      /** Format: int64 */
+      successfulFirstLoads: number;
+      /** Format: int64 */
+      firstLoadAvgDurationMs?: number | null;
+      /** Format: int64 */
+      prefetchShortCircuitCount: number;
+    };
+    FrontendRouteDiagnosticsPathSummary: {
+      path: string;
+      routeLabel?: string | null;
+      /** Format: int64 */
+      totalEvents: number;
+      /** Format: int64 */
+      readyEvents: number;
+      /** Format: int64 */
+      timeoutEvents: number;
+      /** Format: int64 */
+      errorEvents: number;
+      /** Format: int64 */
+      slowEvents: number;
+      /** Format: int64 */
+      prefetchHits: number;
+      /** Format: int64 */
+      avgDurationMs?: number | null;
+      /** Format: int64 */
+      maxDurationMs?: number | null;
+      /** Format: int64 */
+      measuredFirstLoads: number;
+      /** Format: int64 */
+      successfulFirstLoads: number;
+      /** Format: int64 */
+      firstLoadAvgDurationMs?: number | null;
+      /** Format: int64 */
+      prefetchShortCircuitCount: number;
+      /** Format: date-time */
+      lastSeenAt: string;
+    };
+    FrontendRouteDiagnosticsResponse: {
+      summary: components["schemas"]["FrontendRouteDiagnosticsSummary"];
+      paths: components["schemas"]["FrontendRouteDiagnosticsPathSummary"][];
+      events: components["schemas"]["FrontendRouteDiagnosticReport"][];
     };
     Setting: {
       setting_id: string;

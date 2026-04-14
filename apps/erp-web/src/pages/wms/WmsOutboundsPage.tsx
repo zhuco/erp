@@ -122,7 +122,7 @@ export const WmsOutboundsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['wms-outbounds', tenantId, query],
     queryFn: () => listWmsOutbounds(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const auditMutation = useMutation({

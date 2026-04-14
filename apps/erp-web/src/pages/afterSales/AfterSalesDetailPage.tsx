@@ -63,6 +63,54 @@ const typeColorMap: Record<AfterSalesType, string> = {
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
+const slaLabelMap: Record<string, string> = {
+  ON_TRACK: '进行中',
+  DUE_SOON: '临近超时',
+  OVERDUE: '已超时',
+  CLOSED: '已关闭'
+};
+
+const formatSlaSummary = (detail: AfterSalesDetail) => {
+  const status = detail.after_sales.sla_status;
+  const remaining = detail.after_sales.sla_remaining_minutes;
+  const statusLabel = status ? slaLabelMap[status] ?? status : '未配置';
+  const remainingLabel =
+    typeof remaining === 'number'
+      ? remaining >= 0
+        ? `${remaining} 分钟`
+        : `超时 ${Math.abs(remaining)} 分钟`
+      : '未计算';
+  const roleLabel = detail.after_sales.escalation_role ?? '未升级';
+  return `${statusLabel} / ${remainingLabel} / ${roleLabel}`;
+};
+
+const formatReceiveSummary = (detail: AfterSalesDetail) => {
+  const receipt = detail.return_receipt;
+  if (!receipt) {
+    return '未登记';
+  }
+  return `${receipt.status} / ${receipt.warehouse_id}`;
+};
+
+const formatRefundSummary = (detail: AfterSalesDetail) => {
+  const refundDoc = detail.refund_doc;
+  if (!refundDoc) {
+    return '未生成退款单';
+  }
+  return `${refundDoc.status} / ${refundDoc.channel}`;
+};
+
+const formatShipmentSummary = (detail: AfterSalesDetail) => {
+  const shipmentCount = detail.shipments?.length ?? 0;
+  if (shipmentCount > 0) {
+    return `已生成 ${shipmentCount} 个包裹`;
+  }
+  if (detail.after_sales.type === 'EXCHANGE' || detail.after_sales.type === 'RESEND') {
+    return '待生成包裹';
+  }
+  return '不适用';
+};
+
 export const AfterSalesDetailPage = () => {
   const tenantId = useTenantId();
   const canWrite = useCan('aftersales.write');
@@ -240,6 +288,7 @@ export const AfterSalesDetailPage = () => {
     return_receipt: receipt,
     canWrite
   });
+  const latestAuditLog = detail.audit_logs?.[0];
   return (
     <UiModule07SettingsLayout>
       <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
@@ -315,6 +364,41 @@ export const AfterSalesDetailPage = () => {
           </Descriptions.Item>
           <Descriptions.Item label="更新时间">
             {formatDateTime(afterSales.updated_at)}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+      <Card title="工业级闭环证据">
+        <Descriptions
+          column={2}
+          bordered
+          size="small"
+          data-testid="after-sales-closure-evidence"
+        >
+          <Descriptions.Item label="闭环阶段">
+            {statusLabelMap[afterSales.status] ?? afterSales.status}
+          </Descriptions.Item>
+          <Descriptions.Item label="售后类型">
+            {typeLabelMap[afterSales.type] ?? afterSales.type}
+          </Descriptions.Item>
+          <Descriptions.Item label="退货收货">
+            {formatReceiveSummary(detail)}
+          </Descriptions.Item>
+          <Descriptions.Item label="退款财务">
+            {formatRefundSummary(detail)}
+          </Descriptions.Item>
+          <Descriptions.Item label="换补发运">
+            {formatShipmentSummary(detail)}
+          </Descriptions.Item>
+          <Descriptions.Item label="SLA/升级">
+            {formatSlaSummary(detail)}
+          </Descriptions.Item>
+          <Descriptions.Item label="审计记录">
+            {`${detail.audit_logs?.length ?? 0} 条`}
+          </Descriptions.Item>
+          <Descriptions.Item label="最近动作">
+            {latestAuditLog
+              ? `${latestAuditLog.action} / ${formatDateTime(latestAuditLog.created_at)}`
+              : '-'}
           </Descriptions.Item>
         </Descriptions>
       </Card>

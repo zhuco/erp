@@ -164,7 +164,7 @@ export const WarehouseLocationsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['warehouse-locations', tenantId, query],
     queryFn: () => listWarehouseLocations(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

@@ -218,6 +218,27 @@ export type WmsWaveRunResponse = {
   wave?: WmsWaveDetail | null;
 };
 
+export type WmsWaveShipRequest = {
+  shipped_at?: string;
+  continue_on_error?: boolean;
+  direct_ship?: boolean;
+};
+
+export type WmsWaveShipDocResult = {
+  outbound_doc_id: string;
+  status: string;
+  message?: string | null;
+};
+
+export type WmsWaveShipResponse = {
+  wave_id: string;
+  total: number;
+  success: number;
+  failed: number;
+  direct_ship: boolean;
+  items: WmsWaveShipDocResult[];
+};
+
 export type WmsWaveDetail = {
   wave: WmsWave;
   docs: WmsOutboundDoc[];
@@ -534,6 +555,45 @@ export const getWmsWave = async (
       headers: buildAuthHeaders()
     },
     '获取波次详情失败'
+  );
+};
+
+export const shipWmsWave = async (
+  tenantId: string,
+  waveId: string,
+  payload: WmsWaveShipRequest
+): Promise<WmsWaveShipResponse> => {
+  if (useMocks) {
+    const detail = getMockWmsWave(waveId);
+    const items: WmsWaveShipDocResult[] = detail.docs.map((doc) => {
+      shipMockWmsOutbound(doc.outbound_doc_id, { shipped_at: payload.shipped_at });
+      return {
+        outbound_doc_id: doc.outbound_doc_id,
+        status: 'SHIPPED',
+        message: null
+      };
+    });
+    const success = items.filter((item) => item.status === 'SHIPPED').length;
+    return {
+      wave_id: waveId,
+      total: items.length,
+      success,
+      failed: items.length - success,
+      direct_ship: Boolean(payload.direct_ship),
+      items
+    };
+  }
+  return requestJson<WmsWaveShipResponse>(
+    `${apiBaseUrl}/v1/tenants/${tenantId}/wms/waves/${waveId}/ship`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders()
+      },
+      body: JSON.stringify(payload)
+    },
+    '波次发货失败'
   );
 };
 

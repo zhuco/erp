@@ -366,6 +366,7 @@ export const OrderReviewBottomPanel = ({
 
                   <div className={agShellClass} data-testid="order-review-goods-grid">
                     <AgGridReact<GoodsGridRow>
+                      theme="legacy"
                       rowData={goodsRows}
                       columnDefs={goodsColDefs}
                       defaultColDef={defaultColDef}
@@ -418,6 +419,7 @@ export const OrderReviewBottomPanel = ({
               children: (
                 <div className={agShellClass}>
                   <AgGridReact<LogRow>
+                    theme="legacy"
                     rowData={logRows}
                     columnDefs={logColDefs}
                     defaultColDef={defaultColDef}

@@ -16,7 +16,7 @@ import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 
 import './UiModule03MainTableSection.css';
 
-type UiModule03MainTableSectionProps<T extends { id?: string }> = {
+type UiModule03MainTableSectionProps<T extends object> = {
   className?: string;
   tableClassName?: string;
   tableContainerRef?: Ref<HTMLDivElement>;
@@ -66,7 +66,7 @@ type UiModule03MainTableSectionProps<T extends { id?: string }> = {
   leftPanelWidth?: number;
 };
 
-export const UiModule03MainTableSection = <T extends { id?: string }>({
+export const UiModule03MainTableSection = <T extends object>({
   className,
   tableClassName,
   tableContainerRef,
@@ -110,6 +110,10 @@ export const UiModule03MainTableSection = <T extends { id?: string }>({
   bottomPanel,
   leftPanelWidth
 }: UiModule03MainTableSectionProps<T>) => {
+  const resolveRecordId = (record: T): Key | undefined => {
+    const maybeId = (record as { id?: Key | null }).id;
+    return maybeId ?? undefined;
+  };
   const internalTableContainerRef = useRef<HTMLDivElement | null>(null);
   const handleTableContainerRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -153,7 +157,7 @@ export const UiModule03MainTableSection = <T extends { id?: string }>({
     if (rowKey != null) {
       return rowKey as Key;
     }
-    return record.id ?? index;
+    return resolveRecordId(record) ?? index;
   };
 
   const resolveColumnKey = useCallback(
@@ -206,7 +210,7 @@ export const UiModule03MainTableSection = <T extends { id?: string }>({
       if (index != null && index >= 0) {
         return index;
       }
-      return record.id ?? data.indexOf(record);
+      return resolveRecordId(record) ?? data.indexOf(record);
     },
     [data, resolveRowIndex, resolveRowKeyValue]
   );

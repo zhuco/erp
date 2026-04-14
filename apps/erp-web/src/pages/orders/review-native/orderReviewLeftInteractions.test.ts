@@ -52,8 +52,27 @@ describe('orderReviewLeftInteractions', () => {
       { platform: ['TAOBAO'], status: ['exception'], remarkState: ['has'] },
       clearStatusNode,
     );
-    expect(cleared.platform).toEqual(['TAOBAO']);
+    expect(cleared.platform).toBeUndefined();
     expect(cleared.status).toBeUndefined();
-    expect(cleared.remarkState).toEqual(['has']);
+    expect(cleared.remarkState).toBeUndefined();
+  });
+
+  it('keeps only the last selected left filter node', () => {
+    const yesterdayNode: OrderReviewLeftFilterNode = { key: 'time:yesterday', nodeType: 'time' };
+    const todayNode: OrderReviewLeftFilterNode = { key: 'time:today', nodeType: 'time' };
+
+    const afterYesterday = reduceOrderReviewFiltersByNode({}, yesterdayNode);
+    expect(afterYesterday.timeRange).toEqual(['yesterday']);
+
+    const afterToday = reduceOrderReviewFiltersByNode(afterYesterday, todayNode);
+    expect(afterToday.timeRange).toEqual(['today']);
+    expect(afterToday.platform).toBeUndefined();
+    expect(afterToday.shopId).toBeUndefined();
+    expect(afterToday.status).toBeUndefined();
+    expect(afterToday.exceptionType).toBeUndefined();
+    expect(afterToday.warehouseId).toBeUndefined();
+    expect(afterToday.logisticsCompany).toBeUndefined();
+    expect(afterToday.remarkState).toBeUndefined();
+    expect(afterToday.tagState).toBeUndefined();
   });
 });

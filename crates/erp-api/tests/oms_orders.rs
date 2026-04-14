@@ -79,6 +79,18 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
         )
         "#,
         r#"
+        create table if not exists order_key_index (
+          tenant_id uuid not null,
+          platform text not null,
+          platform_order_id text not null,
+          order_id uuid not null,
+          order_month date not null,
+          shop_id uuid not null,
+          order_created_at timestamptz not null,
+          primary key (tenant_id, platform, platform_order_id)
+        )
+        "#,
+        r#"
         create table if not exists orders (
           tenant_id uuid not null,
           order_month date not null,
@@ -104,6 +116,143 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
         )
         "#,
         r#"
+        alter table if exists orders add column if not exists total_amount_cent bigint not null default 0
+        "#,
+        r#"
+        alter table if exists orders add column if not exists goods_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists postage_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists discount_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists platform_discount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists seller_discount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists coupon_discount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists currency text not null default 'CNY'
+        "#,
+        r#"
+        alter table if exists orders add column if not exists buyer_name text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists receiver_name text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists receiver_phone text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists receiver_tel text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists receiver_address text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists customer_id uuid
+        "#,
+        r#"
+        alter table if exists orders add column if not exists pay_at timestamptz
+        "#,
+        r#"
+        alter table if exists orders add column if not exists ship_at timestamptz
+        "#,
+        r#"
+        alter table if exists orders add column if not exists finish_at timestamptz
+        "#,
+        r#"
+        alter table if exists orders add column if not exists cancel_at timestamptz
+        "#,
+        r#"
+        alter table if exists orders add column if not exists buyer_message text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists seller_remark text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists shipment_no text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists platform_updated_at timestamptz
+        "#,
+        r#"
+        alter table if exists orders add column if not exists raw jsonb not null default '{}'::jsonb
+        "#,
+        r#"
+        alter table if exists orders add column if not exists order_type text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists sales_channel text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists order_source text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists salesperson text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists estimated_weight_gram int
+        "#,
+        r#"
+        alter table if exists orders add column if not exists package_weight_gram int
+        "#,
+        r#"
+        alter table if exists orders add column if not exists customer_account text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists paid_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists subsidy_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists receivable_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists other_fee_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists estimated_postage_cent bigint
+        "#,
+        r#"
+        alter table if exists orders add column if not exists invoice_type text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists invoice_title text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists payment_status text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists freeze_reason text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists cancel_reason text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists exception_reason text
+        "#,
+        r#"
+        alter table if exists orders add column if not exists extra_remark text
+        "#,
+        r#"
+        create table if not exists customers (
+          tenant_id uuid not null references tenants(tenant_id),
+          customer_id uuid not null,
+          name text not null default '',
+          status text not null default 'ACTIVE',
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          primary key (tenant_id, customer_id)
+        )
+        "#,
+        r#"
         create table if not exists warehouses (
           warehouse_id uuid primary key,
           tenant_id uuid not null references tenants(tenant_id),
@@ -114,6 +263,12 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
         )
         "#,
         r#"
+        alter table if exists warehouses add column if not exists code text not null default ''
+        "#,
+        r#"
+        alter table if exists warehouses alter column code set default ''
+        "#,
+        r#"
         create table if not exists products (
           product_id uuid primary key default gen_random_uuid(),
           tenant_id uuid not null references tenants(tenant_id),
@@ -122,6 +277,10 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now()
         )
+        "#,
+        r#"
+        alter table if exists products
+          add column if not exists allow_negative_stock boolean not null default false
         "#,
         r#"
         create table if not exists product_warehouses (
@@ -156,6 +315,67 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
         )
         "#,
         r#"
+        alter table if exists order_items add column if not exists title text
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists price_cent bigint not null default 0
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists amount_cent bigint not null default 0
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists pay_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists discount_cent bigint
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists refund_state text not null default 'NONE'
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists after_sale_state text not null default 'NONE'
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists refund_amount_cent bigint
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists after_sale_type text
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists after_sale_id text
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists raw jsonb not null default '{}'::jsonb
+        "#,
+        r#"
+        alter table if exists order_items add column if not exists updated_at timestamptz not null default now()
+        "#,
+        r#"
+        create table if not exists order_item_components (
+          tenant_id uuid not null,
+          order_id uuid not null,
+          order_item_id uuid not null,
+          bundle_sku_id uuid not null,
+          component_sku_id uuid not null,
+          component_qty bigint not null default 0,
+          bom_version int not null default 1,
+          bom_snapshot jsonb not null default '[]'::jsonb,
+          created_at timestamptz not null default now(),
+          primary key (tenant_id, order_id, order_item_id, component_sku_id)
+        )
+        "#,
+        r#"
+        create table if not exists sku_boms (
+          tenant_id uuid not null,
+          bundle_sku_id uuid not null,
+          component_sku_id uuid not null,
+          qty bigint not null default 1,
+          bom_version int not null default 1,
+          expire_at timestamptz,
+          primary key (tenant_id, bundle_sku_id, component_sku_id, bom_version)
+        )
+        "#,
+        r#"
         create table if not exists audit_logs (
           audit_id uuid primary key default gen_random_uuid(),
           tenant_id uuid not null,
@@ -167,6 +387,35 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
           after_json jsonb,
           ip text,
           ua text,
+          created_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists order_action_log (
+          action_log_id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          action_code text not null,
+          idempotency_key text not null,
+          status text not null default 'SUCCESS',
+          operator_id uuid,
+          request_json jsonb not null default '{}'::jsonb,
+          response_json jsonb not null default '{}'::jsonb,
+          error_message text not null default '',
+          created_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists order_status_history (
+          history_id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          from_status text,
+          to_status text not null,
+          action_code text,
+          operator_id uuid,
+          reason text,
+          payload jsonb not null default '{}'::jsonb,
           created_at timestamptz not null default now()
         )
         "#,
@@ -206,6 +455,51 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now(),
           primary key (tenant_id, order_id)
+        )
+        "#,
+        r#"
+        create table if not exists order_review_rules (
+          tenant_id uuid not null references tenants(tenant_id),
+          rule_id uuid not null,
+          name text not null default '',
+          action text not null default 'REJECT',
+          priority int not null default 0,
+          enabled boolean not null default true,
+          conditions jsonb not null default '[]'::jsonb,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          primary key (tenant_id, rule_id)
+        )
+        "#,
+        r#"
+        create table if not exists order_review_hits (
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          rule_id uuid not null,
+          hit boolean not null default false,
+          message text not null default '',
+          payload jsonb not null default '{}'::jsonb,
+          created_at timestamptz not null default now()
+        )
+        "#,
+        r#"
+        create table if not exists order_tags (
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          tag text not null,
+          created_by uuid,
+          created_at timestamptz not null default now(),
+          primary key (tenant_id, order_id, tag)
+        )
+        "#,
+        r#"
+        create table if not exists order_notes (
+          note_id uuid primary key default gen_random_uuid(),
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          note text not null default '',
+          created_by uuid,
+          created_at timestamptz not null default now()
         )
         "#,
         r#"
@@ -528,6 +822,36 @@ async fn review_order_writes_audit_log_inner() -> Result<()> {
 
     assert_eq!(log_count, 1);
 
+    let action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.REVIEW_PASS'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(action_log_count, 1);
+
+    let status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.REVIEW_PASS'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(status_history_count, 1);
+
     let review_row: (
         String,
         Option<uuid::Uuid>,
@@ -549,6 +873,384 @@ async fn review_order_writes_audit_log_inner() -> Result<()> {
     assert_eq!(review_row.1, Some(reviewer_id));
     assert!(review_row.2.is_some());
     assert!(review_row.3.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn merge_orders_writes_action_and_status_history() -> Result<()> {
+    if let Err(err) = merge_orders_writes_action_and_status_history_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping merge_orders_writes_action_and_status_history: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn merge_orders_writes_action_and_status_history_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let target_order_id = uuid::Uuid::new_v4();
+    let source_order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("merge-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-MERGE-1")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(target_order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("MERGE-PLAT-1")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("MERGE-PLAT-2")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'NEW','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',
+          '[]'::jsonb,$8,$9,false,0,$10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(target_order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("MERGE-PLAT-1")
+    .bind("PENDING_SHIPMENT")
+    .bind("SF")
+    .bind("SF-MERGE-1")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'NEW','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',
+          '[]'::jsonb,$8,$9,false,0,$10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(source_order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("MERGE-PLAT-2")
+    .bind("PENDING_SHIPMENT")
+    .bind("SF")
+    .bind("SF-MERGE-2")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_items (
+          tenant_id, order_month, order_id, line_id, sku_id, qty
+        ) values ($1, $2, $3, $4, $5, $6)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(target_order_id)
+    .bind("LINE-MERGE-1")
+    .bind("SKU-MERGE-1")
+    .bind(1)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_items (
+          tenant_id, order_month, order_id, line_id, sku_id, qty
+        ) values ($1, $2, $3, $4, $5, $6)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(source_order_id)
+    .bind("LINE-MERGE-2")
+    .bind("SKU-MERGE-2")
+    .bind(1)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let body = serde_json::json!({
+        "order_ids": [target_order_id.to_string(), source_order_id.to_string()],
+        "target_order_id": target_order_id.to_string(),
+        "force": true
+    });
+    let request = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/merge"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&body)?))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.ORDER_MERGE_SOURCE'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(action_log_count, 1);
+
+    let status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.ORDER_MERGE_SOURCE'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(status_history_count, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn split_order_writes_action_and_status_history() -> Result<()> {
+    if let Err(err) = split_order_writes_action_and_status_history_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping split_order_writes_action_and_status_history: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn split_order_writes_action_and_status_history_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let source_order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("split-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-SPLIT-1")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("SPLIT-PLAT-1")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'NEW','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',
+          '[]'::jsonb,$8,$9,false,0,$10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(source_order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("SPLIT-PLAT-1")
+    .bind("PENDING_SHIPMENT")
+    .bind("YTO")
+    .bind("YTO-SPLIT-1")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_items (
+          tenant_id, order_month, order_id, line_id, sku_id, qty
+        ) values ($1, $2, $3, $4, $5, $6)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(source_order_id)
+    .bind("LINE-SPLIT-1")
+    .bind("SKU-SPLIT-1")
+    .bind(2)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let body = serde_json::json!({
+        "split_count": 2
+    });
+    let request = Request::builder()
+        .uri(format!(
+            "/v1/tenants/{tenant_id}/orders/{source_order_id}/split"
+        ))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&body)?))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    let status = response.status();
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    if status != StatusCode::OK {
+        let body_text = String::from_utf8_lossy(&body);
+        panic!("unexpected status {status}: {body_text}");
+    }
+
+    let json: serde_json::Value = serde_json::from_slice(&body)?;
+    let child_orders_len = json
+        .get("child_orders")
+        .and_then(|value| value.as_array())
+        .map(|value| value.len())
+        .unwrap_or_default();
+    assert_eq!(child_orders_len, 2);
+
+    let action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.ORDER_SPLIT_SOURCE'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(action_log_count, 1);
+
+    let status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.ORDER_SPLIT_SOURCE'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(source_order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(status_history_count, 1);
+
     Ok(())
 }
 
@@ -1238,6 +1940,405 @@ async fn exception_stats_reports_counts_inner() -> Result<()> {
     assert_eq!(reason.get("total").and_then(|v| v.as_i64()), Some(2));
     assert_eq!(reason.get("open").and_then(|v| v.as_i64()), Some(1));
     assert_eq!(reason.get("processed").and_then(|v| v.as_i64()), Some(1));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn manual_order_duplicate_submit_conflict() -> Result<()> {
+    if let Err(err) = manual_order_duplicate_submit_conflict_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping manual_order_duplicate_submit_conflict: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn manual_order_duplicate_submit_conflict_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("manual-order-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-MANUAL-1")
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.create"]);
+    let payload = serde_json::json!({
+        "shop_id": shop_id.to_string(),
+        "platform_order_id": "MANUAL-DUP-ORDER-1",
+        "total_amount_cent": 19900,
+        "items": [
+            {
+                "line_id": "LINE-1",
+                "title": "manual-item",
+                "qty": 1,
+                "price_cent": 19900
+            }
+        ]
+    });
+
+    let first_req = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/new"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&payload)?))
+        .unwrap();
+    let first_resp = app.clone().oneshot(first_req).await.unwrap();
+    assert_eq!(first_resp.status(), StatusCode::CREATED);
+
+    let second_req = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/new"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&payload)?))
+        .unwrap();
+    let second_resp = app.oneshot(second_req).await.unwrap();
+    assert_eq!(second_resp.status(), StatusCode::CONFLICT);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn review_order_concurrent_requests_are_version_safe() -> Result<()> {
+    if let Err(err) = review_order_concurrent_requests_are_version_safe_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping review_order_concurrent_requests_are_version_safe: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn review_order_concurrent_requests_are_version_safe_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let product_id = uuid::Uuid::new_v4();
+    let sku_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("review-concurrency-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-REVIEW-CONCURRENT")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into products (product_id, tenant_id, name, allow_negative_stock)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(product_id)
+    .bind(tenant_id)
+    .bind("review-product")
+    .bind(false)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into skus (sku_id, tenant_id, product_id, sku_code)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(sku_id)
+    .bind(tenant_id)
+    .bind(product_id)
+    .bind("SKU-REVIEW-CONCURRENT")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("PLAT-REVIEW-CONCURRENT-1")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, review_status, exception_flags, logistics_company, tracking_no,
+            inventory_shortage, version, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7, 'NEW', 'MANUAL_REVIEW', '[]'::jsonb, $8, $9, false, 0, $10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("PLAT-REVIEW-CONCURRENT-1")
+    .bind("PENDING_SHIPMENT")
+    .bind("SF")
+    .bind("SF-CONCURRENT-1")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_items (
+          tenant_id, order_month, order_id, line_id, sku_id, qty
+        ) values ($1, $2, $3, $4, $5, $6)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("LINE-CONCURRENT-1")
+    .bind(sku_id.to_string())
+    .bind(1)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.review"]);
+    let body = serde_json::json!({
+        "action": "PASS",
+        "version": 0
+    });
+
+    let req_a = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}/review"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&body)?))
+        .unwrap();
+    let req_b = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}/review"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&body)?))
+        .unwrap();
+
+    let (resp_a, resp_b) = tokio::join!(app.clone().oneshot(req_a), app.oneshot(req_b));
+    let status_a = resp_a.unwrap().status();
+    let status_b = resp_b.unwrap().status();
+    let statuses = [status_a, status_b];
+
+    let ok_count = statuses.iter().filter(|status| **status == StatusCode::OK).count();
+    let conflict_count = statuses
+        .iter()
+        .filter(|status| **status == StatusCode::CONFLICT)
+        .count();
+    assert_eq!(ok_count, 1);
+    assert_eq!(conflict_count, 1);
+
+    let action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.REVIEW_PASS'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(action_log_count, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn cancel_order_with_timeout_reason_persists_cancel_info() -> Result<()> {
+    if let Err(err) = cancel_order_with_timeout_reason_persists_cancel_info_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping cancel_order_with_timeout_reason_persists_cancel_info: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn cancel_order_with_timeout_reason_persists_cancel_info_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("cancel-timeout-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-CANCEL-TIMEOUT-1")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("PLAT-CANCEL-TIMEOUT-1")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'REVIEW_PENDING','PENDING_REVIEW','NOT_ALLOCATED','MANUAL_HOLD','MANUAL_REVIEW',
+          $8,false,0,$9)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("PLAT-CANCEL-TIMEOUT-1")
+    .bind("PENDING_SHIPMENT")
+    .bind(serde_json::json!(["REVIEW_FLAGGED"]))
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let req_body = serde_json::json!({
+        "reason": "AUTO_TIMEOUT_CANCEL"
+    });
+    let request = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}/cancel"))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&req_body)?))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let persisted: (
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<chrono::DateTime<Utc>>,
+    ) = sqlx::query_as(
+        r#"
+        select oms_status, order_status, review_status, exception_status, cancel_reason, cancel_at
+        from orders
+        where tenant_id = $1 and order_id = $2
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+
+    assert_eq!(persisted.0, "CANCELLED");
+    assert_eq!(persisted.1, "CANCELLED");
+    assert_eq!(persisted.2, "REJECTED");
+    assert_eq!(persisted.3, "CLOSED");
+    assert_eq!(persisted.4.as_deref(), Some("AUTO_TIMEOUT_CANCEL"));
+    assert!(persisted.5.is_some());
 
     Ok(())
 }

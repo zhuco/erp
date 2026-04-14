@@ -124,7 +124,6 @@ export const OrderDetailPage = () => {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const canWriteOrders = useCan('orders.write');
-  const canManageMappings = useCan('channel_sku_mappings.write');
   const canWriteInventory = useCan('inventory.write');
   const canWriteShipping = useCan('shipping.write');
   const canReadOperationLogs = useCan('operation_logs.read');
@@ -420,34 +419,6 @@ export const OrderDetailPage = () => {
     }
   };
 
-  const handleOpenMapping = useCallback(
-    (item: OrderItem) => {
-      if (!order) {
-        message.warning('请先选择订单');
-        return;
-      }
-      const platformSkuId = item.platform_sku_id ?? item.outer_sku_id ?? '';
-      if (!platformSkuId) {
-        message.warning('平台 SKU 缺失');
-        return;
-      }
-      const params = new URLSearchParams();
-      if (order.platform) {
-        params.set('platform', order.platform);
-      }
-      if (order.shop_id) {
-        params.set('shop_id', order.shop_id);
-      }
-      params.set('platform_sku_id', platformSkuId);
-      if (item.outer_sku_id) {
-        params.set('outer_sku_id', item.outer_sku_id);
-      }
-      params.set('return_to', `/orders/${order.id}`);
-      navigate(`/mappings?${params.toString()}`);
-    },
-    [navigate, order]
-  );
-
   const orderItemColumns = useMemo<ColumnsType<OrderItem>>(
     () => [
       {
@@ -486,22 +457,12 @@ export const OrderDetailPage = () => {
           return (
             <Space size={4}>
               <Tag color="red">缺失</Tag>
-              {canWriteOrders && canManageMappings ? (
-                <Button
-                  type="link"
-                  size="small"
-                  data-testid="order-item-mapping-link"
-                  onClick={() => handleOpenMapping(record)}
-                >
-                  去匹配
-                </Button>
-              ) : null}
             </Space>
           );
         }
       }
     ],
-    [canManageMappings, canWriteOrders, handleOpenMapping]
+    []
   );
 
   const reviewHitColumns = useMemo<ColumnsType<ReviewHit>>(

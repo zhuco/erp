@@ -14,6 +14,58 @@ import { applyPagination } from './data';
 
 const now = () => dayjs().toISOString();
 
+const buildAfterSalesReasonRecord = (
+  reasonCode: string,
+  payload: Partial<AfterSalesReasonPayload> = {}
+): AfterSalesReason => {
+  const timestamp = now();
+  return {
+    reason_code: payload.reason_code ?? reasonCode,
+    label: payload.label ?? reasonCode,
+    category: payload.category ?? null,
+    status: payload.status ?? 'ACTIVE',
+    sort_order: payload.sort_order ?? mockAfterSalesReasons.length + 1,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+};
+
+const buildDeletedAfterSalesReason = (reasonCode: string): AfterSalesReason => ({
+  reason_code: reasonCode,
+  label: reasonCode,
+  category: null,
+  status: 'DISABLED',
+  sort_order: 0,
+  created_at: now(),
+  updated_at: now()
+});
+
+const buildAfterSalesQualityRuleRecord = (
+  ruleId: string,
+  payload: Partial<AfterSalesQualityRulePayload> = {}
+): AfterSalesQualityRule => {
+  const timestamp = now();
+  return {
+    rule_id: ruleId,
+    after_sales_type: payload.after_sales_type ?? 'RETURN_REFUND',
+    result_code: payload.result_code ?? 'UNKNOWN',
+    status: payload.status ?? 'ACTIVE',
+    sort_order: payload.sort_order ?? mockAfterSalesQualityRules.length + 1,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+};
+
+const buildDeletedAfterSalesQualityRule = (ruleId: string): AfterSalesQualityRule => ({
+  rule_id: ruleId,
+  after_sales_type: 'RETURN_REFUND',
+  result_code: 'UNKNOWN',
+  status: 'DISABLED',
+  sort_order: 0,
+  created_at: now(),
+  updated_at: now()
+});
+
 const mockAfterSalesReasons: AfterSalesReason[] = [
   {
     reason_code: 'DEFECT',
@@ -108,16 +160,7 @@ export const getMockAfterSalesReasonList = (
 export const createMockAfterSalesReason = (
   payload: AfterSalesReasonPayload
 ): AfterSalesReason => {
-  const timestamp = now();
-  const record: AfterSalesReason = {
-    reason_code: payload.reason_code ?? `REASON-${Date.now()}`,
-    label: payload.label,
-    category: payload.category ?? null,
-    status: payload.status ?? 'ACTIVE',
-    sort_order: payload.sort_order ?? mockAfterSalesReasons.length + 1,
-    created_at: timestamp,
-    updated_at: timestamp
-  };
+  const record = buildAfterSalesReasonRecord(payload.reason_code ?? `REASON-${Date.now()}`, payload);
   mockAfterSalesReasons.unshift(record);
   return record;
 };
@@ -127,18 +170,8 @@ export const updateMockAfterSalesReason = (
   payload: AfterSalesReasonPayload
 ): AfterSalesReason => {
   const index = mockAfterSalesReasons.findIndex((item) => item.reason_code === reasonCode);
-  const base =
-    index >= 0
-      ? mockAfterSalesReasons[index]
-      : {
-          reason_code: reasonCode,
-          label: payload.label ?? reasonCode,
-          category: payload.category ?? null,
-          status: payload.status ?? 'ACTIVE',
-          sort_order: payload.sort_order ?? mockAfterSalesReasons.length + 1,
-          created_at: now(),
-          updated_at: now()
-        };
+  const base: AfterSalesReason =
+    index >= 0 ? (mockAfterSalesReasons[index] ?? buildAfterSalesReasonRecord(reasonCode, payload)) : buildAfterSalesReasonRecord(reasonCode, payload);
   const updated: AfterSalesReason = {
     ...base,
     label: payload.label ?? base.label,
@@ -159,17 +192,9 @@ export const deleteMockAfterSalesReason = (reasonCode: string): AfterSalesReason
   const index = mockAfterSalesReasons.findIndex((item) => item.reason_code === reasonCode);
   if (index >= 0) {
     const [removed] = mockAfterSalesReasons.splice(index, 1);
-    return removed;
+    return removed ?? buildDeletedAfterSalesReason(reasonCode);
   }
-  return {
-    reason_code: reasonCode,
-    label: reasonCode,
-    category: null,
-    status: 'DISABLED',
-    sort_order: 0,
-    created_at: now(),
-    updated_at: now()
-  };
+  return buildDeletedAfterSalesReason(reasonCode);
 };
 
 export const getMockAfterSalesQualityRuleList = (
@@ -197,16 +222,7 @@ export const getMockAfterSalesQualityRuleList = (
 export const createMockAfterSalesQualityRule = (
   payload: AfterSalesQualityRulePayload
 ): AfterSalesQualityRule => {
-  const timestamp = now();
-  const record: AfterSalesQualityRule = {
-    rule_id: `QC-${Date.now()}`,
-    after_sales_type: payload.after_sales_type,
-    result_code: payload.result_code,
-    status: payload.status ?? 'ACTIVE',
-    sort_order: payload.sort_order ?? mockAfterSalesQualityRules.length + 1,
-    created_at: timestamp,
-    updated_at: timestamp
-  };
+  const record = buildAfterSalesQualityRuleRecord(`QC-${Date.now()}`, payload);
   mockAfterSalesQualityRules.unshift(record);
   return record;
 };
@@ -216,18 +232,10 @@ export const updateMockAfterSalesQualityRule = (
   payload: AfterSalesQualityRulePayload
 ): AfterSalesQualityRule => {
   const index = mockAfterSalesQualityRules.findIndex((item) => item.rule_id === ruleId);
-  const base =
+  const base: AfterSalesQualityRule =
     index >= 0
-      ? mockAfterSalesQualityRules[index]
-      : {
-          rule_id: ruleId,
-          after_sales_type: payload.after_sales_type,
-          result_code: payload.result_code,
-          status: payload.status ?? 'ACTIVE',
-          sort_order: payload.sort_order ?? mockAfterSalesQualityRules.length + 1,
-          created_at: now(),
-          updated_at: now()
-        };
+      ? (mockAfterSalesQualityRules[index] ?? buildAfterSalesQualityRuleRecord(ruleId, payload))
+      : buildAfterSalesQualityRuleRecord(ruleId, payload);
   const updated: AfterSalesQualityRule = {
     ...base,
     after_sales_type: payload.after_sales_type ?? base.after_sales_type,
@@ -248,15 +256,7 @@ export const deleteMockAfterSalesQualityRule = (ruleId: string): AfterSalesQuali
   const index = mockAfterSalesQualityRules.findIndex((item) => item.rule_id === ruleId);
   if (index >= 0) {
     const [removed] = mockAfterSalesQualityRules.splice(index, 1);
-    return removed;
+    return removed ?? buildDeletedAfterSalesQualityRule(ruleId);
   }
-  return {
-    rule_id: ruleId,
-    after_sales_type: 'RETURN_REFUND',
-    result_code: 'UNKNOWN',
-    status: 'DISABLED',
-    sort_order: 0,
-    created_at: now(),
-    updated_at: now()
-  };
+  return buildDeletedAfterSalesQualityRule(ruleId);
 };

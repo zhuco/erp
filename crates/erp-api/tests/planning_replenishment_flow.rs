@@ -16,8 +16,24 @@ use tower::ServiceExt;
 mod support;
 
 async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        r#"
+        select pg_advisory_xact_lock(hashtext('planning_replenishment_flow_setup_schema'))
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
     let statements = [
-        "create extension if not exists pgcrypto",
+        r#"
+        do $$
+        begin
+          create extension if not exists pgcrypto;
+        exception
+          when duplicate_object then null;
+        end $$;
+        "#,
         r#"
         create table if not exists tenants (
           tenant_id uuid primary key,
@@ -53,8 +69,9 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     ];
 
     for stmt in statements {
-        sqlx::query(stmt).execute(pool).await?;
+        sqlx::query(stmt).execute(&mut *tx).await?;
     }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -292,6 +309,20 @@ async fn planning_replenishment_purchase_transfer_and_promo_flow() -> Result<()>
             .and_then(Value::as_str),
         Some(rule_id.as_str())
     );
+    assert_eq!(
+        first_purchase_plan
+            .get("status")
+            .and_then(Value::as_str),
+        Some("PENDING_APPROVAL")
+    );
+    assert!(
+        first_purchase_plan
+            .get("total_qty")
+            .and_then(Value::as_i64)
+            .unwrap_or_default()
+            >= 120,
+        "generated purchase qty should honor replenishment lower bound"
+    );
 
     let (status, purchase_plans) = request_json(
         &app,
@@ -337,6 +368,17 @@ async fn planning_replenishment_purchase_transfer_and_promo_flow() -> Result<()>
             .unwrap_or_default()
             >= 1,
         "transfer suggestions should be generated"
+    );
+    let first_transfer = generated_transfers
+        .get("items")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .context("generated transfer suggestion missing")?;
+    assert_eq!(
+        first_transfer
+            .get("reason")
+            .and_then(Value::as_str),
+        Some("AUTO_BALANCE")
     );
 
     let (status, generated_promo_stocking) = request_json(
@@ -384,6 +426,28 @@ async fn planning_replenishment_purchase_transfer_and_promo_flow() -> Result<()>
             .unwrap_or_default()
             >= 1,
         "execution rows should be available"
+    );
+    let execution_types = executions
+        .get("items")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|row| row.get("plan_type").and_then(Value::as_str))
+                .collect::<std::collections::HashSet<_>>()
+        })
+        .unwrap_or_default();
+    assert!(
+        execution_types.contains("PURCHASE_PLAN"),
+        "plan executions should include PURCHASE_PLAN"
+    );
+    assert!(
+        execution_types.contains("TRANSFER_SUGGESTION"),
+        "plan executions should include TRANSFER_SUGGESTION"
+    );
+    assert!(
+        execution_types.contains("PROMO_STOCKING"),
+        "plan executions should include PROMO_STOCKING"
     );
 
     Ok(())

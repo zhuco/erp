@@ -54,18 +54,12 @@ test.describe('Order Processing Flow', () => {
     await splitTrigger.click();
 
     const dialog = page.getByRole('dialog', { name: '拆分订单' });
-    const dialogVisible = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
-    test.skip(!dialogVisible, '当前首单不满足拆分弹窗触发条件，跳过拆分预览断言');
     await expect(dialog).toBeVisible();
-    await expect(
-      dialog.locator('.order-review-split-table .ant-table-tbody tr.ant-table-row').first()
-    ).toBeVisible();
-
-    const splitQtyInput = dialog.locator('.order-review-split-table .ant-input-number-input').first();
-    await splitQtyInput.fill('1');
+    const splitQtyInput = dialog.getByRole('spinbutton').first();
+    await splitQtyInput.fill('3');
 
     await dialog.getByRole('button', { name: '确认拆分' }).click();
-    await expect(page.getByText(/已拆分为\s*\d+\s*单/)).toBeVisible();
+    await expect(page.getByText(/拆单完成/)).toBeVisible();
   });
 
   test.skip('shipment detail supports downstream flow', async ({ page }) => {

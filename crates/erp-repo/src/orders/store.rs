@@ -1718,9 +1718,6 @@ impl<'a> OrdersStore<'a> {
             r#"
             update orders o
             set cancel_reason = coalesce($3, cancel_reason),
-                order_status = 'CANCELLED',
-                fulfillment_status = 'NOT_ALLOCATED',
-                exception_status = 'NONE',
                 cancel_at = now(),
                 updated_at = now()
             from order_index i
@@ -2517,7 +2514,7 @@ impl<'a> OrdersStore<'a> {
                     $45,$46,$47,$48,
                     $49,$50,$51,
                     $52,$53,$54,$55,
-                    $56,$57
+                    $56,$57,$58
                 )
                 "#,
             )

@@ -24,6 +24,7 @@ test('after-sales return inspect resend main chain smoke', async ({ page }, test
 
     await page.getByTestId('after-sales-receive-submit').click();
     await expect(page.getByTestId('after-sales-detail-title')).toBeVisible();
+    await expect(page.getByTestId('after-sales-closure-evidence')).toBeVisible();
   }
 
   await page.goto('/after-sales/inspections');

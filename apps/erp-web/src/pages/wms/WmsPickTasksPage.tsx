@@ -63,13 +63,13 @@ export const WmsPickTasksPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['wms-pick-tasks', tenantId, query],
     queryFn: () => listWmsPickTasks(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const containersQuery = useQuery({
     queryKey: ['containers', tenantId, 'pick-tasks'],
     queryFn: () => listContainers(tenantId, { offset: 0, limit: 200 }),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const containerOptions = useMemo(

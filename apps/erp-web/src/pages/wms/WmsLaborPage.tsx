@@ -26,7 +26,7 @@ export const WmsLaborPage = () => {
   const query = useQuery({
     queryKey: ['wms-labor-tasks', tenantId],
     queryFn: () => listWmsLaborTasks(tenantId, { offset: 0, limit: 50 }),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const assignMutation = useMutation({

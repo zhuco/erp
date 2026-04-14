@@ -2,6 +2,7 @@ import type { ColumnState } from 'ag-grid-community';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAgGridApplyColumnState,
   ERP_AG_GRID_LOCALE_TEXT_ZH_CN,
   ERP_AG_GRID_MAIN_MENU_ITEMS,
   buildAgGridColumnStateStorageKey,
@@ -82,6 +83,21 @@ describe('agGridColumnState', () => {
     expect(readPersistedAgGridColumnState(storage, storageKey)).toEqual([
       { colId: 'created_at', width: 160, sort: 'desc', sortIndex: 0 },
       { colId: 'receiver_name', hide: true, pinned: 'left' },
+    ]);
+  });
+
+  it('rebuilds apply state with structural columns kept at the front without forcing left pinning', () => {
+    const applyState = buildAgGridApplyColumnState([
+      { colId: 'created_at', width: 160, sort: 'desc', sortIndex: 0 },
+      { colId: '__erpSelection', width: 36, pinned: 'right' },
+      { colId: 'receiver_name', hide: true, pinned: 'right' },
+    ]);
+
+    expect(applyState).toEqual([
+      { colId: '__erpSelection', hide: false },
+      { colId: '__erpRowIndex', hide: false },
+      { colId: 'created_at', width: 160, sort: 'desc', sortIndex: 0 },
+      { colId: 'receiver_name', hide: true, pinned: 'right' },
     ]);
   });
 

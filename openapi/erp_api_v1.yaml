@@ -10803,6 +10803,10 @@ paths:
         - bearerAuth: []
       x-permissions:
         - shipping.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - operation_logs
+        - audit_logs
       parameters:
         - name: tenant_id
           in: path
@@ -12294,6 +12298,10 @@ paths:
         - bearerAuth: []
       x-permissions:
         - wms.wave_ship
+      x-persistence-required: true
+      x-persistence-tables:
+        - operation_logs
+        - audit_logs
       parameters:
         - name: tenant_id
           in: path
@@ -16188,6 +16196,11 @@ paths:
         - bearerAuth: []
       x-permissions:
         - orders.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - order_action_log
+        - order_status_history
+        - audit_logs
       parameters:
         - name: tenant_id
           in: path
@@ -16217,6 +16230,11 @@ paths:
         - bearerAuth: []
       x-permissions:
         - orders.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - order_action_log
+        - order_status_history
+        - audit_logs
       parameters:
         - name: tenant_id
           in: path
@@ -22657,6 +22675,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/system/frontend-route-diagnostics:
+    get:
+      summary: List frontend route diagnostics
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - stats.read
+        - reports.read
+        - operation_logs.read
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: path_keyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: event_type
+          in: query
+          schema: { type: string }
+        - name: window_hours
+          in: query
+          schema: { type: integer, format: int64, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, format: int64, minimum: 1 }
+      responses:
+        "200":
+          description: frontend route diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrontendRouteDiagnosticsResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: Report frontend route diagnostics events
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - stats.read
+        - reports.read
+        - operation_logs.read
+      x-persistence-required: true
+      x-persistence-tables:
+        - operation_logs
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FrontendRouteDiagnosticsReportRequest"
+      responses:
+        "200":
+          description: accepted frontend route diagnostic events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrontendRouteDiagnosticsReportResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/tenants/{tenant_id}/audit-logs:
     get:
       summary: List audit logs
@@ -26081,6 +26200,325 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MarketingPostmortem"
+  /v1/tenants/{tenant_id}/shop-products/skus:
+    get:
+      summary: List platform shop product SKUs
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.read
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: platform
+          in: query
+          schema: { type: string }
+        - name: shop_ids
+          in: query
+          schema: { type: string }
+        - name: product_type
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: match_status
+          in: query
+          schema: { type: string }
+        - name: mapping_status
+          in: query
+          schema: { type: string }
+        - name: conflict_reason
+          in: query
+          schema: { type: string }
+        - name: match_source
+          in: query
+          schema: { type: string }
+        - name: updated_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: updated_to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: offset
+          in: query
+          schema: { type: integer, format: int64, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, format: int64, default: 50 }
+      responses:
+        "200":
+          description: shop product SKU list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductSkuListResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/download:
+    post:
+      summary: Download platform shop products and upsert SKU records
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - shop_products
+        - shop_product_skus
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopProductDownloadRequest"
+      responses:
+        "200":
+          description: download task accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductDownloadResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/tasks:
+    get:
+      summary: List shop product async tasks
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.read
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: task_type
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: offset
+          in: query
+          schema: { type: integer, format: int64, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, format: int64, default: 50 }
+      responses:
+        "200":
+          description: task list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductTaskListResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/create-skus:
+    post:
+      summary: Create internal SKUs from platform shop product SKUs
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - products
+        - skus
+        - channel_sku_mappings
+        - inventory_ledgers
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopProductCreateSkuRequest"
+      responses:
+        "200":
+          description: create SKU task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductTaskResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/auto-match:
+    post:
+      summary: Auto match platform shop product SKUs
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - channel_sku_mappings
+        - operation_logs
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopProductAutoMatchRequest"
+      responses:
+        "200":
+          description: auto match result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductMatchResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/manual-match:
+    post:
+      summary: Manual match platform shop product SKUs
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - channel_sku_mappings
+        - operation_logs
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopProductManualMatchRequest"
+      responses:
+        "200":
+          description: manual match task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductTaskResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/tenants/{tenant_id}/shop-products/parse:
     post:
       summary: Parse platform shop products to local SKU candidates
@@ -26107,13 +26545,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ShopProductParseResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/tenants/{tenant_id}/shop-products/bundle-match/auto:
     post:
-      summary: Auto match bundle/platform shop product SKUs
+      summary: Alias of /shop-products/auto-match for backward compatibility
       security:
         - bearerAuth: []
       x-permissions:
         - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - channel_sku_mappings
+        - operation_logs
       parameters:
         - name: tenant_id
           in: path
@@ -26127,18 +26588,41 @@ paths:
               $ref: "#/components/schemas/ShopProductAutoMatchRequest"
       responses:
         "200":
-          description: auto match task
+          description: auto match result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ShopProductTaskResponse"
+                $ref: "#/components/schemas/ShopProductMatchResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/tenants/{tenant_id}/shop-products/bundle-match/manual:
     post:
-      summary: Manual match bundle/platform shop product SKUs
+      summary: Alias of /shop-products/manual-match for backward compatibility
       security:
         - bearerAuth: []
       x-permissions:
         - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - channel_sku_mappings
+        - operation_logs
       parameters:
         - name: tenant_id
           in: path
@@ -26157,6 +26641,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ShopProductTaskResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/{tenant_id}/shop-products/delete-match:
+    post:
+      summary: Delete existing SKU matches for shop product records
+      security:
+        - bearerAuth: []
+      x-permissions:
+        - shop_products.write
+      x-persistence-required: true
+      x-persistence-tables:
+        - shop_product_tasks
+        - channel_sku_mappings
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopProductDeleteMatchRequest"
+      responses:
+        "200":
+          description: delete match task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductTaskResponse"
+        "400":
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/tenants/{tenant_id}/shops/{shop_id}/platform-orders/download/manual:
     post:
       summary: Manually request platform order download
@@ -32780,8 +33329,181 @@ components:
         status: { type: string, nullable: true }
         keyword: { type: string, nullable: true }
         match_status: { type: string, nullable: true }
+        mapping_status: { type: string, nullable: true }
+        conflict_reason: { type: string, nullable: true }
+        match_source: { type: string, nullable: true }
         updated_from: { type: string, format: date-time, nullable: true }
         updated_to: { type: string, format: date-time, nullable: true }
+    ShopProductSkuListItem:
+      type: object
+      required: [sku_record_id, shop_id, platform, platform_sku_id]
+      properties:
+        sku_record_id: { type: string }
+        shop_id: { type: string }
+        platform: { type: string }
+        platform_product_id: { type: string, nullable: true }
+        platform_sku_id: { type: string }
+        merchant_code: { type: string, nullable: true }
+        merchant_sku_code: { type: string, nullable: true }
+        product_title: { type: string, nullable: true }
+        sku_title: { type: string, nullable: true }
+        spec_text: { type: string, nullable: true }
+        price_cent: { type: integer, format: int64, nullable: true }
+        stock_qty: { type: integer, format: int64, nullable: true }
+        status: { type: string, nullable: true }
+        mapping_id: { type: string, nullable: true }
+        mapped_sku_id: { type: string, nullable: true }
+        mapped_sku_code: { type: string, nullable: true }
+        mapped_sku_name: { type: string, nullable: true }
+        match_status: { type: string, nullable: true }
+        mapping_status: { type: string, nullable: true }
+        conflict_reason: { type: string, nullable: true }
+        match_source: { type: string, nullable: true }
+        platform_updated_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+    ShopProductSkuListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductSkuListItem"
+        total: { type: integer, format: int64 }
+    ShopProductTask:
+      type: object
+      required: [task_id, task_type, status, created_at, updated_at]
+      properties:
+        task_id: { type: string }
+        task_type: { type: string }
+        status: { type: string }
+        shop_id: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        payload_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+        result_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+        total_count: { type: integer, format: int64, nullable: true }
+        success_count: { type: integer, format: int64, nullable: true }
+        failure_count: { type: integer, format: int64, nullable: true }
+        error: { type: string, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ShopProductTaskListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductTask"
+        total: { type: integer, format: int64 }
+    ShopProductMatchFailure:
+      type: object
+      required: [sku_record_id, platform_sku_id, reason]
+      properties:
+        sku_record_id: { type: string }
+        platform_sku_id: { type: string }
+        merchant_sku_code: { type: string, nullable: true }
+        reason: { type: string }
+    ShopProductMatchResponse:
+      type: object
+      required: [task, failures]
+      properties:
+        task:
+          $ref: "#/components/schemas/ShopProductTask"
+        failures:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductMatchFailure"
+    ShopProductDownloadSku:
+      type: object
+      required: [platform_sku_id]
+      properties:
+        platform_sku_id: { type: string }
+        merchant_sku_code: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        spec_text: { type: string, nullable: true }
+        price_cent: { type: integer, format: int64, nullable: true }
+        stock_qty: { type: integer, format: int64, nullable: true }
+        status: { type: string, nullable: true }
+        barcode: { type: string, nullable: true }
+        image_url: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        raw_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+    ShopProductDownloadItem:
+      type: object
+      required: [platform_product_id, title, skus]
+      properties:
+        platform_product_id: { type: string }
+        merchant_code: { type: string, nullable: true }
+        title: { type: string }
+        product_type: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        raw_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+        skus:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductDownloadSku"
+    ShopProductDownloadRequest:
+      type: object
+      properties:
+        platform: { type: string, nullable: true }
+        shop_ids:
+          type: array
+          items: { type: string }
+          nullable: true
+        product_type: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        updated_from: { type: string, format: date-time, nullable: true }
+        updated_to: { type: string, format: date-time, nullable: true }
+        keyword: { type: string, nullable: true }
+        auto_match: { type: boolean, nullable: true }
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductDownloadItem"
+          nullable: true
+    ShopProductDownloadResponse:
+      type: object
+      required: [task, auto_match_failures]
+      properties:
+        task:
+          $ref: "#/components/schemas/ShopProductTask"
+        auto_match_task:
+          allOf:
+            - $ref: "#/components/schemas/ShopProductTask"
+          nullable: true
+        auto_match_failures:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductMatchFailure"
+    ShopProductCreateSkuRequest:
+      type: object
+      properties:
+        sku_record_ids:
+          type: array
+          items: { type: string }
+          nullable: true
+        filters:
+          $ref: "#/components/schemas/ShopProductSkuFilterPayload"
+        import_price: { type: boolean, nullable: true }
+        import_image: { type: boolean, nullable: true }
+        import_stock: { type: boolean, nullable: true }
+        warehouse_id: { type: string, nullable: true }
     ShopProductParseRequest:
       type: object
       properties:
@@ -32832,13 +33554,19 @@ components:
           type: array
           items: { type: string }
         sku_id: { type: string }
+    ShopProductDeleteMatchRequest:
+      type: object
+      required: [sku_record_ids]
+      properties:
+        sku_record_ids:
+          type: array
+          items: { type: string }
     ShopProductTaskResponse:
       type: object
       required: [task]
       properties:
         task:
-          type: object
-          additionalProperties: true
+          $ref: "#/components/schemas/ShopProductTask"
     ShopCreateRequest:
       type: object
       required: [platform, platform_shop_id, name]
@@ -34285,6 +35013,124 @@ components:
           items:
             $ref: "#/components/schemas/OperationLog"
         next_cursor: { type: string, nullable: true }
+    FrontendRouteDiagnosticReport:
+      type: object
+      required:
+        [
+          session_id,
+          path,
+          event_type,
+          status,
+          event_at,
+          page_url,
+          build_version,
+          user_agent,
+        ]
+      properties:
+        session_id: { type: string }
+        path: { type: string }
+        route_label: { type: string, nullable: true }
+        event_type: { type: string }
+        status: { type: string }
+        duration_ms: { type: integer, format: int64, nullable: true }
+        prefetch_status: { type: string, nullable: true }
+        prefetch_source: { type: string, nullable: true }
+        prefetch_duration_ms: { type: integer, format: int64, nullable: true }
+        error_summary: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        event_at: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time, nullable: true }
+        page_url: { type: string }
+        build_version: { type: string }
+        user_agent: { type: string }
+    FrontendRouteDiagnosticsReportRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrontendRouteDiagnosticReport"
+    FrontendRouteDiagnosticsReportResponse:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: integer, format: int64 }
+    FrontendRouteDiagnosticsSummary:
+      type: object
+      required:
+        [
+          totalEvents,
+          uniqueRoutes,
+          readyEvents,
+          timeoutEvents,
+          errorEvents,
+          slowEvents,
+          prefetchHits,
+          affectedSessions,
+          measuredFirstLoads,
+          successfulFirstLoads,
+          prefetchShortCircuitCount,
+        ]
+      properties:
+        totalEvents: { type: integer, format: int64 }
+        uniqueRoutes: { type: integer, format: int64 }
+        readyEvents: { type: integer, format: int64 }
+        timeoutEvents: { type: integer, format: int64 }
+        errorEvents: { type: integer, format: int64 }
+        slowEvents: { type: integer, format: int64 }
+        prefetchHits: { type: integer, format: int64 }
+        affectedSessions: { type: integer, format: int64 }
+        measuredFirstLoads: { type: integer, format: int64 }
+        successfulFirstLoads: { type: integer, format: int64 }
+        firstLoadAvgDurationMs: { type: integer, format: int64, nullable: true }
+        prefetchShortCircuitCount: { type: integer, format: int64 }
+    FrontendRouteDiagnosticsPathSummary:
+      type: object
+      required:
+        [
+          path,
+          totalEvents,
+          readyEvents,
+          timeoutEvents,
+          errorEvents,
+          slowEvents,
+          prefetchHits,
+          measuredFirstLoads,
+          successfulFirstLoads,
+          prefetchShortCircuitCount,
+          lastSeenAt,
+        ]
+      properties:
+        path: { type: string }
+        routeLabel: { type: string, nullable: true }
+        totalEvents: { type: integer, format: int64 }
+        readyEvents: { type: integer, format: int64 }
+        timeoutEvents: { type: integer, format: int64 }
+        errorEvents: { type: integer, format: int64 }
+        slowEvents: { type: integer, format: int64 }
+        prefetchHits: { type: integer, format: int64 }
+        avgDurationMs: { type: integer, format: int64, nullable: true }
+        maxDurationMs: { type: integer, format: int64, nullable: true }
+        measuredFirstLoads: { type: integer, format: int64 }
+        successfulFirstLoads: { type: integer, format: int64 }
+        firstLoadAvgDurationMs: { type: integer, format: int64, nullable: true }
+        prefetchShortCircuitCount: { type: integer, format: int64 }
+        lastSeenAt: { type: string, format: date-time }
+    FrontendRouteDiagnosticsResponse:
+      type: object
+      required: [summary, paths, events]
+      properties:
+        summary:
+          $ref: "#/components/schemas/FrontendRouteDiagnosticsSummary"
+        paths:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrontendRouteDiagnosticsPathSummary"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrontendRouteDiagnosticReport"
     Setting:
       type: object
       required: [setting_id, tenant_id, scope_type, key, value_json, version, updated_at]

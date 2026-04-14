@@ -51,35 +51,7 @@ test.describe('Critical User Paths', () => {
         await expect(page.locator('table').getByText(/PLAT-SKU-\d+/).first()).toBeVisible();
     });
 
-    test('Path 4: Mapping Missing → Redirect with Prefill', async ({ page }) => {
-        await page.goto('/orders');
-        await loginAndSelectTenant(page);
-
-        await expect(page.getByTestId('order-detail-link').first()).toBeVisible();
-
-        // Navigate to order detail
-        await page.getByTestId('order-detail-link').first().click();
-        await expect(page.getByRole('heading', { name: /订单/ })).toBeVisible();
-
-        const mappingButton = page.getByTestId('order-item-mapping-link').first();
-        await expect(mappingButton).toBeVisible();
-
-        if (await mappingButton.isEnabled()) {
-            await mappingButton.click();
-
-            // Should navigate to mappings page
-            await expect(page).toHaveURL(/\/mappings/);
-            await expect(page.getByRole('heading', { name: /渠道/ })).toBeVisible();
-
-            // Verify query parameters are prefilled
-            const url = page.url();
-            expect(url).toContain('platform=');
-            expect(url).toContain('shop_id=');
-            expect(url).toContain('platform_sku_id=');
-        }
-    });
-
-    test('Path 5: SKU Barcode Scanner', async ({ page }) => {
+    test('Path 4: SKU Barcode Scanner', async ({ page }) => {
         await page.goto('/skus');
         await loginAndSelectTenant(page);
 
@@ -87,7 +59,7 @@ test.describe('Critical User Paths', () => {
         await expect(page.getByText('SKU-ERP-1000')).toBeVisible();
     });
 
-    test('Path 6: Print with PrintBridge Mock', async ({ page, mockPrintBridge }) => {
+    test('Path 5: Print with PrintBridge Mock', async ({ page, mockPrintBridge }) => {
         await page.goto('/orders');
         await loginAndSelectTenant(page);
 

@@ -41,6 +41,21 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
           unique (tenant_id, scope_type, scope_id, key)
         )
         "#,
+        // Some shared test databases carry expression-based uniqueness from migrations.
+        // That index conflicts with SettingsRepo upsert semantics (scope_id = null), so
+        // we drop it in this isolated test schema to keep the WMS flow deterministic.
+        r#"
+        alter table settings drop constraint if exists idx_settings_unique
+        "#,
+        r#"
+        drop index if exists idx_settings_unique
+        "#,
+        r#"
+        alter table settings drop constraint if exists idx_test_settings_unique
+        "#,
+        r#"
+        drop index if exists idx_test_settings_unique
+        "#,
         r#"
         create table if not exists feature_flags (
           tenant_id uuid not null,

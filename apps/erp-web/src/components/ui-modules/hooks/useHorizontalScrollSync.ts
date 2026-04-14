@@ -12,7 +12,13 @@ type HorizontalScrollSyncResult = {
   scrollInnerRef: RefObject<HTMLDivElement>;
 };
 
-const defaultSelectors = ['.ag-body-viewport', '.ag-center-cols-viewport', '.ant-table-body', '.ant-table-content'];
+const defaultSelectors = [
+  '.ag-body-horizontal-scroll-viewport',
+  '.ag-center-cols-viewport',
+  '.ag-body-viewport',
+  '.ant-table-body',
+  '.ant-table-content',
+];
 
 const resolveTableContent = (container: HTMLElement, selectors: string[]) => {
   for (const selector of selectors) {

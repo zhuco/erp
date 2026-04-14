@@ -57,6 +57,15 @@ export const AgGridSelectionHeaderCheckbox = <TRow,>({
 
   const checked = useMemo(() => selectionState.checked, [selectionState.checked]);
   const indeterminate = useMemo(() => selectionState.indeterminate, [selectionState.indeterminate]);
+  const visualClassName = useMemo(() => {
+    const classNames = ['erp-selection-checkbox-visual'];
+    if (checked) {
+      classNames.push('is-checked');
+    } else if (indeterminate) {
+      classNames.push('is-indeterminate');
+    }
+    return classNames.join(' ');
+  }, [checked, indeterminate]);
 
   return (
     <label className={labelClassName} title={title} onClick={(event) => event.stopPropagation()}>
@@ -79,6 +88,7 @@ export const AgGridSelectionHeaderCheckbox = <TRow,>({
         onClick={(event) => event.stopPropagation()}
         aria-label={ariaLabel}
       />
+      <span className={visualClassName} aria-hidden="true" />
     </label>
   );
 };

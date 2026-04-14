@@ -20,6 +20,19 @@ const clearKeyToFilterField: Record<string, keyof ColumnFilters> = {
   'tag:*': 'tagState',
 };
 
+const clearAllLeftFilterFields = (previous: ColumnFilters): ColumnFilters => ({
+  ...previous,
+  platform: undefined,
+  shopId: undefined,
+  status: undefined,
+  timeRange: undefined,
+  exceptionType: undefined,
+  warehouseId: undefined,
+  logisticsCompany: undefined,
+  remarkState: undefined,
+  tagState: undefined,
+});
+
 const singleSelectValue = <T extends string>(current: readonly T[] | undefined, value: string): T[] | undefined => {
   const normalized = normalizeMulti(current as string[]);
   if (normalized.length === 1 && normalized[0] === value) {
@@ -56,26 +69,27 @@ export const reduceOrderReviewFiltersByNode = (
   previous: ColumnFilters,
   node: OrderReviewLeftFilterNode,
 ): ColumnFilters => {
+  const cleared = clearAllLeftFilterFields(previous);
   const clearField = clearKeyToFilterField[node.key];
   if (clearField) {
-    return { ...previous, [clearField]: undefined };
+    return { ...cleared, [clearField]: undefined };
   }
 
   if (node.nodeType === 'platform' && node.key.startsWith('platform:')) {
-    return { ...previous, platform: singleSelectValue(previous.platform, node.key.slice('platform:'.length)) };
+    return { ...cleared, platform: singleSelectValue(previous.platform, node.key.slice('platform:'.length)) };
   }
   if (node.nodeType === 'shop' && node.key.startsWith('shop:')) {
-    return { ...previous, shopId: singleSelectValue(previous.shopId, node.key.slice('shop:'.length)) };
+    return { ...cleared, shopId: singleSelectValue(previous.shopId, node.key.slice('shop:'.length)) };
   }
   if (node.nodeType === 'status' && node.key.startsWith('status:')) {
     return {
-      ...previous,
+      ...cleared,
       status: singleSelectValue(previous.status, node.key.slice('status:'.length)) as ('normal' | 'exception')[] | undefined,
     };
   }
   if (node.nodeType === 'time' && node.key.startsWith('time:')) {
     return {
-      ...previous,
+      ...cleared,
       timeRange: singleSelectValue(previous.timeRange, node.key.slice('time:'.length)) as
         | ('today' | 'yesterday' | 'within3d' | 'within7d' | 'within30d' | 'gt30d')[]
         | undefined,
@@ -83,7 +97,7 @@ export const reduceOrderReviewFiltersByNode = (
   }
   if (node.nodeType === 'exception' && node.key.startsWith('exception:')) {
     return {
-      ...previous,
+      ...cleared,
       exceptionType: singleSelectValue(previous.exceptionType, node.key.slice('exception:'.length)) as
         | ('frozen' | 'noLogistics' | 'stopShipping' | 'inventoryShortage' | 'invalidGoods' | 'refundReturn')[]
         | undefined,
@@ -91,25 +105,25 @@ export const reduceOrderReviewFiltersByNode = (
   }
   if (node.nodeType === 'warehouse' && node.key.startsWith('warehouse:')) {
     return {
-      ...previous,
+      ...cleared,
       warehouseId: singleSelectValue(previous.warehouseId, node.key.slice('warehouse:'.length)),
     };
   }
   if (node.nodeType === 'logistics' && node.key.startsWith('logistics:')) {
     return {
-      ...previous,
+      ...cleared,
       logisticsCompany: singleSelectValue(previous.logisticsCompany, node.key.slice('logistics:'.length)),
     };
   }
   if (node.nodeType === 'remark' && node.key.startsWith('remark:')) {
     return {
-      ...previous,
+      ...cleared,
       remarkState: singleSelectValue(previous.remarkState, node.key.slice('remark:'.length)) as ('has' | 'none')[] | undefined,
     };
   }
   if (node.nodeType === 'tag' && node.key.startsWith('tag:')) {
     return {
-      ...previous,
+      ...cleared,
       tagState: singleSelectValue(previous.tagState, node.key.slice('tag:'.length)) as ('has' | 'none')[] | undefined,
     };
   }

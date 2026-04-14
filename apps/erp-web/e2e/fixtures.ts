@@ -69,21 +69,49 @@ async function clickOption(option: Locator) {
   }
 }
 
+async function waitForVisibleTarget<TTarget extends string>(
+  page: Page,
+  candidates: Array<{ key: TTarget; locator: Locator }>,
+  timeoutMs: number,
+): Promise<TTarget | null> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    for (const candidate of candidates) {
+      if ((await candidate.locator.count()) === 0) {
+        continue;
+      }
+      if (await candidate.locator.first().isVisible()) {
+        return candidate.key;
+      }
+    }
+    await page.waitForTimeout(100);
+  }
+
+  return null;
+}
+
 // Helper to login and select tenant
 export async function loginAndSelectTenant(page: Page) {
   await page.waitForLoadState('domcontentloaded');
   const loginInput = page.getByTestId('login-username-input');
-  let loginVisible = false;
-  try {
-    await loginInput.waitFor({ state: 'visible', timeout: 2000 });
-    loginVisible = true;
-  } catch {
-    loginVisible = false;
-  }
+  const shell = page.locator('.workbench-shell');
+  const initialVisibleTarget = await waitForVisibleTarget(
+    page,
+    [
+      { key: 'login', locator: loginInput },
+      { key: 'shell', locator: shell },
+    ],
+    5000,
+  );
 
-  if (!loginVisible) {
+  if (initialVisibleTarget === 'shell') {
     await expect(page.locator('.workbench-shell')).toBeVisible();
     return;
+  }
+
+  if (initialVisibleTarget !== 'login') {
+    await expect(loginInput).toBeVisible();
   }
 
   // Fill login form
@@ -96,16 +124,22 @@ export async function loginAndSelectTenant(page: Page) {
   await page.getByTestId('login-submit').click();
 
   const tenantSelect = page.getByTestId('tenant-select');
-  let tenantSelectionVisible = true;
-  try {
-    await tenantSelect.waitFor({ state: 'visible', timeout: 2000 });
-  } catch {
-    tenantSelectionVisible = false;
-  }
+  const postLoginVisibleTarget = await waitForVisibleTarget(
+    page,
+    [
+      { key: 'tenant-select', locator: tenantSelect },
+      { key: 'shell', locator: shell },
+    ],
+    5000,
+  );
 
-  if (!tenantSelectionVisible) {
+  if (postLoginVisibleTarget === 'shell') {
     await expect(page.locator('.workbench-shell')).toBeVisible();
     return;
+  }
+
+  if (postLoginVisibleTarget !== 'tenant-select') {
+    await expect(tenantSelect).toBeVisible();
   }
 
   await tenantSelect.click();

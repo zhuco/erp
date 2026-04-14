@@ -119,7 +119,7 @@ export const WmsShipPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['wms-ship-outbounds', tenantId, query],
     queryFn: () => listWmsOutbounds(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const inspectMutation = useMutation({

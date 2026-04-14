@@ -3,6 +3,12 @@
 const getCenterRows = (grid: any) => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
 const getSelectionCell = (grid: any, rowId: string) =>
   grid.locator(`.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"]`).first();
+const getSelectionVisual = (grid: any, rowId: string) =>
+  grid
+    .locator(
+      `.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`,
+    )
+    .first();
 const getHeaderCell = (grid: any, colId: string) =>
   grid.locator(`.ag-header-row-column .ag-header-cell[col-id="${colId}"]`).first();
 const getCellText = async (grid: any, rowIndex: number, colId: string) =>
@@ -165,24 +171,187 @@ test('order review renders visible unchecked checkbox indicator on first paint',
   const firstRowId = await getRowId(rows.nth(0));
   expect(firstRowId).not.toBe('');
 
-  const checkboxVisual = await grid
-    .locator(`.ag-center-cols-container .ag-row[row-id="${firstRowId}"] .ag-cell[col-id="__erpSelection"] .ag-selection-checkbox`)
-    .first()
-    .evaluate((element) => {
-      const marker = element as HTMLElement;
-      const beforeStyle = window.getComputedStyle(marker, '::before');
-      return {
-        checked: marker.classList.contains('is-checked'),
-        borderStyle: beforeStyle.borderStyle,
-        width: beforeStyle.width,
-        height: beforeStyle.height,
-      };
-    });
+  const checkboxVisual = getSelectionVisual(grid, firstRowId);
+  await expect(checkboxVisual).toBeVisible();
 
-  expect(checkboxVisual.checked).toBe(false);
+  const visualStyle = await checkboxVisual.evaluate((element: Element) => {
+    const marker = element as HTMLElement;
+    const style = window.getComputedStyle(marker);
+    return {
+      borderStyle: style.borderStyle,
+      borderColor: style.borderColor,
+      width: style.width,
+      height: style.height,
+    };
+  });
+
+  expect(visualStyle.borderStyle).toContain('solid');
+  expect(visualStyle.borderColor).toBe('rgb(71, 85, 105)');
+  expect(visualStyle.width).toBe('14px');
+  expect(visualStyle.height).toBe('14px');
+});
+
+test('order review keeps selection column visible after switching away and back', async ({ page }) => {
+  await page.goto('/orders/review');
+  await loginAndSelectTenant(page);
+
+  const reviewGrid = page.getByTestId('order-review-data-grid');
+  await expect(reviewGrid).toBeVisible();
+
+  const reviewRows = getCenterRows(reviewGrid);
+  await expect.poll(async () => reviewRows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const firstRowId = await getRowId(reviewRows.nth(0));
+  expect(firstRowId).not.toBe('');
+
+  const functionSearchInput = page.locator('.workbench-function-search input').first();
+  await expect(functionSearchInput).toBeVisible();
+  await functionSearchInput.fill('订单查');
+  await page.getByTestId('function-search-option-orders').click();
+
+  await expect(page).toHaveURL(/\/orders(\?.*)?$/);
+  await expect(page.getByTestId('orders-grid')).toBeVisible();
+
+  await page.locator('.workbench-tabs [role="tab"]').filter({ hasText: '订单审核' }).first().click();
+  await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
+
+  const revisitedGrid = page.getByTestId('order-review-data-grid');
+  await expect(revisitedGrid).toBeVisible();
+  const revisitedRows = getCenterRows(revisitedGrid);
+  await expect.poll(async () => revisitedRows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+
+  const selectionHeaderCheckbox = revisitedGrid.getByTestId('erp-selection-header-checkbox');
+  await expect(selectionHeaderCheckbox).toBeVisible();
+
+  const selectionCell = revisitedGrid.locator(
+    `.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`,
+  ).first();
+  await expect(selectionCell).toBeVisible();
+
+  const checkboxVisual = await selectionCell.evaluate((element: Element) => {
+    const marker = element as HTMLElement;
+    return {
+      borderStyle: window.getComputedStyle(marker).borderStyle,
+      width: window.getComputedStyle(marker).width,
+      height: window.getComputedStyle(marker).height,
+    };
+  });
+
   expect(checkboxVisual.borderStyle).toContain('solid');
   expect(checkboxVisual.width).toBe('14px');
   expect(checkboxVisual.height).toBe('14px');
+});
+
+test('order review keeps selection column visible after browser tab blur and focus', async ({ page, context }) => {
+  await page.goto('/orders/review');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-review-data-grid');
+  await expect(grid).toBeVisible();
+
+  const rows = getCenterRows(grid);
+  await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+
+  const otherTab = await context.newPage();
+  await otherTab.goto('about:blank');
+  await otherTab.bringToFront();
+  await page.waitForTimeout(800);
+  await page.bringToFront();
+
+  await expect(grid).toBeVisible();
+  const selectionCell = grid
+    .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
+    .first();
+  await expect(selectionCell).toBeVisible();
+});
+
+test('order review keeps selection column visible after page reload', async ({ page }) => {
+  await page.goto('/orders/review');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-review-data-grid');
+  await expect(grid).toBeVisible();
+  await expect.poll(async () => getCenterRows(grid).count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+
+  await page.reload();
+  await loginAndSelectTenant(page);
+
+  const reloadedGrid = page.getByTestId('order-review-data-grid');
+  await expect(reloadedGrid).toBeVisible();
+  await expect.poll(async () => getCenterRows(reloadedGrid).count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  await expect(reloadedGrid.getByTestId('erp-selection-header-checkbox')).toBeVisible();
+  await expect(
+    reloadedGrid
+      .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
+      .first(),
+  ).toBeVisible();
+});
+
+test('order review shows selection column when opened from another workbench page with warm cache', async ({ page }) => {
+  await page.goto('/orders');
+  await loginAndSelectTenant(page);
+
+  await expect(page.getByTestId('orders-grid')).toBeVisible();
+
+  const functionSearchInput = page.locator('.workbench-function-search input').first();
+  await expect(functionSearchInput).toBeVisible();
+  await functionSearchInput.fill('订单审');
+  await page.getByTestId('function-search-option-orders-review').click();
+
+  await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
+  const reviewGrid = page.getByTestId('order-review-data-grid');
+  await expect(reviewGrid).toBeVisible();
+  await expect.poll(async () => getCenterRows(reviewGrid).count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  await expect(reviewGrid.getByTestId('erp-selection-header-checkbox')).toBeVisible();
+  await expect(
+    reviewGrid
+      .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
+      .first(),
+  ).toBeVisible();
+});
+
+test('order review preserves active row and checked rows across workbench tab switches', async ({ page }) => {
+  await page.goto('/orders/review');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-review-data-grid');
+  await expect(grid).toBeVisible();
+
+  const rows = getCenterRows(grid);
+  await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
+
+  const secondRowId = await getRowId(rows.nth(1));
+  const thirdRowId = await getRowId(rows.nth(2));
+  expect(secondRowId).not.toBe('');
+  expect(thirdRowId).not.toBe('');
+
+  const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
+  const thirdRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${thirdRowId}"]`);
+
+  await clickSelectionCheckboxHotArea(page, grid, secondRowId);
+  await expect(secondRowById).toHaveClass(/ag-row-selected/);
+
+  await thirdRowById.locator('.ag-cell[col-id="id"]').first().click();
+  await expect(thirdRowById).toHaveClass(/erp-data-grid-row-active/);
+
+  const functionSearchInput = page.locator('.workbench-function-search input').first();
+  await expect(functionSearchInput).toBeVisible();
+  await functionSearchInput.fill('订单查');
+  await page.getByTestId('function-search-option-orders').click();
+
+  await expect(page).toHaveURL(/\/orders(\?.*)?$/);
+  await expect(page.getByTestId('orders-grid')).toBeVisible();
+
+  await page.locator('.workbench-tabs [role="tab"]').filter({ hasText: '订单审核' }).first().click();
+  await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
+
+  const revisitedGrid = page.getByTestId('order-review-data-grid');
+  await expect(revisitedGrid).toBeVisible();
+
+  const revisitedSecondRow = revisitedGrid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
+  const revisitedThirdRow = revisitedGrid.locator(`.ag-center-cols-container .ag-row[row-id="${thirdRowId}"]`);
+
+  await expect(revisitedSecondRow).toHaveClass(/ag-row-selected/);
+  await expect(revisitedThirdRow).toHaveClass(/erp-data-grid-row-active/);
 });
 
 test('order review first selection-column click toggles without prior row activation click', async ({ page }) => {
@@ -636,6 +805,110 @@ test('order review opens native column menu on header right click and can hide o
 
   expect(await toggleReceiverColumn(false)).toBe(true);
   await expect(getHeaderCell(grid, 'receiver_name')).toBeVisible();
+});
+
+test('order review restores selection and row index columns even when persisted state omits them', async ({
+  page,
+}) => {
+  await page.goto('/orders/review');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-review-data-grid');
+  await expect(grid).toBeVisible();
+  await expect.poll(async () => getCenterRows(grid).count(), { timeout: 20_000 }).toBeGreaterThan(0);
+
+  const injectedState = await page.evaluate(async () => {
+    const gridTestWindow = window as Window & {
+      __ERP_GRID_TEST_APIS?: Record<
+        string,
+        {
+          applyColumnState: (params: {
+            state: Array<{ colId: string; hide?: boolean }>;
+          }) => void;
+        }
+      >;
+    };
+
+    const api = gridTestWindow.__ERP_GRID_TEST_APIS?.['order-review-data-grid'];
+    if (!api) {
+      return { storageKey: null, storedColumnIds: [] as string[] };
+    }
+
+    api.applyColumnState({
+      state: [{ colId: 'receiver_name', hide: true }],
+    });
+
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+
+    const storageKey =
+      Object.keys(window.localStorage).find((key) => key.includes('orders.review.main-grid')) ?? null;
+    if (!storageKey) {
+      return { storageKey: null, storedColumnIds: [] as string[] };
+    }
+
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return { storageKey, storedColumnIds: [] as string[] };
+    }
+
+    const parsed = JSON.parse(raw) as { version?: number; columns?: Array<{ colId?: string | null }> };
+    const businessColumns = (parsed.columns ?? []).filter((column) => {
+      const colId = String(column?.colId ?? '').trim();
+      return colId !== '__erpSelection' && colId !== '__erpRowIndex';
+    });
+
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 1,
+        columns: businessColumns,
+      }),
+    );
+
+    return {
+      storageKey,
+      storedColumnIds: businessColumns.map((column) => String(column.colId ?? '')),
+    };
+  });
+
+  expect(injectedState.storageKey).toBeTruthy();
+  expect(injectedState.storedColumnIds).not.toContain('__erpSelection');
+  expect(injectedState.storedColumnIds).not.toContain('__erpRowIndex');
+
+  await page.reload();
+  await loginAndSelectTenant(page);
+  await expect(grid).toBeVisible();
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const gridTestWindow = window as Window & {
+            __ERP_GRID_TEST_APIS?: Record<
+              string,
+              {
+                getAllDisplayedColumns?: () => Array<{ getColId: () => string }>;
+                getDisplayedLeftColumns?: () => Array<{ getColId: () => string }>;
+              }
+            >;
+          };
+
+          const api = gridTestWindow.__ERP_GRID_TEST_APIS?.['order-review-data-grid'];
+          if (!api) {
+            return { left: [] as string[], all: [] as string[] };
+          }
+
+          return {
+            left: (api.getDisplayedLeftColumns?.() ?? []).map((column) => column.getColId()),
+            all: (api.getAllDisplayedColumns?.() ?? []).map((column) => column.getColId()),
+          };
+        }),
+      { timeout: 20_000 },
+    )
+    .toEqual({
+      left: [],
+      all: expect.arrayContaining(['__erpSelection', '__erpRowIndex']),
+    });
 });
 
 test('order review supports Shift/Ctrl checkbox toggle to check and uncheck', async ({ page }) => {

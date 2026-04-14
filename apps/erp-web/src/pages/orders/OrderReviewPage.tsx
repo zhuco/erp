@@ -1,6 +1,6 @@
 ﻿import './orderReviewPage.css';
 
-import { Button, message } from 'antd';
+import { Button, InputNumber, Modal, Space, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import type { GridApi } from 'ag-grid-community';
 import type { Key } from 'react';
@@ -14,6 +14,9 @@ import {
   addOrderTags,
   getOrderDetail,
   getOrderReviewStats,
+  mergeOrders,
+  reviewOrder,
+  splitOrder,
   updateOrder,
   type OrderListQuery,
   type OrderSummary,
@@ -36,6 +39,7 @@ import {
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { useLeftFilterModule, type LeftFilterPanelProps } from '@/pages/orders/shared/useLeftFilterModule';
 import { fetchAllOrdersByScan } from '@/pages/orders/shared/fetchAllOrdersByScan';
+import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
 import { OrderReviewBottomPanel } from './review-native/OrderReviewBottomPanel';
@@ -62,6 +66,13 @@ import {
 import { hasMainGridColumnFilters } from './review-native/OrderReviewGridFilters';
 import { OrderReviewLeftPanel } from './review-native/OrderReviewLeftPanel';
 import { OrderReviewMainGrid } from './review-native/OrderReviewMainGrid';
+import {
+  resolveToolbarActionOrderIds,
+  runMergeOrdersAction,
+  runReviewOrdersAction,
+  runSplitOrderAction,
+  type OrderReviewToolbarActionDeps,
+} from './review-native/orderReviewToolbarActions';
 import type { ColumnFilters, OrderReviewLeftStatsItem } from './review-native/types';
 
 type ContextMenuState<T> = {
@@ -329,6 +340,7 @@ const exceptionTypeOptions: Array<{
 
 export const OrderReviewPage = () => {
   const tenantId = useTenantId();
+  const canWriteOrders = useCan('orders.write');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
@@ -367,10 +379,18 @@ export const OrderReviewPage = () => {
     position: null,
     row: null,
   });
+  const [splitModalOpen, setSplitModalOpen] = useState(false);
+  const [splitCount, setSplitCount] = useState(2);
+  const [actionLoading, setActionLoading] = useState({
+    review: false,
+    merge: false,
+    split: false,
+  });
 
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderSummary> | null>(null);
   const fetchStartedAtRef = useRef<number | null>(null);
+  const hasInitializedActiveOrderRef = useRef(false);
   const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
   const [loadCycle, setLoadCycle] = useState(0);
 
@@ -533,7 +553,7 @@ export const OrderReviewPage = () => {
     [shouldFallbackToAll, statsScopeQuery],
   );
 
-  const fullScopeScanQuery = useMemo<OrderListQuery>(() => ({ ...statsScopeQuery }), [statsScopeQuery]);
+  const fullScopeScanQuery = useMemo<OrderListQuery>(() => ({ ...statsQuery }), [statsQuery]);
   const {
     data: manualFilterScopeRows,
     isFetching: isManualFilterScopeFetching,
@@ -785,25 +805,50 @@ export const OrderReviewPage = () => {
     }
     const firstKey = resolveOrderRowKey(rows[0]) || null;
     if (!activeOrder) {
-      setActiveOrder(rows[0]);
-      if (!focusedOrderKey) {
-        setFocusedOrderKey(firstKey);
-      }
-    } else {
-      const activeKey = resolveOrderRowKey(activeOrder);
-      const exists = Boolean(activeKey) && rows.some((row) => resolveOrderRowKey(row) === activeKey);
-      if (!exists) {
+      if (!hasInitializedActiveOrderRef.current) {
+        hasInitializedActiveOrderRef.current = true;
         setActiveOrder(rows[0]);
+        if (!focusedOrderKey) {
+          setFocusedOrderKey(firstKey);
+        }
+        return;
       }
-    }
-    if (focusedOrderKey) {
-      const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-      if (!focusExists) {
-        setFocusedOrderKey(firstKey);
+      if (focusedOrderKey) {
+        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
+        if (!focusExists) {
+          setFocusedOrderKey(null);
+        }
       }
       return;
     }
-    if (firstKey) {
+
+    const activeKey = resolveOrderRowKey(activeOrder);
+    const activeExists = Boolean(activeKey) && rows.some((row) => resolveOrderRowKey(row) === activeKey);
+    if (!activeExists) {
+      setActiveOrder(null);
+      if (focusedOrderKey) {
+        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
+        if (!focusExists) {
+          setFocusedOrderKey(null);
+        }
+      }
+      return;
+    }
+
+    if (focusedOrderKey) {
+      const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
+      if (!focusExists) {
+        setFocusedOrderKey(activeKey || null);
+      }
+      return;
+    }
+
+    if (activeKey) {
+      setFocusedOrderKey(activeKey);
+      return;
+    }
+
+    if (firstKey && !focusedOrderKey) {
       setFocusedOrderKey(firstKey);
     }
   }, [activeOrder, focusedOrderKey, rows]);
@@ -1456,6 +1501,115 @@ export const OrderReviewPage = () => {
     return Array.from(new Set(ids));
   }, [rows, selectedRowKeys]);
 
+  const activeVisibleOrderId = useMemo(() => {
+    if (!activeOrder) {
+      return '';
+    }
+    const activeKey = resolveOrderRowKey(activeOrder);
+    if (!activeKey || !rows.some((row) => resolveOrderRowKey(row) === activeKey)) {
+      return '';
+    }
+    return resolveOrderActionId(activeOrder);
+  }, [activeOrder, rows]);
+
+  const actionOrderIds = useMemo(
+    () => resolveToolbarActionOrderIds(selectedOrderIds, activeVisibleOrderId),
+    [selectedOrderIds, activeVisibleOrderId],
+  );
+
+  const hasReviewActionTarget = actionOrderIds.length > 0;
+
+  const toolbarActionDeps = useMemo<OrderReviewToolbarActionDeps>(
+    () => ({
+      reviewOrder,
+      mergeOrders,
+      splitOrder,
+      notifySuccess: (text) => message.success(text),
+      notifyWarning: (text) => message.warning(text),
+      notifyError: (text) => message.error(text),
+    }),
+    [],
+  );
+
+  const refreshAfterToolbarAction = useCallback(async () => {
+    await Promise.all([refetch(), detailQuery.refetch()]);
+  }, [detailQuery, refetch]);
+
+  const handleApproveOrders = useCallback(async () => {
+    setActionLoading((prev) => ({ ...prev, review: true }));
+    try {
+      await runReviewOrdersAction(
+        {
+          tenantId,
+          actionOrderIds,
+          canWriteOrders,
+        },
+        toolbarActionDeps,
+        refreshAfterToolbarAction,
+      );
+    } finally {
+      setActionLoading((prev) => ({ ...prev, review: false }));
+    }
+  }, [actionOrderIds, canWriteOrders, refreshAfterToolbarAction, tenantId, toolbarActionDeps]);
+
+  const handleMergeOrders = useCallback(async () => {
+    setActionLoading((prev) => ({ ...prev, merge: true }));
+    try {
+      const merged = await runMergeOrdersAction(
+        {
+          tenantId,
+          actionOrderIds,
+          canWriteOrders,
+        },
+        toolbarActionDeps,
+        refreshAfterToolbarAction,
+      );
+      if (merged) {
+        setSelectedRowKeys([]);
+        setSelectionAnchorKey(null);
+      }
+    } finally {
+      setActionLoading((prev) => ({ ...prev, merge: false }));
+    }
+  }, [actionOrderIds, canWriteOrders, refreshAfterToolbarAction, tenantId, toolbarActionDeps]);
+
+  const openSplitModal = useCallback(() => {
+    if (!actionOrderIds.length) {
+      message.warning('请先选择要拆分的订单');
+      return;
+    }
+    setSplitCount(2);
+    setSplitModalOpen(true);
+  }, [actionOrderIds.length]);
+
+  const handleSplitOrders = useCallback(async () => {
+    setActionLoading((prev) => ({ ...prev, split: true }));
+    try {
+      const splitSuccess = await runSplitOrderAction(
+        {
+          tenantId,
+          actionOrderIds,
+          canWriteOrders,
+          splitCount,
+        },
+        toolbarActionDeps,
+        refreshAfterToolbarAction,
+      );
+      if (splitSuccess) {
+        setSplitModalOpen(false);
+      }
+    } finally {
+      setActionLoading((prev) => ({ ...prev, split: false }));
+    }
+  }, [
+    actionOrderIds,
+    canWriteOrders,
+    refreshAfterToolbarAction,
+    splitCount,
+    tenantId,
+    toolbarActionDeps,
+  ]);
+
   const selectedAmountCent = useMemo(() => {
     if (!selectedOrderIds.length) return 0;
     const selected = new Set(selectedOrderIds);
@@ -1555,6 +1709,53 @@ export const OrderReviewPage = () => {
     ],
   );
 
+  const rightPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        detailLoadedId,
+        detailOrderId: detailOrder?.id ?? '',
+        platform: detailOrder?.platform ?? '',
+        platformOrderId: detailOrder?.platform_order_id ?? '',
+        shopId: detailOrder?.shop_id ?? '',
+        receiverName: detailOrder?.receiver_name ?? '',
+        receiverPhone: detailOrder?.receiver_phone ?? '',
+        totalAmountCent: detailOrder?.total_amount_cent ?? null,
+        logisticsCompany: detailLogisticsCompany ?? '',
+        warehouseId: detailWarehouseId ?? '',
+        updatingField: detailUpdatingField ?? '',
+        orderTagsApplying,
+        currentOrderTags,
+        orderTagOptions: orderTagOptions.map((option) => String(option.value ?? '')),
+        warehouseOptions: mergedWarehouseOptions.map((option) => String(option.value ?? '')),
+        courierOptions: mergedCourierOptions.map((option) => String(option.value ?? '')),
+        detailError:
+          detailQuery.error instanceof Error
+            ? detailQuery.error.message
+            : detailQuery.error
+              ? 'error'
+              : '',
+      }),
+    [
+      currentOrderTags,
+      detailLoadedId,
+      detailLogisticsCompany,
+      detailOrder?.id,
+      detailOrder?.platform,
+      detailOrder?.platform_order_id,
+      detailOrder?.receiver_name,
+      detailOrder?.receiver_phone,
+      detailOrder?.shop_id,
+      detailOrder?.total_amount_cent,
+      detailQuery.error,
+      detailUpdatingField,
+      detailWarehouseId,
+      mergedCourierOptions,
+      mergedWarehouseOptions,
+      orderTagOptions,
+      orderTagsApplying,
+    ],
+  );
+
   const bottomPanel = useMemo(
     () => (
       <OrderReviewBottomPanel
@@ -1568,6 +1769,29 @@ export const OrderReviewPage = () => {
     [activeDetailOrderId, goodsRowsState, goodsSaving, logRows, persistGoodsRows],
   );
 
+  const bottomPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        activeDetailOrderId,
+        goodsSaving,
+        goodsRows: goodsRowsState.map((row) => ({
+          key: row.__localKey,
+          id: row.id ?? '',
+          title: row.title ?? '',
+          quantity: row.quantity ?? null,
+          priceCent: row.price_cent ?? null,
+        })),
+        logRows: logRows.map((row, index) => ({
+          index,
+          createdAt: String(row.created_at ?? ''),
+          action: String(row.action ?? ''),
+          operator: String(row.operator ?? ''),
+          detail: String(row.detail ?? ''),
+        })),
+      }),
+    [activeDetailOrderId, goodsRowsState, goodsSaving, logRows],
+  );
+
   useEffect(() => {
     setRightPanelVisible(true);
     return () => {
@@ -1578,8 +1802,7 @@ export const OrderReviewPage = () => {
 
   useEffect(() => {
     setRightPanel(rightPanel);
-    setRightPanelVisible(true);
-  }, [rightPanel, setRightPanel, setRightPanelVisible]);
+  }, [rightPanelSyncKey, setRightPanel]);
 
   useEffect(() => {
     setBottomPanelVisible(true);
@@ -1591,21 +1814,43 @@ export const OrderReviewPage = () => {
 
   useEffect(() => {
     setBottomPanel(bottomPanel);
-    setBottomPanelVisible(true);
-  }, [bottomPanel, setBottomPanel, setBottomPanelVisible]);
+  }, [bottomPanelSyncKey, setBottomPanel]);
 
   const toolbar = (
-    <WorkbenchToolbarTemplate
+        <WorkbenchToolbarTemplate
       className="order-review-toolbar"
       leftContent={
         <>
-          <Button data-testid="order-review-approve" size="small" type="primary">
+          <Button
+            data-testid="order-review-approve"
+            size="small"
+            type="primary"
+            loading={actionLoading.review}
+            disabled={!hasReviewActionTarget || actionLoading.review}
+            onClick={() => {
+              void handleApproveOrders();
+            }}
+          >
             审核
           </Button>
-          <Button data-testid="order-review-split" size="small">
+          <Button
+            data-testid="order-review-split"
+            size="small"
+            loading={actionLoading.split}
+            disabled={!hasReviewActionTarget || actionLoading.split}
+            onClick={openSplitModal}
+          >
             拆单
           </Button>
-          <Button data-testid="order-review-merge" size="small">
+          <Button
+            data-testid="order-review-merge"
+            size="small"
+            loading={actionLoading.merge}
+            disabled={actionOrderIds.length < 2 || actionLoading.merge}
+            onClick={() => {
+              void handleMergeOrders();
+            }}
+          >
             合单
           </Button>
           <Button size="small" onClick={() => setQuickFilterExpanded((prev) => !prev)}>
@@ -1636,7 +1881,7 @@ export const OrderReviewPage = () => {
       className="order-review-page"
       toolbar={toolbar}
       tableContainerRef={tableRef}
-      tableClassName="order-review-table order-workbench-table-module-03"
+      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <div className="order-review-grid-main">
           <OrderReviewMainGrid
@@ -1667,8 +1912,34 @@ export const OrderReviewPage = () => {
       total={total}
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
-      showFooterScrollbarRow={false}
+      showFooterScrollbarRow
     />
+  );
+
+  const splitModal = (
+    <Modal
+      title="拆分订单"
+      open={splitModalOpen}
+      onCancel={() => setSplitModalOpen(false)}
+      onOk={() => {
+        void handleSplitOrders();
+      }}
+      confirmLoading={actionLoading.split}
+      okText="确认拆分"
+      cancelText="取消"
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Typography.Text type="secondary">将使用当前选中的第一单进行拆分，支持 2-10 份。</Typography.Text>
+        <InputNumber
+          min={2}
+          max={10}
+          precision={0}
+          value={splitCount}
+          onChange={(value) => setSplitCount(Number(value ?? 2))}
+          style={{ width: '100%' }}
+        />
+      </Space>
+    </Modal>
   );
 
   return (
@@ -1677,6 +1948,7 @@ export const OrderReviewPage = () => {
       style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}
     >
       {mainContent}
+      {splitModal}
       <UiModule03ContextMenu
         open={mainContextMenu.open}
         position={mainContextMenu.position}
