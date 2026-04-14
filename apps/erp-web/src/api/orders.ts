@@ -346,6 +346,76 @@ export type FulfillmentPrecheckResult = {
   outbound_doc_count: number;
 };
 
+const normalizeOptionalTextParam = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const normalized = value.trim();
+  return normalized || undefined;
+};
+
+const normalizeCsvParam = (
+  value: unknown,
+  normalizeToken: (token: string) => string
+): string | undefined => {
+  const text = normalizeOptionalTextParam(value);
+  if (!text) {
+    return undefined;
+  }
+  const tokens = text
+    .split(',')
+    .map((token) => normalizeToken(token.trim()))
+    .filter((token) => token.length > 0);
+  return tokens.length ? tokens.join(',') : undefined;
+};
+
+const normalizeOrderListQuery = <T extends OrderListQuery>(query: T): T => {
+  const normalized: Record<string, unknown> = { ...query };
+
+  const textFields = [
+    'keyword',
+    'tracking_no',
+    'platform_order_id',
+    'receiver_address',
+    'item_keyword',
+    'customer_account',
+    'receiver_name',
+    'receiver_phone',
+    'remark',
+    'order_source',
+    'logistics_company',
+    'archive_status'
+  ];
+  textFields.forEach((field) => {
+    if (field in normalized) {
+      normalized[field] = normalizeOptionalTextParam(normalized[field]);
+    }
+  });
+
+  if (typeof normalized.platform === 'string') {
+    normalized.platform = normalizeOptionalTextParam(normalized.platform)?.toLowerCase();
+  }
+
+  normalized.oms_status = normalizeCsvParam(normalized.oms_status, (token) => token.toUpperCase());
+  normalized.exception_flags = normalizeCsvParam(normalized.exception_flags, (token) => token.toUpperCase());
+
+  const upperCaseSingleFields = [
+    'order_status',
+    'review_status',
+    'fulfillment_status',
+    'exception_status',
+    'payment_status'
+  ];
+  upperCaseSingleFields.forEach((field) => {
+    if (typeof normalized[field] === 'string') {
+      const text = normalizeOptionalTextParam(normalized[field]);
+      normalized[field] = text ? text.toUpperCase() : undefined;
+    }
+  });
+
+  return normalized as T;
+};
+
 const buildMainChainUrl = (
   tenantId: string,
   path: string,
@@ -398,14 +468,15 @@ export const listOrders = async (
   query: OrderListQuery,
   options?: OrderRequestOptions
 ): Promise<OrderListResponse> => {
+  const normalizedQuery = normalizeOrderListQuery(query);
   if (useMocks) {
-    return getMockOrderList(query);
+    return getMockOrderList(normalizedQuery);
   }
   const result = await apiClient.GET('/v1/tenants/{tenant_id}/orders', {
     signal: options?.signal,
     params: {
       path: { tenant_id: tenantId },
-      query
+      query: normalizedQuery
     }
   });
   return unwrapApiResponse(result, '获取订单失败');
@@ -504,12 +575,13 @@ export const getOrderReviewStats = async (
   query: OrderReviewStatsQuery,
   options?: OrderRequestOptions
 ): Promise<OrderReviewStatsResponse> => {
+  const normalizedQuery = normalizeOrderListQuery(query);
   if (useMocks) {
-    return aggregateOrderReviewStatsByScan(tenantId, query, options);
+    return aggregateOrderReviewStatsByScan(tenantId, normalizedQuery, options);
   }
 
   const url = new URL(`${apiBaseUrl}/v1/tenants/${tenantId}/orders/stats`);
-  Object.entries(query).forEach(([key, value]) => {
+  Object.entries(normalizedQuery).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') {
       return;
     }
@@ -524,7 +596,7 @@ export const getOrderReviewStats = async (
 
   if (!response.ok) {
     if ([404, 405, 501].includes(response.status)) {
-      return aggregateOrderReviewStatsByScan(tenantId, query, options);
+      return aggregateOrderReviewStatsByScan(tenantId, normalizedQuery, options);
     }
     let payload: unknown = undefined;
     try {
