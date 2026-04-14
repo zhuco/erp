@@ -515,6 +515,43 @@ mod tests {
     }
 
     #[test]
+    fn intake_rejects_item_pay_amount_greater_than_amount() {
+        let mut item = sample_item();
+        item.amount_cent = Some(100);
+        item.pay_amount_cent = Some(101);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_item_discount_greater_than_amount() {
+        let mut item = sample_item();
+        item.amount_cent = Some(100);
+        item.discount_cent = Some(101);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_items_total_overflow() {
+        let mut item_a = sample_item();
+        item_a.amount_cent = Some(i64::MAX);
+        item_a.pay_amount_cent = Some(i64::MAX);
+        item_a.discount_cent = Some(0);
+
+        let mut item_b = sample_item();
+        item_b.line_id = Some("LINE-2".to_string());
+        item_b.amount_cent = Some(1);
+        item_b.pay_amount_cent = Some(1);
+        item_b.discount_cent = Some(0);
+
+        let result = normalize_manual_order_items(&[item_a, item_b]);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn intake_manual_order_lock_shard_is_stable_for_same_key() {
         let tenant_id = TenantId(uuid::Uuid::new_v4());
         let platform = Platform::Taobao;
