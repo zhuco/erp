@@ -1,6 +1,7 @@
 import { Button, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import {
   assignWmsLaborTask,
@@ -22,6 +23,7 @@ const statusColorMap: Record<WmsLaborTask['status'], string> = {
 export const WmsLaborPage = () => {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
+  const [pendingTaskActions, setPendingTaskActions] = useState<Record<string, string>>({});
 
   const query = useQuery({
     queryKey: ['wms-labor-tasks', tenantId],
@@ -65,6 +67,26 @@ export const WmsLaborPage = () => {
     }
   });
 
+  const runTaskAction = async (
+    taskId: string,
+    action: 'assign' | 'start' | 'complete',
+    execute: () => Promise<unknown>
+  ) => {
+    if (pendingTaskActions[taskId]) {
+      return;
+    }
+    setPendingTaskActions((prev) => ({ ...prev, [taskId]: action }));
+    try {
+      await execute();
+    } finally {
+      setPendingTaskActions((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }
+  };
+
   const columns: ColumnsType<WmsLaborTask> = [
     { title: '任务ID', dataIndex: 'task_id' },
     { title: '库区', dataIndex: 'zone_code' },
@@ -87,27 +109,41 @@ export const WmsLaborPage = () => {
           <Button
             size="small"
             data-testid="wms-labor-assign"
-            disabled={record.status !== 'UNASSIGNED'}
-            loading={assignMutation.isPending}
-            onClick={() => assignMutation.mutate(record.task_id)}
+            disabled={record.status !== 'UNASSIGNED' || Boolean(pendingTaskActions[record.task_id])}
+            loading={pendingTaskActions[record.task_id] === 'assign'}
+            onClick={() =>
+              void runTaskAction(record.task_id, 'assign', () =>
+                assignMutation.mutateAsync(record.task_id)
+              )
+            }
           >
             分配
           </Button>
           <Button
             size="small"
             data-testid="wms-labor-start"
-            disabled={record.status !== 'ASSIGNED'}
-            loading={startMutation.isPending}
-            onClick={() => startMutation.mutate(record.task_id)}
+            disabled={record.status !== 'ASSIGNED' || Boolean(pendingTaskActions[record.task_id])}
+            loading={pendingTaskActions[record.task_id] === 'start'}
+            onClick={() =>
+              void runTaskAction(record.task_id, 'start', () =>
+                startMutation.mutateAsync(record.task_id)
+              )
+            }
           >
             开始
           </Button>
           <Button
             size="small"
             data-testid="wms-labor-complete"
-            disabled={record.status !== 'IN_PROGRESS'}
-            loading={completeMutation.isPending}
-            onClick={() => completeMutation.mutate(record.task_id)}
+            disabled={
+              record.status !== 'IN_PROGRESS' || Boolean(pendingTaskActions[record.task_id])
+            }
+            loading={pendingTaskActions[record.task_id] === 'complete'}
+            onClick={() =>
+              void runTaskAction(record.task_id, 'complete', () =>
+                completeMutation.mutateAsync(record.task_id)
+              )
+            }
           >
             完成
           </Button>

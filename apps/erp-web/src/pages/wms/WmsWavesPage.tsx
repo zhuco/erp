@@ -18,7 +18,7 @@
 } from 'antd';
 import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 
@@ -120,6 +120,8 @@ export const WmsWavesPage = () => {
   const [runSubmitting, setRunSubmitting] = useState(false);
   const [shipSubmitting, setShipSubmitting] = useState(false);
   const [shipResult, setShipResult] = useState<WmsWaveShipResponse | null>(null);
+  const [actionLocks, setActionLocks] = useState<Record<string, boolean>>({});
+  const actionLockRef = useRef<Set<string>>(new Set());
   const [createForm] = Form.useForm<WmsWaveCreatePayload>();
   const [ruleForm] = Form.useForm<WaveRuleFormValues>();
   const [shipForm] = Form.useForm<WaveShipFormValues>();
@@ -158,6 +160,26 @@ export const WmsWavesPage = () => {
   });
 
   const activeRule = waveRuleQuery.data?.items?.[0] ?? null;
+  const runActionKey = activeWarehouseId ? `run:${activeWarehouseId}` : 'run:unknown';
+  const shipActionKey = detail ? `ship:${detail.wave.wave_id}` : 'ship:unknown';
+
+  const runWithActionLock = async (key: string, execute: () => Promise<void>) => {
+    if (actionLockRef.current.has(key)) {
+      return;
+    }
+    actionLockRef.current.add(key);
+    setActionLocks((prev) => ({ ...prev, [key]: true }));
+    try {
+      await execute();
+    } finally {
+      actionLockRef.current.delete(key);
+      setActionLocks((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     ruleForm.resetFields();
@@ -266,28 +288,32 @@ export const WmsWavesPage = () => {
     if (!detail) {
       return;
     }
-    try {
-      const values = await shipForm.validateFields();
-      const payload: WmsWaveShipRequest = {
-        continue_on_error: values.continue_on_error,
-        shipped_at: values.shipped_at ? values.shipped_at.toISOString() : undefined
-      };
-      setShipSubmitting(true);
-      const response = await shipWmsWave(tenantId, detail.wave.wave_id, payload);
-      setShipResult(response);
-      message.success('波次发货已执行');
-      await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
-      const latest = await getWmsWave(tenantId, detail.wave.wave_id);
-      setDetail(latest);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        message.error(err.message);
-      } else {
-        message.error('波次发货失败');
+    const currentWaveId = detail.wave.wave_id;
+    const actionKey = `ship:${currentWaveId}`;
+    await runWithActionLock(actionKey, async () => {
+      try {
+        const values = await shipForm.validateFields();
+        const payload: WmsWaveShipRequest = {
+          continue_on_error: values.continue_on_error,
+          shipped_at: values.shipped_at ? values.shipped_at.toISOString() : undefined
+        };
+        setShipSubmitting(true);
+        const response = await shipWmsWave(tenantId, currentWaveId, payload);
+        setShipResult(response);
+        message.success('波次发货已执行');
+        await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+        const latest = await getWmsWave(tenantId, currentWaveId);
+        setDetail(latest);
+      } catch (err) {
+        if (err instanceof Error && err.message) {
+          message.error(err.message);
+        } else {
+          message.error('波次发货失败');
+        }
+      } finally {
+        setShipSubmitting(false);
       }
-    } finally {
-      setShipSubmitting(false);
-    }
+    });
   };
 
   const handleRunWave = async () => {
@@ -295,27 +321,31 @@ export const WmsWavesPage = () => {
       message.warning('请选择仓库');
       return;
     }
-    setRunSubmitting(true);
-    try {
-      const payload: WmsWaveRunPayload = { warehouse_id: activeWarehouseId };
-      const response = await runWmsWave(tenantId, payload);
-      if (response.status === 'disabled') {
-        message.warning('波次规则未启用');
-      } else if (response.status === 'empty') {
-        message.info('暂无可生成波次');
-      } else {
-        message.success('波次已生成');
-        if (response.wave) {
-          setDetail(response.wave);
-          setDetailOpen(true);
+    const currentWarehouseId = activeWarehouseId;
+    const actionKey = `run:${currentWarehouseId}`;
+    await runWithActionLock(actionKey, async () => {
+      setRunSubmitting(true);
+      try {
+        const payload: WmsWaveRunPayload = { warehouse_id: currentWarehouseId };
+        const response = await runWmsWave(tenantId, payload);
+        if (response.status === 'disabled') {
+          message.warning('波次规则未启用');
+        } else if (response.status === 'empty') {
+          message.info('暂无可生成波次');
+        } else {
+          message.success('波次已生成');
+          if (response.wave) {
+            setDetail(response.wave);
+            setDetailOpen(true);
+          }
+          await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
         }
-        await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : '执行波次失败');
+      } finally {
+        setRunSubmitting(false);
       }
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '执行波次失败');
-    } finally {
-      setRunSubmitting(false);
-    }
+    });
   };
 
   const handleSaveRule = async () => {
@@ -357,7 +387,7 @@ export const WmsWavesPage = () => {
       <Button
         onClick={handleRunWave}
         loading={runSubmitting}
-        disabled={!waveEnabled || !canWrite}
+        disabled={!waveEnabled || !canWrite || Boolean(actionLocks[runActionKey])}
         data-testid="wms-wave-run-button"
       >
         执行波次
@@ -495,11 +525,14 @@ export const WmsWavesPage = () => {
                     type="primary"
                     htmlType="submit"
                     loading={shipSubmitting}
-                    disabled={!canWrite}
+                    disabled={!canWrite || Boolean(actionLocks[shipActionKey])}
                   >
                     波次发货
                   </Button>
-                  <Button onClick={() => shipForm.resetFields()} disabled={shipSubmitting}>
+                  <Button
+                    onClick={() => shipForm.resetFields()}
+                    disabled={shipSubmitting || Boolean(actionLocks[shipActionKey])}
+                  >
                     重置
                   </Button>
                 </Space>
