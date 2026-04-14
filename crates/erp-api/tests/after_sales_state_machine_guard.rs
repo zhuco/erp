@@ -237,7 +237,8 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
 
 #[tokio::test]
 async fn after_sales_state_machine_paths_validate_before_db_access() {
-    let db = Db::connect_lazy(&support::test_database_url()).expect("lazy db should be constructible");
+    let db =
+        Db::connect_lazy(&support::test_database_url()).expect("lazy db should be constructible");
     let (app, jwt) = build_state(db);
     let token = build_token(
         &jwt,
@@ -269,14 +270,18 @@ async fn after_sales_state_machine_paths_validate_before_db_access() {
     ];
 
     for (method, uri, body) in cases {
-        let (status, _) = request_json(&app, &token, method, uri, body).await.expect("request");
+        let (status, _) = request_json(&app, &token, method, uri, body)
+            .await
+            .expect("request");
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 }
 
 #[tokio::test]
 async fn after_sales_state_machine_reject_then_approve_should_conflict() -> Result<()> {
-    let Some(db) = connect_test_db("after_sales_state_machine_reject_then_approve_should_conflict").await else {
+    let Some(db) =
+        connect_test_db("after_sales_state_machine_reject_then_approve_should_conflict").await
+    else {
         return Ok(());
     };
     setup_schema(db.pool()).await?;
@@ -486,13 +491,12 @@ async fn after_sales_redo_receive_should_refresh_linked_inbound_doc_warehouse() 
     })
     .await?;
 
-    let original_doc_id: uuid::Uuid = sqlx::query_scalar(
-        "select doc_id from inbound_docs where tenant_id = $1 and doc_no = $2",
-    )
-    .bind(tenant_id)
-    .bind(format!("RETURN-{after_sales_id}"))
-    .fetch_one(db.pool())
-    .await?;
+    let original_doc_id: uuid::Uuid =
+        sqlx::query_scalar("select doc_id from inbound_docs where tenant_id = $1 and doc_no = $2")
+            .bind(tenant_id)
+            .bind(format!("RETURN-{after_sales_id}"))
+            .fetch_one(db.pool())
+            .await?;
 
     repo.cancel_return_receipt(erp_types::TenantId(tenant_id), after_sales_id)
         .await?;

@@ -1,0 +1,10 @@
+openapi: 3.0.3
+info:
+  title: ERP API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  $ref: './paths.yaml'
+components:
+  $ref: './components.yaml'

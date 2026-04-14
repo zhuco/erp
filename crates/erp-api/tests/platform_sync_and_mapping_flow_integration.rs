@@ -871,7 +871,9 @@ async fn shop_product_match_writes_operation_logs_inner() -> Result<()> {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/v1/tenants/{tenant_id}/shop-products/delete-match"))
+                .uri(format!(
+                    "/v1/tenants/{tenant_id}/shop-products/delete-match"
+                ))
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -894,7 +896,10 @@ async fn shop_product_match_writes_operation_logs_inner() -> Result<()> {
         delete_task.get("status").and_then(Value::as_str),
         Some("SUCCESS")
     );
-    assert_eq!(delete_task.get("total_count").and_then(Value::as_i64), Some(1));
+    assert_eq!(
+        delete_task.get("total_count").and_then(Value::as_i64),
+        Some(1)
+    );
     assert_eq!(
         delete_task.get("success_count").and_then(Value::as_i64),
         Some(1)
@@ -1065,7 +1070,9 @@ async fn shop_product_match_writes_operation_logs_inner() -> Result<()> {
         Some("DELETE_MATCH")
     );
     assert_eq!(
-        delete_log_metadata.get("task_status").and_then(Value::as_str),
+        delete_log_metadata
+            .get("task_status")
+            .and_then(Value::as_str),
         Some("SUCCESS")
     );
     assert_eq!(
