@@ -59,6 +59,13 @@ pub(super) struct OrderReconciliationPersistedRow {
     pub(super) settled_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, sqlx::FromRow)]
+struct OrderSettlementPersistedRecord {
+    status: String,
+    locked_at: Option<DateTime<Utc>>,
+    export_job_id: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct OrderReconciliationBatch {
     pub(super) summary: OrderReconciliationSummaryResponse,
@@ -496,6 +503,25 @@ pub(super) async fn upsert_order_settlement_record(
     locked_at: Option<DateTime<Utc>>,
     export_job_id: Option<String>,
 ) -> anyhow::Result<()> {
+    let existing: Option<OrderSettlementPersistedRecord> = sqlx::query_as(
+        r#"
+        select status, locked_at, export_job_id
+        from order_settlement_records
+        where tenant_id = $1
+          and order_id = $2
+        "#,
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(uuid::Uuid::from(order_id))
+    .fetch_optional(state.db.pool())
+    .await?;
+    let (effective_status, effective_locked_at, effective_export_job_id) =
+        resolve_order_settlement_transition(
+            existing.as_ref(),
+            status,
+            locked_at,
+            export_job_id.as_deref(),
+        );
     sqlx::query(
         r#"
         insert into order_settlement_records (
@@ -511,12 +537,77 @@ pub(super) async fn upsert_order_settlement_record(
     )
     .bind(uuid::Uuid::from(tenant_id))
     .bind(uuid::Uuid::from(order_id))
-    .bind(status)
-    .bind(locked_at)
-    .bind(export_job_id)
+    .bind(effective_status)
+    .bind(effective_locked_at)
+    .bind(effective_export_job_id)
     .execute(state.db.pool())
     .await?;
     Ok(())
+}
+
+fn normalize_order_settlement_export_job_id(raw: Option<&str>) -> Option<String> {
+    trim_to_option(raw)
+}
+
+fn is_allowed_order_settlement_transition(current_status: &str, next_status: &str) -> bool {
+    matches!(
+        (current_status, next_status),
+        ("OPEN", "OPEN")
+            | ("OPEN", "LOCKED")
+            | ("LOCKED", "OPEN")
+            | ("LOCKED", "LOCKED")
+            | ("LOCKED", "EXPORTED")
+            | ("EXPORTED", "EXPORTED")
+    )
+}
+
+fn resolve_order_settlement_transition(
+    existing: Option<&OrderSettlementPersistedRecord>,
+    requested_status: &str,
+    requested_locked_at: Option<DateTime<Utc>>,
+    requested_export_job_id: Option<&str>,
+) -> (String, Option<DateTime<Utc>>, Option<String>) {
+    let requested_status = normalize_order_settlement_status(Some(requested_status));
+    let requested_export_job_id =
+        normalize_order_settlement_export_job_id(requested_export_job_id);
+
+    let Some(existing) = existing else {
+        return match requested_status.as_str() {
+            "OPEN" => ("OPEN".to_string(), None, requested_export_job_id),
+            "LOCKED" => ("LOCKED".to_string(), requested_locked_at, requested_export_job_id),
+            "EXPORTED" => (
+                "EXPORTED".to_string(),
+                requested_locked_at,
+                requested_export_job_id,
+            ),
+            _ => ("OPEN".to_string(), None, requested_export_job_id),
+        };
+    };
+
+    let current_status = normalize_order_settlement_status(Some(existing.status.as_str()));
+    let current_locked_at = existing.locked_at;
+    let current_export_job_id =
+        normalize_order_settlement_export_job_id(existing.export_job_id.as_deref());
+
+    if !is_allowed_order_settlement_transition(&current_status, &requested_status) {
+        return (current_status, current_locked_at, current_export_job_id);
+    }
+
+    let merged_export_job_id = current_export_job_id.or(requested_export_job_id);
+    match requested_status.as_str() {
+        "OPEN" => ("OPEN".to_string(), None, merged_export_job_id),
+        "LOCKED" => (
+            "LOCKED".to_string(),
+            current_locked_at.or(requested_locked_at),
+            merged_export_job_id,
+        ),
+        "EXPORTED" => (
+            "EXPORTED".to_string(),
+            current_locked_at.or(requested_locked_at),
+            merged_export_job_id,
+        ),
+        _ => ("OPEN".to_string(), None, merged_export_job_id),
+    }
 }
 
 pub(super) async fn record_order_settlement_log(
@@ -715,4 +806,74 @@ pub(super) async fn record_order_reconciliation_log(
             })),
         })
         .await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn ts(day: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 4, day, 10, 0, 0).unwrap()
+    }
+
+    #[test]
+    fn settlement_transition_blocks_exported_to_locked() {
+        let existing = OrderSettlementPersistedRecord {
+            status: "EXPORTED".to_string(),
+            locked_at: Some(ts(1)),
+            export_job_id: Some("job-1".to_string()),
+        };
+
+        let (status, locked_at, export_job_id) = resolve_order_settlement_transition(
+            Some(&existing),
+            "LOCKED",
+            Some(ts(2)),
+            Some("job-2"),
+        );
+
+        assert_eq!(status, "EXPORTED");
+        assert_eq!(locked_at, Some(ts(1)));
+        assert_eq!(export_job_id.as_deref(), Some("job-1"));
+    }
+
+    #[test]
+    fn settlement_transition_keeps_first_lock_timestamp_on_idempotent_lock() {
+        let existing = OrderSettlementPersistedRecord {
+            status: "LOCKED".to_string(),
+            locked_at: Some(ts(3)),
+            export_job_id: None,
+        };
+
+        let (status, locked_at, export_job_id) = resolve_order_settlement_transition(
+            Some(&existing),
+            "LOCKED",
+            Some(ts(4)),
+            Some("job-3"),
+        );
+
+        assert_eq!(status, "LOCKED");
+        assert_eq!(locked_at, Some(ts(3)));
+        assert_eq!(export_job_id.as_deref(), Some("job-3"));
+    }
+
+    #[test]
+    fn settlement_transition_blocks_open_to_exported() {
+        let existing = OrderSettlementPersistedRecord {
+            status: "OPEN".to_string(),
+            locked_at: None,
+            export_job_id: None,
+        };
+
+        let (status, locked_at, export_job_id) = resolve_order_settlement_transition(
+            Some(&existing),
+            "EXPORTED",
+            Some(ts(5)),
+            Some("job-4"),
+        );
+
+        assert_eq!(status, "OPEN");
+        assert_eq!(locked_at, None);
+        assert_eq!(export_job_id, None);
+    }
 }
