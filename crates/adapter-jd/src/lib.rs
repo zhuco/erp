@@ -87,6 +87,111 @@ impl Adapter {
         md5_hex_upper(to_sign.as_bytes())
     }
 
+    fn error_token(value: Option<&Value>) -> Option<String> {
+        let value = value?;
+        match value {
+            Value::String(text) => {
+                let trimmed = text.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            }
+            Value::Number(number) => Some(number.to_string()),
+            _ => None,
+        }
+    }
+
+    fn classify_api_error(source: &str, code: Option<String>, message: String) -> AdapterError {
+        let combined = format!(
+            "{} {}",
+            code.as_deref().unwrap_or_default(),
+            message.as_str()
+        )
+        .to_lowercase();
+        let auth_like = combined.contains("token")
+            || combined.contains("auth")
+            || combined.contains("sign")
+            || combined.contains("forbidden")
+            || combined.contains("unauthorized")
+            || combined.contains("invalid app")
+            || combined.contains("权限")
+            || combined.contains("验签");
+        if auth_like {
+            return AdapterError::Auth(format!(
+                "{source} auth error code={} message={message}",
+                code.as_deref().unwrap_or("unknown")
+            ));
+        }
+
+        let rate_limited = combined.contains("rate")
+            || combined.contains("limit")
+            || combined.contains("too many")
+            || combined.contains("throttle")
+            || combined.contains("频控")
+            || combined.contains("限流");
+        if rate_limited {
+            return AdapterError::RateLimited {
+                retry_after_ms: 60_000,
+            };
+        }
+
+        let bad_request = combined.contains("invalid")
+            || combined.contains("missing")
+            || combined.contains("required")
+            || combined.contains("param")
+            || combined.contains("argument")
+            || combined.contains("参数");
+        if bad_request {
+            return AdapterError::BadRequest(format!(
+                "{source} bad request code={} message={message}",
+                code.as_deref().unwrap_or("unknown")
+            ));
+        }
+
+        AdapterError::Temporary(format!(
+            "{source} api error code={} message={message}",
+            code.as_deref().unwrap_or("unknown")
+        ))
+    }
+
+    fn map_error_response(source: &str, error: &Value) -> AdapterError {
+        let code = Self::error_token(error.get("code"))
+            .or_else(|| Self::error_token(error.get("error_code")))
+            .or_else(|| Self::error_token(error.get("sub_code")));
+        let message = Self::error_token(error.get("sub_msg"))
+            .or_else(|| Self::error_token(error.get("msg")))
+            .or_else(|| Self::error_token(error.get("message")))
+            .or_else(|| Self::error_token(error.get("zh_desc")))
+            .or_else(|| Self::error_token(error.get("en_desc")))
+            .unwrap_or_else(|| error.to_string());
+
+        Self::classify_api_error(source, code, message)
+    }
+
+    fn map_http_error(source: &str, status: reqwest::StatusCode, body: &[u8]) -> AdapterError {
+        let body_text = String::from_utf8_lossy(body);
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
+        {
+            return AdapterError::Auth(format!(
+                "{source} gateway auth error status={} body={}...",
+                status, body_text
+            ));
+        }
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return AdapterError::RateLimited {
+                retry_after_ms: 60_000,
+            };
+        }
+        if status.is_client_error() {
+            return AdapterError::BadRequest(format!(
+                "{source} gateway bad request status={} body={}...",
+                status, body_text
+            ));
+        }
+        AdapterError::Temporary(format!(
+            "{source} gateway status={} body={}...",
+            status, body_text
+        ))
+    }
+
     fn yuan_str_to_cent(s: &str) -> Option<i64> {
         let s = s.trim();
         if s.is_empty() {
@@ -573,17 +678,13 @@ impl Adapter {
             .await
             .map_err(|e| AdapterError::Temporary(format!("read: {e}")))?;
         if !status.is_success() {
-            return Err(AdapterError::Temporary(format!(
-                "jd gateway status={} body={}...",
-                status,
-                String::from_utf8_lossy(&body)
-            )));
+            return Err(Self::map_http_error("jd", status, &body));
         }
 
         let v: Value = serde_json::from_slice(&body)
             .map_err(|e| AdapterError::Temporary(format!("json: {e}")))?;
-        if v.get("error_response").is_some() {
-            return Err(AdapterError::Temporary(format!("jd error_response: {v}")));
+        if let Some(error) = v.get("error_response") {
+            return Err(Self::map_error_response("jd", error));
         }
 
         let order_obj = Self::find_first_order_object(&v, 12).ok_or_else(|| {
@@ -1012,17 +1113,13 @@ impl Adapter {
             .await
             .map_err(|e| AdapterError::Temporary(format!("read: {e}")))?;
         if !status.is_success() {
-            return Err(AdapterError::Temporary(format!(
-                "jd gateway status={} body={}...",
-                status,
-                String::from_utf8_lossy(&body)
-            )));
+            return Err(Self::map_http_error("jd", status, &body));
         }
 
         let v: Value = serde_json::from_slice(&body)
             .map_err(|e| AdapterError::Temporary(format!("json: {e}")))?;
-        if v.get("error_response").is_some() {
-            return Err(AdapterError::Temporary(format!("jd error_response: {v}")));
+        if let Some(error) = v.get("error_response") {
+            return Err(Self::map_error_response("jd", error));
         }
         Ok(v)
     }
@@ -1357,6 +1454,36 @@ mod tests {
                 ]
             }),
         }
+    }
+
+    #[test]
+    fn classify_jd_error_response_as_auth() {
+        let error = serde_json::json!({
+            "code": "isv.token-invalid",
+            "msg": "access token expired"
+        });
+        let result = Adapter::map_error_response("jd", &error);
+        assert!(matches!(result, AdapterError::Auth(_)));
+    }
+
+    #[test]
+    fn classify_jd_error_response_as_rate_limited() {
+        let error = serde_json::json!({
+            "code": 429,
+            "sub_msg": "too many requests"
+        });
+        let result = Adapter::map_error_response("jd", &error);
+        assert!(matches!(result, AdapterError::RateLimited { .. }));
+    }
+
+    #[test]
+    fn classify_jd_http_client_error_as_bad_request() {
+        let result = Adapter::map_http_error(
+            "jd",
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"msg":"invalid param"}"#,
+        );
+        assert!(matches!(result, AdapterError::BadRequest(_)));
     }
 
     #[tokio::test]

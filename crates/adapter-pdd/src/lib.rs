@@ -254,6 +254,109 @@ impl Adapter {
         md5_hex_upper(to_sign.as_bytes())
     }
 
+    fn error_token(value: Option<&Value>) -> Option<String> {
+        let value = value?;
+        match value {
+            Value::String(text) => {
+                let trimmed = text.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            }
+            Value::Number(number) => Some(number.to_string()),
+            _ => None,
+        }
+    }
+
+    fn classify_api_error(source: &str, code: Option<String>, message: String) -> AdapterError {
+        let combined = format!(
+            "{} {}",
+            code.as_deref().unwrap_or_default(),
+            message.as_str()
+        )
+        .to_lowercase();
+        let auth_like = combined.contains("token")
+            || combined.contains("auth")
+            || combined.contains("sign")
+            || combined.contains("forbidden")
+            || combined.contains("unauthorized")
+            || combined.contains("权限")
+            || combined.contains("验签");
+        if auth_like {
+            return AdapterError::Auth(format!(
+                "{source} auth error code={} message={message}",
+                code.as_deref().unwrap_or("unknown")
+            ));
+        }
+
+        let rate_limited = combined.contains("rate")
+            || combined.contains("limit")
+            || combined.contains("too many")
+            || combined.contains("throttle")
+            || combined.contains("频控")
+            || combined.contains("限流");
+        if rate_limited {
+            return AdapterError::RateLimited {
+                retry_after_ms: 60_000,
+            };
+        }
+
+        let bad_request = combined.contains("invalid")
+            || combined.contains("missing")
+            || combined.contains("required")
+            || combined.contains("param")
+            || combined.contains("argument")
+            || combined.contains("参数");
+        if bad_request {
+            return AdapterError::BadRequest(format!(
+                "{source} bad request code={} message={message}",
+                code.as_deref().unwrap_or("unknown")
+            ));
+        }
+
+        AdapterError::Temporary(format!(
+            "{source} api error code={} message={message}",
+            code.as_deref().unwrap_or("unknown")
+        ))
+    }
+
+    fn map_error_response(source: &str, error: &Value) -> AdapterError {
+        let code = Self::error_token(error.get("error_code"))
+            .or_else(|| Self::error_token(error.get("sub_code")))
+            .or_else(|| Self::error_token(error.get("code")));
+        let message = Self::error_token(error.get("sub_msg"))
+            .or_else(|| Self::error_token(error.get("error_msg")))
+            .or_else(|| Self::error_token(error.get("msg")))
+            .or_else(|| Self::error_token(error.get("message")))
+            .unwrap_or_else(|| error.to_string());
+
+        Self::classify_api_error(source, code, message)
+    }
+
+    fn map_http_error(source: &str, status: reqwest::StatusCode, body: &[u8]) -> AdapterError {
+        let body_text = String::from_utf8_lossy(body);
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
+        {
+            return AdapterError::Auth(format!(
+                "{source} gateway auth error status={} body={}...",
+                status, body_text
+            ));
+        }
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return AdapterError::RateLimited {
+                retry_after_ms: 60_000,
+            };
+        }
+        if status.is_client_error() {
+            return AdapterError::BadRequest(format!(
+                "{source} gateway bad request status={} body={}...",
+                status, body_text
+            ));
+        }
+        AdapterError::Temporary(format!(
+            "{source} gateway status={} body={}...",
+            status, body_text
+        ))
+    }
+
     /// PDD amounts are documented in **yuan** (DOUBLE) for order APIs.
     /// We store money as cents (fen) in `OrderProjection`.
     fn parse_pdd_yuan_to_cent(v: &Value) -> Option<i64> {
@@ -811,17 +914,13 @@ impl Adapter {
             .await
             .map_err(|e| AdapterError::Temporary(format!("read: {e}")))?;
         if !status.is_success() {
-            return Err(AdapterError::Temporary(format!(
-                "pdd gateway status={} body={}...",
-                status,
-                String::from_utf8_lossy(&body)
-            )));
+            return Err(Self::map_http_error("pdd", status, &body));
         }
 
         let v: Value = serde_json::from_slice(&body)
             .map_err(|e| AdapterError::Temporary(format!("json: {e}")))?;
-        if v.get("error_response").is_some() {
-            return Err(AdapterError::Temporary(format!("pdd error_response: {v}")));
+        if let Some(error) = v.get("error_response") {
+            return Err(Self::map_error_response("pdd", error));
         }
 
         let order_obj = Self::find_first_order_object(&v, 12).ok_or_else(|| {
@@ -1306,17 +1405,13 @@ impl Adapter {
             .await
             .map_err(|e| AdapterError::Temporary(format!("read: {e}")))?;
         if !status.is_success() {
-            return Err(AdapterError::Temporary(format!(
-                "pdd gateway status={} body={}...",
-                status,
-                String::from_utf8_lossy(&body)
-            )));
+            return Err(Self::map_http_error("pdd", status, &body));
         }
 
         let v: Value = serde_json::from_slice(&body)
             .map_err(|e| AdapterError::Temporary(format!("json: {e}")))?;
-        if v.get("error_response").is_some() {
-            return Err(AdapterError::Temporary(format!("pdd error_response: {v}")));
+        if let Some(error) = v.get("error_response") {
+            return Err(Self::map_error_response("pdd", error));
         }
 
         let (raw_list, mut next_cursor, has_more) = Self::extract_refund_list(shop, &v);
@@ -1666,6 +1761,36 @@ mod tests {
             }),
             auth_meta: serde_json::json!({}),
         }
+    }
+
+    #[test]
+    fn classify_pdd_error_response_as_auth() {
+        let error = serde_json::json!({
+            "error_code": 20001,
+            "error_msg": "access_token expired"
+        });
+        let result = Adapter::map_error_response("pdd", &error);
+        assert!(matches!(result, AdapterError::Auth(_)));
+    }
+
+    #[test]
+    fn classify_pdd_error_response_as_rate_limited() {
+        let error = serde_json::json!({
+            "error_code": 70001,
+            "sub_msg": "too many requests"
+        });
+        let result = Adapter::map_error_response("pdd", &error);
+        assert!(matches!(result, AdapterError::RateLimited { .. }));
+    }
+
+    #[test]
+    fn classify_pdd_http_client_error_as_bad_request() {
+        let result = Adapter::map_http_error(
+            "pdd",
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"error":"invalid param"}"#,
+        );
+        assert!(matches!(result, AdapterError::BadRequest(_)));
     }
 
     #[test]
