@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use erp_types::TenantId;
 use serde::{Deserialize, Serialize};
@@ -55,6 +56,22 @@ pub struct ProductUnitConversionUpdate {
 
 pub struct ProductUnitConversionsRepo<'a> {
     pool: &'a PgPool,
+}
+
+const ROUNDING_ROUND: &str = "ROUND";
+const ROUNDING_CEIL: &str = "CEIL";
+const ROUNDING_FLOOR: &str = "FLOOR";
+const STATUS_ACTIVE: &str = "ACTIVE";
+const STATUS_INACTIVE: &str = "INACTIVE";
+
+#[derive(Debug, Clone)]
+struct NormalizedConversionState {
+    base_unit: String,
+    aux_unit: String,
+    ratio: i32,
+    rounding: String,
+    scenario: String,
+    status: String,
 }
 
 impl<'a> ProductUnitConversionsRepo<'a> {
@@ -228,6 +245,15 @@ impl<'a> ProductUnitConversionsRepo<'a> {
             updated_at: DateTime<Utc>,
         }
 
+        let normalized = normalize_conversion_state(
+            input.base_unit,
+            input.aux_unit,
+            input.ratio,
+            input.rounding,
+            input.scenario,
+            input.status,
+        )?;
+
         let row: Row = sqlx::query_as(
             r#"
             insert into product_unit_conversions(
@@ -250,12 +276,12 @@ impl<'a> ProductUnitConversionsRepo<'a> {
         )
         .bind(uuid::Uuid::from(input.tenant_id))
         .bind(input.sku_id)
-        .bind(&input.base_unit)
-        .bind(&input.aux_unit)
-        .bind(input.ratio)
-        .bind(&input.rounding)
-        .bind(&input.scenario)
-        .bind(&input.status)
+        .bind(&normalized.base_unit)
+        .bind(&normalized.aux_unit)
+        .bind(normalized.ratio)
+        .bind(&normalized.rounding)
+        .bind(&normalized.scenario)
+        .bind(&normalized.status)
         .fetch_one(self.pool)
         .await?;
 
@@ -282,43 +308,77 @@ impl<'a> ProductUnitConversionsRepo<'a> {
         conversion_id: uuid::Uuid,
         input: ProductUnitConversionUpdate,
     ) -> anyhow::Result<Option<ProductUnitConversion>> {
+        let current = match self.get_conversion(tenant_id, conversion_id).await? {
+            Some(record) => record,
+            None => return Ok(None),
+        };
+
+        let normalized = normalize_conversion_state(
+            input
+                .base_unit
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| current.base_unit.clone()),
+            input
+                .aux_unit
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| current.aux_unit.clone()),
+            input.ratio.unwrap_or(current.ratio),
+            input
+                .rounding
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| current.rounding.clone()),
+            input
+                .scenario
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| current.scenario.clone()),
+            input
+                .status
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| current.status.clone()),
+        )?;
+
         let mut qb = QueryBuilder::<Postgres>::new("update product_unit_conversions set ");
         let mut separated = qb.separated(", ");
         let mut has_updates = false;
 
-        if let Some(base_unit) = input.base_unit {
+        if input.base_unit.is_some() {
             separated.push("base_unit = ");
-            separated.push_bind(base_unit);
+            separated.push_bind(&normalized.base_unit);
             has_updates = true;
         }
-        if let Some(aux_unit) = input.aux_unit {
+        if input.aux_unit.is_some() {
             separated.push("aux_unit = ");
-            separated.push_bind(aux_unit);
+            separated.push_bind(&normalized.aux_unit);
             has_updates = true;
         }
-        if let Some(ratio) = input.ratio {
+        if input.ratio.is_some() {
             separated.push("ratio = ");
-            separated.push_bind(ratio);
+            separated.push_bind(normalized.ratio);
             has_updates = true;
         }
-        if let Some(rounding) = input.rounding {
+        if input.rounding.is_some() {
             separated.push("rounding = ");
-            separated.push_bind(rounding);
+            separated.push_bind(&normalized.rounding);
             has_updates = true;
         }
-        if let Some(scenario) = input.scenario {
+        if input.scenario.is_some() {
             separated.push("scenario = ");
-            separated.push_bind(scenario);
+            separated.push_bind(&normalized.scenario);
             has_updates = true;
         }
-        if let Some(status) = input.status {
+        if input.status.is_some() {
             separated.push("status = ");
-            separated.push_bind(status);
+            separated.push_bind(&normalized.status);
             has_updates = true;
         }
 
         if !has_updates {
-            return self.get_conversion(tenant_id, conversion_id).await;
+            return Ok(Some(current));
         }
 
         separated.push("updated_at = now()");
@@ -441,6 +501,49 @@ impl<'a> ProductUnitConversionsRepo<'a> {
     }
 }
 
+fn normalize_conversion_state(
+    base_unit: String,
+    aux_unit: String,
+    ratio: i32,
+    rounding: String,
+    scenario: String,
+    status: String,
+) -> anyhow::Result<NormalizedConversionState> {
+    let base_unit = base_unit.trim().to_string();
+    let aux_unit = aux_unit.trim().to_string();
+    let rounding = rounding.trim().to_ascii_uppercase();
+    let scenario = scenario.trim().to_string();
+    let status = status.trim().to_ascii_uppercase();
+
+    if base_unit.is_empty() || aux_unit.is_empty() {
+        return Err(anyhow!("base_unit and aux_unit are required"));
+    }
+    if base_unit == aux_unit {
+        return Err(anyhow!("base_unit and aux_unit must be different"));
+    }
+    if ratio <= 0 {
+        return Err(anyhow!("ratio must be greater than 0"));
+    }
+    if ![ROUNDING_ROUND, ROUNDING_CEIL, ROUNDING_FLOOR].contains(&rounding.as_str()) {
+        return Err(anyhow!("invalid rounding: {rounding}"));
+    }
+    if scenario.is_empty() {
+        return Err(anyhow!("scenario is required"));
+    }
+    if ![STATUS_ACTIVE, STATUS_INACTIVE].contains(&status.as_str()) {
+        return Err(anyhow!("invalid status: {status}"));
+    }
+
+    Ok(NormalizedConversionState {
+        base_unit,
+        aux_unit,
+        ratio,
+        rounding,
+        scenario,
+        status,
+    })
+}
+
 fn apply_filters<'a>(
     qb: &mut QueryBuilder<'a, Postgres>,
     filters: &'a ProductUnitConversionListFilters,
@@ -456,5 +559,41 @@ fn apply_filters<'a>(
     if let Some(status) = filters.status.as_ref() {
         qb.push(" and puc.status = ");
         qb.push_bind(status);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_conversion_state() {
+        assert!(normalize_conversion_state(
+            "BOX".to_string(),
+            "PCS".to_string(),
+            12,
+            "round".to_string(),
+            "SALES".to_string(),
+            "active".to_string(),
+        )
+        .is_ok());
+        assert!(normalize_conversion_state(
+            "PCS".to_string(),
+            "PCS".to_string(),
+            1,
+            "ROUND".to_string(),
+            "SALES".to_string(),
+            "ACTIVE".to_string(),
+        )
+        .is_err());
+        assert!(normalize_conversion_state(
+            "BOX".to_string(),
+            "PCS".to_string(),
+            0,
+            "ROUND".to_string(),
+            "SALES".to_string(),
+            "ACTIVE".to_string(),
+        )
+        .is_err());
     }
 }

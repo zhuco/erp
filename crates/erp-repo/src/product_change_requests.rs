@@ -1,9 +1,10 @@
+use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use erp_types::TenantId;
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, PgPool, Postgres, QueryBuilder};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProductChangeHistoryItem {
     pub time: DateTime<Utc>,
     pub action: String,
@@ -66,6 +67,12 @@ pub struct ProductChangeRequestUpdate {
 pub struct ProductChangeRequestsRepo<'a> {
     pool: &'a PgPool,
 }
+
+const CHANGE_REQUEST_STATUS_DRAFT: &str = "DRAFT";
+const CHANGE_REQUEST_STATUS_REVIEWING: &str = "REVIEWING";
+const CHANGE_REQUEST_STATUS_APPROVED: &str = "APPROVED";
+const CHANGE_REQUEST_STATUS_REJECTED: &str = "REJECTED";
+const CHANGE_REQUEST_STATUS_PUBLISHED: &str = "PUBLISHED";
 
 impl<'a> ProductChangeRequestsRepo<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
@@ -245,6 +252,20 @@ impl<'a> ProductChangeRequestsRepo<'a> {
             updated_at: DateTime<Utc>,
         }
 
+        let status = normalize_status(&input.status);
+        validate_status_value(&status)?;
+        let history = normalize_history(input.history);
+        let final_history = if history.is_empty() {
+            vec![ProductChangeHistoryItem {
+                time: Utc::now(),
+                action: "CREATE".to_string(),
+                actor: input.applicant.clone(),
+                note: input.reason.clone(),
+            }]
+        } else {
+            history
+        };
+
         let row: Row = sqlx::query_as(
             r#"
             insert into product_change_requests(
@@ -278,11 +299,11 @@ impl<'a> ProductChangeRequestsRepo<'a> {
         .bind(input.sku_id)
         .bind(&input.title)
         .bind(&input.change_type)
-        .bind(&input.status)
+        .bind(&status)
         .bind(&input.applicant)
         .bind(&input.approver)
         .bind(&input.reason)
-        .bind(Json(input.history))
+        .bind(Json(final_history))
         .fetch_one(self.pool)
         .await?;
 
@@ -310,6 +331,21 @@ impl<'a> ProductChangeRequestsRepo<'a> {
         request_id: uuid::Uuid,
         input: ProductChangeRequestUpdate,
     ) -> anyhow::Result<Option<ProductChangeRequest>> {
+        let current = match self.get_request(tenant_id, request_id).await? {
+            Some(record) => record,
+            None => return Ok(None),
+        };
+
+        let next_status = input.status.as_ref().map(|status| normalize_status(status));
+        if let Some(status) = next_status.as_deref() {
+            validate_status_value(status)?;
+            validate_status_transition(&current.status, status)?;
+        }
+
+        let merged_history = input
+            .history
+            .map(|history| merge_history(&current.history, history));
+
         let mut qb = QueryBuilder::<Postgres>::new("update product_change_requests set ");
         let mut separated = qb.separated(", ");
         let mut has_updates = false;
@@ -324,7 +360,7 @@ impl<'a> ProductChangeRequestsRepo<'a> {
             separated.push_bind(change_type);
             has_updates = true;
         }
-        if let Some(status) = input.status {
+        if let Some(status) = next_status {
             separated.push("status = ");
             separated.push_bind(status);
             has_updates = true;
@@ -339,14 +375,14 @@ impl<'a> ProductChangeRequestsRepo<'a> {
             separated.push_bind(reason);
             has_updates = true;
         }
-        if let Some(history) = input.history {
+        if let Some(history) = merged_history {
             separated.push("history = ");
             separated.push_bind(Json(history));
             has_updates = true;
         }
 
         if !has_updates {
-            return self.get_request(tenant_id, request_id).await;
+            return Ok(Some(current));
         }
 
         separated.push("updated_at = now()");
@@ -475,6 +511,100 @@ impl<'a> ProductChangeRequestsRepo<'a> {
     }
 }
 
+fn normalize_status(status: &str) -> String {
+    status.trim().to_ascii_uppercase()
+}
+
+fn validate_status_value(status: &str) -> anyhow::Result<()> {
+    if [
+        CHANGE_REQUEST_STATUS_DRAFT,
+        CHANGE_REQUEST_STATUS_REVIEWING,
+        CHANGE_REQUEST_STATUS_APPROVED,
+        CHANGE_REQUEST_STATUS_REJECTED,
+        CHANGE_REQUEST_STATUS_PUBLISHED,
+    ]
+    .contains(&status)
+    {
+        return Ok(());
+    }
+    Err(anyhow!("invalid product change request status: {status}"))
+}
+
+fn validate_status_transition(from: &str, to: &str) -> anyhow::Result<()> {
+    let from = normalize_status(from);
+    let to = normalize_status(to);
+    if from == to {
+        return Ok(());
+    }
+    let allowed = matches!(
+        (from.as_str(), to.as_str()),
+        (CHANGE_REQUEST_STATUS_DRAFT, CHANGE_REQUEST_STATUS_REVIEWING)
+            | (
+                CHANGE_REQUEST_STATUS_REVIEWING,
+                CHANGE_REQUEST_STATUS_APPROVED
+            )
+            | (
+                CHANGE_REQUEST_STATUS_REVIEWING,
+                CHANGE_REQUEST_STATUS_REJECTED
+            )
+            | (
+                CHANGE_REQUEST_STATUS_REJECTED,
+                CHANGE_REQUEST_STATUS_REVIEWING
+            )
+            | (
+                CHANGE_REQUEST_STATUS_APPROVED,
+                CHANGE_REQUEST_STATUS_PUBLISHED
+            )
+    );
+    if allowed {
+        return Ok(());
+    }
+    Err(anyhow!(
+        "invalid product change request status transition: {from} -> {to}"
+    ))
+}
+
+fn normalize_history(history: Vec<ProductChangeHistoryItem>) -> Vec<ProductChangeHistoryItem> {
+    let mut normalized = Vec::new();
+    for item in history {
+        let action = item.action.trim();
+        let actor = item.actor.trim();
+        if action.is_empty() || actor.is_empty() {
+            continue;
+        }
+        let normalized_item = ProductChangeHistoryItem {
+            time: item.time,
+            action: action.to_string(),
+            actor: actor.to_string(),
+            note: item.note.and_then(|note| {
+                let trimmed = note.trim().to_string();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            }),
+        };
+        if !normalized.contains(&normalized_item) {
+            normalized.push(normalized_item);
+        }
+    }
+    normalized
+}
+
+fn merge_history(
+    current: &[ProductChangeHistoryItem],
+    incoming: Vec<ProductChangeHistoryItem>,
+) -> Vec<ProductChangeHistoryItem> {
+    let mut merged = normalize_history(current.to_vec());
+    for item in normalize_history(incoming) {
+        if !merged.contains(&item) {
+            merged.push(item);
+        }
+    }
+    merged
+}
+
 fn apply_filters<'a>(
     qb: &mut QueryBuilder<'a, Postgres>,
     filters: &'a ProductChangeRequestListFilters,
@@ -490,5 +620,48 @@ fn apply_filters<'a>(
     if let Some(change_type) = filters.change_type.as_ref() {
         qb.push(" and pcr.change_type = ");
         qb.push_bind(change_type);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_status_transitions() {
+        assert!(validate_status_transition("DRAFT", "REVIEWING").is_ok());
+        assert!(validate_status_transition("REVIEWING", "APPROVED").is_ok());
+        assert!(validate_status_transition("APPROVED", "PUBLISHED").is_ok());
+        assert!(validate_status_transition("REVIEWING", "DRAFT").is_err());
+        assert!(validate_status_transition("PUBLISHED", "REJECTED").is_err());
+    }
+
+    #[test]
+    fn merges_history_without_losing_existing_items() {
+        let now = Utc::now();
+        let current = vec![ProductChangeHistoryItem {
+            time: now,
+            action: "提交".to_string(),
+            actor: "alice".to_string(),
+            note: None,
+        }];
+        let incoming = vec![
+            ProductChangeHistoryItem {
+                time: now,
+                action: "提交".to_string(),
+                actor: "alice".to_string(),
+                note: None,
+            },
+            ProductChangeHistoryItem {
+                time: now,
+                action: "审批".to_string(),
+                actor: "bob".to_string(),
+                note: Some("通过".to_string()),
+            },
+        ];
+        let merged = merge_history(&current, incoming);
+        assert_eq!(merged.len(), 2);
+        assert_eq!(merged[0].action, "提交");
+        assert_eq!(merged[1].action, "审批");
     }
 }

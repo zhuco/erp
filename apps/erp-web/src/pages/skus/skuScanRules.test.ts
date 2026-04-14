@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Sku } from '@/api/skus';
 
-import { resolveSkuScan } from './skuScanRules';
+import { inferSkuField, resolveSkuScan } from './skuScanRules';
 
 const buildSku = (overrides: Partial<Sku>): Sku => ({
   sku_id: 'SKU-1',
@@ -23,9 +23,21 @@ describe('resolveSkuScan', () => {
     expect(result.type).toBe('barcode');
   });
 
+  it('matches barcode with surrounding spaces', () => {
+    const sku = buildSku({ barcode: 'TRIM-1000' });
+    const result = resolveSkuScan('  TRIM-1000  ', [sku]);
+    expect(result.type).toBe('barcode');
+  });
+
   it('matches sku_code when barcode not found', () => {
     const sku = buildSku({ sku_code: 'SKU-ERP-2000', barcode: 'BAR-2000' });
     const result = resolveSkuScan('SKU-ERP-2000', [sku]);
+    expect(result.type).toBe('sku_code');
+  });
+
+  it('matches sku_code case-insensitively', () => {
+    const sku = buildSku({ sku_code: 'Sku-Erp-3000', barcode: 'BAR-3000' });
+    const result = resolveSkuScan('sku-erp-3000', [sku]);
     expect(result.type).toBe('sku_code');
   });
 
@@ -58,5 +70,10 @@ describe('resolveSkuScan', () => {
     if (result.type === 'unrecognized') {
       expect(result.inferredField).toBe('sku_code');
     }
+  });
+
+  it('treats 8~20 digit input as barcode', () => {
+    expect(inferSkuField('12345678')).toBe('barcode');
+    expect(inferSkuField('12345678901234567890')).toBe('barcode');
   });
 });

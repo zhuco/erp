@@ -108,6 +108,10 @@ function indentYamlBlock(text, indent = '  ', eol = '\n') {
     .join(eol);
 }
 
+function normalizeLineEndings(text, eol) {
+  return text.replace(/\r\n/g, '\n').replace(/\n/g, eol);
+}
+
 function tryBundleTopLevelRefs({ inputPath, openapiDocument, eol }) {
   const pathRef = openapiDocument?.paths?.$ref;
   const componentsRef = openapiDocument?.components?.$ref;
@@ -148,9 +152,10 @@ export function bundleOpenApiDocument({ inputPath, outputPath }) {
   const openapiDocument = loadOpenApiDocument(inputPath);
   const bundledDocument = resolveExternalRefs(openapiDocument, path.dirname(inputPath));
   const eol = detectLineEnding(outputPath);
-  const bundledText = (
-    tryBundleTopLevelRefs({ inputPath, openapiDocument, eol }) ?? YAML.stringify(bundledDocument)
-  ).replace(/\n/g, eol);
+  const topLevelBundled = tryBundleTopLevelRefs({ inputPath, openapiDocument, eol });
+  const bundledText = topLevelBundled
+    ? normalizeLineEndings(topLevelBundled, eol)
+    : normalizeLineEndings(YAML.stringify(bundledDocument), eol);
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, bundledText, 'utf8');

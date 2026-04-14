@@ -22,6 +22,41 @@ const statusColors: Record<InboundDocStatus, string> = {
   CANCELLED: 'red'
 };
 
+const traceStatusTextMap: Record<string, string> = {
+  NOT_RECEIVED: '未收货',
+  PART_RECEIVED: '部分收货',
+  RECEIVED: '已收货',
+  NOT_REQUIRED: '免检',
+  PENDING: '待质检',
+  PASSED: '合格',
+  FAILED: '不合格',
+  PENDING_REVIEW: '待复检',
+  NOT_PUTAWAY: '未上架',
+  PART_PUTAWAY: '部分上架',
+  PUTAWAYED: '已上架'
+};
+
+const traceStatusColorMap: Record<string, string> = {
+  NOT_RECEIVED: 'default',
+  PART_RECEIVED: 'blue',
+  RECEIVED: 'green',
+  NOT_REQUIRED: 'default',
+  PENDING: 'gold',
+  PASSED: 'green',
+  FAILED: 'red',
+  PENDING_REVIEW: 'orange',
+  NOT_PUTAWAY: 'default',
+  PART_PUTAWAY: 'blue',
+  PUTAWAYED: 'green'
+};
+
+type InboundTraceDoc = {
+  receipt_status?: string | null;
+  inbound_qc_status?: string | null;
+  putaway_status?: string | null;
+  inbound_status?: string | null;
+};
+
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
@@ -114,6 +149,17 @@ export const InboundDetailPage = () => {
   const statusTag = (
     <Tag color={statusColors[detail.doc.status] || 'default'}>{detail.doc.status}</Tag>
   );
+  const traceDoc = detail.doc as InboundTraceDoc;
+  const renderTraceStatus = (value?: string | null) => {
+    if (!value) {
+      return '-';
+    }
+    return (
+      <Tag color={traceStatusColorMap[value] || 'default'}>
+        {traceStatusTextMap[value] ?? value}
+      </Tag>
+    );
+  };
 
   const canOperate =
     canWrite && detail.doc.status !== 'PUTAWAY_DONE' && detail.doc.status !== 'CANCELLED';
@@ -155,6 +201,10 @@ export const InboundDetailPage = () => {
       <Descriptions bordered size="small" column={2}>
         <Descriptions.Item label="入库单号">{detail.doc.doc_no}</Descriptions.Item>
         <Descriptions.Item label="状态">{statusTag}</Descriptions.Item>
+        <Descriptions.Item label="入库进度">{renderTraceStatus(traceDoc.inbound_status)}</Descriptions.Item>
+        <Descriptions.Item label="收货状态">{renderTraceStatus(traceDoc.receipt_status)}</Descriptions.Item>
+        <Descriptions.Item label="质检状态">{renderTraceStatus(traceDoc.inbound_qc_status)}</Descriptions.Item>
+        <Descriptions.Item label="上架状态">{renderTraceStatus(traceDoc.putaway_status)}</Descriptions.Item>
         <Descriptions.Item label="仓库">
           {warehouseMap.get(detail.doc.warehouse_id) ?? detail.doc.warehouse_id}
         </Descriptions.Item>

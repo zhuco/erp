@@ -53,6 +53,13 @@ type CreateFormValues = {
   }>;
 };
 
+type InboundTraceSummary = InboundDocSummary & {
+  receipt_status?: string | null;
+  inbound_qc_status?: string | null;
+  putaway_status?: string | null;
+  inbound_status?: string | null;
+};
+
 const docTypeOptions: Array<{ label: string; value: InboundDocType }> = [
   { label: '采购入库', value: 'PURCHASE' },
   { label: '退货入库', value: 'RETURN' },
@@ -73,6 +80,41 @@ const statusColors: Record<InboundDocStatus, string> = {
   RECEIVING: 'blue',
   PUTAWAY_DONE: 'green',
   CANCELLED: 'red'
+};
+
+const statusTextMap: Record<string, string> = {
+  NOT_RECEIVED: '未收货',
+  PART_RECEIVED: '部分收货',
+  RECEIVED: '已收货',
+  NOT_REQUIRED: '免检',
+  PENDING: '待质检',
+  PASSED: '合格',
+  FAILED: '不合格',
+  PENDING_REVIEW: '待复检',
+  NOT_PUTAWAY: '未上架',
+  PART_PUTAWAY: '部分上架',
+  PUTAWAYED: '已上架'
+};
+
+const statusColorMap: Record<string, string> = {
+  NOT_RECEIVED: 'default',
+  PART_RECEIVED: 'blue',
+  RECEIVED: 'green',
+  NOT_REQUIRED: 'default',
+  PENDING: 'gold',
+  PASSED: 'green',
+  FAILED: 'red',
+  PENDING_REVIEW: 'orange',
+  NOT_PUTAWAY: 'default',
+  PART_PUTAWAY: 'blue',
+  PUTAWAYED: 'green'
+};
+
+const renderTraceStatus = (value?: string | null) => {
+  if (!value) {
+    return '-';
+  }
+  return <Tag color={statusColorMap[value] ?? 'default'}>{statusTextMap[value] ?? value}</Tag>;
 };
 
 const formatDateTime = (value?: string | null) =>
@@ -229,6 +271,21 @@ export const InboundListPage = () => {
         render: (value: InboundDocStatus) => (
           <Tag color={statusColors[value] || 'default'}>{value}</Tag>
         )
+      },
+      {
+        title: '收货',
+        key: 'receipt_status',
+        render: (_, record) => renderTraceStatus((record as InboundTraceSummary).receipt_status)
+      },
+      {
+        title: '质检',
+        key: 'inbound_qc_status',
+        render: (_, record) => renderTraceStatus((record as InboundTraceSummary).inbound_qc_status)
+      },
+      {
+        title: '上架',
+        key: 'putaway_status',
+        render: (_, record) => renderTraceStatus((record as InboundTraceSummary).putaway_status)
       },
       {
         title: '创建时间',

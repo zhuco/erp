@@ -105,6 +105,7 @@ export const InboundPutawayPage = () => {
         render: (_, record) => (
           <InputNumber
             min={0}
+            disabled={!canWrite}
             value={quantities[record.sku_id] ?? 0}
             onChange={(value) =>
               setQuantities((prev) => ({ ...prev, [record.sku_id]: Number(value ?? 0) }))
@@ -118,6 +119,7 @@ export const InboundPutawayPage = () => {
         render: (_, record) => (
           <Input
             placeholder="库位 ID"
+            disabled={!canWrite}
             value={locations[record.sku_id] ?? ''}
             onChange={(event) =>
               setLocations((prev) => ({ ...prev, [record.sku_id]: event.target.value }))
@@ -173,7 +175,7 @@ export const InboundPutawayPage = () => {
         上架确认
       </Typography.Title>
       <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>返回详情</Button>
-      <Button type="primary" onClick={handleSubmit} loading={mutation.isPending}>
+      <Button type="primary" disabled={!canWrite} onClick={handleSubmit} loading={mutation.isPending}>
         提交上架
       </Button>
     </Space>

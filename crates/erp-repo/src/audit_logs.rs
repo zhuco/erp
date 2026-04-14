@@ -12,6 +12,22 @@ fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn normalize_non_blank(field: &str, value: &str) -> anyhow::Result<String> {
+    ensure_non_blank(field, value)?;
+    Ok(value.trim().to_string())
+}
+
+fn normalize_optional_non_blank(value: Option<String>) -> Option<String> {
+    value.and_then(|text| {
+        let normalized = text.trim().to_string();
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLog {
     pub audit_id: uuid::Uuid,
@@ -92,8 +108,11 @@ impl<'a> AuditLogsRepo<'a> {
     }
 
     pub async fn insert(&self, input: AuditLogCreate) -> anyhow::Result<AuditLog> {
-        ensure_non_blank("action", &input.action)?;
-        ensure_non_blank("entity_type", &input.entity_type)?;
+        let action = normalize_non_blank("action", &input.action)?;
+        let entity_type = normalize_non_blank("entity_type", &input.entity_type)?;
+        let entity_id = normalize_optional_non_blank(input.entity_id);
+        let ip = normalize_optional_non_blank(input.ip);
+        let ua = normalize_optional_non_blank(input.ua);
         let row: AuditLogRow = sqlx::query_as(
             r#"
             insert into audit_logs(
@@ -123,13 +142,13 @@ impl<'a> AuditLogsRepo<'a> {
         )
         .bind(uuid::Uuid::from(input.tenant_id))
         .bind(input.user_id.map(uuid::Uuid::from))
-        .bind(&input.action)
-        .bind(&input.entity_type)
-        .bind(&input.entity_id)
+        .bind(action)
+        .bind(entity_type)
+        .bind(entity_id)
         .bind(input.before_json)
         .bind(input.after_json)
-        .bind(&input.ip)
-        .bind(&input.ua)
+        .bind(ip)
+        .bind(ua)
         .fetch_one(self.pool)
         .await?;
 
@@ -210,13 +229,23 @@ impl<'a> AuditLogsRepo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::ensure_non_blank;
+    use super::{ensure_non_blank, normalize_optional_non_blank};
 
     #[test]
     fn ensure_non_blank_rejects_blank_values() {
         assert!(ensure_non_blank("action", " ").is_err());
         assert!(ensure_non_blank("action", "\t").is_err());
         assert!(ensure_non_blank("action", "OMS.ORDER_EDIT").is_ok());
+    }
+
+    #[test]
+    fn normalize_optional_non_blank_trims_and_drops_empty() {
+        assert_eq!(normalize_optional_non_blank(Some("".to_string())), None);
+        assert_eq!(normalize_optional_non_blank(Some("  ".to_string())), None);
+        assert_eq!(
+            normalize_optional_non_blank(Some("  order-1 ".to_string())),
+            Some("order-1".to_string())
+        );
     }
 }
 
