@@ -97,6 +97,11 @@ const diffReasonLabels: Record<string, string> = {
   REVIEW_REJECTED: '审核驳回',
   INVENTORY_SHORTAGE: '缺货',
   MAPPING_MISSING: '映射缺失',
+  EXCEPTION_OPEN: '人工异常',
+  AMOUNT_MISMATCH: '金额不一致',
+  ORDER_NOT_FOUND: '订单缺失',
+  SHIPMENT_NOT_FOUND: '运单缺失',
+  FEE_MISMATCH: '费用不一致',
 };
 
 const defaultRuleFormValues: SettlementRuleFormValues = {
