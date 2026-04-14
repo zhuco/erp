@@ -129,6 +129,55 @@ pub(super) fn build_order_blocking_reason(
         .or_else(|| json_array_to_strings(exception_flags).into_iter().next())
 }
 
+fn is_order_reconciliation_reason_code(reason: &str) -> bool {
+    !reason.is_empty()
+        && reason
+            .chars()
+            .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
+}
+
+fn normalize_order_reconciliation_reason(reason: &str) -> String {
+    let normalized = reason.trim().to_uppercase();
+    if is_order_reconciliation_reason_code(&normalized) {
+        normalized
+    } else {
+        "EXCEPTION_OPEN".to_string()
+    }
+}
+
+fn push_unique_order_reconciliation_reason(reasons: &mut Vec<String>, reason: String) {
+    if !reasons.iter().any(|item| item == &reason) {
+        reasons.push(reason);
+    }
+}
+
+fn collect_order_reconciliation_reasons(
+    row: &OrderSettlementRow,
+    audit_status: &str,
+    exception_status: &str,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if audit_status == "REVIEW_REJECTED" {
+        push_unique_order_reconciliation_reason(&mut reasons, "REVIEW_REJECTED".to_string());
+    }
+    for value in json_array_to_strings(&row.exception_flags) {
+        push_unique_order_reconciliation_reason(
+            &mut reasons,
+            normalize_order_reconciliation_reason(&value),
+        );
+    }
+    if let Some(reason) = trim_to_option(row.exception_reason.as_deref()) {
+        push_unique_order_reconciliation_reason(
+            &mut reasons,
+            normalize_order_reconciliation_reason(&reason),
+        );
+    }
+    if exception_status != "NONE" && reasons.is_empty() {
+        push_unique_order_reconciliation_reason(&mut reasons, "EXCEPTION_OPEN".to_string());
+    }
+    reasons
+}
+
 pub(super) fn build_order_reconciliation_exception_status(row: &OrderSettlementRow) -> String {
     if json_array_to_strings(&row.exception_flags).is_empty()
         && trim_to_option(row.exception_reason.as_deref()).is_none()
@@ -708,9 +757,17 @@ pub(super) fn build_order_reconciliation_batch(
             let preview = build_order_settlement_preview(row.total_amount_cent, rule);
             let audit_status = derive_order_audit_status_from_review(&row.review_status);
             let exception_status = build_order_reconciliation_exception_status(row);
+            let reason_codes =
+                collect_order_reconciliation_reasons(row, &audit_status, &exception_status);
             let blocking_reason =
                 build_order_blocking_reason(row.exception_reason.as_deref(), &row.exception_flags)
-                    .unwrap_or_else(|| "无差异".to_string());
+                    .unwrap_or_else(|| {
+                        if audit_status == "REVIEW_REJECTED" {
+                            "审核驳回".to_string()
+                        } else {
+                            "无差异".to_string()
+                        }
+                    });
             let unresolved = exception_status != "NONE" || audit_status == "REVIEW_REJECTED";
             expected_cent += preview.receivable_amount_cent;
             actual_cent += if unresolved {
@@ -719,15 +776,8 @@ pub(super) fn build_order_reconciliation_batch(
                 preview.receivable_amount_cent
             };
             if unresolved {
-                for value in json_array_to_strings(&row.exception_flags) {
-                    if !reasons.iter().any(|item| item == &value) {
-                        reasons.push(value);
-                    }
-                }
-                if let Some(reason) = trim_to_option(row.exception_reason.as_deref()) {
-                    if !reasons.iter().any(|item| item == &reason) {
-                        reasons.push(reason);
-                    }
+                for value in reason_codes {
+                    push_unique_order_reconciliation_reason(&mut reasons, value);
                 }
             }
             OrderReconciliationOrderResponse {
@@ -811,10 +861,29 @@ pub(super) async fn record_order_reconciliation_log(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
+    use chrono::{NaiveDate, TimeZone};
+    use serde_json::json;
 
     fn ts(day: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 4, day, 10, 0, 0).unwrap()
+    }
+
+    fn sample_row() -> OrderSettlementRow {
+        OrderSettlementRow {
+            order_id: uuid::Uuid::new_v4(),
+            platform: "taobao".to_string(),
+            shop_id: uuid::Uuid::new_v4(),
+            platform_order_id: "PO-1".to_string(),
+            receiver_name: Some("tester".to_string()),
+            total_amount_cent: 1000,
+            order_created_at: ts(1),
+            review_status: "APPROVED".to_string(),
+            exception_reason: None,
+            exception_flags: json!([]),
+            settlement_status: Some("OPEN".to_string()),
+            locked_at: None,
+            export_job_id: None,
+        }
     }
 
     #[test]
@@ -875,5 +944,41 @@ mod tests {
         assert_eq!(status, "OPEN");
         assert_eq!(locked_at, None);
         assert_eq!(export_job_id, None);
+    }
+
+    #[test]
+    fn reconciliation_reasons_are_normalized_for_review_reject_and_manual_exception() {
+        let mut row = sample_row();
+        row.review_status = "REJECTED".to_string();
+        row.exception_reason = Some("人工备注".to_string());
+        row.exception_flags = json!([]);
+
+        let reasons = collect_order_reconciliation_reasons(&row, "REVIEW_REJECTED", "OPEN");
+        assert_eq!(
+            reasons,
+            vec!["REVIEW_REJECTED".to_string(), "EXCEPTION_OPEN".to_string()]
+        );
+    }
+
+    #[test]
+    fn reconciliation_batch_uses_review_rejected_blocking_reason() {
+        let mut row = sample_row();
+        row.review_status = "REJECTED".to_string();
+        row.exception_reason = None;
+        row.exception_flags = json!([]);
+
+        let rule = default_order_settlement_rule();
+        let input = OrderReconciliationBatchInput {
+            batch_id: "taobao:11111111-1111-1111-1111-111111111111:2026-04-01:2026-04-30"
+                .to_string(),
+            platform: "taobao".to_string(),
+            shop_id: uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+            period_start: NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
+            period_end: NaiveDate::from_ymd_opt(2026, 4, 30).unwrap(),
+        };
+
+        let batch = build_order_reconciliation_batch(&[row], &rule, &input, None);
+        assert_eq!(batch.orders[0].blocking_reason, "审核驳回");
+        assert!(batch.summary.reasons.iter().any(|item| item == "REVIEW_REJECTED"));
     }
 }
