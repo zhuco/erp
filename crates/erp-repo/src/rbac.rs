@@ -3,6 +3,27 @@ use chrono::{DateTime, Utc};
 use erp_types::{RoleId, TenantId, UserId};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
+use std::collections::HashSet;
+
+fn normalize_non_blank(field: &str, value: &str) -> anyhow::Result<String> {
+    let normalized = value.trim();
+    if normalized.is_empty() {
+        return Err(anyhow!("{field} must not be blank"));
+    }
+    Ok(normalized.to_string())
+}
+
+fn normalize_permission_codes(perms: &[String]) -> anyhow::Result<Vec<String>> {
+    let mut seen = HashSet::new();
+    let mut normalized = Vec::with_capacity(perms.len());
+    for perm in perms {
+        let code = normalize_non_blank("permission code", perm)?;
+        if seen.insert(code.clone()) {
+            normalized.push(code);
+        }
+    }
+    Ok(normalized)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
@@ -79,6 +100,7 @@ impl<'a> RbacRepo<'a> {
     }
 
     pub async fn create_role(&self, input: RoleCreate) -> anyhow::Result<Role> {
+        let name = normalize_non_blank("role name", &input.name)?;
         let row: RoleRow = sqlx::query_as(
             r#"
             insert into roles(tenant_id, name)
@@ -87,7 +109,7 @@ impl<'a> RbacRepo<'a> {
             "#,
         )
         .bind(uuid::Uuid::from(input.tenant_id))
-        .bind(&input.name)
+        .bind(&name)
         .fetch_one(self.pool)
         .await?;
         Ok(row.into_role())
@@ -99,6 +121,7 @@ impl<'a> RbacRepo<'a> {
         role_id: RoleId,
         input: RoleUpdate,
     ) -> anyhow::Result<Option<Role>> {
+        let name = normalize_non_blank("role name", &input.name)?;
         let row: Option<RoleRow> = sqlx::query_as(
             r#"
             update roles
@@ -109,7 +132,7 @@ impl<'a> RbacRepo<'a> {
         )
         .bind(uuid::Uuid::from(tenant_id))
         .bind(uuid::Uuid::from(role_id))
-        .bind(&input.name)
+        .bind(&name)
         .fetch_optional(self.pool)
         .await?;
         Ok(row.map(RoleRow::into_role))
@@ -141,6 +164,7 @@ impl<'a> RbacRepo<'a> {
         role_id: RoleId,
         perms: &[String],
     ) -> anyhow::Result<()> {
+        let normalized_perms = normalize_permission_codes(perms)?;
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             r#"
@@ -153,7 +177,7 @@ impl<'a> RbacRepo<'a> {
         .execute(&mut *tx)
         .await?;
 
-        for perm in perms {
+        for perm in normalized_perms {
             sqlx::query(
                 r#"
                 insert into role_permissions(tenant_id, role_id, perm_code)
@@ -221,6 +245,8 @@ impl<'a> RbacRepo<'a> {
     }
 
     pub async fn create_user(&self, input: UserCreate) -> anyhow::Result<User> {
+        let email = normalize_non_blank("email", &input.email)?;
+        let status = normalize_non_blank("status", &input.status)?;
         let row: UserRow = sqlx::query_as(
             r#"
             insert into users(tenant_id, email, password_hash, status)
@@ -229,9 +255,9 @@ impl<'a> RbacRepo<'a> {
             "#,
         )
         .bind(uuid::Uuid::from(input.tenant_id))
-        .bind(&input.email)
+        .bind(&email)
         .bind(&input.password_hash)
-        .bind(&input.status)
+        .bind(&status)
         .fetch_one(self.pool)
         .await?;
         Ok(row.into_user())
@@ -259,8 +285,14 @@ impl<'a> RbacRepo<'a> {
             return Ok(None);
         };
 
-        let next_email = input.email.unwrap_or_else(|| current.email.clone());
-        let next_status = input.status.unwrap_or_else(|| current.status.clone());
+        let next_email = match input.email {
+            Some(email) => normalize_non_blank("email", &email)?,
+            None => current.email.clone(),
+        };
+        let next_status = match input.status {
+            Some(status) => normalize_non_blank("status", &status)?,
+            None => current.status.clone(),
+        };
 
         sqlx::query(
             r#"
@@ -370,6 +402,35 @@ impl<'a> RbacRepo<'a> {
         } else {
             Err(anyhow!("user not found"))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_non_blank, normalize_permission_codes};
+
+    #[test]
+    fn normalize_non_blank_rejects_whitespace_only() {
+        assert!(normalize_non_blank("email", "   ").is_err());
+        assert!(normalize_non_blank("email", "\n\t").is_err());
+        assert_eq!(
+            normalize_non_blank("email", "  a@example.com  ").expect("should normalize"),
+            "a@example.com"
+        );
+    }
+
+    #[test]
+    fn normalize_permission_codes_deduplicates_preserving_order() {
+        let input = vec![
+            " orders.read ".to_string(),
+            "orders.write".to_string(),
+            "orders.read".to_string(),
+        ];
+        let normalized = normalize_permission_codes(&input).expect("should normalize");
+        assert_eq!(
+            normalized,
+            vec!["orders.read".to_string(), "orders.write".to_string()]
+        );
     }
 }
 
