@@ -133,9 +133,7 @@ pub(super) fn normalize_manual_order_items(
                 return Err(bad_request("item discount_cent must be non-negative").into_response());
             }
             if discount_cent > amount_cent {
-                return Err(
-                    bad_request("item discount_cent must be <= amount_cent").into_response()
-                );
+                return Err(bad_request("item discount_cent must be <= amount_cent").into_response());
             }
         }
 
@@ -467,38 +465,106 @@ pub(super) async fn create_manual_order(
 mod tests {
     use super::*;
 
-    #[test]
-    fn normalize_manual_order_items_rejects_negative_amount_fields() {
-        let result = normalize_manual_order_items(&[ManualOrderItemRequest {
+    fn sample_item() -> ManualOrderItemRequest {
+        ManualOrderItemRequest {
             line_id: Some("LINE-1".to_string()),
             sku_id: Some("SKU-1".to_string()),
-            title: Some("item".to_string()),
+            title: Some("sample".to_string()),
             qty: 1,
             price_cent: 100,
-            amount_cent: Some(-1),
+            amount_cent: Some(100),
             pay_amount_cent: Some(100),
             discount_cent: Some(0),
-        }]);
-
-        assert!(result.is_err(), "negative amount_cent should be rejected");
+        }
     }
 
     #[test]
-    fn normalize_manual_order_items_rejects_amount_overflow() {
-        let result = normalize_manual_order_items(&[ManualOrderItemRequest {
-            line_id: Some("LINE-1".to_string()),
-            sku_id: Some("SKU-1".to_string()),
-            title: Some("item".to_string()),
-            qty: i32::MAX,
-            price_cent: i64::MAX,
-            amount_cent: None,
-            pay_amount_cent: None,
-            discount_cent: None,
-        }]);
+    fn intake_rejects_negative_item_amount_cent() {
+        let mut item = sample_item();
+        item.amount_cent = Some(-1);
 
-        assert!(
-            result.is_err(),
-            "computed amount overflow should be rejected"
-        );
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_negative_item_pay_amount_cent() {
+        let mut item = sample_item();
+        item.pay_amount_cent = Some(-1);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_negative_item_discount_cent() {
+        let mut item = sample_item();
+        item.discount_cent = Some(-1);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_overflow_when_computing_item_amount() {
+        let mut item = sample_item();
+        item.qty = i32::MAX;
+        item.price_cent = i64::MAX;
+        item.amount_cent = None;
+        item.pay_amount_cent = None;
+        item.discount_cent = None;
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_item_pay_amount_greater_than_amount() {
+        let mut item = sample_item();
+        item.amount_cent = Some(100);
+        item.pay_amount_cent = Some(101);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_item_discount_greater_than_amount() {
+        let mut item = sample_item();
+        item.amount_cent = Some(100);
+        item.discount_cent = Some(101);
+
+        let result = normalize_manual_order_items(&[item]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_rejects_items_total_overflow() {
+        let mut item_a = sample_item();
+        item_a.amount_cent = Some(i64::MAX);
+        item_a.pay_amount_cent = Some(i64::MAX);
+        item_a.discount_cent = Some(0);
+
+        let mut item_b = sample_item();
+        item_b.line_id = Some("LINE-2".to_string());
+        item_b.amount_cent = Some(1);
+        item_b.pay_amount_cent = Some(1);
+        item_b.discount_cent = Some(0);
+
+        let result = normalize_manual_order_items(&[item_a, item_b]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn intake_manual_order_lock_shard_is_stable_for_same_key() {
+        let tenant_id = TenantId(uuid::Uuid::new_v4());
+        let platform = Platform::Taobao;
+        let key = "PLAT-ORDER-001";
+
+        let first = manual_order_create_lock_index(tenant_id, platform, key);
+        let second = manual_order_create_lock_index(tenant_id, platform, key);
+
+        assert_eq!(first, second);
+        assert!(first < MANUAL_ORDER_CREATE_LOCK_SHARDS);
     }
 }
