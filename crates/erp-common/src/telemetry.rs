@@ -155,16 +155,14 @@ impl Metrics {
             .fetch_add(1, Ordering::Relaxed);
     }
 
-    pub fn inc_after_sales_sla_overdue(&self) {
+    pub fn set_after_sales_sla_overdue(&self, count: u64) {
         self.after_sales_sla_overdue_total
-            .fetch_add(1, Ordering::Relaxed);
+            .store(count, Ordering::Relaxed);
     }
 
-    pub fn add_after_sales_sla_evaluated(&self, count: u64) {
-        if count > 0 {
-            self.after_sales_sla_evaluated_total
-                .fetch_add(count, Ordering::Relaxed);
-        }
+    pub fn set_after_sales_sla_evaluated(&self, count: u64) {
+        self.after_sales_sla_evaluated_total
+            .store(count, Ordering::Relaxed);
     }
 
     pub fn inc_print_jobs_success(&self) {
@@ -385,16 +383,16 @@ impl Metrics {
             "Count of after-sales processing cycle samples",
             self.after_sales_cycle_time_ms_count.load(Ordering::Relaxed),
         );
-        append_counter(
+        append_gauge(
             &mut out,
             "erp_after_sales_sla_overdue_total",
-            "After-sales records identified as SLA overdue",
+            "Snapshot of after-sales records identified as SLA overdue",
             self.after_sales_sla_overdue_total.load(Ordering::Relaxed),
         );
-        append_counter(
+        append_gauge(
             &mut out,
             "erp_after_sales_sla_evaluated_total",
-            "After-sales records evaluated for SLA status",
+            "Snapshot of after-sales records evaluated for SLA status",
             self.after_sales_sla_evaluated_total.load(Ordering::Relaxed),
         );
         append_counter(

@@ -24160,6 +24160,11 @@ async fn list_after_sales(
     };
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
     let offset = query.offset.unwrap_or(0).max(0);
+    let should_update_sla_snapshot = query.status.is_none()
+        && query.after_sales_type.is_none()
+        && query.order_id.is_none()
+        && query.created_from.is_none()
+        && query.created_to.is_none();
 
     let repo = AfterSalesRepo::new(state.db.pool());
     let result = match repo
@@ -24183,18 +24188,36 @@ async fn list_after_sales(
 
     let sla_profiles = load_after_sales_sla_profiles(state.db.pool(), tenant_id).await;
     let now = Utc::now();
-    metrics().add_after_sales_sla_evaluated(result.items.len() as u64);
+    let mut overdue_in_page = 0_u64;
     let items = result
         .items
         .iter()
         .map(|sale| {
             let sla = derive_after_sales_sla_view(sale, &sla_profiles, now);
             if matches!(sla.sla_status.as_deref(), Some("OVERDUE")) {
-                metrics().inc_after_sales_sla_overdue();
+                overdue_in_page += 1;
             }
             after_sales_view_with_sla(sale, sla)
         })
         .collect();
+
+    if should_update_sla_snapshot {
+        metrics().set_after_sales_sla_evaluated(result.total.max(0) as u64);
+        let overdue_total = match count_after_sales_sla_overdue_snapshot(state.db.pool(), tenant_id).await
+        {
+            Ok(v) => v.max(0) as u64,
+            Err(err) => {
+                warn!(
+                    error = %err,
+                    tenant_id = %tenant_id,
+                    "count after-sales overdue snapshot failed"
+                );
+                overdue_in_page
+            }
+        };
+        metrics().set_after_sales_sla_overdue(overdue_total);
+    }
+
     let response = AfterSalesListResponse {
         items,
         total: result.total,
@@ -25271,8 +25294,29 @@ async fn request_after_sales_refund(
         {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
         }
+    }
 
-        let audit_repo = AuditLogsRepo::new(state.db.pool());
+    let audit_repo = AuditLogsRepo::new(state.db.pool());
+    let audit_exists = match audit_repo
+        .list_logs(
+            tenant_id,
+            AuditLogListFilters {
+                action: Some("AFTERSALES.REFUND_REQUESTED".to_string()),
+                entity_type: Some("refund_doc".to_string()),
+                entity_id: Some(refund_doc.id.to_string()),
+                user_id: None,
+                created_from: None,
+                created_to: None,
+                cursor: None,
+                limit: 1,
+            },
+        )
+        .await
+    {
+        Ok(v) => !v.items.is_empty(),
+        Err(err) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response(),
+    };
+    if !audit_exists {
         let after_json = serde_json::json!({
             "refund_doc_id": refund_doc.id,
             "after_sales_id": refund_doc.after_sales_id,
@@ -25296,21 +25340,25 @@ async fn request_after_sales_refund(
         {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
         }
+    }
 
-        let sales_repo = SalesOrdersRepo::new(state.db.pool());
-        let source_order_id = detail.after_sales.order_id.to_string();
-        let sales_order = match sales_repo
-            .find_by_source_order(tenant_id, &source_order_id)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
-                None
-            }
-        };
-        if let Some(sales_order) = sales_order {
-            let status_flags = append_status_flags(&sales_order.status_flags, &["HAS_AFTER_SALE"]);
+    let sales_repo = SalesOrdersRepo::new(state.db.pool());
+    let source_order_id = detail.after_sales.order_id.to_string();
+    let sales_order = match sales_repo
+        .find_by_source_order(tenant_id, &source_order_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            warn!(error = %e, "sales-order linkage lookup failed");
+            None
+        }
+    };
+    if let Some(sales_order) = sales_order {
+        let status_flags = append_status_flags(&sales_order.status_flags, &["HAS_AFTER_SALE"]);
+        let need_update =
+            sales_order.refund_status != "PARTIAL_REFUND" || sales_order.status_flags != status_flags;
+        if need_update {
             let updated_order = sales_repo
                 .update_after_sales_status(
                     tenant_id,
@@ -25358,7 +25406,7 @@ async fn request_after_sales_refund(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                    warn!(error = %e, "sales-order linkage update failed");
                 }
             }
         }
@@ -27512,6 +27560,35 @@ async fn load_after_sales_sla_profiles(
             HashMap::new()
         }
     }
+}
+
+async fn count_after_sales_sla_overdue_snapshot(
+    pool: &PgPool,
+    tenant_id: TenantId,
+) -> anyhow::Result<i64> {
+    let overdue_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from after_sales s
+        left join lateral (
+            select r.resolution_hours
+            from after_sales_sla_rules r
+            where r.tenant_id = s.tenant_id
+              and upper(r.status) = 'ACTIVE'
+              and upper(r.after_sales_type) = upper(s.type)
+            order by r.updated_at desc, r.rule_id desc
+            limit 1
+        ) rule on true
+        where s.tenant_id = $1
+          and upper(s.status) not in ('REFUNDED', 'CLOSED', 'REJECTED')
+          and s.created_at + make_interval(hours => greatest(coalesce(rule.resolution_hours, 24), 1))
+              < now()
+        "#,
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .fetch_one(pool)
+    .await?;
+    Ok(overdue_count)
 }
 
 fn derive_after_sales_sla_view(
