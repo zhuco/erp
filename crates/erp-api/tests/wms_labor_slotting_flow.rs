@@ -166,6 +166,19 @@ async fn connect_test_db(case_name: &str) -> Option<Db> {
     }
 }
 
+fn assert_non_empty_string_field(payload: &Value, field: &str) {
+    let value = payload
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    assert!(
+        !value.is_empty(),
+        "response field `{field}` should be non-empty: {payload}"
+    );
+}
+
 #[tokio::test]
 async fn wms_site_execution_flow_integration() -> Result<()> {
     let Some(db) = connect_test_db("wms_site_execution_flow_integration").await else {
@@ -220,6 +233,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         labor_assigned.get("assignee").and_then(Value::as_str),
         Some("worker-a")
     );
+    assert_non_empty_string_field(&labor_assigned, "task_id");
+    assert_non_empty_string_field(&labor_assigned, "updated_at");
 
     let (status, labor_started) = request_json(
         &app,
@@ -238,6 +253,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         labor_started.get("status").and_then(Value::as_str),
         Some("IN_PROGRESS")
     );
+    assert_non_empty_string_field(&labor_started, "task_id");
+    assert_non_empty_string_field(&labor_started, "updated_at");
 
     let (status, labor_completed) = request_json(
         &app,
@@ -256,6 +273,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         labor_completed.get("status").and_then(Value::as_str),
         Some("DONE")
     );
+    assert_non_empty_string_field(&labor_completed, "task_id");
+    assert_non_empty_string_field(&labor_completed, "updated_at");
 
     let (status, slotting_list) = request_json(
         &app,
@@ -296,6 +315,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         slotting_applied.get("status").and_then(Value::as_str),
         Some("APPLIED")
     );
+    assert_non_empty_string_field(&slotting_applied, "suggestion_id");
+    assert_non_empty_string_field(&slotting_applied, "updated_at");
 
     let (status, replenishment_list) = request_json(
         &app,
@@ -342,6 +363,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
             .and_then(Value::as_str),
         Some("worker-b")
     );
+    assert_non_empty_string_field(&replenishment_claimed, "task_id");
+    assert_non_empty_string_field(&replenishment_claimed, "updated_at");
 
     let (status, replenishment_completed) = request_json(
         &app,
@@ -362,6 +385,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
             .and_then(Value::as_str),
         Some("DONE")
     );
+    assert_non_empty_string_field(&replenishment_completed, "task_id");
+    assert_non_empty_string_field(&replenishment_completed, "updated_at");
 
     let (status, dock_list) = request_json(
         &app,
@@ -402,6 +427,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         dock_checked_in.get("status").and_then(Value::as_str),
         Some("CHECKED_IN")
     );
+    assert_non_empty_string_field(&dock_checked_in, "appointment_id");
+    assert_non_empty_string_field(&dock_checked_in, "updated_at");
 
     let (status, dock_loading) = request_json(
         &app,
@@ -420,6 +447,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         dock_loading.get("status").and_then(Value::as_str),
         Some("LOADING")
     );
+    assert_non_empty_string_field(&dock_loading, "appointment_id");
+    assert_non_empty_string_field(&dock_loading, "updated_at");
 
     let (status, dock_departed) = request_json(
         &app,
@@ -438,6 +467,8 @@ async fn wms_site_execution_flow_integration() -> Result<()> {
         dock_departed.get("status").and_then(Value::as_str),
         Some("DEPARTED")
     );
+    assert_non_empty_string_field(&dock_departed, "appointment_id");
+    assert_non_empty_string_field(&dock_departed, "updated_at");
 
     Ok(())
 }
