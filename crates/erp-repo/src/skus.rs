@@ -275,8 +275,13 @@ impl<'a> SkusRepo<'a> {
             qb.push_bind(sku_code);
         }
         if let Some(barcode) = filters.barcode {
-            qb.push(" and s.barcode = ");
+            qb.push(" and (s.barcode = ");
+            qb.push_bind(barcode.clone());
+            qb.push(
+                " or exists (select 1 from product_barcodes pb where pb.tenant_id = s.tenant_id and pb.sku_id = s.sku_id and pb.status = 'ACTIVE' and pb.barcode = ",
+            );
             qb.push_bind(barcode);
+            qb.push("))");
         }
         if let Some(keyword) = &keyword {
             qb.push(" and (s.sku_code ilike ");
@@ -286,6 +291,8 @@ impl<'a> SkusRepo<'a> {
             qb.push(" or s.name ilike ");
             qb.push_bind(keyword);
             qb.push(" or exists (select 1 from unnest(s.tags) tag where tag ilike ");
+            qb.push_bind(keyword);
+            qb.push(") or exists (select 1 from product_barcodes pb where pb.tenant_id = s.tenant_id and pb.sku_id = s.sku_id and pb.status = 'ACTIVE' and pb.barcode ilike ");
             qb.push_bind(keyword);
             qb.push("))");
         }
