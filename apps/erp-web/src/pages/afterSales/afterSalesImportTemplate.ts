@@ -8,7 +8,7 @@ const HEADER_COLUMNS = [
   'reason_code'
 ] as const;
 
-const SAMPLE_ROW = 'SAMPLE_ORDER,RETURN,SAMPLE_SKU,1,0,0,DEFECT';
+const SAMPLE_ROW = 'SAMPLE_ORDER,RETURN_REFUND,SAMPLE_SKU,1,0,0,DEFECT';
 const CSV_BOM = '\uFEFF';
 
 export interface AfterSalesTemplateOptions {

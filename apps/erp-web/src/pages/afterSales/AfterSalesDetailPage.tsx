@@ -26,6 +26,7 @@ import {
 import { UiModule07SettingsLayout } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { getAfterSalesActionFlags } from './afterSalesActionGuards';
 
 const statusLabelMap: Record<AfterSalesStatus, string> = {
   OPEN: '待审核',
@@ -232,12 +233,13 @@ export const AfterSalesDetailPage = () => {
 
   const detail = data;
   const { after_sales: afterSales, return_receipt: receipt, refund_doc: refundDoc } = detail;
-  const canShipment =
-    canWrite &&
-    ['APPROVED', 'RECEIVED'].includes(afterSales.status) &&
-    ['EXCHANGE', 'RESEND'].includes(afterSales.type);
-  const canPutaway = canWrite && receipt && receipt.status === 'RECEIVING';
-
+  const actionFlags = getAfterSalesActionFlags({
+    status: afterSales.status,
+    type: afterSales.type,
+    sla_status: afterSales.sla_status,
+    return_receipt: receipt,
+    canWrite
+  });
   return (
     <UiModule07SettingsLayout>
       <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
@@ -246,7 +248,7 @@ export const AfterSalesDetailPage = () => {
         </Typography.Title>
         <Space>
           <Button onClick={() => navigate('/after-sales')}>返回列表</Button>
-          {canWrite && afterSales.status === 'OPEN' && (
+          {actionFlags.canApprove && (
             <>
               <Button type="primary" onClick={() => handleApprove(detail)}>
                 同意
@@ -256,32 +258,32 @@ export const AfterSalesDetailPage = () => {
               </Button>
             </>
           )}
-          {canWrite && afterSales.status === 'APPROVED' && (
+          {actionFlags.canReceive && (
             <Button onClick={() => navigate(`/after-sales/${afterSales.id}/receive`)}>
               收货
             </Button>
           )}
-          {canWrite && receipt && receipt.status !== 'CANCELLED' && (
+          {actionFlags.canCancelReceive && (
             <Button danger onClick={() => handleCancelReceive(detail)}>
               撤销入库
             </Button>
           )}
-          {canWrite && receipt?.status === 'CANCELLED' && (
+          {actionFlags.canRedoReceive && (
             <Button onClick={() => navigate(`/after-sales/${afterSales.id}/receive`)}>
               重做收货
             </Button>
           )}
-          {canPutaway && (
+          {actionFlags.canPutaway && (
             <Button loading={putawaying} onClick={() => handlePutaway(detail)}>
               库存回补
             </Button>
           )}
-          {canShipment && (
+          {actionFlags.canCreateShipment && (
             <Button type="dashed" onClick={() => handleCreateShipment(detail)}>
               {afterSales.type === 'EXCHANGE' ? '生成换货包裹' : '生成补发包裹'}
             </Button>
           )}
-          {canWrite && !['REJECTED', 'REFUNDED', 'CLOSED'].includes(afterSales.status) && (
+          {actionFlags.canRefund && (
             <Button type="dashed" onClick={() => handleRefund(detail)}>
               退款
             </Button>

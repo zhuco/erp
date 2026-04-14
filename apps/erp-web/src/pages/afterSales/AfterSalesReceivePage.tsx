@@ -1,6 +1,6 @@
 import { Button, Card, Form, Select, Space, Switch, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
@@ -9,6 +9,7 @@ import { getAfterSalesDetail, receiveAfterSales, redoAfterSalesReceive } from '@
 import { listWarehouses } from '@/api/warehouses';
 import { UiModule07SettingsLayout } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
+import { buildReceiveModel, NO_WAREHOUSE_HINT } from './afterSalesReceiveModel';
 
 export const AfterSalesReceivePage = () => {
   const tenantId = useTenantId();
@@ -40,6 +41,25 @@ export const AfterSalesReceivePage = () => {
     ],
     []
   );
+
+  const model = buildReceiveModel({
+    warehouses: (warehouses?.items ?? []).map((warehouse) => ({
+      warehouse_id: warehouse.warehouse_id,
+      name: warehouse.name,
+      is_default: warehouse.is_default
+    })),
+    returnReceiptStatus: data?.return_receipt?.status
+  });
+
+  useEffect(() => {
+    if (!model.canSubmit) {
+      return;
+    }
+    const current = form.getFieldValue('warehouse_id');
+    if (!current && model.initialWarehouseId) {
+      form.setFieldValue('warehouse_id', model.initialWarehouseId);
+    }
+  }, [form, model.canSubmit, model.initialWarehouseId]);
 
   const titleNode = (
     <Typography.Title level={3} data-testid="after-sales-receive-title">
@@ -103,8 +123,12 @@ export const AfterSalesReceivePage = () => {
                 value: wh.warehouse_id
               }))}
               placeholder="选择仓库"
+              disabled={!model.canSubmit}
             />
           </Form.Item>
+          {!model.canSubmit && (
+            <Typography.Text type="danger">{NO_WAREHOUSE_HINT}</Typography.Text>
+          )}
           <Form.Item name="putaway_done" label="是否立即上架" valuePropName="checked">
             <Switch />
           </Form.Item>
@@ -113,12 +137,19 @@ export const AfterSalesReceivePage = () => {
               type="primary"
               data-testid="after-sales-receive-submit"
               onClick={handleSubmit}
+              disabled={!model.canSubmit}
             >
               {data?.return_receipt?.status === 'CANCELLED' ? '重做收货' : '确认收货'}
             </Button>
             <Button onClick={() => navigate(`/after-sales/${data.after_sales.id}`)}>返回</Button>
           </Space>
         </Form>
+        <div style={{ marginTop: 16 }}>
+          <Typography.Text strong>{model.modeLabel}</Typography.Text>
+          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+            {model.modeDescription}
+          </Typography.Paragraph>
+        </div>
       </Card>
       <Card title="退货明细">
         <Table rowKey="sku_id" columns={columns} dataSource={data.items} pagination={false} />

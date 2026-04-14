@@ -49,6 +49,7 @@ import { ServerTable } from '@/components/ServerTable';
 import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { getAfterSalesActionFlags } from './afterSalesActionGuards';
 
 type FilterValues = {
   status?: AfterSalesStatus;
@@ -294,12 +295,15 @@ export const AfterSalesListPage = () => {
           if (!canWrite) {
             return null;
           }
-          const canShipment =
-            ['APPROVED', 'RECEIVED'].includes(record.status) &&
-            ['EXCHANGE', 'RESEND'].includes(record.type);
+          const actionFlags = getAfterSalesActionFlags({
+            status: record.status,
+            type: record.type,
+            sla_status: record.sla_status,
+            canWrite
+          });
           return (
             <Space>
-              {record.status === 'OPEN' && (
+              {actionFlags.canApprove && (
                 <>
                   <Button size="small" type="link" onClick={() => handleApprove(record)}>
                     同意
@@ -309,7 +313,7 @@ export const AfterSalesListPage = () => {
                   </Button>
                 </>
               )}
-              {record.status === 'APPROVED' && (
+              {actionFlags.canReceive && (
                 <Button
                   size="small"
                   type="link"
@@ -319,12 +323,12 @@ export const AfterSalesListPage = () => {
                   收货
                 </Button>
               )}
-              {canShipment && (
+              {actionFlags.canCreateShipment && (
                 <Button size="small" type="link" onClick={() => handleCreateShipment(record)}>
                   {record.type === 'EXCHANGE' ? '生成换货包裹' : '生成补发包裹'}
                 </Button>
               )}
-              {record.sla_status === 'OVERDUE' && (
+              {actionFlags.canEscalate && (
                 <Button
                   size="small"
                   type="link"
