@@ -76,6 +76,29 @@
 
 Each phase has go/no-go criteria. Do not start next phase if current phase fails.
 
+## Architecture Approval Conditions
+
+- External contract stability is mandatory.
+- `openapi/erp_api_v1.yaml` remains the only generated artifact consumed by downstream tools.
+- Front-end generation entrypoints keep working without callers learning new paths.
+- API and worker runtime behavior must remain equivalent for permissions, audit logging, idempotency, retries, and transaction boundaries.
+
+- Internal modularization is allowed only when it improves domain boundaries.
+- `lib.rs` becomes composition root, not another shared dumping ground.
+- `orders.rs` splits by business responsibility, not arbitrary technical layers.
+- `main.rs` keeps bootstrap separate from event routing and per-event handlers.
+
+- Delivery must remain reversible.
+- Every phase ships with a rollback point.
+- No phase may require a flag day or freeze across all teams.
+
+## No-Go Conditions
+
+- Any path, method, permission key, or required response status changes without explicit approval.
+- Any loss of `x-persistence-required` or `x-persistence-tables` declarations on protected write APIs.
+- Any worker refactor that scatters retry, dead-letter, or read-only guard behavior across unrelated modules.
+- Any refactor batch too large to isolate in review or safely revert.
+
 ---
 
 ### Task 1: Create Safe Working Baseline

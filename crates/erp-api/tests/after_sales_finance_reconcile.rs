@@ -273,8 +273,19 @@ async fn after_sales_finance_reconcile_refund_request_should_be_idempotent() -> 
         "channel": "MANUAL"
     });
 
-    let (status, first) = request_json(&app, &token, Method::POST, uri.clone(), Some(payload.clone())).await?;
-    assert_eq!(status, StatusCode::OK, "first refund request failed: {first}");
+    let (status, first) = request_json(
+        &app,
+        &token,
+        Method::POST,
+        uri.clone(),
+        Some(payload.clone()),
+    )
+    .await?;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "first refund request failed: {first}"
+    );
     let first_refund_id = first
         .get("id")
         .and_then(|v| v.as_str())
@@ -282,7 +293,11 @@ async fn after_sales_finance_reconcile_refund_request_should_be_idempotent() -> 
         .to_string();
 
     let (status, second) = request_json(&app, &token, Method::POST, uri, Some(payload)).await?;
-    assert_eq!(status, StatusCode::OK, "second refund request failed: {second}");
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "second refund request failed: {second}"
+    );
     let second_refund_id = second
         .get("id")
         .and_then(|v| v.as_str())
@@ -329,11 +344,15 @@ async fn after_sales_finance_reconcile_refund_request_should_be_idempotent() -> 
     .fetch_one(&pool)
     .await?;
     assert_eq!(
-        audit_after_json.get("refund_doc_id").and_then(|v| v.as_str()),
+        audit_after_json
+            .get("refund_doc_id")
+            .and_then(|v| v.as_str()),
         Some(first_refund_id.as_str())
     );
     assert_eq!(
-        audit_after_json.get("after_sales_id").and_then(|v| v.as_str()),
+        audit_after_json
+            .get("after_sales_id")
+            .and_then(|v| v.as_str()),
         Some(after_sales_id.to_string().as_str())
     );
     assert_eq!(

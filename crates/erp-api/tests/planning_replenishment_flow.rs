@@ -310,9 +310,7 @@ async fn planning_replenishment_purchase_transfer_and_promo_flow() -> Result<()>
         Some(rule_id.as_str())
     );
     assert_eq!(
-        first_purchase_plan
-            .get("status")
-            .and_then(Value::as_str),
+        first_purchase_plan.get("status").and_then(Value::as_str),
         Some("PENDING_APPROVAL")
     );
     assert!(
@@ -375,9 +373,7 @@ async fn planning_replenishment_purchase_transfer_and_promo_flow() -> Result<()>
         .and_then(|items| items.first())
         .context("generated transfer suggestion missing")?;
     assert_eq!(
-        first_transfer
-            .get("reason")
-            .and_then(Value::as_str),
+        first_transfer.get("reason").and_then(Value::as_str),
         Some("AUTO_BALANCE")
     );
 

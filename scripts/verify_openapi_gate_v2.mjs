@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadOpenApiDocument, validateOpenApiGate } from './openapi/lib/openapi_tools.mjs';
+
 const currentFilePath = fileURLToPath(import.meta.url);
 const scriptDir = path.dirname(currentFilePath);
 const repoRoot = path.resolve(scriptDir, '..');
@@ -14,95 +16,6 @@ function fail(message) {
 
 if (!fs.existsSync(openapiPath)) {
   fail(`missing OpenAPI file: ${openapiPath}`);
-}
-
-const openapiText = fs.readFileSync(openapiPath, 'utf8');
-const lines = openapiText.split(/\r?\n/);
-
-function getPathBlock(pathKey) {
-  const startLine = `  ${pathKey}:`;
-  const start = lines.findIndex((line) => line === startLine);
-  if (start === -1) {
-    fail(`missing OpenAPI path: ${pathKey}`);
-  }
-
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (/^  \/[^:]+:\s*$/.test(lines[i])) {
-      end = i;
-      break;
-    }
-  }
-
-  return lines.slice(start, end).join('\n');
-}
-
-function getMethodBlock(pathBlock, method) {
-  const methodHeader = `    ${method}:`;
-  const blockLines = pathBlock.split('\n');
-  const start = blockLines.findIndex((line) => line === methodHeader);
-  if (start === -1) {
-    return null;
-  }
-
-  let end = blockLines.length;
-  for (let i = start + 1; i < blockLines.length; i += 1) {
-    if (/^    [a-z]+:\s*$/.test(blockLines[i])) {
-      end = i;
-      break;
-    }
-  }
-
-  return blockLines.slice(start, end).join('\n');
-}
-
-function ensurePermissions(methodBlock, permissions, context) {
-  for (const permission of permissions) {
-    if (!methodBlock.includes(`- ${permission}`)) {
-      fail(`${context} missing permission declaration: ${permission}`);
-    }
-  }
-}
-
-function ensureResponses(methodBlock, statusCodes, context) {
-  for (const statusCode of statusCodes) {
-    if (!methodBlock.includes(`"${statusCode}":`)) {
-      fail(`${context} missing response status: ${statusCode}`);
-    }
-  }
-}
-
-function ensurePersistence(methodBlock, tables, context) {
-  if (!methodBlock.includes('x-persistence-required: true')) {
-    fail(`${context} missing x-persistence-required: true`);
-  }
-  for (const table of tables) {
-    if (!methodBlock.includes(`- ${table}`)) {
-      fail(`${context} missing persistence table declaration: ${table}`);
-    }
-  }
-}
-
-function verifyEndpoint({
-  pathKey,
-  method,
-  requiredPermissions,
-  requiredStatusCodes,
-  requiredPersistenceTables,
-}) {
-  const pathBlock = getPathBlock(pathKey);
-  const methodBlock = getMethodBlock(pathBlock, method);
-  if (!methodBlock) {
-    fail(`path ${pathKey} missing ${method.toUpperCase()} method`);
-  }
-
-  const context = `${method.toUpperCase()} ${pathKey}`;
-  ensurePermissions(methodBlock, requiredPermissions, context);
-  ensureResponses(methodBlock, requiredStatusCodes, context);
-
-  if (requiredPersistenceTables?.length) {
-    ensurePersistence(methodBlock, requiredPersistenceTables, context);
-  }
 }
 
 const checks = [
@@ -272,5 +185,10 @@ const checks = [
   },
 ];
 
-checks.forEach(verifyEndpoint);
-console.log('[openapi-gate] OpenAPI gate verification passed');
+try {
+  const openapiDocument = loadOpenApiDocument(openapiPath);
+  validateOpenApiGate({ openapiDocument, checks });
+  console.log('[openapi-gate] OpenAPI gate verification passed');
+} catch (error) {
+  fail(error instanceof Error ? error.message : String(error));
+}

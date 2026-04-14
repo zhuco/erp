@@ -435,11 +435,9 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     )
     .execute(&mut *tx)
     .await?;
-    sqlx::query(
-        "alter table purchase_order_items alter column qty type bigint using qty::bigint",
-    )
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("alter table purchase_order_items alter column qty type bigint using qty::bigint")
+        .execute(&mut *tx)
+        .await?;
     sqlx::query(
         "alter table purchase_order_items alter column price_cent type bigint using price_cent::bigint",
     )
@@ -465,11 +463,9 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
     )
     .execute(&mut *tx)
     .await?;
-    sqlx::query(
-        "alter table inbound_putaway_tasks alter column qty type bigint using qty::bigint",
-    )
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("alter table inbound_putaway_tasks alter column qty type bigint using qty::bigint")
+        .execute(&mut *tx)
+        .await?;
     sqlx::query("alter table receipt_items alter column qty type bigint using qty::bigint")
         .execute(&mut *tx)
         .await?;

@@ -355,12 +355,13 @@ async fn after_sales_exchange_docs_should_be_idempotent_for_same_shipment() -> R
     assert_eq!(second.len(), 1);
     assert_eq!(first[0].exchange_id, second[0].exchange_id);
 
-    let exchange_doc_count: i64 =
-        sqlx::query_scalar("select count(*) from exchange_docs where tenant_id = $1 and after_sales_id = $2")
-            .bind(tenant_id)
-            .bind(after_sales_id)
-            .fetch_one(db.pool())
-            .await?;
+    let exchange_doc_count: i64 = sqlx::query_scalar(
+        "select count(*) from exchange_docs where tenant_id = $1 and after_sales_id = $2",
+    )
+    .bind(tenant_id)
+    .bind(after_sales_id)
+    .fetch_one(db.pool())
+    .await?;
     assert_eq!(exchange_doc_count, 1);
 
     Ok(())

@@ -2186,7 +2186,10 @@ async fn review_order_concurrent_requests_are_version_safe_inner() -> Result<()>
     let status_b = resp_b.unwrap().status();
     let statuses = [status_a, status_b];
 
-    let ok_count = statuses.iter().filter(|status| **status == StatusCode::OK).count();
+    let ok_count = statuses
+        .iter()
+        .filter(|status| **status == StatusCode::OK)
+        .count();
     let conflict_count = statuses
         .iter()
         .filter(|status| **status == StatusCode::CONFLICT)

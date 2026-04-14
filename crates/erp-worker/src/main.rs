@@ -1,4 +1,6 @@
 mod dlq;
+mod event_router;
+mod token_refresh;
 
 use axum::{
     body::Body,
@@ -80,6 +82,8 @@ use erp_repo::{
 };
 use erp_types::{OrderId, OrderReviewStatus, Platform, ShopId, TenantId};
 use erp_worker::jobs::{after_sales_import_jobs, export_jobs};
+use event_router::route_event;
+use token_refresh::{handle_token_refresh_requested, refresh_tokens_once};
 use futures::StreamExt;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
@@ -298,80 +302,6 @@ async fn handle_inbox_received(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn route_event(
-    db: &Db,
-    adapters: &AdapterRegistry,
-    nats: &async_nats::Client,
-    env: OutboxEnvelope,
-    stock_sync_debounce: ChronoDuration,
-    attempt: u32,
-    trigger: &str,
-    replay_dead_letter_id: Option<uuid::Uuid>,
-) -> anyhow::Result<()> {
-    match env.event_type.as_str() {
-        "INBOX_EVENT_RECEIVED" => {
-            let payload: InboxReceivedPayload = serde_json::from_value(env.payload)?;
-            handle_inbox_received(db, adapters, payload).await
-        }
-        SHIPMENT_REQUESTED_EVENT => {
-            let payload: ShipmentRequestedPayload = serde_json::from_value(env.payload)?;
-            handle_shipment_requested(db, adapters, payload).await
-        }
-        SHIPMENT_SHIPPED_EVENT | SHIPMENT_CONFIRMED_EVENT => {
-            let payload: ShipmentShippedPayload = serde_json::from_value(env.payload)?;
-            handle_shipment_shipped(
-                db,
-                adapters,
-                payload,
-                env.outbox_id,
-                attempt,
-                trigger,
-                replay_dead_letter_id,
-            )
-            .await
-        }
-        "PRINT_JOB_QUEUED" => handle_print_job_queued(db, env).await,
-        INVENTORY_CHANGED_EVENT => {
-            let payload: InventoryChangedPayload = serde_json::from_value(env.payload)?;
-            handle_inventory_changed(db, payload, stock_sync_debounce).await
-        }
-        REFUND_REQUESTED_EVENT => {
-            let payload: RefundRequestedPayload = serde_json::from_value(env.payload)?;
-            handle_refund_requested(db, payload).await
-        }
-        "TOKEN_REFRESH_REQUESTED" => {
-            let payload: erp_domain::TokenRefreshRequestedPayload =
-                serde_json::from_value(env.payload)?;
-            handle_token_refresh_requested(db, adapters, payload).await
-        }
-        "ORDER_IMPORTED" | "ORDER_UPSERTED" => {
-            let payload: OrderUpsertedPayload = serde_json::from_value(env.payload)?;
-            handle_order_upserted(db, payload).await
-        }
-        "ORDER_REVIEWED" => {
-            let payload: OrderReviewedPayload = serde_json::from_value(env.payload)?;
-            handle_order_reviewed(db, payload).await
-        }
-        "SYNC_JOB_RUN" => {
-            let payload: SyncJobReplayPayload = serde_json::from_value(env.payload)?;
-            handle_sync_job_run(db, payload).await
-        }
-        PROFIT_COMPUTE_REQUESTED_EVENT => {
-            let payload: ProfitComputeRequestedPayload = serde_json::from_value(env.payload)?;
-            handle_profit_compute_requested(db, payload).await
-        }
-        DLQ_REPLAY_REQUESTED_EVENT => {
-            let payload: DeadLetterReplayPayload = serde_json::from_value(env.payload)?;
-            handle_dead_letter_replay(db, nats, payload).await
-        }
-        other => {
-            warn!(event_type=%other, "unknown event_type - ignored");
-            Ok(())
-        }
-    }
-}
-
 async fn handle_dead_letter_replay(
     db: &Db,
     nats: &async_nats::Client,
@@ -385,23 +315,6 @@ async fn handle_dead_letter_replay(
     )
     .await?;
     Ok(())
-}
-
-async fn handle_token_refresh_requested(
-    db: &Db,
-    adapters: &AdapterRegistry,
-    payload: erp_domain::TokenRefreshRequestedPayload,
-) -> anyhow::Result<()> {
-    let repo = PlatformTokensRepo::new(db.pool());
-    let Some(token) = repo.get_token(payload.tenant_id, payload.shop_id).await? else {
-        return Err(anyhow::anyhow!("platform token not found"));
-    };
-
-    let candidate = erp_repo::platform_tokens::TokenRefreshCandidate {
-        token,
-        platform: payload.platform,
-    };
-    refresh_token_for_candidate(db, adapters, &candidate).await
 }
 
 async fn handle_order_upserted(db: &Db, payload: OrderUpsertedPayload) -> anyhow::Result<()> {
@@ -2501,9 +2414,9 @@ fn compute_sync_dedup_key(
     refund_fingerprint: Option<&str>,
 ) -> String {
     let base = match refund_fingerprint {
-        Some(fingerprint) if !fingerprint.trim().is_empty() => format!(
-            "{platform}:{platform_order_id}:{event_type}:{version}:{fingerprint}"
-        ),
+        Some(fingerprint) if !fingerprint.trim().is_empty() => {
+            format!("{platform}:{platform_order_id}:{event_type}:{version}:{fingerprint}")
+        }
         _ => format!("{platform}:{platform_order_id}:{event_type}:{version}"),
     };
     let mut hasher = Sha256::new();
@@ -2753,136 +2666,6 @@ async fn sync_platform_products(
                 .await?;
         }
     }
-    Ok(())
-}
-
-async fn refresh_tokens_once(
-    db: &Db,
-    adapters: &AdapterRegistry,
-    threshold: ChronoDuration,
-    batch_limit: i64,
-) -> anyhow::Result<()> {
-    let repo = PlatformTokensRepo::new(db.pool());
-    let candidates = repo
-        .list_expiring_tokens(Utc::now() + threshold, batch_limit)
-        .await?;
-
-    for candidate in candidates {
-        if let Err(err) = refresh_token_for_candidate(db, adapters, &candidate).await {
-            warn!(
-                error = %err,
-                tenant_id = %candidate.token.tenant_id,
-                shop_id = %candidate.token.shop_id,
-                "token refresh failed"
-            );
-        }
-    }
-
-    Ok(())
-}
-
-async fn refresh_token_for_candidate(
-    db: &Db,
-    adapters: &AdapterRegistry,
-    candidate: &erp_repo::platform_tokens::TokenRefreshCandidate,
-) -> anyhow::Result<()> {
-    let repo = PlatformTokensRepo::new(db.pool());
-    let shops_repo = ShopsRepo::new(db.pool());
-    let outbox_repo = OutboxRepo::new(db.pool());
-
-    let shop = shops_repo
-        .get_shop_auth(candidate.token.shop_id)
-        .await
-        .map_err(|err| {
-            anyhow::anyhow!(
-                "shop not available for refresh {}: {err}",
-                candidate.token.shop_id
-            )
-        })?;
-    let adapter = adapters.platform_adapter(candidate.platform);
-    let token_payload = PlatformTokenPayload {
-        access_token: candidate.token.access_token.clone(),
-        refresh_token: candidate.token.refresh_token.clone(),
-        expires_at: candidate.token.expires_at,
-        scopes: candidate.token.scopes.clone(),
-    };
-
-    match adapter.refresh_token(&shop, &token_payload).await {
-        Ok(result) => {
-            let now = Utc::now();
-            let access_token = result.access_token.or(candidate.token.access_token.clone());
-            let refresh_token = result
-                .refresh_token
-                .or(candidate.token.refresh_token.clone());
-            let expires_at = result.expires_at.or(candidate.token.expires_at);
-            let scopes = result.scopes.or(candidate.token.scopes.clone());
-
-            let _ = repo
-                .upsert_token(erp_repo::platform_tokens::PlatformTokenUpsert {
-                    tenant_id: candidate.token.tenant_id,
-                    shop_id: candidate.token.shop_id,
-                    token_status: None,
-                    access_token,
-                    refresh_token,
-                    expires_at,
-                    scopes,
-                    last_refreshed_at: Some(now),
-                    refresh_fail_count: Some(0),
-                    last_error: Some("".to_string()),
-                })
-                .await?;
-
-            let status = if expires_at.map(|t| t > now).unwrap_or(false) {
-                "AUTHORIZED"
-            } else {
-                "EXPIRED"
-            };
-            let _ = shops_repo
-                .update_shop(
-                    candidate.token.tenant_id,
-                    candidate.token.shop_id,
-                    erp_repo::shops::ShopUpdate {
-                        name: None,
-                        status: Some(status.to_string()),
-                        credentials: None,
-                        auth_meta_json: None,
-                    },
-                )
-                .await?;
-        }
-        Err(err) => {
-            let _ = repo
-                .mark_refresh_failed(
-                    candidate.token.tenant_id,
-                    candidate.token.shop_id,
-                    err.to_string(),
-                )
-                .await?;
-            let _ = shops_repo
-                .update_shop(
-                    candidate.token.tenant_id,
-                    candidate.token.shop_id,
-                    erp_repo::shops::ShopUpdate {
-                        name: None,
-                        status: Some("EXPIRED".to_string()),
-                        credentials: None,
-                        auth_meta_json: None,
-                    },
-                )
-                .await?;
-
-            let payload = serde_json::to_value(erp_domain::TokenRefreshFailedPayload {
-                tenant_id: candidate.token.tenant_id,
-                shop_id: candidate.token.shop_id,
-                platform: candidate.platform,
-                last_error: err.to_string(),
-            })?;
-            outbox_repo
-                .enqueue(candidate.token.tenant_id, "TOKEN_REFRESH_FAILED", &payload)
-                .await?;
-        }
-    }
-
     Ok(())
 }
 
@@ -4422,6 +4205,11 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
     use tracing_subscriber::fmt::MakeWriter;
+
+    #[test]
+    fn event_router_module_exports_route_event_symbol() {
+        let _ = super::event_router::route_event;
+    }
 
     #[derive(Clone, Default)]
     struct LogCapture {
@@ -6723,7 +6511,7 @@ mod tests {
         let db = Db::connect_lazy(&database_url)?;
         let adapters = AdapterRegistry::new();
 
-        refresh_token_for_candidate(&db, &adapters, &candidate).await?;
+        token_refresh::refresh_token_for_candidate(&db, &adapters, &candidate).await?;
 
         let updated = tokens_repo
             .get_token(tenant_id, shop_id)
@@ -6803,7 +6591,7 @@ mod tests {
         let db = Db::connect_lazy(&database_url)?;
         let adapters = AdapterRegistry::new();
 
-        refresh_token_for_candidate(&db, &adapters, &candidate).await?;
+        token_refresh::refresh_token_for_candidate(&db, &adapters, &candidate).await?;
 
         let updated = tokens_repo
             .get_token(tenant_id, shop_id)
@@ -7059,5 +6847,14 @@ mod tests {
         assert_eq!(outbox_count, 1);
 
         Ok(())
+    }
+
+    #[test]
+    fn token_refresh_module_exports_expected_symbols() {
+        let handle = token_refresh::handle_token_refresh_requested;
+        let batch = token_refresh::refresh_tokens_once;
+        let refresh = token_refresh::refresh_token_for_candidate;
+
+        let _ = (handle, batch, refresh);
     }
 }
