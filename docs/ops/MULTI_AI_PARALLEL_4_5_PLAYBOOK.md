@@ -307,6 +307,21 @@ git rev-parse --show-toplevel
 
 本节是“支持子任务”的核心。无论你使用 Codex 子任务、多个桌面线程，还是多个外部 AI，会话之间都建议遵循同一协议。
 
+### 6.0 已落地工具
+
+以下资产已经在仓库中实现，可直接使用：
+
+1. 任务卡脚手架：
+   [new_parallel_task.mjs](/F:/erp/scripts/ops/new_parallel_task.mjs)
+2. 边界校验：
+   [validate_task_boundary.mjs](/F:/erp/scripts/ops/validate_task_boundary.mjs)
+3. 评分卡生成：
+   [generate_parallel_scorecard.mjs](/F:/erp/scripts/ops/generate_parallel_scorecard.mjs)
+4. 使用说明：
+   [PARALLEL_TOOLING_USAGE.md](/F:/erp/docs/ops/PARALLEL_TOOLING_USAGE.md)
+5. 独立模板目录：
+   `docs/ops/templates/`
+
 ### 6.1 子任务卡模板
 
 每个 AI 接手任务前，都必须收到如下结构的任务卡：
@@ -783,6 +798,15 @@ cargo test -p erp-api --test after_sales_sla_escalation -- --nocapture
 
 ## 15. 模板区
 
+模板已拆分为可直接复用的独立文件，位于：
+
+1. [PARALLEL_TASK_CARD_TEMPLATE.md](/F:/erp/docs/ops/templates/PARALLEL_TASK_CARD_TEMPLATE.md)
+2. [PARALLEL_DAILY_SCORECARD_TEMPLATE.md](/F:/erp/docs/ops/templates/PARALLEL_DAILY_SCORECARD_TEMPLATE.md)
+3. [PARALLEL_MERGE_REQUEST_TEMPLATE.md](/F:/erp/docs/ops/templates/PARALLEL_MERGE_REQUEST_TEMPLATE.md)
+4. [PARALLEL_CONFLICT_LOG_TEMPLATE.md](/F:/erp/docs/ops/templates/PARALLEL_CONFLICT_LOG_TEMPLATE.md)
+5. [PARALLEL_ROLLBACK_TEMPLATE.md](/F:/erp/docs/ops/templates/PARALLEL_ROLLBACK_TEMPLATE.md)
+6. [AFTERSALES_MULTI_AI_TASK_PACK_TEMPLATE.md](/F:/erp/docs/ops/templates/AFTERSALES_MULTI_AI_TASK_PACK_TEMPLATE.md)
+
 ### 15.1 每日评分模板
 
 ```text
@@ -866,6 +890,15 @@ git worktree add ../erp-<task> codex/<task>
 # 查看任务范围
 git status --short
 git diff --name-only
+
+# 生成任务卡
+node scripts/ops/new_parallel_task.mjs --name "<task>" --goal "<goal>" --owner "<owner>" --branch "codex/<task>" --worktree ".worktrees/<task>" --allowed "<path>"
+
+# 校验任务边界
+node scripts/ops/validate_task_boundary.mjs --task "docs/ops/tasks/<task>.md" --mode all
+
+# 生成每日评分卡
+node scripts/ops/generate_parallel_scorecard.mjs --input "docs/ops/examples/PARALLEL_SCORECARD_SAMPLE.json" --output "docs/ops/scorecards/<date>.md"
 
 # 合并任务
 git checkout main
