@@ -32,6 +32,10 @@ export type AfterSalesSummary = {
   status: AfterSalesStatus;
   reason_code?: string | null;
   amount_cent: number;
+  sla_deadline_at?: string | null;
+  sla_status?: 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'CLOSED' | string | null;
+  sla_remaining_minutes?: number | null;
+  escalation_role?: string | null;
   created_at: string;
   updated_at: string;
 };

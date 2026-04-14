@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{DateTime, Duration, Utc};
 use erp_adapter::{
     AdapterError, OrderAdapter, PlatformAdapter, PlatformTokenPayload, PullOrdersResult,
     PullProductsResult, PullRefundsResult, ShipOrderRequest, ShipOrderResponse, ShopAuthContext,
@@ -48,6 +48,9 @@ const PDD_REFUND_STATUS_CODES: &[i64] = &[1, 2, 3, 4];
 const PDD_AFTER_SALES_STATUS_CODES: &[i64] = &[
     0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 24, 25, 27, 31, 32, 33,
 ];
+
+const PDD_OAUTH_AUTHORIZE_URL: &str = "https://mms.pinduoduo.com/open.html";
+const PDD_OAUTH_TOKEN_URL: &str = "https://open-api.pinduoduo.com/oauth/token";
 
 #[derive(Clone)]
 pub struct Adapter {
@@ -101,6 +104,136 @@ impl Adapter {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| "pdd.order.information.get".to_string())
+    }
+
+    fn auth_meta_string(shop: &ShopAuthContext, pointers: &[&str]) -> Option<String> {
+        for pointer in pointers {
+            if let Some(value) = shop
+                .auth_meta
+                .pointer(pointer)
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                return Some(value.to_string());
+            }
+        }
+        None
+    }
+
+    fn credential_string(shop: &ShopAuthContext, key: &str) -> Option<String> {
+        shop.credentials
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string)
+    }
+
+    fn oauth_authorize_url(shop: &ShopAuthContext) -> String {
+        Self::auth_meta_string(
+            shop,
+            &["/oauth/authorize_url", "/authorize_url", "/oauth_authorize_url"],
+        )
+        .or_else(|| Self::credential_string(shop, "authorize_url"))
+        .unwrap_or_else(|| PDD_OAUTH_AUTHORIZE_URL.to_string())
+    }
+
+    fn oauth_token_url(shop: &ShopAuthContext) -> String {
+        Self::auth_meta_string(shop, &["/oauth/token_url", "/token_url", "/oauth_token_url"])
+            .or_else(|| Self::credential_string(shop, "token_url"))
+            .unwrap_or_else(|| PDD_OAUTH_TOKEN_URL.to_string())
+    }
+
+    fn default_redirect_uri(shop: &ShopAuthContext) -> Option<String> {
+        Self::auth_meta_string(shop, &["/oauth/redirect_uri", "/redirect_uri"])
+            .or_else(|| Self::credential_string(shop, "redirect_uri"))
+    }
+
+    fn parse_i64(value: &Value) -> Option<i64> {
+        match value {
+            Value::Number(number) => number.as_i64(),
+            Value::String(text) => text.trim().parse::<i64>().ok(),
+            _ => None,
+        }
+    }
+
+    fn read_string_any(payload: &Value, pointers: &[&str]) -> Option<String> {
+        for pointer in pointers {
+            if let Some(value) = payload
+                .pointer(pointer)
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                return Some(value.to_string());
+            }
+        }
+        None
+    }
+
+    fn read_i64_any(payload: &Value, pointers: &[&str]) -> Option<i64> {
+        for pointer in pointers {
+            if let Some(value) = payload.pointer(pointer).and_then(Self::parse_i64) {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    fn parse_oauth_token_response(
+        payload: &Value,
+        now: DateTime<Utc>,
+    ) -> Result<TokenRefreshResult, AdapterError> {
+        let access_token = Self::read_string_any(
+            payload,
+            &["/access_token", "/result/access_token", "/data/access_token"],
+        )
+        .ok_or_else(|| AdapterError::Auth("oauth token response missing access_token".into()))?;
+        let refresh_token = Self::read_string_any(
+            payload,
+            &["/refresh_token", "/result/refresh_token", "/data/refresh_token"],
+        );
+        let scopes = Self::read_string_any(
+            payload,
+            &[
+                "/scope",
+                "/scopes",
+                "/result/scope",
+                "/result/scopes",
+                "/data/scope",
+                "/data/scopes",
+            ],
+        );
+        let expires_in = Self::read_i64_any(
+            payload,
+            &[
+                "/expires_in",
+                "/expire_in",
+                "/result/expires_in",
+                "/result/expire_in",
+                "/data/expires_in",
+                "/data/expire_in",
+            ],
+        );
+        let expires_at = if let Some(seconds) = expires_in {
+            Some(now + Duration::seconds(seconds.max(0)))
+        } else {
+            Self::read_string_any(
+                payload,
+                &["/expires_at", "/result/expires_at", "/data/expires_at"],
+            )
+            .and_then(|raw| DateTime::parse_from_rfc3339(raw.trim()).ok())
+            .map(|value| value.with_timezone(&Utc))
+        };
+
+        Ok(TokenRefreshResult {
+            access_token: Some(access_token),
+            refresh_token,
+            expires_at,
+            scopes,
+            raw: payload.clone(),
+        })
     }
 
     fn pdd_sign(params: &BTreeMap<String, String>, client_secret: &str) -> String {
@@ -791,6 +924,460 @@ impl WebhookAdapter for Adapter {
     }
 }
 
+impl Adapter {
+    fn is_refund_related_order(order: &OrderProjection) -> bool {
+        if matches!(order.status, OrderStatus::Refunding | OrderStatus::Refunded) {
+            return true;
+        }
+        order.items.iter().any(|item| {
+            item.after_sale_id
+                .as_deref()
+                .map(str::trim)
+                .map(|id| !id.is_empty())
+                .unwrap_or(false)
+                || item.refund_state != RefundState::None
+                || item.after_sale_state != AfterSaleState::None
+                || item.refund_amount_cent.unwrap_or(0) > 0
+        })
+    }
+
+    fn value_to_text(v: &Value) -> Option<String> {
+        if let Some(s) = v.as_str() {
+            return Some(s.to_string());
+        }
+        if let Some(n) = v.as_i64() {
+            return Some(n.to_string());
+        }
+        if let Some(n) = v.as_u64() {
+            return Some(n.to_string());
+        }
+        if let Some(n) = v.as_f64() {
+            return Some(n.to_string());
+        }
+        if let Some(b) = v.as_bool() {
+            return Some(if b { "true" } else { "false" }.to_string());
+        }
+        None
+    }
+
+    fn credential_bool(shop: &ShopAuthContext, key: &str) -> Option<bool> {
+        shop.credentials.get(key).and_then(|v| v.as_bool())
+    }
+
+    fn credential_i64(shop: &ShopAuthContext, key: &str) -> Option<i64> {
+        shop.credentials.get(key).and_then(|v| v.as_i64())
+    }
+
+    fn credential_object(shop: &ShopAuthContext, key: &str) -> Option<Value> {
+        shop.credentials.get(key).filter(|v| v.is_object()).cloned()
+    }
+
+    fn refund_api_enabled(shop: &ShopAuthContext) -> bool {
+        Self::credential_bool(shop, "refund_api_enabled").unwrap_or(false)
+    }
+
+    fn refund_list_method(shop: &ShopAuthContext) -> Option<String> {
+        Self::credential_string(shop, "refund_list_method")
+    }
+
+    fn refund_page_size(shop: &ShopAuthContext) -> i64 {
+        Self::credential_i64(shop, "refund_page_size")
+            .unwrap_or(50)
+            .clamp(1, 200)
+    }
+
+    fn refund_list_biz(shop: &ShopAuthContext) -> Value {
+        Self::credential_object(shop, "refund_list_biz").unwrap_or_else(|| serde_json::json!({}))
+    }
+
+    fn extract_values_by_pointer(v: &Value, pointer: Option<String>) -> Option<Vec<Value>> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        let target = v.pointer(pointer)?;
+        if let Some(arr) = target.as_array() {
+            return Some(arr.clone());
+        }
+        Some(vec![target.clone()])
+    }
+
+    fn extract_text_by_pointer(v: &Value, pointer: Option<String>) -> Option<String> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        v.pointer(pointer).and_then(Self::value_to_text)
+    }
+
+    fn extract_bool_by_pointer(v: &Value, pointer: Option<String>) -> Option<bool> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        v.pointer(pointer).and_then(|x| x.as_bool())
+    }
+
+    fn extract_refund_list(
+        shop: &ShopAuthContext,
+        v: &Value,
+    ) -> (Vec<Value>, Option<String>, bool) {
+        let data = v.get("data").or_else(|| v.get("result")).unwrap_or(v);
+        let mut items = data
+            .get("list")
+            .or_else(|| data.get("order_list"))
+            .or_else(|| data.get("orders"))
+            .or_else(|| data.get("items"))
+            .and_then(|x| x.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if items.is_empty() {
+            if let Some(arr) = data.get("order_sn_list").and_then(|x| x.as_array()) {
+                items.extend(arr.iter().map(|x| serde_json::json!({ "order_sn": x })));
+            }
+        }
+
+        let mut next_cursor = data
+            .get("cursor")
+            .or_else(|| data.get("next_cursor"))
+            .or_else(|| data.get("next"))
+            .and_then(Self::value_to_text);
+        let mut has_more = data
+            .get("has_more")
+            .or_else(|| data.get("has_next"))
+            .or_else(|| data.get("more"))
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+
+        let list_pointer = Self::credential_string(shop, "refund_list_pointer");
+        if let Some(overridden) = Self::extract_values_by_pointer(v, list_pointer) {
+            items = overridden;
+        }
+        if let Some(cursor) =
+            Self::extract_text_by_pointer(v, Self::credential_string(shop, "refund_next_cursor_pointer"))
+        {
+            next_cursor = Some(cursor);
+        }
+        if let Some(flag) =
+            Self::extract_bool_by_pointer(v, Self::credential_string(shop, "refund_has_more_pointer"))
+        {
+            has_more = flag;
+        }
+
+        (items, next_cursor, has_more)
+    }
+
+    fn first_text_from_keys(v: &Value, keys: &[&str]) -> Option<String> {
+        for key in keys {
+            if let Some(value) = v.get(*key).and_then(Self::value_to_text) {
+                let value = value.trim().to_string();
+                if !value.is_empty() {
+                    return Some(value);
+                }
+            }
+        }
+        None
+    }
+
+    fn collect_urls(value: &Value) -> Vec<String> {
+        match value {
+            Value::String(s) => {
+                let s = s.trim();
+                if s.is_empty() {
+                    vec![]
+                } else {
+                    vec![s.to_string()]
+                }
+            }
+            Value::Array(arr) => arr
+                .iter()
+                .flat_map(Self::collect_urls)
+                .collect::<Vec<String>>(),
+            Value::Object(map) => {
+                for key in ["url", "img_url", "image_url", "pic_url", "proof_url"] {
+                    if let Some(value) = map.get(key).and_then(Self::value_to_text) {
+                        let value = value.trim().to_string();
+                        if !value.is_empty() {
+                            return vec![value];
+                        }
+                    }
+                }
+                vec![]
+            }
+            _ => vec![],
+        }
+    }
+
+    fn first_urls_from_keys(v: &Value, keys: &[&str]) -> Vec<String> {
+        for key in keys {
+            if let Some(value) = v.get(*key) {
+                let urls = Self::collect_urls(value);
+                if !urls.is_empty() {
+                    return urls;
+                }
+            }
+        }
+        vec![]
+    }
+
+    fn first_text_from_sources(sources: &[&Value], keys: &[&str]) -> Option<String> {
+        for source in sources {
+            if let Some(value) = Self::first_text_from_keys(source, keys) {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    fn first_urls_from_sources(sources: &[&Value], keys: &[&str]) -> Vec<String> {
+        for source in sources {
+            let urls = Self::first_urls_from_keys(source, keys);
+            if !urls.is_empty() {
+                return urls;
+            }
+        }
+        vec![]
+    }
+
+    fn first_rfc3339_from_sources(sources: &[&Value], keys: &[&str]) -> Option<String> {
+        for source in sources {
+            for key in keys {
+                if let Some(value) = source.get(*key).and_then(parse_platform_time) {
+                    return Some(value.to_rfc3339());
+                }
+            }
+        }
+        None
+    }
+
+    fn inject_refund_meta(order: &mut OrderProjection, source: &Value) {
+        let order_raw = order.raw.clone();
+        let default_updated_at = order
+            .platform_updated_at
+            .unwrap_or(order.order_created_at)
+            .to_rfc3339();
+
+        for item in &mut order.items {
+            let sources = [&item.raw, source, &order_raw];
+            let reason = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "refund_reason",
+                    "reason",
+                    "after_sale_reason",
+                    "aftersale_reason",
+                    "remark",
+                ],
+            );
+            let responsibility = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "responsibility",
+                    "responsible_party",
+                    "refund_responsibility",
+                    "responsibility_type",
+                ],
+            );
+            let evidence_urls = Self::first_urls_from_sources(
+                &sources,
+                &[
+                    "evidence_urls",
+                    "proof_urls",
+                    "voucher_urls",
+                    "evidence",
+                    "proof",
+                    "proof_imgs",
+                    "images",
+                    "pics",
+                ],
+            );
+            let updated_at = Self::first_rfc3339_from_sources(
+                &sources,
+                &[
+                    "refund_updated_at",
+                    "after_sale_updated_at",
+                    "updated_at",
+                    "update_time",
+                    "modified",
+                ],
+            )
+            .unwrap_or_else(|| default_updated_at.clone());
+            let source_refund_id = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "after_sale_id",
+                    "after_sales_id",
+                    "aftersale_id",
+                    "refund_id",
+                    "refund_no",
+                ],
+            );
+            let source_status = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "refund_status",
+                    "after_sale_status",
+                    "refund_state",
+                    "after_sale_state",
+                    "status",
+                ],
+            );
+
+            if let Some(raw_obj) = item.raw.as_object_mut() {
+                raw_obj.insert(
+                    "_erp_refund_meta".to_string(),
+                    serde_json::json!({
+                        "reason": reason,
+                        "responsibility": responsibility,
+                        "evidence_urls": evidence_urls,
+                        "updated_at": updated_at,
+                        "source_refund_id": source_refund_id,
+                        "source_status": source_status,
+                    }),
+                );
+            }
+        }
+    }
+
+    async fn pull_refunds_from_api(
+        &self,
+        shop: &ShopAuthContext,
+        cursor: &SyncCursor,
+    ) -> Result<Option<PullRefundsResult>, AdapterError> {
+        if !Self::refund_api_enabled(shop) {
+            return Ok(None);
+        }
+        let Some(api_type) = Self::refund_list_method(shop) else {
+            return Ok(None);
+        };
+
+        let client_id = Self::creds_client_id(shop)?;
+        let client_secret = Self::creds_client_secret(shop)?;
+        let access_token = Self::creds_access_token(shop)
+            .ok_or_else(|| AdapterError::Auth("missing credentials.access_token".into()))?;
+        let gateway = Self::gateway_url(shop);
+        let timestamp = Utc::now().timestamp().to_string();
+        let page_size = Self::refund_page_size(shop).to_string();
+
+        let mut params: BTreeMap<String, String> = BTreeMap::new();
+        params.insert("type".to_string(), api_type);
+        params.insert("client_id".to_string(), client_id);
+        params.insert("access_token".to_string(), access_token);
+        params.insert("data_type".to_string(), "JSON".to_string());
+        params.insert("timestamp".to_string(), timestamp);
+        params.insert("page_size".to_string(), page_size);
+
+        if let Some(v) = cursor.cursor.as_deref() {
+            if v.parse::<i64>().is_ok() {
+                params.insert("page".to_string(), v.to_string());
+            } else {
+                params.insert("cursor".to_string(), v.to_string());
+            }
+        }
+        if let Some(last_time) = cursor.last_time {
+            params.insert(
+                "updated_time_start".to_string(),
+                last_time.timestamp().to_string(),
+            );
+        }
+
+        if let Some(map) = Self::refund_list_biz(shop).as_object() {
+            for (k, v) in map {
+                if let Some(text) = Self::value_to_text(v) {
+                    params.insert(k.to_string(), text);
+                }
+            }
+        }
+
+        let sign = Self::pdd_sign(&params, &client_secret);
+        params.insert("sign".to_string(), sign);
+
+        let resp = self
+            .client
+            .post(gateway)
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| AdapterError::Temporary(format!("http: {e}")))?;
+
+        let status = resp.status();
+        let body = resp
+            .bytes()
+            .await
+            .map_err(|e| AdapterError::Temporary(format!("read: {e}")))?;
+        if !status.is_success() {
+            return Err(AdapterError::Temporary(format!(
+                "pdd gateway status={} body={}...",
+                status,
+                String::from_utf8_lossy(&body)
+            )));
+        }
+
+        let v: Value = serde_json::from_slice(&body)
+            .map_err(|e| AdapterError::Temporary(format!("json: {e}")))?;
+        if v.get("error_response").is_some() {
+            return Err(AdapterError::Temporary(format!("pdd error_response: {v}")));
+        }
+
+        let (raw_list, mut next_cursor, has_more) = Self::extract_refund_list(shop, &v);
+        let mut orders = Vec::new();
+        let mut latest_time = cursor.last_time;
+        let page = cursor
+            .cursor
+            .as_deref()
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(1);
+        let use_page = cursor
+            .cursor
+            .as_deref()
+            .map(|v| v.parse::<i64>().is_ok())
+            .unwrap_or(true);
+
+        for raw in raw_list {
+            let mut proj = if raw.get("item_list").is_some() || raw.get("order_sn").is_some() {
+                Self::map_order_to_projection(shop, &raw)?
+            } else if let Some(order_sn) = raw
+                .get("order_sn")
+                .or_else(|| raw.get("orderSn"))
+                .or_else(|| raw.get("order_id"))
+                .and_then(Self::value_to_text)
+            {
+                self.fetch_order_detail(shop, &order_sn).await?
+            } else {
+                continue;
+            };
+
+            let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
+            if let Some(last_time) = cursor.last_time {
+                if compare_time <= last_time {
+                    continue;
+                }
+            }
+            if Self::is_refund_related_order(&proj) {
+                Self::inject_refund_meta(&mut proj, &raw);
+                if latest_time.map(|t| compare_time > t).unwrap_or(true) {
+                    latest_time = Some(compare_time);
+                }
+                orders.push(proj);
+            }
+        }
+
+        if has_more {
+            if next_cursor.is_none() && use_page {
+                next_cursor = Some((page + 1).to_string());
+            }
+        } else {
+            next_cursor = None;
+        }
+
+        Ok(Some(PullRefundsResult {
+            orders,
+            next_cursor,
+            latest_time,
+        }))
+    }
+}
+
 #[async_trait]
 impl OrderAdapter for Adapter {
     fn platform(&self) -> Platform {
@@ -874,6 +1461,54 @@ impl PlatformAdapter for Adapter {
         })
     }
 
+    async fn exchange_authorization_code(
+        &self,
+        shop: &ShopAuthContext,
+        code: &str,
+        redirect_uri: Option<String>,
+    ) -> Result<TokenRefreshResult, AdapterError> {
+        let code = code.trim();
+        if code.is_empty() {
+            return Err(AdapterError::BadRequest(
+                "authorization code is required".into(),
+            ));
+        }
+
+        let client_id = Self::creds_client_id(shop)?;
+        let client_secret = Self::creds_client_secret(shop)?;
+        let token_url = Self::oauth_token_url(shop);
+
+        let mut form_params = vec![
+            ("grant_type".to_string(), "authorization_code".to_string()),
+            ("client_id".to_string(), client_id),
+            ("client_secret".to_string(), client_secret),
+            ("code".to_string(), code.to_string()),
+        ];
+        if let Some(uri) = redirect_uri.or_else(|| Self::default_redirect_uri(shop)) {
+            form_params.push(("redirect_uri".to_string(), uri));
+        }
+
+        let response = self
+            .client
+            .post(&token_url)
+            .form(&form_params)
+            .send()
+            .await
+            .map_err(|err| AdapterError::Temporary(format!("oauth token request failed: {err}")))?;
+        let status = response.status();
+        let payload = response
+            .json::<Value>()
+            .await
+            .map_err(|err| AdapterError::Unexpected(format!("oauth token response parse failed: {err}")))?;
+        if !status.is_success() {
+            return Err(AdapterError::Auth(format!(
+                "oauth token exchange failed: status={status}, payload={payload}"
+            )));
+        }
+
+        Self::parse_oauth_token_response(&payload, Utc::now())
+    }
+
     async fn pull_orders(
         &self,
         shop: &ShopAuthContext,
@@ -921,13 +1556,58 @@ impl PlatformAdapter for Adapter {
 
     async fn pull_refunds(
         &self,
-        _shop: &ShopAuthContext,
+        shop: &ShopAuthContext,
         cursor: SyncCursor,
     ) -> Result<PullRefundsResult, AdapterError> {
+        let mock_refunds = shop
+            .auth_meta
+            .get("mock_refunds")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if !mock_refunds.is_empty() {
+            let mut orders = Vec::new();
+            let mut latest_time = cursor.last_time;
+            for raw in mock_refunds {
+                let mut proj = Self::map_order_to_projection(shop, &raw)?;
+                let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
+                if let Some(last_time) = cursor.last_time {
+                    if compare_time <= last_time {
+                        continue;
+                    }
+                }
+                if Self::is_refund_related_order(&proj) {
+                    Self::inject_refund_meta(&mut proj, &raw);
+                    if latest_time.map(|t| compare_time > t).unwrap_or(true) {
+                        latest_time = Some(compare_time);
+                    }
+                    orders.push(proj);
+                }
+            }
+            return Ok(PullRefundsResult {
+                orders,
+                next_cursor: None,
+                latest_time,
+            });
+        }
+
+        if Self::refund_api_enabled(shop) {
+            match self.pull_refunds_from_api(shop, &cursor).await {
+                Ok(Some(result)) => return Ok(result),
+                Ok(None) => {}
+                Err(_err) => {}
+            }
+        }
+
+        let result = self.pull_orders(shop, cursor).await?;
         Ok(PullRefundsResult {
-            orders: Vec::new(),
-            next_cursor: None,
-            latest_time: cursor.last_time,
+            orders: result
+                .orders
+                .into_iter()
+                .filter(Self::is_refund_related_order)
+                .collect(),
+            next_cursor: result.next_cursor,
+            latest_time: result.latest_time,
         })
     }
 
@@ -937,13 +1617,36 @@ impl PlatformAdapter for Adapter {
         redirect_uri: Option<String>,
         state: &str,
     ) -> Option<String> {
-        erp_adapter::build_authorize_url_from_meta(&shop.auth_meta, redirect_uri, state)
+        let client_id = match Self::creds_client_id(shop) {
+            Ok(value) => value,
+            Err(_) => {
+                return erp_adapter::build_authorize_url_from_meta(
+                    &shop.auth_meta,
+                    redirect_uri,
+                    state,
+                );
+            }
+        };
+
+        let mut url = reqwest::Url::parse(&Self::oauth_authorize_url(shop)).ok()?;
+        {
+            let mut pairs = url.query_pairs_mut();
+            pairs.append_pair("response_type", "code");
+            pairs.append_pair("client_id", &client_id);
+            pairs.append_pair("state", state);
+            if let Some(uri) = redirect_uri.or_else(|| Self::default_redirect_uri(shop)) {
+                pairs.append_pair("redirect_uri", &uri);
+            }
+        }
+        Some(url.to_string())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use httpmock::Method::POST;
+    use httpmock::MockServer;
     use erp_types::{Platform, ShopId, TenantId};
 
     fn dummy_shop() -> ShopAuthContext {
@@ -1195,5 +1898,332 @@ mod tests {
         assert_eq!(proj.items[1].refund_amount_cent, Some(500));
         assert_eq!(proj.items[1].after_sale_type.as_deref(), Some("1"));
         assert_eq!(proj.items[1].after_sale_id.as_deref(), Some("9001"));
+    }
+
+    #[test]
+    fn pdd_build_authorize_url_prefers_official_oauth_endpoint() {
+        let adapter = Adapter::new();
+        let shop = dummy_shop();
+
+        let url = adapter
+            .build_authorize_url(
+                &shop,
+                Some("https://erp.example.com/channels/shops?auth_callback=1&shop_id=SHOP-1".to_string()),
+                "state-abc",
+            )
+            .expect("authorize url should exist");
+
+        assert!(url.starts_with("https://mms.pinduoduo.com/open.html?"));
+        assert!(url.contains("response_type=code"));
+        assert!(url.contains("client_id=x"));
+        assert!(url.contains("state=state-abc"));
+        assert!(url.contains("redirect_uri=https%3A%2F%2Ferp.example.com%2Fchannels%2Fshops%3Fauth_callback%3D1%26shop_id%3DSHOP-1"));
+    }
+
+    #[test]
+    fn pdd_parse_oauth_token_response_supports_top_level_and_nested_shape() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+
+        let top_level = serde_json::json!({
+            "access_token": "access-a",
+            "refresh_token": "refresh-a",
+            "expires_in": 7200,
+            "scope": "orders,shipping",
+        });
+        let parsed_top = Adapter::parse_oauth_token_response(&top_level, now).expect("top level parse");
+        assert_eq!(parsed_top.access_token.as_deref(), Some("access-a"));
+        assert_eq!(parsed_top.refresh_token.as_deref(), Some("refresh-a"));
+        assert_eq!(parsed_top.scopes.as_deref(), Some("orders,shipping"));
+        assert_eq!(
+            parsed_top.expires_at,
+            Some(now + chrono::Duration::seconds(7200))
+        );
+
+        let nested = serde_json::json!({
+            "result": {
+                "access_token": "access-b",
+                "refresh_token": "refresh-b",
+                "expires_in": 3600,
+                "scope": "orders",
+            }
+        });
+        let parsed_nested = Adapter::parse_oauth_token_response(&nested, now).expect("nested parse");
+        assert_eq!(parsed_nested.access_token.as_deref(), Some("access-b"));
+        assert_eq!(parsed_nested.refresh_token.as_deref(), Some("refresh-b"));
+        assert_eq!(parsed_nested.scopes.as_deref(), Some("orders"));
+        assert_eq!(
+            parsed_nested.expires_at,
+            Some(now + chrono::Duration::seconds(3600))
+        );
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_return_mock_orders() {
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        shop.auth_meta = serde_json::json!({
+            "mock_orders": [
+                {
+                    "order_sn": "PDD-ORDER-001",
+                    "created_time": 1704067200,
+                    "updated_at": 1704068200,
+                    "confirm_status": 1,
+                    "order_status": 2,
+                    "refund_status": 2,
+                    "after_sales_status": 2,
+                    "pay_amount": 12.34
+                }
+            ]
+        });
+
+        let result = PlatformAdapter::pull_refunds(&adapter, &shop, SyncCursor::default())
+            .await
+            .expect("pull refunds");
+
+        assert_eq!(result.orders.len(), 1);
+        assert!(result.latest_time.is_some());
+        assert_eq!(result.next_cursor, None);
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_filter_non_after_sales_orders() {
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        shop.auth_meta = serde_json::json!({
+            "mock_orders": [
+                {
+                    "order_sn": "PDD-ORDER-NORMAL-001",
+                    "created_time": 1704067200,
+                    "updated_at": 1704068200,
+                    "confirm_status": 1,
+                    "order_status": 2,
+                    "refund_status": 1,
+                    "after_sales_status": 0,
+                    "pay_amount": 12.34
+                },
+                {
+                    "order_sn": "PDD-ORDER-REFUND-002",
+                    "created_time": 1704069200,
+                    "updated_at": 1704070200,
+                    "confirm_status": 1,
+                    "order_status": 2,
+                    "refund_status": 2,
+                    "after_sales_status": 2,
+                    "pay_amount": 12.34
+                }
+            ]
+        });
+
+        let result = PlatformAdapter::pull_refunds(&adapter, &shop, SyncCursor::default())
+            .await
+            .expect("pull refunds");
+        assert_eq!(result.orders.len(), 1);
+        assert_eq!(result.orders[0].platform_order_id, "PDD-ORDER-REFUND-002");
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_use_refund_api_and_write_meta() {
+        let server = MockServer::start();
+        let refund_list = serde_json::json!({
+            "data": {
+                "list": [
+                    {
+                        "order_sn": "PDD-ORDER-API-001",
+                        "created_time": 1700000000,
+                        "updated_at": 1700000600,
+                        "confirm_status": 1,
+                        "order_status": 2,
+                        "refund_status": 2,
+                        "after_sales_status": 2,
+                        "pay_amount": 12.34,
+                        "refund_reason": "破损",
+                        "responsibility": "seller",
+                        "evidence_urls": ["https://example.com/pdd-proof.jpg"],
+                        "refund_updated_at": 1700000600,
+                        "after_sales_id": "PDD-AS-API-001",
+                        "item_list": [
+                            {
+                                "goods_id": 1001,
+                                "sku_id": 2001,
+                                "goods_name": "退款商品",
+                                "goods_count": 1,
+                                "goods_price": 12.34,
+                                "outer_id": "SKU-API-1",
+                                "refund_status": 2,
+                                "after_sales_status": 2,
+                                "refund_amount": 12.34,
+                                "after_sales_id": "PDD-AS-API-001"
+                            }
+                        ]
+                    }
+                ],
+                "cursor": "2",
+                "has_more": true
+            }
+        });
+        let _refund = server.mock(|when, then| {
+            when.method(POST).body_contains("pdd.refund.list");
+            then.status(200).json_body(refund_list.clone());
+        });
+
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        let mut creds = shop.credentials.as_object().cloned().unwrap_or_default();
+        creds.insert(
+            "gateway_url".to_string(),
+            serde_json::Value::String(server.base_url()),
+        );
+        creds.insert(
+            "refund_api_enabled".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        creds.insert(
+            "refund_list_method".to_string(),
+            serde_json::Value::String("pdd.refund.list".to_string()),
+        );
+        shop.credentials = serde_json::Value::Object(creds);
+        shop.auth_meta = serde_json::json!({});
+
+        let result = PlatformAdapter::pull_refunds(
+            &adapter,
+            &shop,
+            SyncCursor {
+                cursor: None,
+                last_time: None,
+            },
+        )
+        .await
+        .expect("pull refunds via api");
+
+        assert_eq!(result.orders.len(), 1);
+        assert_eq!(result.next_cursor.as_deref(), Some("2"));
+        assert!(result.latest_time.is_some());
+        let meta = result.orders[0].items[0]
+            .raw
+            .get("_erp_refund_meta")
+            .expect("refund meta exists");
+        assert_eq!(meta.get("reason").and_then(|v| v.as_str()), Some("破损"));
+        assert_eq!(
+            meta.get("responsibility").and_then(|v| v.as_str()),
+            Some("seller")
+        );
+        assert_eq!(
+            meta.get("source_refund_id").and_then(|v| v.as_str()),
+            Some("PDD-AS-API-001")
+        );
+        assert_eq!(
+            meta.get("source_status").and_then(|v| v.as_str()),
+            Some("2")
+        );
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_fallback_when_refund_api_failed() {
+        let server = MockServer::start();
+        let _refund_fail = server.mock(|when, then| {
+            when.method(POST).body_contains("pdd.refund.list");
+            then.status(500).body("mock fail");
+        });
+
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        let mut creds = shop.credentials.as_object().cloned().unwrap_or_default();
+        creds.insert(
+            "gateway_url".to_string(),
+            serde_json::Value::String(server.base_url()),
+        );
+        creds.insert(
+            "refund_api_enabled".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        creds.insert(
+            "refund_list_method".to_string(),
+            serde_json::Value::String("pdd.refund.list".to_string()),
+        );
+        shop.credentials = serde_json::Value::Object(creds);
+        shop.auth_meta = serde_json::json!({
+            "mock_orders": [
+                {
+                    "order_sn": "PDD-ORDER-FALLBACK-001",
+                    "created_time": 1700000000,
+                    "updated_at": 1700000600,
+                    "confirm_status": 1,
+                    "order_status": 2,
+                    "refund_status": 2,
+                    "after_sales_status": 2,
+                    "pay_amount": 12.34
+                }
+            ]
+        });
+
+        let result = PlatformAdapter::pull_refunds(&adapter, &shop, SyncCursor::default())
+            .await
+            .expect("pull refunds with fallback");
+        assert_eq!(result.orders.len(), 1);
+        assert_eq!(result.orders[0].platform_order_id, "PDD-ORDER-FALLBACK-001");
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_keep_cursor_latest_time_consistent() {
+        let server = MockServer::start();
+        let updated_at = Utc::now().timestamp() + 3600;
+        let refund_list = serde_json::json!({
+            "data": {
+                "list": [
+                    {
+                        "order_sn": "PDD-ORDER-CURSOR-001",
+                        "created_time": updated_at - 3600,
+                        "updated_at": updated_at,
+                        "confirm_status": 1,
+                        "order_status": 2,
+                        "refund_status": 2,
+                        "after_sales_status": 2,
+                        "pay_amount": 12.34
+                    }
+                ],
+                "cursor": "8",
+                "has_more": true
+            }
+        });
+        let _refund = server.mock(|when, then| {
+            when.method(POST).body_contains("pdd.refund.list");
+            then.status(200).json_body(refund_list.clone());
+        });
+
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        let mut creds = shop.credentials.as_object().cloned().unwrap_or_default();
+        creds.insert(
+            "gateway_url".to_string(),
+            serde_json::Value::String(server.base_url()),
+        );
+        creds.insert(
+            "refund_api_enabled".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        creds.insert(
+            "refund_list_method".to_string(),
+            serde_json::Value::String("pdd.refund.list".to_string()),
+        );
+        shop.credentials = serde_json::Value::Object(creds);
+        shop.auth_meta = serde_json::json!({});
+
+        let last_time = Utc::now() - chrono::Duration::days(2);
+        let result = PlatformAdapter::pull_refunds(
+            &adapter,
+            &shop,
+            SyncCursor {
+                cursor: Some("7".to_string()),
+                last_time: Some(last_time),
+            },
+        )
+        .await
+        .expect("pull refunds via api");
+
+        assert_eq!(result.next_cursor.as_deref(), Some("8"));
+        assert!(result.latest_time.is_some());
+        assert!(result.latest_time.expect("latest time") > last_time);
     }
 }

@@ -983,7 +983,392 @@ impl Adapter {
         if let Some(n) = v.as_i64() {
             return Some(n.to_string());
         }
+        if let Some(n) = v.as_u64() {
+            return Some(n.to_string());
+        }
+        if let Some(n) = v.as_f64() {
+            return Some(n.to_string());
+        }
         None
+    }
+
+    fn credential_bool(shop: &ShopAuthContext, key: &str) -> Option<bool> {
+        shop.credentials.get(key).and_then(|v| v.as_bool())
+    }
+
+    fn credential_string(shop: &ShopAuthContext, key: &str) -> Option<String> {
+        shop.credentials
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(ToString::to_string)
+    }
+
+    fn credential_i64(shop: &ShopAuthContext, key: &str) -> Option<i64> {
+        shop.credentials.get(key).and_then(|v| v.as_i64())
+    }
+
+    fn credential_object(shop: &ShopAuthContext, key: &str) -> Option<Value> {
+        shop.credentials.get(key).filter(|v| v.is_object()).cloned()
+    }
+
+    fn refund_api_enabled(shop: &ShopAuthContext) -> bool {
+        Self::credential_bool(shop, "refund_api_enabled").unwrap_or(false)
+    }
+
+    fn refund_list_method(shop: &ShopAuthContext) -> Option<String> {
+        Self::credential_string(shop, "refund_list_method")
+    }
+
+    fn refund_list_path(shop: &ShopAuthContext) -> Option<String> {
+        Self::credential_string(shop, "refund_list_path")
+    }
+
+    fn refund_page_size(shop: &ShopAuthContext) -> i64 {
+        Self::credential_i64(shop, "refund_page_size")
+            .unwrap_or(50)
+            .clamp(1, 200)
+    }
+
+    fn refund_list_biz(shop: &ShopAuthContext) -> Value {
+        Self::credential_object(shop, "refund_list_biz").unwrap_or_else(|| serde_json::json!({}))
+    }
+
+    fn extract_values_by_pointer(v: &Value, pointer: Option<String>) -> Option<Vec<Value>> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        let target = v.pointer(pointer)?;
+        if let Some(arr) = target.as_array() {
+            return Some(arr.clone());
+        }
+        Some(vec![target.clone()])
+    }
+
+    fn extract_text_by_pointer(v: &Value, pointer: Option<String>) -> Option<String> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        v.pointer(pointer).and_then(Self::value_to_string)
+    }
+
+    fn extract_bool_by_pointer(v: &Value, pointer: Option<String>) -> Option<bool> {
+        let pointer = pointer.as_deref()?.trim();
+        if pointer.is_empty() {
+            return None;
+        }
+        v.pointer(pointer).and_then(|x| x.as_bool())
+    }
+
+    fn extract_refund_list(
+        shop: &ShopAuthContext,
+        v: &Value,
+    ) -> (Vec<Value>, Option<String>, bool) {
+        let (mut items, mut next_cursor, mut has_more) = Self::extract_order_list(v);
+
+        let list_pointer = Self::credential_string(shop, "refund_list_pointer");
+        if let Some(overridden) = Self::extract_values_by_pointer(v, list_pointer) {
+            items = overridden;
+        }
+
+        if let Some(cursor) =
+            Self::extract_text_by_pointer(v, Self::credential_string(shop, "refund_next_cursor_pointer"))
+        {
+            next_cursor = Some(cursor);
+        }
+        if let Some(flag) =
+            Self::extract_bool_by_pointer(v, Self::credential_string(shop, "refund_has_more_pointer"))
+        {
+            has_more = flag;
+        }
+
+        (items, next_cursor, has_more)
+    }
+
+    fn first_text_from_keys(v: &Value, keys: &[&str]) -> Option<String> {
+        for key in keys {
+            if let Some(value) = v.get(*key).and_then(Self::value_to_string) {
+                let value = value.trim().to_string();
+                if !value.is_empty() {
+                    return Some(value);
+                }
+            }
+        }
+        None
+    }
+
+    fn collect_urls(value: &Value) -> Vec<String> {
+        match value {
+            Value::String(s) => {
+                let s = s.trim();
+                if s.is_empty() {
+                    vec![]
+                } else {
+                    vec![s.to_string()]
+                }
+            }
+            Value::Array(arr) => arr
+                .iter()
+                .flat_map(Self::collect_urls)
+                .collect::<Vec<String>>(),
+            Value::Object(map) => {
+                for key in ["url", "img_url", "image_url", "pic_url", "proof_url"] {
+                    if let Some(value) = map.get(key).and_then(Self::value_to_string) {
+                        let value = value.trim().to_string();
+                        if !value.is_empty() {
+                            return vec![value];
+                        }
+                    }
+                }
+                vec![]
+            }
+            _ => vec![],
+        }
+    }
+
+    fn first_urls_from_keys(v: &Value, keys: &[&str]) -> Vec<String> {
+        for key in keys {
+            if let Some(value) = v.get(*key) {
+                let urls = Self::collect_urls(value);
+                if !urls.is_empty() {
+                    return urls;
+                }
+            }
+        }
+        vec![]
+    }
+
+    fn first_text_from_sources(sources: &[&Value], keys: &[&str]) -> Option<String> {
+        for source in sources {
+            if let Some(value) = Self::first_text_from_keys(source, keys) {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    fn first_urls_from_sources(sources: &[&Value], keys: &[&str]) -> Vec<String> {
+        for source in sources {
+            let urls = Self::first_urls_from_keys(source, keys);
+            if !urls.is_empty() {
+                return urls;
+            }
+        }
+        vec![]
+    }
+
+    fn first_rfc3339_from_sources(sources: &[&Value], keys: &[&str]) -> Option<String> {
+        for source in sources {
+            for key in keys {
+                if let Some(value) = source.get(*key).and_then(parse_platform_time) {
+                    return Some(value.to_rfc3339());
+                }
+            }
+        }
+        None
+    }
+
+    fn inject_refund_meta(order: &mut OrderProjection, source: &Value) {
+        let order_raw = order.raw.clone();
+        let default_updated_at = order
+            .platform_updated_at
+            .unwrap_or(order.order_created_at)
+            .to_rfc3339();
+
+        for item in &mut order.items {
+            let sources = [&item.raw, source, &order_raw];
+            let reason = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "refund_reason",
+                    "reason",
+                    "after_sale_reason",
+                    "aftersale_reason",
+                    "remark",
+                ],
+            );
+            let responsibility = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "responsibility",
+                    "responsible_party",
+                    "refund_responsibility",
+                    "responsibility_type",
+                ],
+            );
+            let evidence_urls = Self::first_urls_from_sources(
+                &sources,
+                &[
+                    "evidence_urls",
+                    "proof_urls",
+                    "voucher_urls",
+                    "evidence",
+                    "proof",
+                    "proof_imgs",
+                    "images",
+                    "pics",
+                ],
+            );
+            let updated_at = Self::first_rfc3339_from_sources(
+                &sources,
+                &[
+                    "refund_updated_at",
+                    "after_sale_updated_at",
+                    "updated_at",
+                    "update_time",
+                    "modified",
+                ],
+            )
+            .unwrap_or_else(|| default_updated_at.clone());
+            let source_refund_id = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "after_sale_id",
+                    "after_sales_id",
+                    "aftersale_id",
+                    "refund_id",
+                    "refund_no",
+                ],
+            );
+            let source_status = Self::first_text_from_sources(
+                &sources,
+                &[
+                    "refund_status",
+                    "after_sale_status",
+                    "refund_state",
+                    "after_sale_state",
+                    "status",
+                ],
+            );
+
+            if let Some(raw_obj) = item.raw.as_object_mut() {
+                raw_obj.insert(
+                    "_erp_refund_meta".to_string(),
+                    serde_json::json!({
+                        "reason": reason,
+                        "responsibility": responsibility,
+                        "evidence_urls": evidence_urls,
+                        "updated_at": updated_at,
+                        "source_refund_id": source_refund_id,
+                        "source_status": source_status,
+                    }),
+                );
+            }
+        }
+    }
+
+    async fn pull_refunds_from_api(
+        &self,
+        shop: &ShopAuthContext,
+        cursor: &SyncCursor,
+    ) -> Result<Option<PullRefundsResult>, AdapterError> {
+        if !Self::refund_api_enabled(shop) {
+            return Ok(None);
+        }
+        let Some(method) = Self::refund_list_method(shop) else {
+            return Ok(None);
+        };
+        let Some(path) = Self::refund_list_path(shop) else {
+            return Ok(None);
+        };
+
+        let start_time = cursor
+            .last_time
+            .unwrap_or_else(|| Utc::now() - chrono::Duration::days(7))
+            .timestamp();
+        let end_time = Utc::now().timestamp();
+        let page_size = Self::refund_page_size(shop);
+
+        let mut biz = Self::refund_list_biz(shop);
+        if !biz.is_object() {
+            biz = serde_json::json!({});
+        }
+        if let Some(map) = biz.as_object_mut() {
+            map.entry("update_time_start".to_string())
+                .or_insert(Value::Number(start_time.into()));
+            map.entry("update_time_end".to_string())
+                .or_insert(Value::Number(end_time.into()));
+            map.entry("start_time".to_string())
+                .or_insert(Value::Number(start_time.into()));
+            map.entry("end_time".to_string())
+                .or_insert(Value::Number(end_time.into()));
+            map.entry("size".to_string())
+                .or_insert(Value::Number(page_size.into()));
+            map.entry("page_size".to_string())
+                .or_insert(Value::Number(page_size.into()));
+        }
+
+        let page = cursor
+            .cursor
+            .as_deref()
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(1);
+        let cursor_str = cursor
+            .cursor
+            .as_deref()
+            .filter(|v| v.parse::<i64>().is_err())
+            .map(|v| v.to_string());
+        let use_page = cursor_str.is_none();
+
+        if let Some(map) = biz.as_object_mut() {
+            if use_page {
+                map.insert("page".to_string(), Value::Number(page.into()));
+            }
+            if let Some(cursor_str) = cursor_str {
+                map.insert("cursor".to_string(), Value::String(cursor_str));
+            }
+        }
+
+        let response = self.call_openapi(shop, &method, &path, biz).await?;
+        let (raw_list, mut next_cursor, has_more) = Self::extract_refund_list(shop, &response);
+
+        let mut orders = Vec::new();
+        let mut latest_time = cursor.last_time;
+        for raw in raw_list {
+            let mut proj =
+                if raw.get("sku_order_list").is_some() || raw.get("product_order_list").is_some() {
+                    Self::map_order_to_projection(shop, &raw)?
+                } else if let Some(order_id) = raw
+                    .get("order_id")
+                    .or_else(|| raw.get("orderId"))
+                    .and_then(Self::value_to_string)
+                {
+                    self.fetch_order_detail(shop, &order_id).await?
+                } else {
+                    continue;
+                };
+
+            let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
+            if let Some(last_time) = cursor.last_time {
+                if compare_time <= last_time {
+                    continue;
+                }
+            }
+            if Self::is_refund_related_order(&proj) {
+                Self::inject_refund_meta(&mut proj, &raw);
+                if latest_time.map(|t| compare_time > t).unwrap_or(true) {
+                    latest_time = Some(compare_time);
+                }
+                orders.push(proj);
+            }
+        }
+
+        if has_more {
+            if next_cursor.is_none() && use_page {
+                next_cursor = Some((page + 1).to_string());
+            }
+        } else {
+            next_cursor = None;
+        }
+
+        Ok(Some(PullRefundsResult {
+            orders,
+            next_cursor,
+            latest_time,
+        }))
     }
 
     fn extract_order_list(v: &Value) -> (Vec<Value>, Option<String>, bool) {
@@ -1264,6 +1649,24 @@ impl WebhookAdapter for Adapter {
     }
 }
 
+impl Adapter {
+    fn is_refund_related_order(order: &OrderProjection) -> bool {
+        if matches!(order.status, OrderStatus::Refunding | OrderStatus::Refunded) {
+            return true;
+        }
+        order.items.iter().any(|item| {
+            item.after_sale_id
+                .as_deref()
+                .map(str::trim)
+                .map(|id| !id.is_empty())
+                .unwrap_or(false)
+                || item.refund_state != RefundState::None
+                || item.after_sale_state != AfterSaleState::None
+                || item.refund_amount_cent.unwrap_or(0) > 0
+        })
+    }
+}
+
 #[async_trait]
 impl OrderAdapter for Adapter {
     fn platform(&self) -> Platform {
@@ -1513,13 +1916,95 @@ impl PlatformAdapter for Adapter {
 
     async fn pull_refunds(
         &self,
-        _shop: &ShopAuthContext,
+        shop: &ShopAuthContext,
         cursor: SyncCursor,
     ) -> Result<PullRefundsResult, AdapterError> {
+        let mock_refunds = shop
+            .auth_meta
+            .get("mock_refunds")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if !mock_refunds.is_empty() {
+            let mut orders = Vec::new();
+            let mut latest_time = cursor.last_time;
+            for raw in mock_refunds {
+                let mut proj = Self::map_order_to_projection(shop, &raw)?;
+                let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
+                if let Some(last_time) = cursor.last_time {
+                    if compare_time <= last_time {
+                        continue;
+                    }
+                }
+                if Self::is_refund_related_order(&proj) {
+                    Self::inject_refund_meta(&mut proj, &raw);
+                    if latest_time.map(|t| compare_time > t).unwrap_or(true) {
+                        latest_time = Some(compare_time);
+                    }
+                    orders.push(proj);
+                }
+            }
+            return Ok(PullRefundsResult {
+                orders,
+                next_cursor: None,
+                latest_time,
+            });
+        }
+
+        if Self::refund_api_enabled(shop) {
+            match self.pull_refunds_from_api(shop, &cursor).await {
+                Ok(Some(result)) => return Ok(result),
+                Ok(None) => {}
+                Err(_err) => {}
+            }
+        }
+
+        let mock_orders = shop
+            .auth_meta
+            .get("mock_orders")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if !mock_orders.is_empty() {
+            let mut orders = Vec::new();
+            let mut latest_time = cursor.last_time;
+            for raw in mock_orders {
+                let mut proj = Self::map_order_to_projection(shop, &raw)?;
+                let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
+                if let Some(last_time) = cursor.last_time {
+                    if compare_time <= last_time {
+                        continue;
+                    }
+                }
+                if Self::is_refund_related_order(&proj) {
+                    Self::inject_refund_meta(&mut proj, &raw);
+                    if latest_time.map(|t| compare_time > t).unwrap_or(true) {
+                        latest_time = Some(compare_time);
+                    }
+                    orders.push(proj);
+                }
+            }
+            return Ok(PullRefundsResult {
+                orders,
+                next_cursor: None,
+                latest_time,
+            });
+        }
+
+        let result = self.pull_orders(shop, cursor).await?;
+        let mut orders: Vec<OrderProjection> = result
+            .orders
+            .into_iter()
+            .filter(Self::is_refund_related_order)
+            .collect();
+        for order in &mut orders {
+            let raw = order.raw.clone();
+            Self::inject_refund_meta(order, &raw);
+        }
         Ok(PullRefundsResult {
-            orders: Vec::new(),
-            next_cursor: None,
-            latest_time: cursor.last_time,
+            orders,
+            next_cursor: result.next_cursor,
+            latest_time: result.latest_time,
         })
     }
 
@@ -1747,5 +2232,99 @@ mod tests {
         assert_eq!(it.refund_amount_cent, Some(100));
         assert_eq!(it.after_sale_type.as_deref(), Some("仅退款"));
         assert_eq!(it.after_sale_id.as_deref(), Some("AS-001"));
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_return_mock_orders() {
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        shop.auth_meta = serde_json::json!({
+            "mock_orders": [
+                {
+                    "order_id": "DY-ORDER-001",
+                    "create_time": 1704067200,
+                    "update_time": 1704068200,
+                    "order_status": 3,
+                    "pay_amount": 1234,
+                    "sku_order_list": [
+                        {
+                            "sku_order_id": "SO-1",
+                            "out_sku_id": "SKU-OUT-1",
+                            "item_num": 1,
+                            "goods_price": 1234,
+                            "order_amount": 1234,
+                            "after_sale_info": {
+                                "refund_status": 1,
+                                "after_sale_status": 2,
+                                "refund_amount": 100,
+                                "after_sale_id": "DY-AS-001"
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let result = PlatformAdapter::pull_refunds(&adapter, &shop, SyncCursor::default())
+            .await
+            .expect("pull refunds");
+
+        assert_eq!(result.orders.len(), 1);
+        assert!(result.latest_time.is_some());
+        assert_eq!(result.next_cursor, None);
+    }
+
+    #[tokio::test]
+    async fn pull_refunds_should_filter_non_after_sales_orders() {
+        let adapter = Adapter::new();
+        let mut shop = dummy_shop();
+        shop.auth_meta = serde_json::json!({
+            "mock_orders": [
+                {
+                    "order_id": "DY-ORDER-NORMAL-001",
+                    "create_time": 1704067200,
+                    "update_time": 1704068200,
+                    "order_status": 3,
+                    "pay_amount": 1234,
+                    "sku_order_list": [
+                        {
+                            "sku_order_id": "SO-N1",
+                            "out_sku_id": "SKU-N",
+                            "item_num": 1,
+                            "goods_price": 1234,
+                            "order_amount": 1234
+                        }
+                    ]
+                },
+                {
+                    "order_id": "DY-ORDER-REFUND-002",
+                    "create_time": 1704069200,
+                    "update_time": 1704070200,
+                    "order_status": 3,
+                    "pay_amount": 1234,
+                    "sku_order_list": [
+                        {
+                            "sku_order_id": "SO-R1",
+                            "out_sku_id": "SKU-R",
+                            "item_num": 1,
+                            "goods_price": 1234,
+                            "order_amount": 1234,
+                            "after_sale_info": {
+                                "refund_status": 1,
+                                "after_sale_status": 2,
+                                "refund_amount": 100,
+                                "after_sale_id": "DY-AS-002"
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let result = PlatformAdapter::pull_refunds(&adapter, &shop, SyncCursor::default())
+            .await
+            .expect("pull refunds");
+        assert_eq!(result.orders.len(), 1);
+        assert_eq!(result.orders[0].platform_order_id, "DY-ORDER-REFUND-002");
     }
 }

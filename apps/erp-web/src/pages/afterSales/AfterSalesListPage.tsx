@@ -103,6 +103,46 @@ const typeLabelMap = new Map(typeOptions.map((option) => [option.value, option.l
 const formatDateTime = (value?: string) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
+const formatSlaRemaining = (minutes?: number | null) => {
+  if (minutes == null || Number.isNaN(minutes)) {
+    return '-';
+  }
+  if (minutes < 0) {
+    return `超时 ${Math.abs(minutes)} 分钟`;
+  }
+  return `${minutes} 分钟`;
+};
+
+const slaStatusLabel = (status?: string | null) => {
+  switch (status) {
+    case 'OVERDUE':
+      return '已超时';
+    case 'DUE_SOON':
+      return '即将超时';
+    case 'ON_TRACK':
+      return '正常';
+    case 'CLOSED':
+      return '已关闭';
+    default:
+      return '-';
+  }
+};
+
+const slaStatusColor = (status?: string | null) => {
+  switch (status) {
+    case 'OVERDUE':
+      return 'red';
+    case 'DUE_SOON':
+      return 'gold';
+    case 'ON_TRACK':
+      return 'green';
+    case 'CLOSED':
+      return 'default';
+    default:
+      return 'default';
+  }
+};
+
 export const AfterSalesListPage = () => {
   const tenantId = useTenantId();
   const canWrite = useCan('aftersales.write');
@@ -232,6 +272,17 @@ export const AfterSalesListPage = () => {
         render: (value: number) => `¥${(value / 100).toFixed(2)}`
       },
       {
+        title: 'SLA',
+        key: 'sla',
+        render: (_, record) => (
+          <Space direction="vertical" size={2}>
+            <Tag color={slaStatusColor(record.sla_status)}>{slaStatusLabel(record.sla_status)}</Tag>
+            <span>{formatSlaRemaining(record.sla_remaining_minutes)}</span>
+            {record.escalation_role ? <span>责任角色: {record.escalation_role}</span> : null}
+          </Space>
+        )
+      },
+      {
         title: '创建时间',
         dataIndex: 'created_at',
         render: (value) => formatDateTime(value)
@@ -271,6 +322,16 @@ export const AfterSalesListPage = () => {
               {canShipment && (
                 <Button size="small" type="link" onClick={() => handleCreateShipment(record)}>
                   {record.type === 'EXCHANGE' ? '生成换货包裹' : '生成补发包裹'}
+                </Button>
+              )}
+              {record.sla_status === 'OVERDUE' && (
+                <Button
+                  size="small"
+                  type="link"
+                  data-testid="after-sales-sla-nudge-action"
+                  onClick={() => navigate('/after-sales/intercepts')}
+                >
+                  催办
                 </Button>
               )}
             </Space>

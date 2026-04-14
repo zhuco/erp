@@ -26,6 +26,12 @@ pub struct Metrics {
     inventory_reserve_total: AtomicU64,
     inventory_consume_total: AtomicU64,
     inventory_return_total: AtomicU64,
+    after_sales_sync_success_total: AtomicU64,
+    after_sales_compensation_total: AtomicU64,
+    after_sales_cycle_time_ms_sum: AtomicU64,
+    after_sales_cycle_time_ms_count: AtomicU64,
+    after_sales_sla_overdue_total: AtomicU64,
+    after_sales_sla_evaluated_total: AtomicU64,
     print_jobs_success_total: AtomicU64,
     print_jobs_failed_total: AtomicU64,
     http_request_total: AtomicU64,
@@ -40,6 +46,10 @@ pub struct Metrics {
     worker_consume_latency_ms_count: AtomicU64,
     worker_consume_lag_ms_sum: AtomicU64,
     worker_consume_lag_ms_count: AtomicU64,
+    frontend_route_diagnostic_ingested_total: AtomicU64,
+    frontend_route_timeout_total: AtomicU64,
+    frontend_route_error_total: AtomicU64,
+    frontend_route_prefetch_ready_total: AtomicU64,
 }
 
 impl Metrics {
@@ -128,6 +138,35 @@ impl Metrics {
         self.inventory_return_total.fetch_add(1, Ordering::Relaxed);
     }
 
+    pub fn inc_after_sales_sync_success(&self) {
+        self.after_sales_sync_success_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_after_sales_compensation(&self) {
+        self.after_sales_compensation_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn add_after_sales_cycle_time_ms(&self, duration_ms: u64) {
+        self.after_sales_cycle_time_ms_sum
+            .fetch_add(duration_ms, Ordering::Relaxed);
+        self.after_sales_cycle_time_ms_count
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_after_sales_sla_overdue(&self) {
+        self.after_sales_sla_overdue_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn add_after_sales_sla_evaluated(&self, count: u64) {
+        if count > 0 {
+            self.after_sales_sla_evaluated_total
+                .fetch_add(count, Ordering::Relaxed);
+        }
+    }
+
     pub fn inc_print_jobs_success(&self) {
         self.print_jobs_success_total
             .fetch_add(1, Ordering::Relaxed);
@@ -183,6 +222,26 @@ impl Metrics {
         self.worker_consume_lag_ms_sum
             .fetch_add(lag_ms, Ordering::Relaxed);
         self.worker_consume_lag_ms_count
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_frontend_route_diagnostic_ingested(&self) {
+        self.frontend_route_diagnostic_ingested_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_frontend_route_timeout(&self) {
+        self.frontend_route_timeout_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_frontend_route_error(&self) {
+        self.frontend_route_error_total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn inc_frontend_route_prefetch_ready(&self) {
+        self.frontend_route_prefetch_ready_total
             .fetch_add(1, Ordering::Relaxed);
     }
 
@@ -304,6 +363,42 @@ impl Metrics {
         );
         append_counter(
             &mut out,
+            "erp_after_sales_sync_success_total",
+            "After-sales events synced and closed successfully",
+            self.after_sales_sync_success_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_after_sales_compensation_total",
+            "After-sales compensation actions executed",
+            self.after_sales_compensation_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_after_sales_cycle_time_ms_sum",
+            "Sum of after-sales processing cycle time in ms",
+            self.after_sales_cycle_time_ms_sum.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_after_sales_cycle_time_ms_count",
+            "Count of after-sales processing cycle samples",
+            self.after_sales_cycle_time_ms_count.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_after_sales_sla_overdue_total",
+            "After-sales records identified as SLA overdue",
+            self.after_sales_sla_overdue_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_after_sales_sla_evaluated_total",
+            "After-sales records evaluated for SLA status",
+            self.after_sales_sla_evaluated_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
             "erp_print_jobs_success_total",
             "Print jobs marked SUCCESS",
             self.print_jobs_success_total.load(Ordering::Relaxed),
@@ -385,6 +480,32 @@ impl Metrics {
             "erp_worker_consume_lag_ms_count",
             "Count of worker consume lag samples",
             self.worker_consume_lag_ms_count.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_frontend_route_diagnostic_ingested_total",
+            "Frontend route diagnostic events ingested from the web client",
+            self.frontend_route_diagnostic_ingested_total
+                .load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_frontend_route_timeout_total",
+            "Frontend route diagnostic events marked as timeout",
+            self.frontend_route_timeout_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_frontend_route_error_total",
+            "Frontend route diagnostic events marked as error",
+            self.frontend_route_error_total.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut out,
+            "erp_frontend_route_prefetch_ready_total",
+            "Frontend route diagnostic events that hit prefetch successfully",
+            self.frontend_route_prefetch_ready_total
+                .load(Ordering::Relaxed),
         );
         out
     }

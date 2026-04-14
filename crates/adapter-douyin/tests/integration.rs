@@ -136,3 +136,174 @@ async fn pull_orders_paginates_and_fetches_detail() {
     assert_eq!(result2.orders[0].platform_order_id, "ORDER-2");
     assert!(result2.next_cursor.is_none());
 }
+
+#[tokio::test]
+async fn pull_refunds_should_use_refund_api_and_write_meta() {
+    let server = MockServer::start();
+    let refund_list = serde_json::json!({
+        "code": 0,
+        "data": {
+            "list": [
+                {
+                    "order_id": "ORDER-R-1",
+                    "order_status": 3,
+                    "create_time": 1700000000,
+                    "update_time": 1700000300,
+                    "refund_reason": "商品破损",
+                    "responsibility": "seller",
+                    "evidence_urls": ["https://example.com/p1.jpg"],
+                    "refund_updated_at": 1700000300,
+                    "after_sale_id": "DY-AS-100",
+                    "refund_status": 1,
+                    "sku_order_list": [
+                        {
+                            "sku_order_id": "SO-R-1",
+                            "out_sku_id": "SKU-R-1",
+                            "item_num": 1,
+                            "goods_price": 100,
+                            "order_amount": 100,
+                            "after_sale_info": {
+                                "refund_status": 1,
+                                "after_sale_status": 2,
+                                "refund_amount": 100,
+                                "after_sale_id": "DY-AS-100"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "has_more": false
+        }
+    });
+    let _refund = server.mock(|when, then| {
+        when.method(POST)
+            .path("/afterSale/list")
+            .body_contains("order.refundList");
+        then.status(200).json_body(refund_list.clone());
+    });
+
+    let adapter = Adapter::new();
+    let mut shop = shop_with_gateway(&server.base_url());
+    let mut creds = shop.credentials.as_object().cloned().unwrap_or_default();
+    creds.insert(
+        "refund_api_enabled".to_string(),
+        serde_json::Value::Bool(true),
+    );
+    creds.insert(
+        "refund_list_method".to_string(),
+        serde_json::Value::String("order.refundList".to_string()),
+    );
+    creds.insert(
+        "refund_list_path".to_string(),
+        serde_json::Value::String("/afterSale/list".to_string()),
+    );
+    shop.credentials = serde_json::Value::Object(creds);
+
+    let result = adapter
+        .pull_refunds(
+            &shop,
+            SyncCursor {
+                cursor: None,
+                last_time: Some(Utc.timestamp_opt(1699999999, 0).unwrap()),
+            },
+        )
+        .await
+        .expect("pull refunds");
+    assert_eq!(result.orders.len(), 1);
+    let item_raw = &result.orders[0].items[0].raw;
+    let meta = item_raw
+        .get("_erp_refund_meta")
+        .expect("refund meta should exist");
+    assert_eq!(meta.get("reason").and_then(|v| v.as_str()), Some("商品破损"));
+    assert_eq!(
+        meta.get("responsibility").and_then(|v| v.as_str()),
+        Some("seller")
+    );
+    assert_eq!(
+        meta.get("source_refund_id").and_then(|v| v.as_str()),
+        Some("DY-AS-100")
+    );
+    assert_eq!(
+        meta.get("source_status").and_then(|v| v.as_str()),
+        Some("1")
+    );
+    let urls = meta
+        .get("evidence_urls")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(urls.len(), 1);
+    assert_eq!(urls[0].as_str(), Some("https://example.com/p1.jpg"));
+    assert!(meta
+        .get("updated_at")
+        .and_then(|v| v.as_str())
+        .map(|v| v.contains('T'))
+        .unwrap_or(false));
+}
+
+#[tokio::test]
+async fn pull_refunds_should_fallback_when_refund_api_failed() {
+    let server = MockServer::start();
+    let _refund_fail = server.mock(|when, then| {
+        when.method(POST)
+            .path("/afterSale/list")
+            .body_contains("order.refundList");
+        then.status(500).body("mock fail");
+    });
+
+    let adapter = Adapter::new();
+    let mut shop = shop_with_gateway(&server.base_url());
+    let mut creds = shop.credentials.as_object().cloned().unwrap_or_default();
+    creds.insert(
+        "refund_api_enabled".to_string(),
+        serde_json::Value::Bool(true),
+    );
+    creds.insert(
+        "refund_list_method".to_string(),
+        serde_json::Value::String("order.refundList".to_string()),
+    );
+    creds.insert(
+        "refund_list_path".to_string(),
+        serde_json::Value::String("/afterSale/list".to_string()),
+    );
+    shop.credentials = serde_json::Value::Object(creds);
+    shop.auth_meta = serde_json::json!({
+        "mock_orders": [
+            {
+                "order_id": "ORDER-FALLBACK-1",
+                "create_time": 1700000000,
+                "update_time": 1700000400,
+                "order_status": 3,
+                "pay_amount": 100,
+                "sku_order_list": [
+                    {
+                        "sku_order_id": "SO-F-1",
+                        "out_sku_id": "SKU-F-1",
+                        "item_num": 1,
+                        "goods_price": 100,
+                        "order_amount": 100,
+                        "after_sale_info": {
+                            "refund_status": 1,
+                            "after_sale_status": 2,
+                            "refund_amount": 100,
+                            "after_sale_id": "DY-AS-FALLBACK"
+                        }
+                    }
+                ]
+            }
+        ]
+    });
+
+    let result = adapter
+        .pull_refunds(
+            &shop,
+            SyncCursor {
+                cursor: None,
+                last_time: Some(Utc.timestamp_opt(1699999999, 0).unwrap()),
+            },
+        )
+        .await
+        .expect("pull refunds with fallback");
+    assert_eq!(result.orders.len(), 1);
+    assert_eq!(result.orders[0].platform_order_id, "ORDER-FALLBACK-1");
+}

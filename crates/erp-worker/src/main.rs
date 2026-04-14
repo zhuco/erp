@@ -1952,11 +1952,18 @@ async fn handle_refund_requested(db: &Db, payload: RefundRequestedPayload) -> an
     let refund_doc = repo
         .mark_refund_done(payload.tenant_id, payload.refund_doc_id)
         .await?;
+    metrics().inc_after_sales_sync_success();
 
     if let Ok(Some(after_sales)) = repo
         .get_after_sales(payload.tenant_id, refund_doc.after_sales_id)
         .await
     {
+        let cycle_ms = Utc::now()
+            .signed_duration_since(after_sales.created_at)
+            .num_milliseconds();
+        if cycle_ms > 0 {
+            metrics().add_after_sales_cycle_time_ms(cycle_ms as u64);
+        }
         if let Err(err) =
             rollback_refunded_order(db, payload.tenant_id, after_sales.order_id, refund_doc.id)
                 .await
@@ -2146,6 +2153,7 @@ async fn rollback_refunded_order(
             ua: None,
         })
         .await;
+    metrics().inc_after_sales_compensation();
 
     Ok(())
 }
@@ -2490,11 +2498,50 @@ fn compute_sync_dedup_key(
     platform_order_id: &str,
     event_type: &str,
     version: &str,
+    refund_fingerprint: Option<&str>,
 ) -> String {
-    let base = format!("{platform}:{platform_order_id}:{event_type}:{version}");
+    let base = match refund_fingerprint {
+        Some(fingerprint) if !fingerprint.trim().is_empty() => format!(
+            "{platform}:{platform_order_id}:{event_type}:{version}:{fingerprint}"
+        ),
+        _ => format!("{platform}:{platform_order_id}:{event_type}:{version}"),
+    };
     let mut hasher = Sha256::new();
     hasher.update(base.as_bytes());
     hex::encode(hasher.finalize())
+}
+
+fn refund_sync_dedup_fingerprint(order: &OrderProjection) -> Option<String> {
+    let mut tokens: Vec<String> = Vec::new();
+    for item in &order.items {
+        let case_id = item
+            .after_sale_id
+            .as_ref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("LINE:{}", item.line_id));
+        let token = format!(
+            "{}:{}:{}:{}",
+            case_id,
+            item.refund_state,
+            item.after_sale_state,
+            item.refund_amount_cent.unwrap_or(0)
+        );
+        if token.ends_with(":NONE:NONE:0") && case_id.starts_with("LINE:") {
+            continue;
+        }
+        tokens.push(token);
+    }
+    if tokens.is_empty() {
+        return None;
+    }
+    tokens.sort();
+    tokens.dedup();
+    let joined = tokens.join("|");
+    let mut hasher = Sha256::new();
+    hasher.update(joined.as_bytes());
+    Some(hex::encode(hasher.finalize()))
 }
 
 fn annotate_mapping_version(
@@ -3156,11 +3203,17 @@ async fn run_sync_jobs_once(
                     annotate_mapping_version(&mut order, mapping_version);
                     let version_time = order.platform_updated_at.unwrap_or(order.order_created_at);
                     let version = version_time.timestamp().to_string();
+                    let refund_fingerprint = if job.job_type == "refund_sync" {
+                        refund_sync_dedup_fingerprint(&order)
+                    } else {
+                        None
+                    };
                     let dedup_key = compute_sync_dedup_key(
                         &order.platform,
                         &order.platform_order_id,
                         &event_type,
                         &version,
+                        refund_fingerprint.as_deref(),
                     );
                     let headers = serde_json::json!({
                         "source": "sync_job",
@@ -4363,7 +4416,7 @@ mod tests {
     use anyhow::Result;
     use chrono::{Datelike, Duration as ChronoDuration, Utc};
     use erp_domain::OrderItemProjection;
-    use erp_types::{AfterSaleState, OrderId, OrderStatus, RefundState};
+    use erp_types::{AfterSaleState, OrderId, OrderStatus, Platform, RefundState};
     use sqlx::{postgres::PgPoolOptions, PgPool};
     use std::io::Write;
     use std::sync::{Arc, Mutex};
@@ -4406,6 +4459,88 @@ mod tests {
                 buffer: self.buffer.clone(),
             }
         }
+    }
+
+    fn test_order_with_refund_case(
+        after_sale_id: Option<&str>,
+        refund_state: RefundState,
+        after_sale_state: AfterSaleState,
+        refund_amount_cent: Option<i64>,
+    ) -> OrderProjection {
+        OrderProjection {
+            tenant_id: "00000000-0000-0000-0000-000000000000".parse().unwrap(),
+            shop_id: "00000000-0000-0000-0000-000000000000".parse().unwrap(),
+            platform: Platform::Jd,
+            platform_order_id: "P-ORDER-1".to_string(),
+            status: OrderStatus::Shipped,
+            total_amount_cent: 100,
+            goods_amount_cent: None,
+            postage_amount_cent: None,
+            discount_amount_cent: None,
+            platform_discount_cent: None,
+            seller_discount_cent: None,
+            coupon_discount_cent: None,
+            currency: "CNY".to_string(),
+            buyer_name: None,
+            receiver_name: None,
+            receiver_phone: None,
+            receiver_address: None,
+            pay_at: None,
+            ship_at: None,
+            finish_at: None,
+            cancel_at: None,
+            buyer_message: None,
+            seller_remark: None,
+            logistics_company: None,
+            tracking_no: None,
+            order_created_at: Utc::now(),
+            platform_updated_at: Some(Utc::now()),
+            raw: serde_json::json!({}),
+            items: vec![OrderItemProjection {
+                line_id: "L1".to_string(),
+                sku_id: Some("SKU-1".to_string()),
+                title: Some("测试商品".to_string()),
+                qty: 1,
+                price_cent: 100,
+                amount_cent: 100,
+                pay_amount_cent: Some(100),
+                discount_cent: None,
+                refund_state,
+                after_sale_state,
+                refund_amount_cent,
+                after_sale_type: Some("refund".to_string()),
+                after_sale_id: after_sale_id.map(|v| v.to_string()),
+                raw: serde_json::json!({}),
+            }],
+        }
+    }
+
+    #[test]
+    fn refund_sync_dedup_fingerprint_distinguishes_after_sale_case() {
+        let order_a = test_order_with_refund_case(
+            Some("CASE-A"),
+            RefundState::Processing,
+            AfterSaleState::Processing,
+            Some(1200),
+        );
+        let order_b = test_order_with_refund_case(
+            Some("CASE-B"),
+            RefundState::Processing,
+            AfterSaleState::Processing,
+            Some(1200),
+        );
+        let fp_a = refund_sync_dedup_fingerprint(&order_a).expect("fingerprint A");
+        let fp_b = refund_sync_dedup_fingerprint(&order_b).expect("fingerprint B");
+        assert_ne!(fp_a, fp_b);
+    }
+
+    #[test]
+    fn compute_sync_dedup_key_includes_refund_fingerprint() {
+        let k1 = compute_sync_dedup_key(&Platform::Jd, "P-ORDER-1", "REFUND_SYNC", "1", Some("A"));
+        let k2 = compute_sync_dedup_key(&Platform::Jd, "P-ORDER-1", "REFUND_SYNC", "1", Some("B"));
+        let k3 = compute_sync_dedup_key(&Platform::Jd, "P-ORDER-1", "REFUND_SYNC", "1", None);
+        assert_ne!(k1, k2);
+        assert_ne!(k1, k3);
     }
 
     async fn setup_schema(pool: &PgPool) -> Result<()> {

@@ -3,6 +3,13 @@ use erp_types::{OrderId, TenantId, UserId};
 use serde_json::Value;
 use sqlx::{PgPool, Postgres};
 
+fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
+    if value.trim().is_empty() {
+        return Err(anyhow::anyhow!("{field} must not be blank"));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub struct OrderActionLog {
     pub action_log_id: uuid::Uuid,
@@ -52,6 +59,9 @@ impl<'a> OrderActionLogsRepo<'a> {
         T: sqlx::Executor<'t, Database = Postgres>,
     {
         let status = input.status.unwrap_or_else(|| "SUCCESS".to_string());
+        ensure_non_blank("action_code", &input.action_code)?;
+        ensure_non_blank("idempotency_key", &input.idempotency_key)?;
+        ensure_non_blank("status", &status)?;
         let request_json = input.request_json.unwrap_or_else(|| serde_json::json!({}));
         let response_json = input.response_json.unwrap_or_else(|| serde_json::json!({}));
         let error_message = input.error_message.unwrap_or_default();
@@ -133,6 +143,18 @@ impl<'a> OrderActionLogsRepo<'a> {
         .await?;
 
         Ok(row.map(OrderActionLogRow::into_log))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_non_blank;
+
+    #[test]
+    fn ensure_non_blank_rejects_blank_values() {
+        assert!(ensure_non_blank("action_code", " ").is_err());
+        assert!(ensure_non_blank("action_code", "\n\t").is_err());
+        assert!(ensure_non_blank("action_code", "OMS.REVIEW_PASS").is_ok());
     }
 }
 

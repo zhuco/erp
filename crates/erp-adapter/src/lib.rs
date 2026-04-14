@@ -278,6 +278,15 @@ pub trait PlatformAdapter: Send + Sync {
         Err(AdapterError::Unsupported)
     }
 
+    async fn exchange_authorization_code(
+        &self,
+        _shop: &ShopAuthContext,
+        _code: &str,
+        _redirect_uri: Option<String>,
+    ) -> Result<TokenRefreshResult, AdapterError> {
+        Err(AdapterError::Unsupported)
+    }
+
     fn build_authorize_url(
         &self,
         _shop: &ShopAuthContext,

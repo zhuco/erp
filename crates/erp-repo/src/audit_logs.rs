@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
+fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
+    if value.trim().is_empty() {
+        return Err(anyhow!("{field} must not be blank"));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLog {
     pub audit_id: uuid::Uuid,
@@ -85,6 +92,8 @@ impl<'a> AuditLogsRepo<'a> {
     }
 
     pub async fn insert(&self, input: AuditLogCreate) -> anyhow::Result<AuditLog> {
+        ensure_non_blank("action", &input.action)?;
+        ensure_non_blank("entity_type", &input.entity_type)?;
         let row: AuditLogRow = sqlx::query_as(
             r#"
             insert into audit_logs(
@@ -196,6 +205,18 @@ impl<'a> AuditLogsRepo<'a> {
         let items = rows.into_iter().map(AuditLogRow::into_log).collect();
 
         Ok(AuditLogListResult { items, next_cursor })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_non_blank;
+
+    #[test]
+    fn ensure_non_blank_rejects_blank_values() {
+        assert!(ensure_non_blank("action", " ").is_err());
+        assert!(ensure_non_blank("action", "\t").is_err());
+        assert!(ensure_non_blank("action", "OMS.ORDER_EDIT").is_ok());
     }
 }
 

@@ -17,6 +17,7 @@ use erp_adapter::{PlatformAdapter, SyncCursor};
 use erp_common::{
     feature_flags::{self, FeatureFlagKey, FeatureScope},
     sales_settings::{self, SalesShopConfig},
+    telemetry::metrics,
     trace::{generate_trace_id, REQUEST_ID_HEADER, TRACE_ID_HEADER},
 };
 use erp_domain::{
@@ -98,6 +99,14 @@ use erp_repo::{
         RECONCILE_JOB_TYPE_PLATFORM, RECONCILE_JOB_TYPE_SHIPPING, RECONCILE_REASON_AMOUNT_MISMATCH,
         RECONCILE_REASON_ORDER_MISSING, RECONCILE_REASON_SHIPMENT_MISSING,
         RECONCILE_REASON_SHIPPING_MISMATCH, RECONCILE_REF_TYPE_ORDER, RECONCILE_REF_TYPE_SHIPMENT,
+    },
+    frontend_route_diagnostics::{
+        FrontendRouteDiagnosticEvent as RepoFrontendRouteDiagnosticEvent,
+        FrontendRouteDiagnosticEventCreate, FrontendRouteDiagnosticsFilters,
+        FrontendRouteDiagnosticsPathSummary as RepoFrontendRouteDiagnosticsPathSummary,
+        FrontendRouteDiagnosticsRepo,
+        FrontendRouteDiagnosticsResult as RepoFrontendRouteDiagnosticsResult,
+        FrontendRouteDiagnosticsSummary as RepoFrontendRouteDiagnosticsSummary,
     },
     fulfillment::{
         FulfillmentRepo, OmsShipmentListFilters, SHIPMENT_TYPE_EXCHANGE, SHIPMENT_TYPE_OMS,
@@ -192,6 +201,7 @@ use erp_repo::{
         OP_ACTION_OMS_SHIPMENT_CANCEL_REQUESTED, OP_ACTION_OMS_SHIPMENT_CREATED,
         OP_ACTION_OMS_SHIPMENT_SHIPPED, OP_ACTION_PRODUCT_CREATED, OP_ACTION_PRODUCT_DELETED,
         OP_ACTION_PRODUCT_UPDATED, OP_ACTION_SHIPMENT_CALLBACK, OP_ACTION_SHIPMENT_CONFIRMED,
+        OP_ACTION_SHOP_PRODUCT_AUTO_MATCH, OP_ACTION_SHOP_PRODUCT_MANUAL_MATCH,
         OP_ACTION_SHIPMENT_REQUESTED, OP_ACTION_SKU_COPIED, OP_ACTION_SKU_COST_ADJUSTED,
         OP_ACTION_SKU_CREATED, OP_ACTION_SKU_DELETED, OP_ACTION_SKU_UPDATED,
         OP_ACTION_STOCK_ADJUST_APPLIED, OP_ACTION_STOCK_ADJUST_CREATED,
@@ -2112,6 +2122,10 @@ struct AfterSalesView {
     evidence_status: Option<String>,
     reason_code: Option<String>,
     amount_cent: i64,
+    sla_deadline_at: Option<DateTime<Utc>>,
+    sla_status: Option<String>,
+    sla_remaining_minutes: Option<i64>,
+    escalation_role: Option<String>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -3048,6 +3062,9 @@ struct ShopProductSkuListQuery {
     status: Option<String>,
     keyword: Option<String>,
     match_status: Option<String>,
+    mapping_status: Option<String>,
+    conflict_reason: Option<String>,
+    match_source: Option<String>,
     updated_from: Option<String>,
     updated_to: Option<String>,
     offset: Option<i64>,
@@ -3108,6 +3125,9 @@ struct ShopProductSkuFilterPayload {
     status: Option<String>,
     keyword: Option<String>,
     match_status: Option<String>,
+    mapping_status: Option<String>,
+    conflict_reason: Option<String>,
+    match_source: Option<String>,
     updated_from: Option<String>,
     updated_to: Option<String>,
 }
@@ -4067,6 +4087,8 @@ struct ShopAuthorizeResponse {
 struct ShopAuthCallbackRequest {
     access_token: Option<String>,
     refresh_token: Option<String>,
+    code: Option<String>,
+    redirect_uri: Option<String>,
     expires_at: Option<String>,
     scopes: Option<String>,
     auth_meta_json: Option<Value>,
@@ -6680,6 +6702,32 @@ struct OperationLogListQuery {
     created_to: Option<String>,
     cursor: Option<String>,
     limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FrontendRouteDiagnosticsQuery {
+    path_keyword: Option<String>,
+    status: Option<String>,
+    event_type: Option<String>,
+    window_hours: Option<i64>,
+    limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FrontendRouteDiagnosticsReportRequest {
+    events: Vec<FrontendRouteDiagnosticEventCreate>,
+}
+
+#[derive(Debug, Serialize)]
+struct FrontendRouteDiagnosticsReportResponse {
+    accepted: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct FrontendRouteDiagnosticsResponse {
+    summary: RepoFrontendRouteDiagnosticsSummary,
+    paths: Vec<RepoFrontendRouteDiagnosticsPathSummary>,
+    events: Vec<RepoFrontendRouteDiagnosticEvent>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -9505,6 +9553,10 @@ pub fn build_app(state: AppState) -> Router {
             get(list_operation_logs),
         )
         .route(
+            "/v1/tenants/:tenant_id/system/frontend-route-diagnostics",
+            get(get_frontend_route_diagnostics).post(report_frontend_route_diagnostics),
+        )
+        .route(
             "/v1/tenants/:tenant_id/products",
             get(list_products).post(create_product),
         )
@@ -10841,6 +10893,18 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/v1/tenants/:tenant_id/channels/shops/:shop_id/tokens/refresh",
             post(request_token_refresh),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/channels/shops/:shop_id/platform-orders/download/manual",
+            post(download_platform_orders_manual),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/channels/shops/:shop_id/platform-orders/download/by-time-range",
+            post(download_platform_orders_by_time_range),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/channels/shops/:shop_id/platform-orders/download/by-order-nos",
+            post(download_platform_orders_by_order_nos),
         )
         .route(
             "/v1/tenants/:tenant_id/channels/shops/:shop_id/sync-jobs/run",
@@ -13341,7 +13405,7 @@ async fn update_logistics_warehouse_strategy(
 
     let summary = req
         .history_summary
-        .unwrap_or_else(|| "更新仓配策略".to_string());
+        .unwrap_or_else(|| "鏇存柊浠撻厤绛栫暐".to_string());
     if let Err(e) = repo
         .insert_history(LogisticsWarehouseStrategyHistoryCreate {
             tenant_id,
@@ -13771,7 +13835,7 @@ async fn get_logistics_settlement_rule(
         Ok(None) => {
             let default_rule = LogisticsSettlementRuleUpsert {
                 tenant_id,
-                weight_rounding: "按0.5KG进位".to_string(),
+                weight_rounding: "鎸?.5KG杩涗綅".to_string(),
                 min_fee_cent: 0,
                 oversize_fee_cent: 0,
                 overtime_fee_cent: 0,
@@ -15014,40 +15078,40 @@ fn build_logistics_match_context(
 
 fn extract_province(address: &str) -> Option<String> {
     const PROVINCES: [&str; 34] = [
-        "北京",
-        "天津",
-        "河北",
-        "山西",
+        "鍖椾含",
+        "澶╂触",
+        "娌冲寳",
+        "灞辫タ",
         "内蒙古",
-        "辽宁",
-        "吉林",
+        "杈藉畞",
+        "鍚夋灄",
         "黑龙江",
-        "上海",
-        "江苏",
-        "浙江",
-        "安徽",
-        "福建",
-        "江西",
-        "山东",
-        "河南",
-        "湖北",
-        "湖南",
-        "广东",
-        "广西",
-        "海南",
-        "重庆",
-        "四川",
-        "贵州",
-        "云南",
-        "西藏",
-        "陕西",
-        "甘肃",
-        "青海",
-        "宁夏",
-        "新疆",
-        "香港",
-        "澳门",
-        "台湾",
+        "涓婃捣",
+        "姹熻嫃",
+        "娴欐睙",
+        "瀹夊窘",
+        "绂忓缓",
+        "姹熻タ",
+        "灞变笢",
+        "娌冲崡",
+        "婀栧寳",
+        "婀栧崡",
+        "骞夸笢",
+        "骞胯タ",
+        "娴峰崡",
+        "閲嶅簡",
+        "鍥涘窛",
+        "璐靛窞",
+        "浜戝崡",
+        "瑗胯棌",
+        "闄曡タ",
+        "鐢樿們",
+        "闈掓捣",
+        "瀹佸",
+        "鏂扮枂",
+        "棣欐腐",
+        "婢抽棬",
+        "鍙版咕",
     ];
     let trimmed = address.trim();
     if trimmed.is_empty() {
@@ -18211,7 +18275,7 @@ async fn create_wms_outbound(
     let sales_order_id = match req.sales_order_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
             Ok(v) => Some(v),
-            Err(_) => return bad_request("sales_order_id 无效").into_response(),
+            Err(_) => return bad_request("sales_order_id 鏃犳晥").into_response(),
         },
         None => None,
     };
@@ -21239,7 +21303,7 @@ async fn pack_wms_outbound(
         {
             Ok(v) => v,
             Err(e) => {
-                warn!(error = %e, "销售单联动获取失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
                 None
             }
         };
@@ -21299,7 +21363,7 @@ async fn pack_wms_outbound(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    warn!(error = %e, "销售单联动更新失败");
+                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
                 }
             }
         }
@@ -22242,7 +22306,7 @@ async fn ship_wms_outbound(
         {
             Ok(v) => v,
             Err(e) => {
-                warn!(error = %e, "销售单联动获取失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
                 None
             }
         };
@@ -22301,7 +22365,7 @@ async fn ship_wms_outbound(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    warn!(error = %e, "销售单联动更新失败");
+                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
                 }
             }
         }
@@ -23092,7 +23156,7 @@ async fn update_wms_outbound_logistics(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "销售单联动获取失败");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
             None
         }
     };
@@ -23149,7 +23213,7 @@ async fn update_wms_outbound_logistics(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "销售单联动更新失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
             }
         }
     }
@@ -23667,6 +23731,178 @@ async fn list_operation_logs(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+fn normalize_frontend_route_diagnostic_status(
+    raw: Option<String>,
+) -> Result<Option<String>, Response> {
+    let Some(value) = raw.and_then(non_empty) else {
+        return Ok(None);
+    };
+    let normalized = value.to_lowercase();
+    if matches!(normalized.as_str(), "ready" | "timeout" | "error" | "loading" | "idle") {
+        Ok(Some(normalized))
+    } else {
+        Err(bad_request("bad status").into_response())
+    }
+}
+
+fn normalize_frontend_route_diagnostic_event_type(
+    raw: Option<String>,
+) -> Result<Option<String>, Response> {
+    let Some(value) = raw.and_then(non_empty) else {
+        return Ok(None);
+    };
+    let normalized = value.to_lowercase();
+    if matches!(
+        normalized.as_str(),
+        "loading-ready"
+            | "loading-timeout"
+            | "loading-error"
+            | "prefetch-ready"
+            | "prefetch-error"
+            | "prefetch-skipped"
+    ) {
+        Ok(Some(normalized))
+    } else {
+        Err(bad_request("bad event_type").into_response())
+    }
+}
+
+async fn report_frontend_route_diagnostics(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<FrontendRouteDiagnosticsReportRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if req.events.len() > 200 {
+        return bad_request("too many events").into_response();
+    }
+
+    for event in &req.events {
+        if event.session_id.trim().is_empty() {
+            return bad_request("session_id required").into_response();
+        }
+        if event.path.trim().is_empty() {
+            return bad_request("path required").into_response();
+        }
+        if event.page_url.trim().is_empty() {
+            return bad_request("page_url required").into_response();
+        }
+        if event.build_version.trim().is_empty() {
+            return bad_request("build_version required").into_response();
+        }
+        if event.user_agent.trim().is_empty() {
+            return bad_request("user_agent required").into_response();
+        }
+        if event.event_at <= 0 {
+            return bad_request("bad event_at").into_response();
+        }
+        if normalize_frontend_route_diagnostic_status(Some(event.status.clone())).is_err() {
+            return bad_request("bad status").into_response();
+        }
+        if normalize_frontend_route_diagnostic_event_type(Some(event.event_type.clone())).is_err() {
+            return bad_request("bad event_type").into_response();
+        }
+    }
+
+    let repo = FrontendRouteDiagnosticsRepo::new(state.db.pool());
+    let accepted = match repo
+        .ingest_events(tenant_id, Some(ctx.user_id), &req.events)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    };
+
+    for event in req.events.iter().filter(|event| !event.path.trim().is_empty()) {
+        metrics().inc_frontend_route_diagnostic_ingested();
+        if event.status.trim().eq_ignore_ascii_case("timeout") {
+            metrics().inc_frontend_route_timeout();
+        }
+        if event.status.trim().eq_ignore_ascii_case("error") {
+            metrics().inc_frontend_route_error();
+        }
+        if event.event_type.trim().eq_ignore_ascii_case("prefetch-ready") {
+            metrics().inc_frontend_route_prefetch_ready();
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(FrontendRouteDiagnosticsReportResponse { accepted }),
+    )
+        .into_response()
+}
+
+async fn get_frontend_route_diagnostics(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Query(query): Query<FrontendRouteDiagnosticsQuery>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) =
+        ensure_permission_any(&ctx, &["stats.read", "reports.read", "operation_logs.read"])
+    {
+        return resp.into_response();
+    }
+
+    let status = match normalize_frontend_route_diagnostic_status(query.status) {
+        Ok(v) => v,
+        Err(resp) => return resp,
+    };
+    let event_type = match normalize_frontend_route_diagnostic_event_type(query.event_type) {
+        Ok(v) => v,
+        Err(resp) => return resp,
+    };
+    let window_hours = query.window_hours.unwrap_or(24).clamp(1, 24 * 7);
+    let limit = query.limit.unwrap_or(20).clamp(1, 200);
+
+    let repo = FrontendRouteDiagnosticsRepo::new(state.db.pool());
+    let RepoFrontendRouteDiagnosticsResult {
+        summary,
+        paths,
+        events,
+    } = match repo
+        .list(
+            tenant_id,
+            &FrontendRouteDiagnosticsFilters {
+                path_keyword: query.path_keyword.and_then(non_empty),
+                status,
+                event_type,
+                created_from: Some(Utc::now() - Duration::hours(window_hours)),
+                limit,
+            },
+        )
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    };
+
+    (
+        StatusCode::OK,
+        Json(FrontendRouteDiagnosticsResponse {
+            summary,
+            paths,
+            events,
+        }),
+    )
+        .into_response()
+}
+
 async fn list_after_sale_cases(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
@@ -23945,7 +24181,20 @@ async fn list_after_sales(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
-    let items = result.items.iter().map(after_sales_view).collect();
+    let sla_profiles = load_after_sales_sla_profiles(state.db.pool(), tenant_id).await;
+    let now = Utc::now();
+    metrics().add_after_sales_sla_evaluated(result.items.len() as u64);
+    let items = result
+        .items
+        .iter()
+        .map(|sale| {
+            let sla = derive_after_sales_sla_view(sale, &sla_profiles, now);
+            if matches!(sla.sla_status.as_deref(), Some("OVERDUE")) {
+                metrics().inc_after_sales_sla_overdue();
+            }
+            after_sales_view_with_sla(sale, sla)
+        })
+        .collect();
     let response = AfterSalesListResponse {
         items,
         total: result.total,
@@ -24214,7 +24463,7 @@ async fn approve_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "销售单联动获取失败");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
             None
         }
     };
@@ -24271,7 +24520,7 @@ async fn approve_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "销售单联动更新失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
             }
         }
     }
@@ -24349,7 +24598,7 @@ async fn reject_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "销售单联动获取失败");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
             None
         }
     };
@@ -24406,7 +24655,7 @@ async fn reject_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "销售单联动更新失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
             }
         }
     }
@@ -24535,7 +24784,7 @@ async fn receive_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "销售单联动获取失败");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
             None
         }
     };
@@ -24588,7 +24837,7 @@ async fn receive_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "销售单联动更新失败");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
             }
         }
     }
@@ -25022,93 +25271,95 @@ async fn request_after_sales_refund(
         {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
         }
-    }
 
-    let audit_repo = AuditLogsRepo::new(state.db.pool());
-    let after_json = serde_json::json!({
-        "refund_doc_id": refund_doc.id,
-        "after_sales_id": refund_doc.after_sales_id,
-        "amount_cent": refund_doc.amount_cent,
-        "status": refund_doc.status.to_string(),
-        "channel": refund_doc.channel.to_string(),
-    });
-    if let Err(err) = audit_repo
-        .insert(AuditLogCreate {
-            tenant_id,
-            user_id: Some(ctx.user_id),
-            action: "AFTERSALES.REFUND_REQUESTED".to_string(),
-            entity_type: "refund_doc".to_string(),
-            entity_id: Some(refund_doc.id.to_string()),
-            before_json: None,
-            after_json: Some(after_json),
-            ip: None,
-            ua: None,
-        })
-        .await
-    {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
-    }
-
-    let sales_repo = SalesOrdersRepo::new(state.db.pool());
-    let source_order_id = detail.after_sales.order_id.to_string();
-    let sales_order = match sales_repo
-        .find_by_source_order(tenant_id, &source_order_id)
-        .await
-    {
-        Ok(v) => v,
-        Err(e) => {
-            warn!(error = %e, "销售单联动获取失败");
-            None
-        }
-    };
-    if let Some(sales_order) = sales_order {
-        let status_flags = append_status_flags(&sales_order.status_flags, &["HAS_AFTER_SALE"]);
-        let updated_order = sales_repo
-            .update_after_sales_status(
+        let audit_repo = AuditLogsRepo::new(state.db.pool());
+        let after_json = serde_json::json!({
+            "refund_doc_id": refund_doc.id,
+            "after_sales_id": refund_doc.after_sales_id,
+            "amount_cent": refund_doc.amount_cent,
+            "status": refund_doc.status.to_string(),
+            "channel": refund_doc.channel.to_string(),
+        });
+        if let Err(err) = audit_repo
+            .insert(AuditLogCreate {
                 tenant_id,
-                sales_order.sales_order_id,
-                SalesOrderAfterSalesUpdate {
-                    refund_status: Some("PARTIAL_REFUND".to_string()),
-                    return_status: None,
-                    status_flags: Some(status_flags.clone()),
-                },
-            )
-            .await;
-        match updated_order {
-            Ok(Some(updated_order)) => {
-                let from_status =
-                    format_sales_order_status("REFUND_STATUS", Some(&sales_order.refund_status));
-                let to_status =
-                    format_sales_order_status("REFUND_STATUS", Some(&updated_order.refund_status));
-                record_sales_order_state_logs(
-                    &state,
-                    &req_ctx,
+                user_id: Some(ctx.user_id),
+                action: "AFTERSALES.REFUND_REQUESTED".to_string(),
+                entity_type: "refund_doc".to_string(),
+                entity_id: Some(refund_doc.id.to_string()),
+                before_json: None,
+                after_json: Some(after_json),
+                ip: None,
+                ua: None,
+            })
+            .await
+        {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
+        }
+
+        let sales_repo = SalesOrdersRepo::new(state.db.pool());
+        let source_order_id = detail.after_sales.order_id.to_string();
+        let sales_order = match sales_repo
+            .find_by_source_order(tenant_id, &source_order_id)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+                None
+            }
+        };
+        if let Some(sales_order) = sales_order {
+            let status_flags = append_status_flags(&sales_order.status_flags, &["HAS_AFTER_SALE"]);
+            let updated_order = sales_repo
+                .update_after_sales_status(
                     tenant_id,
-                    updated_order.sales_order_id,
-                    "SALES_ORDER.AFTERSALES_REFUND_REQUESTED",
-                    from_status,
-                    to_status,
-                    Some(ctx.user_id),
-                    None,
-                    serde_json::json!({
-                        "after_sales_id": detail.after_sales.id,
-                        "after_sales_status": detail.after_sales.status.to_string(),
-                        "refund_doc_id": refund_doc.id,
-                        "amount_cent": refund_doc.amount_cent,
-                        "channel": refund_doc.channel.to_string(),
-                        "source_order_id": source_order_id,
-                    }),
-                    serde_json::json!({
-                        "refund_status": updated_order.refund_status,
-                        "return_status": updated_order.return_status,
-                        "status_flags": updated_order.status_flags,
-                    }),
+                    sales_order.sales_order_id,
+                    SalesOrderAfterSalesUpdate {
+                        refund_status: Some("PARTIAL_REFUND".to_string()),
+                        return_status: None,
+                        status_flags: Some(status_flags.clone()),
+                    },
                 )
                 .await;
-            }
-            Ok(None) => {}
-            Err(e) => {
-                warn!(error = %e, "销售单联动更新失败");
+            match updated_order {
+                Ok(Some(updated_order)) => {
+                    let from_status =
+                        format_sales_order_status("REFUND_STATUS", Some(&sales_order.refund_status));
+                    let to_status = format_sales_order_status(
+                        "REFUND_STATUS",
+                        Some(&updated_order.refund_status),
+                    );
+                    record_sales_order_state_logs(
+                        &state,
+                        &req_ctx,
+                        tenant_id,
+                        updated_order.sales_order_id,
+                        "SALES_ORDER.AFTERSALES_REFUND_REQUESTED",
+                        from_status,
+                        to_status,
+                        Some(ctx.user_id),
+                        None,
+                        serde_json::json!({
+                            "after_sales_id": detail.after_sales.id,
+                            "after_sales_status": detail.after_sales.status.to_string(),
+                            "refund_doc_id": refund_doc.id,
+                            "amount_cent": refund_doc.amount_cent,
+                            "channel": refund_doc.channel.to_string(),
+                            "source_order_id": source_order_id,
+                        }),
+                        serde_json::json!({
+                            "refund_status": updated_order.refund_status,
+                            "return_status": updated_order.return_status,
+                            "status_flags": updated_order.status_flags,
+                        }),
+                    )
+                    .await;
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                }
             }
         }
     }
@@ -27209,6 +27460,101 @@ async fn delete_after_sales_sla_rule(
 }
 
 fn after_sales_view(sale: &erp_repo::after_sales::AfterSales) -> AfterSalesView {
+    after_sales_view_with_sla(sale, AfterSalesSlaView::default())
+}
+
+#[derive(Debug, Clone, Default)]
+struct AfterSalesSlaView {
+    sla_deadline_at: Option<DateTime<Utc>>,
+    sla_status: Option<String>,
+    sla_remaining_minutes: Option<i64>,
+    escalation_role: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct AfterSalesSlaProfile {
+    resolution_hours: i32,
+    escalation_role: Option<String>,
+}
+
+async fn load_after_sales_sla_profiles(
+    pool: &PgPool,
+    tenant_id: TenantId,
+) -> HashMap<String, AfterSalesSlaProfile> {
+    let repo = erp_repo::after_sales_sla_rules::AfterSalesSlaRulesRepo::new(pool);
+    let result = repo
+        .list_rules(
+            tenant_id,
+            erp_repo::after_sales_sla_rules::AfterSalesSlaRuleListFilters {
+                after_sales_type: None,
+                status: Some("ACTIVE".to_string()),
+                offset: 0,
+                limit: 200,
+            },
+        )
+        .await;
+    match result {
+        Ok(v) => v
+            .items
+            .into_iter()
+            .map(|rule| {
+                (
+                    rule.after_sales_type.to_string(),
+                    AfterSalesSlaProfile {
+                        resolution_hours: rule.resolution_hours.max(1),
+                        escalation_role: rule.escalation_role,
+                    },
+                )
+            })
+            .collect(),
+        Err(err) => {
+            warn!(error = %err, tenant_id = %tenant_id, "load after-sales sla rules failed");
+            HashMap::new()
+        }
+    }
+}
+
+fn derive_after_sales_sla_view(
+    sale: &erp_repo::after_sales::AfterSales,
+    profiles: &HashMap<String, AfterSalesSlaProfile>,
+    now: DateTime<Utc>,
+) -> AfterSalesSlaView {
+    if matches!(
+        sale.status,
+        AfterSalesStatus::Refunded | AfterSalesStatus::Closed | AfterSalesStatus::Rejected
+    ) {
+        return AfterSalesSlaView {
+            sla_deadline_at: None,
+            sla_status: Some("CLOSED".to_string()),
+            sla_remaining_minutes: Some(0),
+            escalation_role: None,
+        };
+    }
+
+    let profile = profiles.get(&sale.after_sales_type.to_string());
+    let resolution_hours = profile.map(|rule| rule.resolution_hours).unwrap_or(24).max(1);
+    let deadline = sale.created_at + Duration::hours(i64::from(resolution_hours));
+    let remaining_minutes = (deadline - now).num_minutes();
+    let sla_status = if remaining_minutes < 0 {
+        "OVERDUE"
+    } else if remaining_minutes <= 60 {
+        "DUE_SOON"
+    } else {
+        "ON_TRACK"
+    };
+
+    AfterSalesSlaView {
+        sla_deadline_at: Some(deadline),
+        sla_status: Some(sla_status.to_string()),
+        sla_remaining_minutes: Some(remaining_minutes),
+        escalation_role: profile.and_then(|rule| rule.escalation_role.clone()),
+    }
+}
+
+fn after_sales_view_with_sla(
+    sale: &erp_repo::after_sales::AfterSales,
+    sla: AfterSalesSlaView,
+) -> AfterSalesView {
     AfterSalesView {
         id: sale.id,
         tenant_id: uuid::Uuid::from(sale.tenant_id),
@@ -27220,6 +27566,10 @@ fn after_sales_view(sale: &erp_repo::after_sales::AfterSales) -> AfterSalesView 
         evidence_status: sale.evidence_status.clone(),
         reason_code: sale.reason_code.clone(),
         amount_cent: sale.amount_cent,
+        sla_deadline_at: sla.sla_deadline_at,
+        sla_status: sla.sla_status,
+        sla_remaining_minutes: sla.sla_remaining_minutes,
+        escalation_role: sla.escalation_role,
         created_at: sale.created_at,
         updated_at: sale.updated_at,
     }
@@ -36092,7 +36442,7 @@ async fn list_system_integration_shops_overview(
             push_webhook_alert_messages(&mut alert_messages, &webhook_health);
             for job in &shop_jobs {
                 if job.status.eq_ignore_ascii_case("FAILED") {
-                    alert_messages.push(format!("{} 同步失败", job.job_type));
+                    alert_messages.push(format!("{} 鍚屾澶辫触", job.job_type));
                 }
             }
 
@@ -37375,12 +37725,29 @@ async fn shop_auth_callback(
         return resp.into_response();
     }
 
-    let access_token = req.access_token.and_then(non_empty);
-    let refresh_token = req.refresh_token.and_then(non_empty);
+    let mut access_token = req.access_token.and_then(non_empty);
+    let mut refresh_token = req.refresh_token.and_then(non_empty);
+    let authorization_code = req.code.and_then(non_empty);
+    let redirect_uri = req.redirect_uri.and_then(non_empty);
     let state_value = req.state.and_then(non_empty);
     let mut auth_error = req.error.and_then(non_empty);
     let mut auth_error_description = req.error_description.and_then(non_empty);
     let auth_meta_override = req.auth_meta_json.clone();
+    let mut expires_at = match req.expires_at.as_deref() {
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                match DateTime::parse_from_rfc3339(trimmed) {
+                    Ok(v) => Some(v.with_timezone(&Utc)),
+                    Err(_) => return bad_request("bad expires_at").into_response(),
+                }
+            }
+        }
+        None => None,
+    };
+    let mut scopes = req.scopes.and_then(non_empty);
 
     let repo = ShopsRepo::new(state.db.pool());
     let before_shop = match repo.get_shop(tenant_id, shop_id).await {
@@ -37406,6 +37773,35 @@ async fn shop_auth_callback(
             if expected != provided {
                 auth_error = Some("state_mismatch".to_string());
                 auth_error_description = Some(format!("expected {expected}, got {provided}"));
+            }
+        }
+    }
+    if auth_error.is_none() && access_token.is_none() && refresh_token.is_none() {
+        if let Some(code) = authorization_code.as_deref() {
+            let shop_auth = match repo.get_shop_auth(shop_id).await {
+                Ok(v) => v,
+                Err(_) => return forbidden("shop auth required").into_response(),
+            };
+            let adapters = AdapterRegistry::new();
+            let adapter = adapters.platform_adapter(shop_auth.platform);
+            match adapter
+                .exchange_authorization_code(&shop_auth, code, redirect_uri.clone())
+                .await
+            {
+                Ok(result) => {
+                    access_token = result.access_token;
+                    refresh_token = result.refresh_token;
+                    if expires_at.is_none() {
+                        expires_at = result.expires_at;
+                    }
+                    if scopes.is_none() {
+                        scopes = result.scopes;
+                    }
+                }
+                Err(err) => {
+                    auth_error = Some("oauth_exchange_failed".to_string());
+                    auth_error_description = Some(err.to_string());
+                }
             }
         }
     }
@@ -37458,21 +37854,6 @@ async fn shop_auth_callback(
     if access_token.is_none() && refresh_token.is_none() {
         return bad_request("missing token").into_response();
     }
-    let expires_at = match req.expires_at.as_deref() {
-        Some(raw) => {
-            let trimmed = raw.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                match DateTime::parse_from_rfc3339(trimmed) {
-                    Ok(v) => Some(v.with_timezone(&Utc)),
-                    Err(_) => return bad_request("bad expires_at").into_response(),
-                }
-            }
-        }
-        None => None,
-    };
-    let scopes = req.scopes.and_then(non_empty);
     let token = match tokens_repo
         .upsert_token(PlatformTokenUpsert {
             tenant_id,
@@ -51477,6 +51858,9 @@ async fn list_shop_product_skus(
         status: normalize_optional_string(query.status),
         keyword: normalize_optional_string(query.keyword),
         match_status: normalize_optional_string(query.match_status),
+        mapping_status: normalize_optional_string(query.mapping_status),
+        conflict_reason: normalize_optional_string(query.conflict_reason),
+        match_source: normalize_optional_string(query.match_source),
         updated_from,
         updated_to,
         offset,
@@ -52408,15 +52792,16 @@ async fn auto_match_shop_products(
         return resp.into_response();
     }
 
-    let sku_record_ids = match parse_uuid_list_optional(req.sku_record_ids.as_deref()) {
+    let requested_sku_record_ids = req.sku_record_ids.clone();
+    let filters = req.filters.clone();
+    let sku_record_ids = match parse_uuid_list_optional(requested_sku_record_ids.as_deref()) {
         Ok(v) => v,
         Err(resp) => return resp.into_response(),
     };
-    if sku_record_ids.is_none() && req.filters.is_none() {
+    if sku_record_ids.is_none() && filters.is_none() {
         return bad_request("sku_record_ids or filters required").into_response();
     }
 
-    let filters = req.filters.clone();
     let sku_views =
         match load_shop_product_skus(state.db.pool(), tenant_id, sku_record_ids, filters.clone())
             .await
@@ -52430,8 +52815,8 @@ async fn auto_match_shop_products(
 
     let tasks_repo = ShopProductTasksRepo::new(state.db.pool());
     let payload_json = serde_json::json!({
-        "sku_record_ids": req.sku_record_ids,
-        "filters": filters,
+        "sku_record_ids": requested_sku_record_ids,
+        "filters": filters.clone(),
     });
     let mut task = match tasks_repo
         .create_task(ShopProductTaskCreate {
@@ -52491,7 +52876,7 @@ async fn auto_match_shop_products(
                 failure_count: Some(failure_count),
                 error: failures.first().map(|item| item.reason.clone()),
                 result_json: Some(serde_json::json!({
-                    "failures": failures,
+                    "failures": failures.clone(),
                 })),
                 finished_at: Some(Utc::now()),
             },
@@ -52502,6 +52887,32 @@ async fn auto_match_shop_products(
         Ok(None) => task,
         Err(_) => task,
     };
+
+    let logs_repo = OperationLogsRepo::new(state.db.pool());
+    if let Err(e) = logs_repo
+        .insert(OperationLogCreate {
+            tenant_id,
+            actor_type: "USER".to_string(),
+            actor_user_id: Some(ctx.user_id),
+            action: OP_ACTION_SHOP_PRODUCT_AUTO_MATCH.to_string(),
+            ref_type: Some("SHOP_PRODUCT_TASK".to_string()),
+            ref_id: Some(task.task_id.to_string()),
+            metadata: Some(serde_json::json!({
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "task_status": task.status,
+                "requested_sku_record_ids": requested_sku_record_ids,
+                "filters": filters,
+                "total_count": total_count,
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "failure_reasons": failures.iter().map(|item| item.reason.clone()).collect::<Vec<_>>(),
+            })),
+        })
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
 
     (
         StatusCode::OK,
@@ -52527,6 +52938,8 @@ async fn manual_match_shop_products(
         return resp.into_response();
     }
 
+    let requested_sku_record_ids = req.sku_record_ids.clone();
+    let requested_sku_id = req.sku_id.clone();
     let sku_id = match uuid::Uuid::parse_str(&req.sku_id) {
         Ok(v) => v,
         Err(_) => return bad_request("bad sku_id").into_response(),
@@ -52562,8 +52975,8 @@ async fn manual_match_shop_products(
 
     let tasks_repo = ShopProductTasksRepo::new(state.db.pool());
     let payload_json = serde_json::json!({
-        "sku_record_ids": req.sku_record_ids,
-        "sku_id": req.sku_id,
+        "sku_record_ids": requested_sku_record_ids.clone(),
+        "sku_id": requested_sku_id.clone(),
     });
     let mut task = match tasks_repo
         .create_task(ShopProductTaskCreate {
@@ -52657,7 +53070,7 @@ async fn manual_match_shop_products(
                 failure_count: Some(failure_count),
                 error: Some(errors.first().cloned().unwrap_or_default()),
                 result_json: Some(serde_json::json!({
-                    "errors": errors,
+                    "errors": errors.clone(),
                 })),
                 finished_at: Some(Utc::now()),
             },
@@ -52668,6 +53081,32 @@ async fn manual_match_shop_products(
         Ok(None) => task,
         Err(_) => task,
     };
+
+    let logs_repo = OperationLogsRepo::new(state.db.pool());
+    if let Err(e) = logs_repo
+        .insert(OperationLogCreate {
+            tenant_id,
+            actor_type: "USER".to_string(),
+            actor_user_id: Some(ctx.user_id),
+            action: OP_ACTION_SHOP_PRODUCT_MANUAL_MATCH.to_string(),
+            ref_type: Some("SHOP_PRODUCT_TASK".to_string()),
+            ref_id: Some(task.task_id.to_string()),
+            metadata: Some(serde_json::json!({
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "task_status": task.status,
+                "requested_sku_record_ids": requested_sku_record_ids,
+                "requested_sku_id": requested_sku_id,
+                "total_count": total_count,
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "errors": errors,
+            })),
+        })
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
 
     (StatusCode::OK, Json(ShopProductTaskResponse { task })).into_response()
 }
@@ -53315,166 +53754,124 @@ async fn update_mapping_rule(
 fn permission_catalog() -> Vec<PermissionDefinition> {
     PermissionCode::all()
         .iter()
+        .copied()
         .map(|code| {
-            let (module, name, description) = match code {
-                PermissionCode::SysPermissionRead => {
-                    ("系统管理", "权限列表", "查看系统可分配权限清单")
-                }
-                PermissionCode::SysRoleRead => ("系统管理", "角色查看", "查看角色与权限配置"),
-                PermissionCode::SysRoleWrite => ("系统管理", "角色维护", "创建/更新角色与权限"),
-                PermissionCode::SysUserRead => ("系统管理", "用户查看", "查看用户与数据范围"),
-                PermissionCode::SysUserWrite => ("系统管理", "用户维护", "创建/更新用户与角色"),
-                PermissionCode::SysAuditRead => ("系统管理", "审计日志", "查看审计日志"),
-                PermissionCode::SysSettingsRead => ("系统管理", "配置读取", "读取配置中心规则"),
-                PermissionCode::SysSettingsWrite => ("系统管理", "配置维护", "更新配置中心规则"),
-                PermissionCode::SysDlqRead => ("系统管理", "失败任务查看", "查看失败任务"),
-                PermissionCode::SysDlqReplay => ("系统管理", "失败任务重放", "重放失败任务"),
-                PermissionCode::OmsOrderRead => ("订单中心", "订单查看", "查看订单列表与详情"),
-                PermissionCode::OmsOrderWrite => ("订单中心", "订单处理", "订单写操作"),
-                PermissionCode::OmsOrderRaw => ("订单中心", "订单原始数据", "查看订单原始字段"),
-                PermissionCode::OmsOrderReview => ("订单中心", "订单审核", "订单审核操作"),
-                PermissionCode::OmsShippingRead => ("履约中心", "发货查看", "查看发货单"),
-                PermissionCode::OmsShippingWrite => ("履约中心", "发货操作", "发货与重试"),
-                PermissionCode::OmsAfterSalesRead => ("售后中心", "售后查看", "查看售后单"),
-                PermissionCode::OmsAfterSalesWrite => ("售后中心", "售后处理", "创建/更新售后单"),
-                PermissionCode::OmsAfterSalesRaw => {
-                    ("售后中心", "售后原始数据", "查看售后原始字段")
-                }
-                PermissionCode::WmsInventoryRead => ("库存中心", "库存查看", "查看库存与台账"),
-                PermissionCode::WmsInventoryWrite => ("库存中心", "库存操作", "库存调整/占用"),
-                PermissionCode::BasicSkuRead => ("基础资料", "SKU查看", "查看SKU信息"),
-                PermissionCode::BasicSkuWrite => ("基础资料", "SKU维护", "维护SKU信息"),
-                PermissionCode::BasicKitRead => ("基础资料", "组合件查看", "查看组合件"),
-                PermissionCode::BasicKitWrite => ("基础资料", "组合件维护", "维护组合件"),
-                PermissionCode::BasicChannelRead => ("基础资料", "渠道查看", "查看渠道"),
-                PermissionCode::BasicChannelWrite => ("基础资料", "渠道维护", "维护渠道"),
-                PermissionCode::BasicCourierRead => ("基础资料", "快递查看", "查看快递"),
-                PermissionCode::BasicCourierWrite => ("基础资料", "快递维护", "维护快递"),
-                PermissionCode::BasicSupplierRead => ("基础资料", "供应商查看", "查看供应商"),
-                PermissionCode::BasicSupplierWrite => ("基础资料", "供应商维护", "维护供应商"),
-                PermissionCode::BasicShopProductRead => {
-                    ("基础资料", "店铺商品查看", "查看店铺商品")
-                }
-                PermissionCode::BasicShopProductWrite => {
-                    ("基础资料", "店铺商品维护", "维护店铺商品")
-                }
-                PermissionCode::MarketingPriceRead => ("营销中心", "价格查看", "查看渠道价表"),
-                PermissionCode::MarketingPriceWrite => ("营销中心", "价格维护", "维护渠道价表"),
-                PermissionCode::MarketingPromotionRead => ("营销中心", "促销查看", "查看促销活动"),
-                PermissionCode::MarketingPromotionWrite => ("营销中心", "促销维护", "维护促销活动"),
-                PermissionCode::MarketingGiftRead => ("营销中心", "赠品查看", "查看赠品策略"),
-                PermissionCode::MarketingGiftWrite => ("营销中心", "赠品维护", "维护赠品策略"),
-                PermissionCode::MarketingCouponRead => ("营销中心", "优惠券查看", "查看优惠券"),
-                PermissionCode::MarketingCouponWrite => ("营销中心", "优惠券维护", "维护优惠券"),
-                PermissionCode::MarketingCostRead => ("营销中心", "费用查看", "查看促销费用"),
-                PermissionCode::MarketingCostWrite => ("营销中心", "费用维护", "维护促销费用"),
-                PermissionCode::MarketingPostmortemRead => ("营销中心", "复盘查看", "查看活动复盘"),
-                PermissionCode::MarketingPostmortemWrite => {
-                    ("营销中心", "复盘维护", "维护活动复盘")
-                }
-                PermissionCode::BasicCustomerRead => ("客户", "客户查看", "查看客户档案与标签"),
-                PermissionCode::BasicCustomerWrite => ("客户", "客户维护", "维护客户档案与标签"),
-                PermissionCode::ProcurementOrderRead => {
-                    ("采购中心", "采购单查看", "查看采购单与明细")
-                }
-                PermissionCode::ProcurementOrderWrite => {
-                    ("采购中心", "采购单维护", "创建/更新/验收采购单")
-                }
-                PermissionCode::ProcurementSuggestionRead => {
-                    ("采购中心", "采购建议查看", "查看采购建议计算结果")
-                }
-                PermissionCode::ProcurementReturnRead => {
-                    ("采购中心", "采购退货查看", "查看采购退货单")
-                }
-                PermissionCode::ProcurementReturnWrite => {
-                    ("采购中心", "采购退货维护", "创建/确认采购退货")
-                }
-                PermissionCode::ProcurementRequestRead => {
-                    ("采购中心", "采购申请查看", "查看采购申请单")
-                }
-                PermissionCode::ProcurementRequestWrite => {
-                    ("采购中心", "采购申请维护", "创建/更新采购申请单")
-                }
-                PermissionCode::ProcurementPlanRead => ("采购中心", "采购计划查看", "查看采购计划"),
-                PermissionCode::ProcurementPlanWrite => {
-                    ("采购中心", "采购计划维护", "创建/更新采购计划")
-                }
-                PermissionCode::ProcurementSourcingRead => {
-                    ("采购中心", "供应商寻源查看", "查看供应商寻源信息")
-                }
-                PermissionCode::ProcurementSourcingWrite => {
-                    ("采购中心", "供应商寻源维护", "维护供应商寻源信息")
-                }
-                PermissionCode::ProcurementInspectionRead => {
-                    ("采购中心", "质检单查看", "查看质检单")
-                }
-                PermissionCode::ProcurementInspectionWrite => {
-                    ("采购中心", "质检单维护", "创建/更新质检单")
-                }
-                PermissionCode::ProcurementReconciliationRead => {
-                    ("采购中心", "供应商对账查看", "查看供应商对账单")
-                }
-                PermissionCode::ProcurementReconciliationWrite => {
-                    ("采购中心", "供应商对账维护", "创建/更新供应商对账单")
-                }
-                PermissionCode::ProcurementPerformanceRead => {
-                    ("采购中心", "供应商绩效查看", "查看供应商绩效评分")
-                }
-                PermissionCode::ProcurementPerformanceWrite => {
-                    ("采购中心", "供应商绩效维护", "维护供应商绩效评分")
-                }
-                PermissionCode::BasicMappingRead => ("基础资料", "映射查看", "查看平台SKU映射"),
-                PermissionCode::BasicMappingWrite => ("基础资料", "映射维护", "维护平台SKU映射"),
-                PermissionCode::BasicWarehouseRead => ("基础资料", "仓库查看", "查看仓库列表"),
-                PermissionCode::BasicWarehouseWrite => ("基础资料", "仓库维护", "维护仓库信息"),
-                PermissionCode::BasicCarrierRead => ("基础资料", "承运商查看", "查看承运商目录"),
-                PermissionCode::BasicCarrierWrite => ("基础资料", "承运商维护", "维护承运商目录"),
-                PermissionCode::BasicLogisticsProductRead => {
-                    ("基础资料", "物流产品查看", "查看物流产品配置")
-                }
-                PermissionCode::BasicLogisticsProductWrite => {
-                    ("基础资料", "物流产品维护", "维护物流产品配置")
-                }
-                PermissionCode::BasicLogisticsPriceRead => {
-                    ("基础资料", "物流价格查看", "查看物流价格区间")
-                }
-                PermissionCode::BasicLogisticsPriceWrite => {
-                    ("基础资料", "物流价格维护", "维护物流价格区间")
-                }
-                PermissionCode::BasicLogisticsMatchRuleRead => {
-                    ("基础资料", "物流匹配查看", "查看物流匹配规则")
-                }
-                PermissionCode::BasicLogisticsMatchRuleWrite => {
-                    ("基础资料", "物流匹配维护", "维护物流匹配规则")
-                }
-                PermissionCode::BasicOrderTagRead => ("基础资料", "订单标记查看", "查看订单标记"),
-                PermissionCode::BasicOrderTagWrite => ("基础资料", "订单标记维护", "维护订单标记"),
-                PermissionCode::BasicSkuTagRead => ("基础资料", "货品标记查看", "查看货品标记"),
-                PermissionCode::BasicSkuTagWrite => ("基础资料", "货品标记维护", "维护货品标记"),
-                PermissionCode::PrintDeviceRead => ("打印中心", "设备查看", "查看打印设备"),
-                PermissionCode::PrintDeviceWrite => ("打印中心", "设备维护", "维护打印设备"),
-                PermissionCode::PrintTemplateRead => ("打印中心", "模板查看", "查看打印模板"),
-                PermissionCode::PrintTemplateWrite => ("打印中心", "模板维护", "维护打印模板"),
-                PermissionCode::PrintJobRead => ("打印中心", "打印任务查看", "查看打印任务"),
-                PermissionCode::PrintJobWrite => ("打印中心", "打印任务维护", "创建/更新打印任务"),
-                PermissionCode::PrintMappingRead => ("打印中心", "打印映射查看", "查看打印映射"),
-                PermissionCode::PrintMappingWrite => ("打印中心", "打印映射维护", "维护打印映射"),
-                PermissionCode::OpsOperationLogRead => ("运维", "操作日志查看", "查看操作日志"),
-                PermissionCode::OpsReportRead => {
-                    ("运维", "报表查看", "查看经营/履约/库存/财务报表")
-                }
-                PermissionCode::OpsExportRead => ("运维", "导出任务查看", "查看导出任务进度"),
-                PermissionCode::OpsExportWrite => ("运维", "导出任务创建", "创建/重试导出任务"),
-            };
+            let code_text = code.as_str();
+            let (module, name, description) = describe_permission(code_text);
 
             PermissionDefinition {
-                code: code.as_str().to_string(),
-                name: name.to_string(),
-                module: module.to_string(),
-                description: description.to_string(),
+                code: code_text.to_string(),
+                name,
+                module,
+                description,
             }
         })
         .collect()
+}
+
+fn describe_permission(code: &str) -> (String, String, String) {
+    let mut parts = code.split('.');
+    let domain = parts.next().unwrap_or("SYS");
+    let resource = parts.next().unwrap_or("RESOURCE");
+    let action = parts.next().unwrap_or("READ");
+    let resource_label = permission_resource_label(resource);
+    let action_name = permission_action_name(action);
+    let action_description = permission_action_description(action);
+
+    (
+        permission_module_label(domain, resource).to_string(),
+        format!("{resource_label}{action_name}"),
+        format!("允许{action_description}{resource_label}相关能力"),
+    )
+}
+
+fn permission_module_label(domain: &str, resource: &str) -> &'static str {
+    match (domain, resource) {
+        ("OMS", "ORDER") => "订单中心",
+        ("OMS", "SHIPPING") => "履约中心",
+        ("OMS", "AFTERSALES") => "售后中心",
+        ("SYS", _) => "系统管理",
+        ("WMS", _) => "仓储中心",
+        ("BASIC", _) => "基础资料",
+        ("PROCUREMENT", _) => "采购中心",
+        ("PRINT", _) => "打印中心",
+        ("OPS", _) => "运营中心",
+        ("MARKETING", _) => "营销中心",
+        _ => "平台能力",
+    }
+}
+
+fn permission_resource_label(resource: &str) -> &'static str {
+    match resource {
+        "PERMISSION" => "权限目录",
+        "ROLE" => "角色",
+        "USER" => "用户",
+        "AUDIT" => "审计日志",
+        "SETTINGS" => "系统配置",
+        "DLQ" => "死信任务",
+        "ORDER" => "订单",
+        "SHIPPING" => "发货",
+        "AFTERSALES" => "售后",
+        "INVENTORY" => "库存",
+        "SKU" => "SKU",
+        "KIT" => "组合品",
+        "CHANNEL" => "渠道",
+        "COURIER" => "快递",
+        "SUPPLIER" => "供应商",
+        "CUSTOMER" => "客户",
+        "SUGGESTION" => "采购建议",
+        "RETURN" => "采购退货",
+        "REQUEST" => "采购申请",
+        "PLAN" => "采购计划",
+        "SOURCING" => "寻源",
+        "INSPECTION" => "质检",
+        "RECONCILIATION" => "对账",
+        "PERFORMANCE" => "绩效",
+        "MAPPING" => "映射规则",
+        "WAREHOUSE" => "仓库",
+        "CARRIER" => "承运商",
+        "DEVICE" => "打印设备",
+        "TEMPLATE" => "打印模板",
+        "JOB" => "打印任务",
+        "OPERATION_LOG" => "操作日志",
+        "REPORT" => "报表",
+        "EXPORT" => "导出任务",
+        "LOGISTICS_PRODUCT" => "物流产品",
+        "LOGISTICS_PRICE" => "物流价格",
+        "LOGISTICS_MATCH_RULE" => "物流匹配规则",
+        "ORDER_TAG" => "订单标签",
+        "SKU_TAG" => "SKU标签",
+        "SHOP_PRODUCT" => "店铺商品",
+        "PRICE" => "价格策略",
+        "PROMOTION" => "促销活动",
+        "GIFT" => "赠品策略",
+        "COUPON" => "优惠券",
+        "COST" => "营销费用",
+        "POSTMORTEM" => "复盘",
+        _ => "权限项",
+    }
+}
+
+fn permission_action_name(action: &str) -> &'static str {
+    match action {
+        "READ" => "查看",
+        "WRITE" => "维护",
+        "RAW" => "原始数据",
+        "REVIEW" => "审核",
+        "REPLAY" => "重放",
+        _ => "操作",
+    }
+}
+
+fn permission_action_description(action: &str) -> &'static str {
+    match action {
+        "READ" => "查看",
+        "WRITE" => "维护",
+        "RAW" => "查看",
+        "REVIEW" => "审核",
+        "REPLAY" => "重放",
+        _ => "执行",
+    }
 }
 
 async fn list_permission_catalog(
@@ -55536,7 +55933,7 @@ async fn auto_match_sku_views(
         }
 
         let mut reason = if matched.is_none() {
-            Some("未找到条码/辅助条码/编号对应货品".to_string())
+            Some("未找到条码、辅助条码或编号对应货品".to_string())
         } else {
             None
         };
@@ -55558,7 +55955,7 @@ async fn auto_match_sku_views(
                 matched = Some(name_match);
                 reason = None;
             } else if view.product_title.trim().is_empty() {
-                reason = Some("未找到条码/辅助条码/编号对应货品".to_string());
+                reason = Some("未找到条码、辅助条码或编号对应货品".to_string());
             } else {
                 reason = Some("未找到名称规格对应货品".to_string());
             }
@@ -55597,7 +55994,7 @@ async fn auto_match_sku_views(
                     sku_record_id: view.sku_record_id,
                     platform_sku_id: view.platform_sku_id.clone(),
                     merchant_sku_code: view.merchant_sku_code.clone(),
-                    reason: format!("匹配写入失败: {e}"),
+                    reason: format!("鍖归厤鍐欏叆澶辫触: {e}"),
                 });
             }
         }
@@ -55896,6 +56293,9 @@ async fn load_shop_product_skus(
                     status: normalize_optional_string(filters.status.clone()),
                     keyword: normalize_optional_string(filters.keyword.clone()),
                     match_status: normalize_optional_string(filters.match_status.clone()),
+                    mapping_status: normalize_optional_string(filters.mapping_status.clone()),
+                    conflict_reason: normalize_optional_string(filters.conflict_reason.clone()),
+                    match_source: normalize_optional_string(filters.match_source.clone()),
                     updated_from,
                     updated_to,
                     offset,
@@ -56202,46 +56602,46 @@ fn build_sku_import_header_index(headers: &[String]) -> Result<SkuImportHeaderIn
     let mut index = SkuImportHeaderIndex::default();
     for (idx, header) in headers.iter().enumerate() {
         match header.as_str() {
-            "product_id" | "productid" | "货品编号" | "商品编号" | "产品编号" => {
+            "product_id" | "productid" | "璐у搧缂栧彿" | "鍟嗗搧缂栧彿" | "浜у搧缂栧彿" => {
                 index.product_id = Some(idx)
             }
-            "product_name" | "product" | "productname" | "货品名称" | "商品名称" | "产品名称" => {
+            "product_name" | "product" | "productname" | "璐у搧鍚嶇О" | "鍟嗗搧鍚嶇О" | "浜у搧鍚嶇О" => {
                 index.product_name = Some(idx)
             }
-            "sku_code" | "sku" | "skucode" | "规格编号" | "规格编码" | "sku编号" | "sku编码" => {
+            "sku_code" | "sku" | "skucode" | "瑙勬牸缂栧彿" | "瑙勬牸缂栫爜" | "sku缂栧彿" | "sku缂栫爜" => {
                 index.sku_code = Some(idx)
             }
-            "barcode" | "bar_code" | "条码" => index.barcode = Some(idx),
+            "barcode" | "bar_code" | "鏉＄爜" => index.barcode = Some(idx),
             "aux_barcode" | "assistant_barcode" | "辅助条码" | "辅助码" => {
                 index.aux_barcode = Some(idx)
             }
-            "name" | "sku_name" | "sku名称" | "规格名称" => index.name = Some(idx),
+            "name" | "sku_name" | "sku鍚嶇О" | "瑙勬牸鍚嶇О" => index.name = Some(idx),
             "spec" | "spec_info" | "规格信息" | "规格" => index.spec = Some(idx),
-            "unit" | "单位" => index.unit = Some(idx),
-            "category_id" | "categoryid" | "分类编号" | "分类id" | "分类编码" => {
+            "unit" | "鍗曚綅" => index.unit = Some(idx),
+            "category_id" | "categoryid" | "鍒嗙被缂栧彿" | "鍒嗙被id" | "鍒嗙被缂栫爜" => {
                 index.category_id = Some(idx)
             }
-            "category_name" | "category" | "分类名称" | "分类" => {
+            "category_name" | "category" | "鍒嗙被鍚嶇О" | "鍒嗙被" => {
                 index.category_name = Some(idx)
             }
-            "sku_kind" | "kind" | "type" | "规格类型" | "sku类型" => {
+            "sku_kind" | "kind" | "type" | "瑙勬牸绫诲瀷" | "sku绫诲瀷" => {
                 index.sku_kind = Some(idx)
             }
             "tags" | "tag" | "标签" => index.tags = Some(idx),
-            "image_urls" | "images" | "image_url" | "图片" | "图片链接" => {
+            "image_urls" | "images" | "image_url" | "鍥剧墖" | "鍥剧墖閾炬帴" => {
                 index.image_urls = Some(idx)
             }
-            "cost_cent" | "cost" | "成本" => index.cost_cent = Some(idx),
+            "cost_cent" | "cost" | "鎴愭湰" => index.cost_cent = Some(idx),
             "supplier_ids" | "suppliers" | "supplier_id" | "供应商" | "供应商id" => {
                 index.supplier_ids = Some(idx)
             }
-            "weight_gram" | "weight" | "weight_g" | "重量" | "重量g" | "重量_g" => {
+            "weight_gram" | "weight" | "weight_g" | "閲嶉噺" | "閲嶉噺g" | "閲嶉噺_g" => {
                 index.weight_gram = Some(idx)
             }
-            "length_mm" | "length" | "长度" | "长度_mm" => index.length_mm = Some(idx),
-            "width_mm" | "width" | "宽度" | "宽度_mm" => index.width_mm = Some(idx),
-            "height_mm" | "height" | "高度" | "高度_mm" => index.height_mm = Some(idx),
-            "volume_cm3" | "volume" | "体积" | "体积_cm3" => index.volume_cm3 = Some(idx),
+            "length_mm" | "length" | "闀垮害" | "闀垮害_mm" => index.length_mm = Some(idx),
+            "width_mm" | "width" | "瀹藉害" | "瀹藉害_mm" => index.width_mm = Some(idx),
+            "height_mm" | "height" | "楂樺害" | "楂樺害_mm" => index.height_mm = Some(idx),
+            "volume_cm3" | "volume" | "浣撶Н" | "浣撶Н_cm3" => index.volume_cm3 = Some(idx),
             _ => {}
         }
     }
@@ -58634,11 +59034,11 @@ fn default_system_workflow_catalog() -> SystemWorkflowCatalogPayload {
             },
             SystemWorkflowDefinition {
                 workflow_id: "WF-PO-2".to_string(),
-                doc_type: "采购订单".to_string(),
-                name: "采购订单审批".to_string(),
+                doc_type: "閲囪喘璁㈠崟".to_string(),
+                name: "閲囪喘璁㈠崟瀹℃壒".to_string(),
                 version: "v2.0".to_string(),
                 status: "ARCHIVED".to_string(),
-                steps: vec!["采购经理".to_string(), "财务审核".to_string()],
+                steps: vec!["閲囪喘缁忕悊".to_string(), "璐㈠姟瀹℃牳".to_string()],
                 governance: Some(SystemWorkflowGovernance {
                     engine: "CAMUNDA8".to_string(),
                     process_key: "purchase_order_approval".to_string(),
@@ -58695,32 +59095,32 @@ fn default_system_custom_fields_catalog() -> SystemCustomFieldsCatalogPayload {
         fields: vec![
             SystemCustomField {
                 field_id: "CF-ORDER-01".to_string(),
-                entity: "订单".to_string(),
-                label: "渠道备注".to_string(),
+                entity: "璁㈠崟".to_string(),
+                label: "娓犻亾澶囨敞".to_string(),
                 field_key: "channel_note".to_string(),
                 field_type: "TEXT".to_string(),
                 required: false,
                 compatible: true,
                 status: "ACTIVE".to_string(),
-                description: Some("同步渠道订单备注".to_string()),
+                description: Some("鍚屾娓犻亾璁㈠崟澶囨敞".to_string()),
                 updated_at: (now - Duration::days(2)).to_rfc3339(),
             },
             SystemCustomField {
                 field_id: "CF-SKU-02".to_string(),
-                entity: "商品".to_string(),
-                label: "温控等级".to_string(),
+                entity: "鍟嗗搧".to_string(),
+                label: "娓╂帶绛夌骇".to_string(),
                 field_key: "temp_level".to_string(),
                 field_type: "SELECT".to_string(),
                 required: true,
                 compatible: true,
                 status: "ACTIVE".to_string(),
-                description: Some("生鲜商品温控要求".to_string()),
+                description: Some("鐢熼矞鍟嗗搧娓╂帶瑕佹眰".to_string()),
                 updated_at: (now - Duration::days(6)).to_rfc3339(),
             },
             SystemCustomField {
                 field_id: "CF-PUR-03".to_string(),
-                entity: "采购".to_string(),
-                label: "预计到货周期".to_string(),
+                entity: "閲囪喘".to_string(),
+                label: "棰勮鍒拌揣鍛ㄦ湡".to_string(),
                 field_key: "lead_time".to_string(),
                 field_type: "NUMBER".to_string(),
                 required: false,
@@ -58736,15 +59136,15 @@ fn default_system_custom_fields_catalog() -> SystemCustomFieldsCatalogPayload {
                 field_id: "CF-ORDER-01".to_string(),
                 action: "创建字段".to_string(),
                 operator: "系统管理员".to_string(),
-                comment: Some("首次启用渠道备注".to_string()),
+                comment: Some("棣栨鍚敤娓犻亾澶囨敞".to_string()),
                 created_at: (now - Duration::days(5)).to_rfc3339(),
             },
             SystemCustomFieldAudit {
                 record_id: "AUD-1002".to_string(),
                 field_id: "CF-SKU-02".to_string(),
-                action: "更新字段".to_string(),
-                operator: "商品主管".to_string(),
-                comment: Some("新增温控等级选项".to_string()),
+                action: "鏇存柊瀛楁".to_string(),
+                operator: "鍟嗗搧涓荤".to_string(),
+                comment: Some("鏂板娓╂帶绛夌骇閫夐」".to_string()),
                 created_at: (now - Duration::days(2)).to_rfc3339(),
             },
         ],
@@ -58773,16 +59173,16 @@ fn default_system_audit_reports_catalog() -> SystemAuditReportsCatalogPayload {
         reports: vec![
             SystemAuditReport {
                 report_id: "REP-ORDER-01".to_string(),
-                module: "订单".to_string(),
+                module: "璁㈠崟".to_string(),
                 period: "2025-12".to_string(),
-                owner: "审计专员".to_string(),
+                owner: "瀹¤涓撳憳".to_string(),
                 anomalies: 3,
                 status: "READY".to_string(),
                 generated_at: (now - Duration::days(2)).to_rfc3339(),
             },
             SystemAuditReport {
                 report_id: "REP-INV-02".to_string(),
-                module: "库存".to_string(),
+                module: "搴撳瓨".to_string(),
                 period: "2025-12".to_string(),
                 owner: "系统管理员".to_string(),
                 anomalies: 0,
@@ -58810,9 +59210,9 @@ fn default_system_audit_reports_catalog() -> SystemAuditReportsCatalogPayload {
             },
             SystemAuditRule {
                 rule_id: "RULE-002".to_string(),
-                module: "库存".to_string(),
+                module: "搴撳瓨".to_string(),
                 name: "负库存告警".to_string(),
-                condition: "库存 < 0".to_string(),
+                condition: "搴撳瓨 < 0".to_string(),
                 enabled: true,
                 updated_at: (now - Duration::days(1)).to_rfc3339(),
             },
@@ -58827,7 +59227,7 @@ fn default_system_integrations_catalog() -> SystemIntegrationsCatalogPayload {
             SystemIntegrationConfig {
                 integration_id: "INT-EC-01".to_string(),
                 name: "天猫旗舰店".to_string(),
-                category: "电商平台".to_string(),
+                category: "鐢靛晢骞冲彴".to_string(),
                 provider: "Alibaba OpenAPI".to_string(),
                 status: "CONNECTED".to_string(),
                 success_rate: 98.7,
@@ -60101,7 +60501,7 @@ mod tests {
             tenant_id: TenantId(uuid::Uuid::new_v4()),
             platform: Platform::Taobao,
             platform_shop_id: "TB-TEST".to_string(),
-            name: "测试店铺".to_string(),
+            name: "娴嬭瘯搴楅摵".to_string(),
             status: status.to_string(),
             auth_meta_json: json!({}),
             created_at: now,
@@ -60325,3 +60725,4 @@ mod tests {
         assert_eq!(integration_status, "WARNING");
     }
 }
+
