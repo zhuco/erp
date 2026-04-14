@@ -49,6 +49,21 @@ pub struct MappingRulesRepo<'a> {
     pool: &'a PgPool,
 }
 
+fn normalize_entity_type(value: &str) -> anyhow::Result<String> {
+    let normalized = value.trim().to_ascii_uppercase();
+    if normalized.is_empty() {
+        anyhow::bail!("entity_type is required");
+    }
+    Ok(normalized)
+}
+
+fn validate_version(version: i32) -> anyhow::Result<()> {
+    if version <= 0 {
+        anyhow::bail!("version must be greater than 0");
+    }
+    Ok(())
+}
+
 impl<'a> MappingRulesRepo<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self { pool }
@@ -138,6 +153,8 @@ impl<'a> MappingRulesRepo<'a> {
     }
 
     pub async fn create_rule(&self, input: MappingRuleCreate) -> anyhow::Result<MappingRule> {
+        let entity_type = normalize_entity_type(&input.entity_type)?;
+        validate_version(input.version)?;
         let enabled = input.enabled.unwrap_or(true);
         #[derive(sqlx::FromRow)]
         struct Row {
@@ -151,6 +168,22 @@ impl<'a> MappingRulesRepo<'a> {
             updated_at: DateTime<Utc>,
         }
 
+        let mut tx = self.pool.begin().await?;
+        if enabled {
+            sqlx::query(
+                r#"
+                update mapping_rules
+                set enabled = false, updated_at = now()
+                where tenant_id = $1 and platform = $2 and entity_type = $3 and enabled = true
+                "#,
+            )
+            .bind(uuid::Uuid::from(input.tenant_id))
+            .bind(input.platform.to_string())
+            .bind(&entity_type)
+            .execute(&mut *tx)
+            .await?;
+        }
+
         let row: Row = sqlx::query_as(
             r#"
             insert into mapping_rules (
@@ -161,12 +194,13 @@ impl<'a> MappingRulesRepo<'a> {
         )
         .bind(uuid::Uuid::from(input.tenant_id))
         .bind(input.platform.to_string())
-        .bind(&input.entity_type)
+        .bind(&entity_type)
         .bind(input.version)
         .bind(enabled)
         .bind(input.rule_json)
-        .fetch_one(self.pool)
+        .fetch_one(&mut *tx)
         .await?;
+        tx.commit().await?;
 
         let platform = Platform::from_str(&row.platform)
             .map_err(|e| anyhow::anyhow!("bad platform in db: {e}"))?;
@@ -191,6 +225,49 @@ impl<'a> MappingRulesRepo<'a> {
     ) -> anyhow::Result<Option<MappingRule>> {
         if input.enabled.is_none() && input.rule_json.is_none() {
             return Ok(None);
+        }
+        let mut tx = self.pool.begin().await?;
+        if matches!(input.enabled, Some(true)) {
+            #[derive(sqlx::FromRow)]
+            struct RuleScope {
+                platform: String,
+                entity_type: String,
+            }
+
+            let scope: Option<RuleScope> = sqlx::query_as(
+                r#"
+                select platform, entity_type
+                from mapping_rules
+                where tenant_id = $1 and rule_id = $2
+                "#,
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(rule_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            let Some(scope) = scope else {
+                tx.rollback().await?;
+                return Ok(None);
+            };
+
+            sqlx::query(
+                r#"
+                update mapping_rules
+                set enabled = false, updated_at = now()
+                where tenant_id = $1
+                  and platform = $2
+                  and entity_type = $3
+                  and rule_id <> $4
+                  and enabled = true
+                "#,
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(scope.platform)
+            .bind(scope.entity_type)
+            .bind(rule_id)
+            .execute(&mut *tx)
+            .await?;
         }
         let mut qb = QueryBuilder::<Postgres>::new("update mapping_rules set ");
         let mut separated = qb.separated(", ");
@@ -223,10 +300,12 @@ impl<'a> MappingRulesRepo<'a> {
             updated_at: DateTime<Utc>,
         }
 
-        let row: Option<Row> = qb.build_query_as().fetch_optional(self.pool).await?;
+        let row: Option<Row> = qb.build_query_as().fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
+            tx.rollback().await?;
             return Ok(None);
         };
+        tx.commit().await?;
         let platform = Platform::from_str(&row.platform)
             .map_err(|e| anyhow::anyhow!("bad platform in db: {e}"))?;
         Ok(Some(MappingRule {
@@ -261,8 +340,31 @@ impl<'a> MappingRulesRepo<'a> {
         .bind(platform.to_string())
         .bind(entity_type)
         .fetch_optional(self.pool)
-        .await?;
+            .await?;
 
         Ok(version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_entity_type, validate_version};
+
+    #[test]
+    fn normalize_entity_type_trims_and_uppercases() {
+        let value = normalize_entity_type("  shop_product  ").expect("should normalize");
+        assert_eq!(value, "SHOP_PRODUCT");
+    }
+
+    #[test]
+    fn normalize_entity_type_rejects_empty() {
+        let err = normalize_entity_type("   ").expect_err("empty entity_type should fail");
+        assert!(err.to_string().contains("entity_type is required"));
+    }
+
+    #[test]
+    fn validate_version_rejects_non_positive_values() {
+        let err = validate_version(0).expect_err("zero version should fail");
+        assert!(err.to_string().contains("greater than 0"));
     }
 }
