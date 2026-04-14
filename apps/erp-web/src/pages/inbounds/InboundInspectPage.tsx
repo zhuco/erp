@@ -79,9 +79,9 @@ export const InboundInspectPage = () => {
   const inboundItemColumns = useMemo<ColumnsType<InboundDocItem>>(
     () => [
       { title: 'SKU ID', dataIndex: 'sku_id' },
-      { title: 'SKU 缂栫爜', dataIndex: 'sku_code' },
-      { title: '鏉＄爜', dataIndex: 'barcode' },
-      { title: '璁″垝鏁伴噺', dataIndex: 'planned_qty' },
+      { title: 'SKU 编码', dataIndex: 'sku_code' },
+      { title: '条码', dataIndex: 'barcode' },
+      { title: '计划数量', dataIndex: 'planned_qty' },
       { title: '已收货', dataIndex: 'received_qty' },
       { title: '已上架', dataIndex: 'putaway_qty' }
     ],
@@ -91,29 +91,30 @@ export const InboundInspectPage = () => {
   const inspectLineColumns = useMemo<ColumnsType<InspectLine>>(
     () => [
       { title: 'SKU', dataIndex: 'sku_id' },
-      { title: '鏁伴噺', dataIndex: 'qty' },
+      { title: '数量', dataIndex: 'qty' },
       {
-        title: '缁撴灉',
+        title: '结果',
         dataIndex: 'result',
         render: (value) => resultOptions.find((item) => item.value === value)?.label ?? value
       },
-      { title: '澶囨敞', dataIndex: 'note', render: (value) => value ?? '-' },
+      { title: '备注', dataIndex: 'note', render: (value) => value ?? '-' },
       {
-        title: '鎿嶄綔',
+        title: '操作',
         key: 'actions',
         render: (_, record) => (
           <Button
             type="link"
+            disabled={!canWrite}
             onClick={() =>
               setInspectLines((prev) => prev.filter((line) => line.line_id !== record.line_id))
             }
           >
-            绉婚櫎
+            移除
           </Button>
         )
       }
     ],
-    []
+    [canWrite]
   );
 
   if (detailQuery.error) {
@@ -171,7 +172,12 @@ export const InboundInspectPage = () => {
         入库质检
       </Typography.Title>
       <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>返回详情</Button>
-      <Button type="primary" onClick={handleSubmitInspect} loading={inspectMutation.isPending}>
+      <Button
+        type="primary"
+        disabled={!canWrite}
+        onClick={handleSubmitInspect}
+        loading={inspectMutation.isPending}
+      >
         提交质检
       </Button>
     </Space>
@@ -191,19 +197,32 @@ export const InboundInspectPage = () => {
       <Card title="质检登记">
         <Form form={inspectForm} layout="inline" style={{ marginBottom: 12 }}>
           <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
-            <Select allowClear placeholder="选择 SKU" options={skuOptions} style={{ width: 240 }} />
+            <Select
+              allowClear
+              disabled={!canWrite}
+              placeholder="选择 SKU"
+              options={skuOptions}
+              style={{ width: 240 }}
+            />
           </Form.Item>
           <Form.Item name="qty" rules={[{ required: true, message: '请输入数量' }]}>
-            <InputNumber min={1} placeholder="数量" />
+            <InputNumber min={1} disabled={!canWrite} placeholder="数量" />
           </Form.Item>
           <Form.Item name="result" rules={[{ required: true, message: '请选择结果' }]}>
-            <Select options={resultOptions} placeholder="结果" style={{ width: 160 }} />
+            <Select
+              disabled={!canWrite}
+              options={resultOptions}
+              placeholder="结果"
+              style={{ width: 160 }}
+            />
           </Form.Item>
           <Form.Item name="note">
-            <Input placeholder="备注" />
+            <Input disabled={!canWrite} placeholder="备注" />
           </Form.Item>
           <Form.Item>
-            <Button onClick={handleAddInspectLine}>添加</Button>
+            <Button disabled={!canWrite} onClick={handleAddInspectLine}>
+              添加
+            </Button>
           </Form.Item>
         </Form>
         <Table<InspectLine>
