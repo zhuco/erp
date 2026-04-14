@@ -5,7 +5,7 @@ import type { OrderExceptionSummary } from '@/api/orders';
 export type OrderExceptionsLeftFilters = {
   status?: string[];
   assignee?: string[];
-  sla?: Array<'overdue' | 'normal' | 'mine'>;
+  sla?: Array<'overdue' | 'due_soon' | 'normal' | 'mine'>;
   warehouseId?: string[];
 };
 
@@ -18,6 +18,11 @@ type FilterOptions = {
   currentUserId: string;
   nowTs?: number;
   overdueThresholdMinutes?: number;
+};
+
+type OrderExceptionSummaryWithSla = OrderExceptionSummary & {
+  sla_status?: string | null;
+  sla_remaining_minutes?: number | null;
 };
 
 const normalizeValues = <T extends string>(value?: readonly T[]) => {
@@ -67,6 +72,39 @@ export const isOverdueExceptionRow = (
   return nowTs - actionTs >= overdueThresholdMinutes * 60_000;
 };
 
+export const resolveExceptionSlaBucket = (
+  row: OrderExceptionSummary,
+  nowTs: number,
+  overdueThresholdMinutes: number,
+): 'overdue' | 'due_soon' | 'normal' => {
+  const extended = row as OrderExceptionSummaryWithSla;
+  const normalizedSlaStatus = String(extended.sla_status ?? '')
+    .trim()
+    .toUpperCase();
+  if (normalizedSlaStatus === 'OVERDUE') {
+    return 'overdue';
+  }
+  if (normalizedSlaStatus === 'DUE_SOON') {
+    return 'due_soon';
+  }
+  if (normalizedSlaStatus === 'NORMAL') {
+    return 'normal';
+  }
+
+  const remainingMinutes = extended.sla_remaining_minutes;
+  if (Number.isFinite(remainingMinutes)) {
+    if ((remainingMinutes as number) < 0) {
+      return 'overdue';
+    }
+    if ((remainingMinutes as number) <= overdueThresholdMinutes) {
+      return 'due_soon';
+    }
+    return 'normal';
+  }
+
+  return isOverdueExceptionRow(row, nowTs, overdueThresholdMinutes) ? 'overdue' : 'normal';
+};
+
 export const hasOrderExceptionsLeftManualFilter = (filters: OrderExceptionsLeftFilters) =>
   normalizeValues(filters.status).length > 0 ||
   normalizeValues(filters.assignee).length > 0 ||
@@ -100,7 +138,9 @@ export const reduceOrderExceptionsFiltersByNode = (
   if (node.nodeType === 'sla' && node.key.startsWith('sla:')) {
     return {
       ...cleared,
-      sla: singleSelectValue(previous.sla, node.key.slice('sla:'.length)) as Array<'overdue' | 'normal' | 'mine'> | undefined,
+      sla: singleSelectValue(previous.sla, node.key.slice('sla:'.length)) as
+        | Array<'overdue' | 'due_soon' | 'normal' | 'mine'>
+        | undefined,
     };
   }
   if (node.nodeType === 'warehouse' && node.key.startsWith('warehouse:')) {
@@ -156,11 +196,12 @@ export const filterOrderExceptionsRows = (
     }
 
     if (selectedSla.size > 0) {
-      const overdue = isOverdueExceptionRow(row, nowTs, overdueThresholdMinutes);
+      const slaBucket = resolveExceptionSlaBucket(row, nowTs, overdueThresholdMinutes);
       const isMine = Boolean(options.currentUserId) && String(row.assignee_id ?? '').trim() === options.currentUserId;
       const matched =
-        (selectedSla.has('overdue') && overdue) ||
-        (selectedSla.has('normal') && !overdue) ||
+        (selectedSla.has('overdue') && slaBucket === 'overdue') ||
+        (selectedSla.has('due_soon') && slaBucket === 'due_soon') ||
+        (selectedSla.has('normal') && slaBucket === 'normal') ||
         (selectedSla.has('mine') && isMine);
       if (!matched) {
         return false;

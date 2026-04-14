@@ -10,6 +10,7 @@ import {
   buildOrderExceptionsCheckedKeys,
   filterOrderExceptionsRows,
   hasOrderExceptionsLeftManualFilter,
+  resolveExceptionSlaBucket,
   reduceOrderExceptionsFiltersByNode,
   type OrderExceptionsLeftFilters,
 } from './orderExceptionsLeftInteractions';
@@ -36,6 +37,8 @@ export const useOrderExceptionsLeftModule = ({
   resolveExceptionLabel,
   isOverdue,
 }: UseOrderExceptionsLeftModuleOptions): UseOrderExceptionsLeftModuleResult => {
+  const nowTs = Date.now();
+
   const buildLeftNodes = useCallback(
     (sourceRows: OrderExceptionSummary[]): OrderReviewAgLeftNode[] => {
       const statusEntries = Array.from(
@@ -62,9 +65,15 @@ export const useOrderExceptionsLeftModule = ({
         }, new Map<string, number>()),
       ).sort((a, b) => b[1] - a[1]);
 
-      const overdueCount = sourceRows.filter((row) => isOverdue(row)).length;
+      const overdueCount = sourceRows.filter((row) => {
+        const bucket = resolveExceptionSlaBucket(row, nowTs, overdueThresholdMinutes);
+        return bucket === 'overdue' || (bucket === 'normal' && isOverdue(row));
+      }).length;
+      const dueSoonCount = sourceRows.filter((row) => {
+        return resolveExceptionSlaBucket(row, nowTs, overdueThresholdMinutes) === 'due_soon';
+      }).length;
       const mineCount = sourceRows.filter((row) => String(row.assignee_id ?? '').trim() === currentUserId).length;
-      const normalCount = Math.max(sourceRows.length - overdueCount, 0);
+      const normalCount = Math.max(sourceRows.length - overdueCount - dueSoonCount, 0);
 
       return [
         {
@@ -105,6 +114,7 @@ export const useOrderExceptionsLeftModule = ({
           children: [
             { key: 'sla:*', label: '全部 SLA', nodeType: 'sla', count: sourceRows.length },
             { key: 'sla:overdue', label: '已超时', nodeType: 'sla', count: overdueCount },
+            { key: 'sla:due_soon', label: '即将超时', nodeType: 'sla', count: dueSoonCount },
             { key: 'sla:normal', label: '未超时', nodeType: 'sla', count: normalCount },
             { key: 'sla:mine', label: '我的负责', nodeType: 'sla', count: mineCount },
           ],
@@ -126,7 +136,7 @@ export const useOrderExceptionsLeftModule = ({
         },
       ];
     },
-    [currentUserId, isOverdue, resolveExceptionLabel],
+    [currentUserId, isOverdue, nowTs, overdueThresholdMinutes, resolveExceptionLabel],
   );
 
   const leftStatsItems = useMemo<UiModule08OrderReviewLeftStatsItem[]>(() => {
