@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -127,6 +127,38 @@ export const InboundReceivePage = () => {
     [skuOptions]
   );
 
+  const itemBySku = useMemo(
+    () => new Map((detail.items ?? []).map((item) => [item.sku_id, item])),
+    [detail.items]
+  );
+
+  const pendingReceiveBySku = useMemo(() => {
+    const map = new Map<string, number>();
+    receiveLines.forEach((line) => {
+      map.set(line.sku_id, (map.get(line.sku_id) ?? 0) + line.qty);
+    });
+    return map;
+  }, [receiveLines]);
+
+  const pendingRejectBySku = useMemo(() => {
+    const map = new Map<string, number>();
+    rejectLines.forEach((line) => {
+      map.set(line.sku_id, (map.get(line.sku_id) ?? 0) + line.qty);
+    });
+    return map;
+  }, [rejectLines]);
+
+  const getAvailableQty = (skuId: string) => {
+    const item = itemBySku.get(skuId);
+    if (!item) {
+      return 0;
+    }
+    const baseRemaining =
+      item.planned_qty > 0 ? Math.max(item.planned_qty - item.received_qty, 0) : Number.MAX_SAFE_INTEGER;
+    const pendingUsed = (pendingReceiveBySku.get(skuId) ?? 0) + (pendingRejectBySku.get(skuId) ?? 0);
+    return Math.max(baseRemaining - pendingUsed, 0);
+  };
+
   const inboundItemColumns: ColumnsType<InboundDocItem> = [
     { title: 'SKU', dataIndex: 'sku_id', render: (value) => skuLabelMap.get(value) ?? value },
     { title: '计划数量', dataIndex: 'planned_qty' },
@@ -135,7 +167,8 @@ export const InboundReceivePage = () => {
     {
       title: '待收数量',
       key: 'remaining_qty',
-      render: (_, record) => Math.max(record.planned_qty - record.received_qty, 0)
+      render: (_, record) =>
+        record.planned_qty > 0 ? Math.max(record.planned_qty - record.received_qty, 0) : '-'
     }
   ];
 
@@ -210,12 +243,22 @@ export const InboundReceivePage = () => {
       message.warning('SKU 不在入库单范围内');
       return;
     }
+    const qty = Number(values.qty ?? 0);
+    if (qty <= 0) {
+      message.warning('收货数量必须大于 0');
+      return;
+    }
+    const available = getAvailableQty(values.sku_id);
+    if (qty > available) {
+      message.warning(`收货数量超出可处理范围，当前最多可收 ${available}`);
+      return;
+    }
     setReceiveLines((prev) => [
       ...prev,
       {
         line_id: createLineId(),
         sku_id: values.sku_id,
-        qty: Number(values.qty ?? 0)
+        qty
       }
     ]);
     receiveForm.resetFields();
@@ -230,12 +273,22 @@ export const InboundReceivePage = () => {
       message.warning('SKU 不在入库单范围内');
       return;
     }
+    const qty = Number(values.qty ?? 0);
+    if (qty <= 0) {
+      message.warning('拒收数量必须大于 0');
+      return;
+    }
+    const available = getAvailableQty(values.sku_id);
+    if (qty > available) {
+      message.warning(`拒收数量超出可处理范围，当前最多可拒 ${available}`);
+      return;
+    }
     setRejectLines((prev) => [
       ...prev,
       {
         line_id: createLineId(),
         sku_id: values.sku_id,
-        qty: Number(values.qty ?? 0),
+        qty,
         reason: values.reason?.trim() || undefined
       }
     ]);
@@ -245,6 +298,10 @@ export const InboundReceivePage = () => {
   const handleSubmitReceive = () => {
     if (!canWrite) {
       message.error('暂无入库操作权限');
+      return;
+    }
+    if (detail.doc.status === 'PUTAWAY_DONE' || detail.doc.status === 'CANCELLED') {
+      message.warning('当前入库单状态不允许继续收货，请走补录流程');
       return;
     }
     if (!receiveLines.length) {
@@ -257,6 +314,10 @@ export const InboundReceivePage = () => {
   const handleSubmitRejects = () => {
     if (!canWrite) {
       message.error('暂无入库操作权限');
+      return;
+    }
+    if (detail.doc.status === 'PUTAWAY_DONE' || detail.doc.status === 'CANCELLED') {
+      message.warning('当前入库单状态不允许继续拒收，请走补录流程');
       return;
     }
     if (!rejectLines.length) {
@@ -275,6 +336,9 @@ export const InboundReceivePage = () => {
       <Button type="primary" onClick={handleSubmitReceive} loading={receiveMutation.isPending}>
         提交收货
       </Button>
+      <Button onClick={() => navigate('/wms/inbounds')}>
+        去补录入库
+      </Button>
     </Space>
   );
 
@@ -290,6 +354,12 @@ export const InboundReceivePage = () => {
         />
       </Card>
       <Card title="收货登记（支持分批）">
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="系统会校验“收货 + 拒收”总量不超过待处理数量，超量请走补录入库。"
+        />
         <Form form={receiveForm} layout="inline" style={{ marginBottom: 12 }}>
           <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
             <Select
@@ -327,6 +397,12 @@ export const InboundReceivePage = () => {
           </Button>
         }
       >
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="拒收记录会占用本单待处理数量，后续补货请通过“去补录入库”新建补录单。"
+        />
         <Form form={rejectForm} layout="inline" style={{ marginBottom: 12 }}>
           <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
             <Select
