@@ -93,6 +93,22 @@ fn ensure_non_blank(field: &str, value: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn normalize_non_blank(field: &str, value: &str) -> anyhow::Result<String> {
+    ensure_non_blank(field, value)?;
+    Ok(value.trim().to_string())
+}
+
+fn normalize_optional_non_blank(value: Option<String>) -> Option<String> {
+    value.and_then(|text| {
+        let normalized = text.trim().to_string();
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationLog {
     pub log_id: uuid::Uuid,
@@ -176,8 +192,10 @@ impl<'a> OperationLogsRepo<'a> {
     where
         T: sqlx::Executor<'t, Database = Postgres>,
     {
-        ensure_non_blank("actor_type", &input.actor_type)?;
-        ensure_non_blank("action", &input.action)?;
+        let actor_type = normalize_non_blank("actor_type", &input.actor_type)?;
+        let action = normalize_non_blank("action", &input.action)?;
+        let ref_type = normalize_optional_non_blank(input.ref_type);
+        let ref_id = normalize_optional_non_blank(input.ref_id);
         let metadata = input.metadata.unwrap_or_else(|| serde_json::json!({}));
         let row: OperationLogRow = sqlx::query_as(
             r#"
@@ -190,11 +208,11 @@ impl<'a> OperationLogsRepo<'a> {
             "#,
         )
         .bind(uuid::Uuid::from(input.tenant_id))
-        .bind(&input.actor_type)
+        .bind(actor_type)
         .bind(input.actor_user_id.map(uuid::Uuid::from))
-        .bind(&input.action)
-        .bind(&input.ref_type)
-        .bind(&input.ref_id)
+        .bind(action)
+        .bind(ref_type)
+        .bind(ref_id)
         .bind(metadata)
         .fetch_one(executor)
         .await?;
@@ -267,13 +285,22 @@ impl<'a> OperationLogsRepo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::ensure_non_blank;
+    use super::{ensure_non_blank, normalize_optional_non_blank};
 
     #[test]
     fn ensure_non_blank_rejects_blank_values() {
         assert!(ensure_non_blank("actor_type", " ").is_err());
         assert!(ensure_non_blank("actor_type", "\r\n").is_err());
         assert!(ensure_non_blank("actor_type", "USER").is_ok());
+    }
+
+    #[test]
+    fn normalize_optional_non_blank_trims_and_drops_empty() {
+        assert_eq!(normalize_optional_non_blank(Some("  ".to_string())), None);
+        assert_eq!(
+            normalize_optional_non_blank(Some(" SHIPMENT ".to_string())),
+            Some("SHIPMENT".to_string())
+        );
     }
 }
 
