@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import YAML from 'yaml';
 
 import {
   bundleOpenApiDocument,
@@ -163,4 +164,40 @@ test('validateOpenApiGate checks permissions responses and persistence semantica
       ],
     });
   }, /missing persistence declaration/i);
+});
+
+test('bundleOpenApiDocument keeps CRLF output parseable across repeated runs', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openapi-bundle-crlf-'));
+  const inputPath = path.join(tmpDir, 'openapi', 'src', 'openapi.yaml');
+  const outputPath = path.join(tmpDir, 'openapi', 'erp_api_v1.yaml');
+
+  writeFile(
+    inputPath,
+    [
+      'openapi: 3.0.3',
+      'info:',
+      '  title: ERP API',
+      '  version: 1.0.0',
+      'paths:',
+      "  $ref: './paths.yaml'",
+      'components:',
+      "  $ref: './components.yaml'",
+      '',
+    ].join('\n'),
+  );
+  writeFile(path.join(path.dirname(inputPath), 'paths.yaml'), ['/healthz:', '  get:', '    responses:', '      "200": {}', ''].join('\n'));
+  writeFile(
+    path.join(path.dirname(inputPath), 'components.yaml'),
+    ['schemas:', '  HealthzResponse:', '    type: object', ''].join('\n'),
+  );
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, 'openapi: 3.0.3\r\npaths: {}\r\ncomponents: {}\r\n', 'utf8');
+
+  bundleOpenApiDocument({ inputPath, outputPath });
+  bundleOpenApiDocument({ inputPath, outputPath });
+
+  const bundledText = fs.readFileSync(outputPath, 'utf8');
+  assert.ok(!bundledText.includes('\r\r\n'));
+  assert.doesNotThrow(() => YAML.parse(bundledText));
 });
