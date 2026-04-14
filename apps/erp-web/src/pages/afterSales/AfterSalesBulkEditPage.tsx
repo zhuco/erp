@@ -12,6 +12,7 @@ import { ServerTable } from '@/components/ServerTable';
 import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { downloadAfterSalesTemplate } from './afterSalesImportTemplate';
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
@@ -125,7 +126,7 @@ export const AfterSalesBulkEditPage = () => {
               >
                 开始导入
               </Button>
-              <Button onClick={() => message.info('模板下载功能建设中')}>下载模板</Button>
+              <Button onClick={downloadAfterSalesTemplate}>下载模板</Button>
             </Space>
           </Form.Item>
         </Form>
