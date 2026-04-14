@@ -1,9 +1,9 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use chrono::{DateTime, Utc};
 use erp_types::TenantId;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 
-use crate::inventory::{InventoryDelta, InventoryService};
+use crate::inventory::{InventoryDelta, InventoryError, InventoryService};
 
 #[derive(Debug, Clone)]
 pub struct InventoryFreeze {
@@ -55,6 +55,24 @@ impl<'a> InventoryFreezesRepo<'a> {
         input: InventoryFreezeCreateInput,
     ) -> anyhow::Result<InventoryFreeze> {
         let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
+        let balance = sqlx::query_as::<_, FreezeBalanceRow>(
+            r#"
+            select on_hand, reserved, frozen
+            from inventory_balances
+            where tenant_id = $1 and warehouse_id = $2 and sku_id = $3
+            for update
+            "#,
+        )
+        .bind(uuid::Uuid::from(input.tenant_id))
+        .bind(input.warehouse_id)
+        .bind(input.sku_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let available = balance
+            .map(|row| row.on_hand - row.reserved - row.frozen)
+            .unwrap_or(0);
+        validate_freeze_request(input.qty, available)?;
+
         let row: InventoryFreezeRow = sqlx::query_as(
             r#"
             insert into inventory_freezes(
@@ -226,6 +244,20 @@ impl<'a> InventoryFreezesRepo<'a> {
     }
 }
 
+fn validate_freeze_request(qty: i64, available: i64) -> anyhow::Result<()> {
+    if qty <= 0 {
+        bail!("freeze qty must be positive");
+    }
+    if available < qty {
+        return Err(InventoryError::InsufficientAvailable {
+            available,
+            requested: qty,
+        }
+        .into());
+    }
+    Ok(())
+}
+
 fn apply_freeze_filters<'a>(
     qb: &mut QueryBuilder<'a, Postgres>,
     filters: &'a InventoryFreezeListFilters,
@@ -270,5 +302,43 @@ impl InventoryFreezeRow {
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct FreezeBalanceRow {
+    on_hand: i64,
+    reserved: i64,
+    frozen: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_freeze_request_requires_positive_qty() {
+        let err = validate_freeze_request(0, 10).expect_err("qty=0 should fail");
+        assert!(err.to_string().contains("freeze qty must be positive"));
+    }
+
+    #[test]
+    fn validate_freeze_request_checks_available_qty() {
+        let err = validate_freeze_request(12, 5).expect_err("insufficient available should fail");
+        let inventory_err = err
+            .downcast_ref::<InventoryError>()
+            .expect("error should be inventory error");
+        assert!(matches!(
+            inventory_err,
+            InventoryError::InsufficientAvailable {
+                available: 5,
+                requested: 12
+            }
+        ));
+    }
+
+    #[test]
+    fn validate_freeze_request_accepts_available_qty() {
+        validate_freeze_request(4, 8).expect("request in available range should pass");
     }
 }
