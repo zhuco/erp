@@ -50,12 +50,18 @@ type FilterOption = {
   value: string;
 };
 
+type OrderExceptionSummaryWithSla = OrderExceptionSummary & {
+  sla_status?: string | null;
+  sla_remaining_minutes?: number | null;
+};
+
 type BuildOrderExceptionsMainGridColDefsOptions = {
   platformOptions: FilterOption[];
   shopOptions: FilterOption[];
   warehouseOptions: FilterOption[];
   auditStatusOptions: FilterOption[];
   exceptionStatusOptions: FilterOption[];
+  slaStatusOptions: FilterOption[];
   assigneeOptions: FilterOption[];
   onToggleAllSelection: () => void;
   resolveAuditLabel: (status?: string | null) => string;
@@ -92,6 +98,40 @@ type SelectionColumnSnapshot = {
 };
 
 const selectionColumnDiagnosticsEnabled = import.meta.env.DEV || import.meta.env.MODE === 'test';
+
+const resolveOrderExceptionSlaStatus = (record: OrderExceptionSummary): string => {
+  const raw = String((record as OrderExceptionSummaryWithSla).sla_status ?? '')
+    .trim()
+    .toUpperCase();
+  if (raw === 'OVERDUE') return 'OVERDUE';
+  if (raw === 'DUE_SOON') return 'DUE_SOON';
+  if (raw === 'NORMAL') return 'NORMAL';
+  return 'NORMAL';
+};
+
+const resolveOrderExceptionSlaStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'OVERDUE':
+      return '已超时';
+    case 'DUE_SOON':
+      return '即将超时';
+    case 'NORMAL':
+    default:
+      return '正常';
+  }
+};
+
+const formatOrderExceptionSlaRemainingMinutes = (record: OrderExceptionSummary): string => {
+  const raw = (record as OrderExceptionSummaryWithSla).sla_remaining_minutes;
+  if (!Number.isFinite(raw)) {
+    return '-';
+  }
+  const minutes = Math.trunc(raw as number);
+  if (minutes < 0) {
+    return `超时 ${Math.abs(minutes)} 分`;
+  }
+  return `${minutes} 分`;
+};
 
 export const OrderExceptionsMainGrid = ({
   rows,
@@ -345,6 +385,13 @@ export const OrderExceptionsMainGrid = ({
     () => buildUniqueOptions(rows.map((record) => record.exception_status), (value) => resolveExceptionLabel(value)),
     [buildUniqueOptions, resolveExceptionLabel, rows],
   );
+  const slaStatusOptions = useMemo(
+    () =>
+      buildUniqueOptions(rows.map((record) => resolveOrderExceptionSlaStatus(record)), (value) =>
+        resolveOrderExceptionSlaStatusLabel(value),
+      ),
+    [buildUniqueOptions, rows],
+  );
   const assigneeOptions = useMemo(
     () => buildUniqueOptions(rows.map((record) => record.assignee_name), (value) => value || '未分派'),
     [buildUniqueOptions, rows],
@@ -389,6 +436,7 @@ export const OrderExceptionsMainGrid = ({
         warehouseOptions,
         auditStatusOptions,
         exceptionStatusOptions,
+        slaStatusOptions,
         assigneeOptions,
         onToggleAllSelection: () => {
           const api = apiRef.current;
@@ -415,6 +463,7 @@ export const OrderExceptionsMainGrid = ({
       resolveAuditLabel,
       resolveExceptionLabel,
       rows.length,
+      slaStatusOptions,
       selectedInGridCount,
       shopOptions,
       warehouseOptions,
@@ -769,6 +818,7 @@ export const buildOrderExceptionsMainGridColDefs = ({
   warehouseOptions,
   auditStatusOptions,
   exceptionStatusOptions,
+  slaStatusOptions,
   assigneeOptions,
   onToggleAllSelection,
   resolveAuditLabel,
@@ -900,6 +950,37 @@ export const buildOrderExceptionsMainGridColDefs = ({
       options: exceptionStatusOptions,
     },
     valueFormatter: (params) => resolveExceptionLabel(String(params.value ?? '')),
+  },
+  {
+    colId: 'sla_status',
+    headerName: 'SLA 状态',
+    width: 112,
+    minWidth: 72,
+    sortable: true,
+    filter: 'agSetColumnFilter',
+    filterValueGetter: (params) =>
+      params.data ? resolveOrderExceptionSlaStatus(params.data) : 'NORMAL',
+    filterParams: {
+      values: slaStatusOptions.map((option) => option.value),
+    },
+    floatingFilterComponent: OrderReviewSetFloatingFilter,
+    floatingFilterComponentParams: {
+      testId: 'order-exceptions-floating-filter-sla-status',
+      emptyLabel: '全部 SLA 状态',
+      options: slaStatusOptions,
+    },
+    valueGetter: (params) =>
+      params.data ? resolveOrderExceptionSlaStatus(params.data) : 'NORMAL',
+    valueFormatter: (params) => resolveOrderExceptionSlaStatusLabel(String(params.value ?? 'NORMAL')),
+  },
+  {
+    colId: 'sla_remaining_minutes',
+    headerName: 'SLA 剩余',
+    width: 116,
+    minWidth: 76,
+    sortable: true,
+    filter: false,
+    valueGetter: (params) => (params.data ? formatOrderExceptionSlaRemainingMinutes(params.data) : '-'),
   },
   {
     colId: 'target_warehouse_id',

@@ -43,7 +43,7 @@ export const OrderExceptionsLeftPanel = ({
     screenContent={
       <div className="order-exceptions-left-screen-tip">
         <Typography.Text type="secondary">
-          左侧支持四个维度单选过滤：异常状态、责任人、SLA、发货仓。再次点击同一项可取消该维度过滤。
+          左侧支持四个维度单选过滤：异常状态、责任人、SLA（含即将超时）、发货仓。再次点击同一项可取消该维度过滤。
         </Typography.Text>
       </div>
     }

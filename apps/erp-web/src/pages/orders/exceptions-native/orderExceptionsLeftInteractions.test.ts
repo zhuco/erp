@@ -6,6 +6,7 @@ import {
   buildOrderExceptionsCheckedKeys,
   filterOrderExceptionsRows,
   hasOrderExceptionsLeftManualFilter,
+  resolveExceptionSlaBucket,
   reduceOrderExceptionsFiltersByNode,
   type OrderExceptionsLeftFilterNode,
   type OrderExceptionsLeftFilters,
@@ -70,14 +71,38 @@ describe('orderExceptionsLeftInteractions', () => {
     const filters: OrderExceptionsLeftFilters = {
       status: ['OPEN'],
       assignee: ['reviewer-a'],
-      sla: ['mine'],
+      sla: ['due_soon'],
       warehouseId: ['wh-hz'],
     };
     const checked = buildOrderExceptionsCheckedKeys(filters);
     expect(checked.has('status:OPEN')).toBe(true);
     expect(checked.has('assignee:reviewer-a')).toBe(true);
-    expect(checked.has('sla:mine')).toBe(true);
+    expect(checked.has('sla:due_soon')).toBe(true);
     expect(checked.has('warehouse:wh-hz')).toBe(true);
+  });
+
+  it('prefers backend sla_status and sla_remaining_minutes when resolving sla bucket', () => {
+    const overdueRow = {
+      ...rowFixture,
+      sla_status: 'OVERDUE',
+      sla_remaining_minutes: -3,
+    } as OrderExceptionSummary;
+    const dueSoonRow = {
+      ...rowFixture,
+      order_id: 'o-due-soon',
+      sla_status: 'DUE_SOON',
+      sla_remaining_minutes: 8,
+    } as OrderExceptionSummary;
+    const normalRow = {
+      ...rowFixture,
+      order_id: 'o-normal',
+      sla_status: 'NORMAL',
+      sla_remaining_minutes: 32,
+    } as OrderExceptionSummary;
+
+    expect(resolveExceptionSlaBucket(overdueRow, Date.now(), 15)).toBe('overdue');
+    expect(resolveExceptionSlaBucket(dueSoonRow, Date.now(), 15)).toBe('due_soon');
+    expect(resolveExceptionSlaBucket(normalRow, Date.now(), 15)).toBe('normal');
   });
 
   it('filters rows by status/assignee/sla/warehouse', () => {
@@ -111,5 +136,33 @@ describe('orderExceptionsLeftInteractions', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.order_id).toBe('o-1');
+  });
+
+  it('supports due_soon left filter using backend sla fields', () => {
+    const dueSoonRow = {
+      ...rowFixture,
+      order_id: 'o-due-soon',
+      sla_status: 'DUE_SOON',
+      sla_remaining_minutes: 5,
+    } as OrderExceptionSummary;
+    const overdueRow = {
+      ...rowFixture,
+      order_id: 'o-overdue',
+      sla_status: 'OVERDUE',
+      sla_remaining_minutes: -9,
+    } as OrderExceptionSummary;
+
+    const result = filterOrderExceptionsRows(
+      [dueSoonRow, overdueRow],
+      {
+        sla: ['due_soon'],
+      },
+      {
+        currentUserId: 'u-1',
+      },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.order_id).toBe('o-due-soon');
   });
 });

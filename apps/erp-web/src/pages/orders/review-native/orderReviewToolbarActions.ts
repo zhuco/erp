@@ -31,9 +31,13 @@ const normalizeTenantId = (tenantId?: string): string | undefined => {
 };
 
 const normalizeActionOrderIds = (orderIds: string[]): string[] =>
-  orderIds
-    .map((orderId) => orderId.trim())
-    .filter((orderId) => orderId.length > 0);
+  Array.from(
+    new Set(
+      orderIds
+        .map((orderId) => orderId.trim())
+        .filter((orderId) => orderId.length > 0),
+    ),
+  );
 
 const notifyActionError = (
   error: unknown,
