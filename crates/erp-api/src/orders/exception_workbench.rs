@@ -201,6 +201,30 @@ pub(super) fn derive_order_exception_sla(
     ("NORMAL".to_string(), selection.sla_remaining_minutes)
 }
 
+fn is_order_exception_action_allowed(action: &str, status: &str) -> bool {
+    match action {
+        "CLAIM" => matches!(status, "OPEN" | "ASSIGNED"),
+        "ASSIGN" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"),
+        "ESCALATE" => matches!(status, "ASSIGNED" | "PROCESSING"),
+        "HOLD" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"),
+        "RESOLVE" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"),
+        "REJECT" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED" | "RESOLVED"),
+        _ => false,
+    }
+}
+
+fn invalid_order_exception_action_message(action: &str) -> &'static str {
+    match action {
+        "CLAIM" => "exception cannot be claimed in current status",
+        "ASSIGN" => "exception cannot be assigned in current status",
+        "ESCALATE" => "exception cannot be escalated in current status",
+        "HOLD" => "exception cannot be put on hold in current status",
+        "RESOLVE" => "exception cannot be resolved in current status",
+        "REJECT" => "exception cannot be rejected in current status",
+        _ => "bad action",
+    }
+}
+
 pub(super) async fn load_order_exception_workbench_order(
     state: &AppState,
     tenant_id: TenantId,
@@ -751,32 +775,23 @@ pub(super) async fn execute_order_exception_workbench_action(
     let requested_assignee_name = trim_to_option(payload.assignee_name.as_deref());
     let reason = trim_to_option(payload.reason.as_deref());
 
+    if !is_order_exception_action_allowed(action, current_status.as_str()) {
+        return Err(
+            conflict(invalid_order_exception_action_message(action)).into_response()
+        );
+    }
+
     let orders_repo = OrdersRepo::new(state.db.pool());
     let now = Utc::now();
     let (ticket_status, handler_id, handled_at, audit_status, message) = match action {
-        "CLAIM" => {
-            if !matches!(current_status.as_str(), "OPEN" | "ASSIGNED") {
-                return Err(
-                    conflict("exception cannot be claimed in current status").into_response()
-                );
-            }
-            (
-                "PROCESSING".to_string(),
-                Some(operator_id),
-                Some(now),
-                "UNDER_REVIEW".to_string(),
-                "异常工单已领取".to_string(),
-            )
-        }
+        "CLAIM" => (
+            "PROCESSING".to_string(),
+            Some(operator_id),
+            Some(now),
+            "UNDER_REVIEW".to_string(),
+            "异常工单已领取".to_string(),
+        ),
         "ASSIGN" => {
-            if !matches!(
-                current_status.as_str(),
-                "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"
-            ) {
-                return Err(
-                    conflict("exception cannot be assigned in current status").into_response()
-                );
-            }
             let assignee_id = requested_assignee_id
                 .ok_or_else(|| bad_request("assignee_id is required").into_response())?;
             let assignee_name = requested_assignee_name
@@ -791,31 +806,24 @@ pub(super) async fn execute_order_exception_workbench_action(
                 format!("异常工单已分派给 {assignee_name}"),
             )
         }
-        "ESCALATE" => {
-            if !matches!(current_status.as_str(), "ASSIGNED" | "PROCESSING") {
-                return Err(
-                    conflict("exception cannot be escalated in current status").into_response()
-                );
-            }
-            (
-                "ESCALATED".to_string(),
-                requested_assignee_id
-                    .or_else(|| {
-                        parse_optional_user_id(
-                            current_summary.assignee_id.as_deref(),
-                            "assignee_id",
-                        )
-                        .ok()
-                        .flatten()
-                    })
-                    .or(Some(operator_id)),
-                Some(now),
-                "UNDER_REVIEW".to_string(),
-                reason
-                    .clone()
-                    .unwrap_or_else(|| "异常工单已升级处理".to_string()),
-            )
-        }
+        "ESCALATE" => (
+            "ESCALATED".to_string(),
+            requested_assignee_id
+                .or_else(|| {
+                    parse_optional_user_id(
+                        current_summary.assignee_id.as_deref(),
+                        "assignee_id",
+                    )
+                    .ok()
+                    .flatten()
+                })
+                .or(Some(operator_id)),
+            Some(now),
+            "UNDER_REVIEW".to_string(),
+            reason
+                .clone()
+                .unwrap_or_else(|| "异常工单已升级处理".to_string()),
+        ),
         "HOLD" => {
             apply_order_exception_action(
                 state,

@@ -47,6 +47,30 @@ describe('orderReviewToolbarActions', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('deduplicates repeated order ids before running review action', async () => {
+    const deps = createDeps();
+    const refresh = vi.fn().mockResolvedValue(undefined);
+
+    const result = await runReviewOrdersAction(
+      createContext({ actionOrderIds: ['O-1', ' O-1 ', 'O-2', 'O-2'] }),
+      deps,
+      refresh,
+    );
+
+    expect(result).toBe(true);
+    expect(deps.reviewOrder).toHaveBeenCalledTimes(2);
+    expect(deps.reviewOrder).toHaveBeenNthCalledWith(1, 'tenant-1', 'O-1', {
+      action: 'PASS',
+      reason: '订单审核页面审核通过',
+    });
+    expect(deps.reviewOrder).toHaveBeenNthCalledWith(2, 'tenant-1', 'O-2', {
+      action: 'PASS',
+      reason: '订单审核页面审核通过',
+    });
+    expect(deps.notifySuccess).toHaveBeenCalledWith('审核完成，共 2 单');
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('blocks review action when no order is selected', async () => {
     const deps = createDeps();
 

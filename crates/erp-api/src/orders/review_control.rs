@@ -324,6 +324,7 @@ pub(super) async fn batch_review_recheck_queue(
     let orders_repo = OrdersRepo::new(state.db.pool());
     let mut accepted = 0_i64;
     let mut rejected = 0_i64;
+    let mut seen_order_ids = std::collections::HashSet::<String>::new();
     for raw in &req.order_ids {
         let raw_order_id = raw.trim().to_string();
         if raw_order_id.is_empty() {
@@ -337,6 +338,24 @@ pub(super) async fn batch_review_recheck_queue(
                     result: "REJECTED".to_string(),
                     error_code: Some("INVALID_ORDER_ID".to_string()),
                     error_message: Some("order_id is empty".to_string()),
+                    before_json: None,
+                    after_json: None,
+                })
+                .await;
+            continue;
+        }
+        let dedup_key = raw_order_id.to_ascii_lowercase();
+        if !seen_order_ids.insert(dedup_key) {
+            rejected += 1;
+            let _ = batch_repo
+                .insert_item(OmsRecheckBatchItemCreate {
+                    tenant_id,
+                    job_id: batch_job.job_id,
+                    order_id: None,
+                    raw_order_id,
+                    result: "REJECTED".to_string(),
+                    error_code: Some("DUPLICATE_ORDER_ID".to_string()),
+                    error_message: Some("duplicate order_id in request".to_string()),
                     before_json: None,
                     after_json: None,
                 })
