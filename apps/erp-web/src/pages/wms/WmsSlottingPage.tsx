@@ -1,6 +1,7 @@
 import { Button, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import {
   applyWmsSlottingSuggestion,
@@ -26,6 +27,9 @@ const priorityColorMap: Record<WmsSlottingSuggestion['priority'], string> = {
 export const WmsSlottingPage = () => {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
+  const [pendingSuggestionActions, setPendingSuggestionActions] = useState<
+    Record<string, string>
+  >({});
 
   const query = useQuery({
     queryKey: ['wms-slotting-suggestions', tenantId],
@@ -55,6 +59,26 @@ export const WmsSlottingPage = () => {
     }
   });
 
+  const runSuggestionAction = async (
+    suggestionId: string,
+    action: 'apply' | 'reject',
+    execute: () => Promise<unknown>
+  ) => {
+    if (pendingSuggestionActions[suggestionId]) {
+      return;
+    }
+    setPendingSuggestionActions((prev) => ({ ...prev, [suggestionId]: action }));
+    try {
+      await execute();
+    } finally {
+      setPendingSuggestionActions((prev) => {
+        const next = { ...prev };
+        delete next[suggestionId];
+        return next;
+      });
+    }
+  };
+
   const columns: ColumnsType<WmsSlottingSuggestion> = [
     { title: '建议ID', dataIndex: 'suggestion_id' },
     { title: 'SKU', dataIndex: 'sku_id' },
@@ -83,18 +107,30 @@ export const WmsSlottingPage = () => {
           <Button
             size="small"
             data-testid="wms-slotting-apply"
-            disabled={record.status !== 'PENDING'}
-            loading={applyMutation.isPending}
-            onClick={() => applyMutation.mutate(record.suggestion_id)}
+            disabled={
+              record.status !== 'PENDING' || Boolean(pendingSuggestionActions[record.suggestion_id])
+            }
+            loading={pendingSuggestionActions[record.suggestion_id] === 'apply'}
+            onClick={() =>
+              void runSuggestionAction(record.suggestion_id, 'apply', () =>
+                applyMutation.mutateAsync(record.suggestion_id)
+              )
+            }
           >
             应用
           </Button>
           <Button
             size="small"
             danger
-            disabled={record.status !== 'PENDING'}
-            loading={rejectMutation.isPending}
-            onClick={() => rejectMutation.mutate(record.suggestion_id)}
+            disabled={
+              record.status !== 'PENDING' || Boolean(pendingSuggestionActions[record.suggestion_id])
+            }
+            loading={pendingSuggestionActions[record.suggestion_id] === 'reject'}
+            onClick={() =>
+              void runSuggestionAction(record.suggestion_id, 'reject', () =>
+                rejectMutation.mutateAsync(record.suggestion_id)
+              )
+            }
           >
             驳回
           </Button>
