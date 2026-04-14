@@ -678,14 +678,31 @@ pub(super) async fn record_order_settlement_log(
             action: action_code.to_string(),
             ref_type: Some("ORDER".to_string()),
             ref_id: Some(order_id.to_string()),
-            metadata: Some(serde_json::json!({
-                "message": message,
-                "operator_id": operator_id.map(|value| value.to_string()),
-                "operator_name": operator_name,
-                "export_job_id": export_job_id,
-            })),
+            metadata: Some(build_order_settlement_log_metadata(
+                action_code,
+                operator_id,
+                operator_name.as_deref(),
+                export_job_id.as_deref(),
+                &message,
+            )),
         })
         .await;
+}
+
+fn build_order_settlement_log_metadata(
+    action_code: &str,
+    operator_id: Option<UserId>,
+    operator_name: Option<&str>,
+    export_job_id: Option<&str>,
+    message: &str,
+) -> Value {
+    serde_json::json!({
+        "message": message,
+        "action_code": action_code,
+        "operator_id": operator_id.map(|value| value.to_string()),
+        "operator_name": trim_to_option(operator_name),
+        "export_job_id": normalize_order_settlement_export_job_id(export_job_id),
+    })
 }
 
 pub(super) fn build_order_reconciliation_batch_id(
@@ -844,18 +861,33 @@ pub(super) async fn record_order_reconciliation_log(
             action: OMS_RECONCILIATION_ACTION_SETTLE.to_string(),
             ref_type: Some("ORDER_RECONCILIATION".to_string()),
             ref_id: Some(batch.batch_id.clone()),
-            metadata: Some(serde_json::json!({
-                "message": "销售对账批次已结案",
-                "operator_id": operator_id.map(|value| value.to_string()),
-                "operator_name": operator_name,
-                "platform": batch.platform,
-                "shop_id": batch.shop_id.to_string(),
-                "period_start": batch.period_start.to_string(),
-                "period_end": batch.period_end.to_string(),
-                "note": note,
-            })),
+            metadata: Some(build_order_reconciliation_log_metadata(
+                batch,
+                operator_id,
+                operator_name.as_deref(),
+                note.as_deref(),
+            )),
         })
         .await;
+}
+
+fn build_order_reconciliation_log_metadata(
+    batch: &OrderReconciliationBatchInput,
+    operator_id: Option<UserId>,
+    operator_name: Option<&str>,
+    note: Option<&str>,
+) -> Value {
+    serde_json::json!({
+        "message": "销售对账批次已结案",
+        "action_code": OMS_RECONCILIATION_ACTION_SETTLE,
+        "operator_id": operator_id.map(|value| value.to_string()),
+        "operator_name": trim_to_option(operator_name),
+        "platform": batch.platform,
+        "shop_id": batch.shop_id.to_string(),
+        "period_start": batch.period_start.to_string(),
+        "period_end": batch.period_end.to_string(),
+        "note": trim_to_option(note),
+    })
 }
 
 #[cfg(test)]
@@ -980,5 +1012,65 @@ mod tests {
         let batch = build_order_reconciliation_batch(&[row], &rule, &input, None);
         assert_eq!(batch.orders[0].blocking_reason, "审核驳回");
         assert!(batch.summary.reasons.iter().any(|item| item == "REVIEW_REJECTED"));
+    }
+
+    #[test]
+    fn settlement_log_metadata_contains_action_and_trimmed_fields() {
+        let operator_id = UserId(uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap());
+        let metadata = build_order_settlement_log_metadata(
+            "OMS.SETTLEMENT_EXPORT",
+            Some(operator_id),
+            Some("  审核员A "),
+            Some("  export-job-1 "),
+            "订单结算已导出",
+        );
+
+        assert_eq!(
+            metadata.get("action_code").and_then(|value| value.as_str()),
+            Some("OMS.SETTLEMENT_EXPORT")
+        );
+        assert_eq!(
+            metadata.get("operator_name").and_then(|value| value.as_str()),
+            Some("审核员A")
+        );
+        assert_eq!(
+            metadata.get("export_job_id").and_then(|value| value.as_str()),
+            Some("export-job-1")
+        );
+    }
+
+    #[test]
+    fn reconciliation_log_metadata_trims_note_and_preserves_batch_scope() {
+        let batch = OrderReconciliationBatchInput {
+            batch_id: "taobao:11111111-1111-1111-1111-111111111111:2026-04-01:2026-04-30"
+                .to_string(),
+            platform: "taobao".to_string(),
+            shop_id: uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+            period_start: NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
+            period_end: NaiveDate::from_ymd_opt(2026, 4, 30).unwrap(),
+        };
+        let metadata = build_order_reconciliation_log_metadata(
+            &batch,
+            None,
+            Some(" "),
+            Some("  差异已复核 "),
+        );
+
+        assert_eq!(
+            metadata.get("platform").and_then(|value| value.as_str()),
+            Some("taobao")
+        );
+        assert_eq!(
+            metadata.get("shop_id").and_then(|value| value.as_str()),
+            Some("11111111-1111-1111-1111-111111111111")
+        );
+        assert_eq!(
+            metadata.get("note").and_then(|value| value.as_str()),
+            Some("差异已复核")
+        );
+        assert!(metadata
+            .get("operator_name")
+            .map(|value| value.is_null())
+            .unwrap_or(false));
     }
 }
