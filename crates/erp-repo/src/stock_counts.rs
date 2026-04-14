@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use erp_types::TenantId;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::collections::HashMap;
 
@@ -563,6 +563,23 @@ impl<'a> StockCountsRepo<'a> {
         updates: Vec<StockCountItemUpdate>,
     ) -> anyhow::Result<Vec<StockCountItem>> {
         let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
+        let status: Option<String> = sqlx::query_scalar(
+            r#"
+            select status
+            from stock_counts
+            where tenant_id = $1 and count_id = $2
+            for update
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(count_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(status) = status else {
+            return Err(anyhow!("stock count not found"));
+        };
+        ensure_count_editable(&status)?;
+
         let mut updated_items = Vec::with_capacity(updates.len());
 
         for update in updates {
@@ -615,8 +632,24 @@ impl<'a> StockCountsRepo<'a> {
         let Some(status) = status else {
             return Err(anyhow!("stock count not found"));
         };
-        if status == "CANCELLED" {
-            return Err(anyhow!("stock count cancelled"));
+        match resolve_confirm_diff_action(&status)? {
+            StockCountConfirmDiffAction::Noop => {
+                let row: StockCountRow = sqlx::query_as(
+                    r#"
+                    select count_id, tenant_id, warehouse_id, status,
+                           strategy, dimension, filters_json, created_at, updated_at
+                    from stock_counts
+                    where tenant_id = $1 and count_id = $2
+                    "#,
+                )
+                .bind(uuid::Uuid::from(tenant_id))
+                .bind(count_id)
+                .fetch_one(&mut *tx)
+                .await?;
+                tx.commit().await?;
+                return Ok(row.into_count());
+            }
+            StockCountConfirmDiffAction::Recalculate => {}
         }
 
         sqlx::query(
@@ -625,6 +658,40 @@ impl<'a> StockCountsRepo<'a> {
             set diff_qty = counted_qty - system_qty,
                 updated_at = now()
             where tenant_id = $1 and count_id = $2
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(count_id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            r#"
+            insert into inventory_reconciliation_center(
+                tenant_id,
+                warehouse_id,
+                sku_id,
+                expected_on_hand,
+                actual_on_hand,
+                diff_qty,
+                status,
+                source_ref
+            )
+            select
+                sc.tenant_id,
+                sc.warehouse_id,
+                sci.sku_id,
+                sci.system_qty,
+                sci.counted_qty,
+                sci.diff_qty,
+                case when sci.diff_qty = 0 then 'MATCH' else 'MISMATCH' end,
+                concat('STOCK_COUNT:', sc.count_id::text)
+            from stock_count_items sci
+            join stock_counts sc
+              on sc.tenant_id = sci.tenant_id
+             and sc.count_id = sci.count_id
+            where sci.tenant_id = $1
+              and sci.count_id = $2
             "#,
         )
         .bind(uuid::Uuid::from(tenant_id))
@@ -707,6 +774,8 @@ impl<'a> StockCountsRepo<'a> {
                 *scrap_items.entry(diff.sku_id).or_insert(0) += -diff.diff_qty;
             }
         }
+        let mut gain_adjust_id: Option<uuid::Uuid> = None;
+        let mut scrap_adjust_id: Option<uuid::Uuid> = None;
         if !gain_items.is_empty() {
             let gain_id: uuid::Uuid = sqlx::query_scalar(
                 r#"
@@ -720,6 +789,7 @@ impl<'a> StockCountsRepo<'a> {
             .bind(row.warehouse_id)
             .fetch_one(&mut *tx)
             .await?;
+            gain_adjust_id = Some(gain_id);
             for (sku_id, qty) in &gain_items {
                 sqlx::query(
                     r#"
@@ -749,6 +819,7 @@ impl<'a> StockCountsRepo<'a> {
             .bind(row.warehouse_id)
             .fetch_one(&mut *tx)
             .await?;
+            scrap_adjust_id = Some(scrap_id);
             for (sku_id, qty) in &scrap_items {
                 sqlx::query(
                     r#"
@@ -812,10 +883,13 @@ impl<'a> StockCountsRepo<'a> {
                 .await?;
         }
 
+        let filters_json =
+            merge_adjustment_linkage(row.filters_json, gain_adjust_id, scrap_adjust_id);
         let updated: StockCountRow = sqlx::query_as(
             r#"
             update stock_counts
             set status = 'APPLIED',
+                filters_json = $3,
                 updated_at = now()
             where tenant_id = $1 and count_id = $2
             returning count_id, tenant_id, warehouse_id, status,
@@ -824,6 +898,7 @@ impl<'a> StockCountsRepo<'a> {
         )
         .bind(uuid::Uuid::from(tenant_id))
         .bind(count_id)
+        .bind(filters_json)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -836,7 +911,28 @@ impl<'a> StockCountsRepo<'a> {
         tenant_id: TenantId,
         count_id: uuid::Uuid,
     ) -> anyhow::Result<StockCount> {
+        let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
         let row: StockCountRow = sqlx::query_as(
+            r#"
+            select count_id, tenant_id, warehouse_id, status,
+                   strategy, dimension, filters_json, created_at, updated_at
+            from stock_counts
+            where tenant_id = $1 and count_id = $2
+            for update
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(count_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| anyhow!("stock count not found"))?;
+
+        if row.status == "CANCELLED" {
+            return Ok(row.into_count());
+        }
+        ensure_cancel_allowed(&row.status)?;
+
+        let updated: StockCountRow = sqlx::query_as(
             r#"
             update stock_counts
             set status = 'CANCELLED',
@@ -844,15 +940,81 @@ impl<'a> StockCountsRepo<'a> {
             where tenant_id = $1 and count_id = $2
             returning count_id, tenant_id, warehouse_id, status,
                       strategy, dimension, filters_json, created_at, updated_at
-            "#,
+        "#,
         )
         .bind(uuid::Uuid::from(tenant_id))
         .bind(count_id)
-        .fetch_one(self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
-        Ok(row.into_count())
+        tx.commit().await?;
+        Ok(updated.into_count())
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StockCountConfirmDiffAction {
+    Recalculate,
+    Noop,
+}
+
+fn ensure_count_editable(status: &str) -> anyhow::Result<()> {
+    if status == "COUNTING" {
+        Ok(())
+    } else {
+        Err(anyhow!("stock count not editable"))
+    }
+}
+
+fn resolve_confirm_diff_action(status: &str) -> anyhow::Result<StockCountConfirmDiffAction> {
+    match status {
+        "COUNTING" => Ok(StockCountConfirmDiffAction::Recalculate),
+        "DIFF_CONFIRMED" => Ok(StockCountConfirmDiffAction::Noop),
+        "CANCELLED" => Err(anyhow!("stock count cancelled")),
+        "APPLIED" => Err(anyhow!("stock count already applied")),
+        _ => Err(anyhow!("stock count not ready")),
+    }
+}
+
+fn ensure_cancel_allowed(status: &str) -> anyhow::Result<()> {
+    if status == "COUNTING" || status == "DIFF_CONFIRMED" {
+        Ok(())
+    } else {
+        Err(anyhow!("stock count cannot be cancelled in current status"))
+    }
+}
+
+fn merge_adjustment_linkage(
+    filters_json: Value,
+    gain_adjust_id: Option<uuid::Uuid>,
+    scrap_adjust_id: Option<uuid::Uuid>,
+) -> Value {
+    let mut root = match filters_json {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+
+    let mut linkage = Map::new();
+    if let Some(gain_id) = gain_adjust_id {
+        linkage.insert("gain_adjust_id".to_string(), Value::String(gain_id.to_string()));
+    }
+    if let Some(scrap_id) = scrap_adjust_id {
+        linkage.insert(
+            "scrap_adjust_id".to_string(),
+            Value::String(scrap_id.to_string()),
+        );
+    }
+    linkage.insert(
+        "transfer_recheck_required".to_string(),
+        Value::Bool(gain_adjust_id.is_some() && scrap_adjust_id.is_some()),
+    );
+    linkage.insert(
+        "linked_at".to_string(),
+        Value::String(Utc::now().to_rfc3339()),
+    );
+    root.insert("adjustment_linkage".to_string(), Value::Object(linkage));
+
+    Value::Object(root)
 }
 
 fn apply_count_filters<'a>(
@@ -947,5 +1109,58 @@ impl StockCountItemRow {
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_confirm_diff_action_respects_closed_loop() {
+        assert!(matches!(
+            resolve_confirm_diff_action("COUNTING").expect("counting should continue"),
+            StockCountConfirmDiffAction::Recalculate
+        ));
+        assert!(matches!(
+            resolve_confirm_diff_action("DIFF_CONFIRMED").expect("confirmed should be idempotent"),
+            StockCountConfirmDiffAction::Noop
+        ));
+        assert!(resolve_confirm_diff_action("APPLIED").is_err());
+        assert!(resolve_confirm_diff_action("CANCELLED").is_err());
+    }
+
+    #[test]
+    fn ensure_count_editable_only_for_counting() {
+        ensure_count_editable("COUNTING").expect("counting should be editable");
+        assert!(ensure_count_editable("DIFF_CONFIRMED").is_err());
+        assert!(ensure_count_editable("APPLIED").is_err());
+    }
+
+    #[test]
+    fn ensure_cancel_allowed_for_counting_or_diff_confirmed() {
+        ensure_cancel_allowed("COUNTING").expect("counting can cancel");
+        ensure_cancel_allowed("DIFF_CONFIRMED").expect("diff confirmed can cancel");
+        assert!(ensure_cancel_allowed("APPLIED").is_err());
+    }
+
+    #[test]
+    fn merge_adjustment_linkage_sets_transfer_recheck_flag() {
+        let merged = merge_adjustment_linkage(
+            json!({"scope_type":"FULL"}),
+            Some(uuid::Uuid::nil()),
+            Some(uuid::Uuid::max()),
+        );
+        let linkage = merged
+            .get("adjustment_linkage")
+            .expect("should include linkage");
+        assert_eq!(
+            linkage.get("transfer_recheck_required"),
+            Some(&Value::Bool(true))
+        );
+        assert_eq!(
+            linkage.get("gain_adjust_id"),
+            Some(&Value::String(uuid::Uuid::nil().to_string()))
+        );
     }
 }

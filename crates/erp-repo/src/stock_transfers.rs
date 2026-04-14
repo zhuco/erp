@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail};
 use chrono::{DateTime, Utc};
 use erp_types::TenantId;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
+use std::collections::HashSet;
 
 use crate::inventory::{InventoryDelta, InventoryError, InventoryService};
 
@@ -76,9 +77,7 @@ impl<'a> StockTransfersRepo<'a> {
         &self,
         input: StockTransferCreateInput,
     ) -> anyhow::Result<StockTransfer> {
-        if input.items.is_empty() {
-            bail!("transfer items required");
-        }
+        validate_transfer_create_input(&input)?;
         let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
         let row: StockTransferRow = sqlx::query_as(
             r#"
@@ -96,9 +95,6 @@ impl<'a> StockTransfersRepo<'a> {
         .await?;
 
         for item in input.items {
-            if item.qty <= 0 {
-                bail!("qty must be positive");
-            }
             sqlx::query(
                 r#"
                 insert into stock_transfer_items(
@@ -236,11 +232,9 @@ impl<'a> StockTransfersRepo<'a> {
         .await?
         .ok_or(anyhow!("transfer not found"))?;
 
-        if row.status == "CANCELLED" {
-            return Err(anyhow!("transfer cancelled"));
-        }
-        if row.status == "OUT_CONFIRMED" || row.status == "IN_CONFIRMED" {
-            return Ok(row.into_transfer());
+        match classify_outbound_status(&row.status)? {
+            TransferOutboundAction::Noop => return Ok(row.into_transfer()),
+            TransferOutboundAction::Apply => {}
         }
 
         let items = self.list_items(tenant_id, transfer_id).await?;
@@ -490,7 +484,29 @@ impl<'a> StockTransfersRepo<'a> {
         tenant_id: TenantId,
         transfer_id: uuid::Uuid,
     ) -> anyhow::Result<StockTransfer> {
+        let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
         let row: StockTransferRow = sqlx::query_as(
+            r#"
+            select
+                transfer_id, tenant_id, from_warehouse_id, to_warehouse_id,
+                status, created_at, updated_at
+            from stock_transfers
+            where tenant_id = $1 and transfer_id = $2
+            for update
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(transfer_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(anyhow!("transfer not found"))?;
+
+        if row.status == "CANCELLED" {
+            return Ok(row.into_transfer());
+        }
+        ensure_cancel_allowed(&row.status)?;
+
+        let updated: StockTransferRow = sqlx::query_as(
             r#"
             update stock_transfers
             set status = 'CANCELLED',
@@ -498,14 +514,57 @@ impl<'a> StockTransfersRepo<'a> {
             where tenant_id = $1 and transfer_id = $2
             returning transfer_id, tenant_id, from_warehouse_id, to_warehouse_id,
                       status, created_at, updated_at
-            "#,
+        "#,
         )
         .bind(uuid::Uuid::from(tenant_id))
         .bind(transfer_id)
-        .fetch_one(self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
-        Ok(row.into_transfer())
+        tx.commit().await?;
+        Ok(updated.into_transfer())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TransferOutboundAction {
+    Apply,
+    Noop,
+}
+
+fn validate_transfer_create_input(input: &StockTransferCreateInput) -> anyhow::Result<()> {
+    if input.from_warehouse_id == input.to_warehouse_id {
+        bail!("from and to warehouse must differ");
+    }
+    if input.items.is_empty() {
+        bail!("transfer items required");
+    }
+    let mut seen = HashSet::new();
+    for item in &input.items {
+        if item.qty <= 0 {
+            bail!("qty must be positive");
+        }
+        if !seen.insert(item.sku_id) {
+            bail!("duplicate sku in transfer items");
+        }
+    }
+    Ok(())
+}
+
+fn classify_outbound_status(status: &str) -> anyhow::Result<TransferOutboundAction> {
+    match status {
+        "DRAFT" => Ok(TransferOutboundAction::Apply),
+        "OUT_CONFIRMED" | "IN_CONFIRMED" => Ok(TransferOutboundAction::Noop),
+        "CANCELLED" => Err(anyhow!("transfer cancelled")),
+        _ => Err(anyhow!("transfer not ready")),
+    }
+}
+
+fn ensure_cancel_allowed(status: &str) -> anyhow::Result<()> {
+    if status == "DRAFT" {
+        Ok(())
+    } else {
+        Err(anyhow!("only draft transfer can be cancelled"))
     }
 }
 
@@ -580,4 +639,67 @@ struct BalanceRow {
     reserved: i64,
     frozen: i64,
     in_transit: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_transfer_input() -> StockTransferCreateInput {
+        StockTransferCreateInput {
+            tenant_id: TenantId(uuid::Uuid::new_v4()),
+            from_warehouse_id: uuid::Uuid::new_v4(),
+            to_warehouse_id: uuid::Uuid::new_v4(),
+            items: vec![StockTransferItemInput {
+                sku_id: uuid::Uuid::new_v4(),
+                qty: 10,
+            }],
+        }
+    }
+
+    #[test]
+    fn validate_transfer_create_input_rejects_same_warehouse() {
+        let mut input = sample_transfer_input();
+        input.to_warehouse_id = input.from_warehouse_id;
+        let err = validate_transfer_create_input(&input).expect_err("should reject same warehouse");
+        assert!(err.to_string().contains("from and to warehouse must differ"));
+    }
+
+    #[test]
+    fn validate_transfer_create_input_rejects_duplicate_sku() {
+        let mut input = sample_transfer_input();
+        input.items.push(StockTransferItemInput {
+            sku_id: input.items[0].sku_id,
+            qty: 3,
+        });
+        let err = validate_transfer_create_input(&input).expect_err("should reject duplicated sku");
+        assert!(err.to_string().contains("duplicate sku"));
+    }
+
+    #[test]
+    fn validate_transfer_create_input_accepts_valid_input() {
+        let input = sample_transfer_input();
+        validate_transfer_create_input(&input).expect("valid input should pass");
+    }
+
+    #[test]
+    fn classify_outbound_status_enforces_state_machine() {
+        assert!(matches!(
+            classify_outbound_status("DRAFT").expect("draft should be applicable"),
+            TransferOutboundAction::Apply
+        ));
+        assert!(matches!(
+            classify_outbound_status("OUT_CONFIRMED").expect("out confirmed should be noop"),
+            TransferOutboundAction::Noop
+        ));
+        assert!(classify_outbound_status("CANCELLED").is_err());
+        assert!(classify_outbound_status("UNKNOWN").is_err());
+    }
+
+    #[test]
+    fn ensure_cancel_allowed_only_for_draft() {
+        ensure_cancel_allowed("DRAFT").expect("draft can cancel");
+        assert!(ensure_cancel_allowed("OUT_CONFIRMED").is_err());
+        assert!(ensure_cancel_allowed("IN_CONFIRMED").is_err());
+    }
 }
