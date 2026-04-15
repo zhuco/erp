@@ -560,6 +560,8 @@ struct AuthContext {
     is_admin: bool,
     shop_ids: Vec<ShopId>,
     warehouse_ids: Vec<uuid::Uuid>,
+    merchant_ids: Vec<uuid::Uuid>,
+    organization_ids: Vec<uuid::Uuid>,
 }
 
 #[allow(dead_code)]
@@ -3115,12 +3117,14 @@ struct SkuBatchListQuery {
 struct SkuBatchCreateRequest {
     sku_id: String,
     batch_no: String,
+    production_date: Option<String>,
     expire_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct SkuBatchUpdateRequest {
     batch_no: Option<String>,
+    production_date: Option<String>,
     expire_at: Option<String>,
 }
 
@@ -8845,12 +8849,16 @@ struct UserRolesResponse {
 struct DataScopeUpdateRequest {
     shop_ids: Vec<String>,
     warehouse_ids: Vec<String>,
+    merchant_ids: Vec<String>,
+    organization_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct DataScopeResponse {
     shop_ids: Vec<String>,
     warehouse_ids: Vec<String>,
+    merchant_ids: Vec<String>,
+    organization_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -9060,15 +9068,20 @@ async fn auth_middleware(
                 }
             }
             let perms = normalize_permissions(claims.perms);
-            let (shop_ids, warehouse_ids) = if claims.is_admin {
-                (Vec::new(), Vec::new())
+            let (shop_ids, warehouse_ids, merchant_ids, organization_ids) = if claims.is_admin {
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new())
             } else {
                 let scopes_repo = DataScopesRepo::new(state.db.pool());
                 match scopes_repo.list_user_scopes(tenant_id, user_id).await {
-                    Ok(scopes) => (scopes.shop_ids, scopes.warehouse_ids),
+                    Ok(scopes) => (
+                        scopes.shop_ids,
+                        scopes.warehouse_ids,
+                        scopes.merchant_ids,
+                        scopes.organization_ids,
+                    ),
                     Err(err) => {
                         warn!(tenant_id=%tenant_id, user_id=%user_id, error=%err, "failed to load data scopes");
-                        (Vec::new(), Vec::new())
+                        (Vec::new(), Vec::new(), Vec::new(), Vec::new())
                     }
                 }
             };
@@ -9079,6 +9092,8 @@ async fn auth_middleware(
                 is_admin: claims.is_admin,
                 shop_ids,
                 warehouse_ids,
+                merchant_ids,
+                organization_ids,
             });
             next.run(req).await
         }
@@ -9264,6 +9279,8 @@ async fn get_current_user(
         data_scopes: DataScopeResponse {
             shop_ids: ctx.shop_ids.iter().map(|id| id.to_string()).collect(),
             warehouse_ids: ctx.warehouse_ids.iter().map(|id| id.to_string()).collect(),
+            merchant_ids: ctx.merchant_ids.iter().map(|id| id.to_string()).collect(),
+            organization_ids: ctx.organization_ids.iter().map(|id| id.to_string()).collect(),
         },
     };
 
@@ -16754,6 +16771,7 @@ async fn ship_wms_wave(
 
         match result {
             Ok(_) => {
+                sync_shipment_serials_after_wms_ship(&state, tenant_id, doc.shipment_id).await;
                 success += 1;
                 items.push(WmsWaveShipDocResult {
                     outbound_doc_id: doc.outbound_doc_id,
@@ -20392,8 +20410,10 @@ async fn ship_wms_outbound(
         })
         .await
     {
-        return bad_request(&e.to_string()).into_response();
+        return wms_ship_error_response(e);
     }
+
+    sync_shipment_serials_after_wms_ship(&state, tenant_id, detail.doc.shipment_id).await;
 
     if let Ok(Some(detail)) = repo.get_outbound_doc(tenant_id, outbound_doc_id).await {
         let delivery_status =
@@ -20578,8 +20598,10 @@ async fn direct_ship_wms_outbound(
         })
         .await
     {
-        return bad_request(&e.to_string()).into_response();
+        return wms_ship_error_response(e);
     }
+
+    sync_shipment_serials_after_wms_ship(&state, tenant_id, detail.doc.shipment_id).await;
 
     sync_sales_order_status_after_wms_ship(
         &state,
@@ -20820,7 +20842,7 @@ async fn bind_shipment_serials_for_outbound(
                 })
                 .await
             {
-                return Err(bad_request(&e.to_string()).into_response());
+                return Err(serial_bind_error_response(e));
             }
         }
         if !remaining.is_empty() {
@@ -20830,6 +20852,27 @@ async fn bind_shipment_serials_for_outbound(
 
     let _ = outbound_doc_id;
     Ok(())
+}
+
+fn serial_bind_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    if message.contains("serial not available") {
+        return conflict(&message).into_response();
+    }
+    bad_request(&message).into_response()
+}
+
+fn wms_ship_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    if message.contains("serials required before shipping")
+        || message.contains("batch info required before shipping")
+        || message.contains("shipment_id required for batch check")
+        || message.contains("batch expired before shipping")
+        || message.contains("batch production date in future before shipping")
+    {
+        return conflict(&message).into_response();
+    }
+    bad_request(&message).into_response()
 }
 
 async fn ensure_required_serials_bound_for_outbound(
@@ -20888,6 +20931,24 @@ async fn ensure_required_serials_bound_for_outbound(
     }
 
     Ok(())
+}
+
+async fn sync_shipment_serials_after_wms_ship(
+    state: &AppState,
+    tenant_id: TenantId,
+    shipment_id: Option<uuid::Uuid>,
+) {
+    let Some(shipment_id) = shipment_id else {
+        return;
+    };
+
+    if let Err(e) = state
+        .sku_serials_repo
+        .mark_shipment_serials_shipped(tenant_id, shipment_id)
+        .await
+    {
+        warn!(error = %e, shipment_id = %shipment_id, "shipment serial sync after wms ship failed");
+    }
 }
 
 async fn sync_sales_order_status_after_wms_ship(
@@ -30341,6 +30402,13 @@ async fn create_sku_batch(
         },
         None => None,
     };
+    let production_date = match req.production_date.as_deref() {
+        Some(raw) => match DateTime::parse_from_rfc3339(raw) {
+            Ok(v) => Some(v.with_timezone(&Utc)),
+            Err(_) => return bad_request("bad production_date").into_response(),
+        },
+        None => None,
+    };
 
     let batch = match state
         .sku_batches_repo
@@ -30348,6 +30416,7 @@ async fn create_sku_batch(
             tenant_id,
             sku_id,
             batch_no: req.batch_no.trim().to_string(),
+            production_date,
             expire_at,
         })
         .await
@@ -30368,6 +30437,7 @@ async fn create_sku_batch(
             "batch_id": batch.batch_id,
             "sku_id": batch.sku_id,
             "batch_no": batch.batch_no,
+            "production_date": batch.production_date,
             "expire_at": batch.expire_at,
         })),
     )
@@ -30405,6 +30475,13 @@ async fn update_sku_batch(
         },
         None => None,
     };
+    let production_date = match req.production_date.as_deref() {
+        Some(raw) => match DateTime::parse_from_rfc3339(raw) {
+            Ok(v) => Some(v.with_timezone(&Utc)),
+            Err(_) => return bad_request("bad production_date").into_response(),
+        },
+        None => None,
+    };
 
     let batch = match state
         .sku_batches_repo
@@ -30413,6 +30490,7 @@ async fn update_sku_batch(
             batch_id,
             SkuBatchUpdate {
                 batch_no: req.batch_no.and_then(non_empty),
+                production_date,
                 expire_at,
             },
         )
@@ -30435,6 +30513,7 @@ async fn update_sku_batch(
             "batch_id": batch.batch_id,
             "sku_id": batch.sku_id,
             "batch_no": batch.batch_no,
+            "production_date": batch.production_date,
             "expire_at": batch.expire_at,
         })),
     )
@@ -51899,7 +51978,13 @@ async fn create_mapping_rule(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => {
+            let message = e.to_string();
+            if message.contains("invalid mapping rule:") {
+                return bad_request(&message).into_response();
+            }
+            return (StatusCode::INTERNAL_SERVER_ERROR, message).into_response();
+        }
     };
 
     (StatusCode::OK, Json(rule)).into_response()
@@ -51943,7 +52028,13 @@ async fn update_mapping_rule(
     {
         Ok(Some(v)) => v,
         Ok(None) => return not_found("mapping rule not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => {
+            let message = e.to_string();
+            if message.contains("invalid mapping rule:") {
+                return bad_request(&message).into_response();
+            }
+            return (StatusCode::INTERNAL_SERVER_ERROR, message).into_response();
+        }
     };
 
     (StatusCode::OK, Json(rule)).into_response()
@@ -52851,6 +52942,12 @@ async fn get_user_data_scopes(
             .iter()
             .map(|id| id.to_string())
             .collect(),
+        merchant_ids: scopes.merchant_ids.iter().map(|id| id.to_string()).collect(),
+        organization_ids: scopes
+            .organization_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect(),
     };
     (StatusCode::OK, Json(response)).into_response()
 }
@@ -52885,6 +52982,28 @@ async fn update_user_data_scopes(
         Ok(v) => v,
         Err(resp) => return resp.into_response(),
     };
+    let merchant_ids = match parse_uuid_list(&req.merchant_ids) {
+        Ok(v) => v,
+        Err(resp) => return resp.into_response(),
+    };
+    let organization_ids = match parse_uuid_list(&req.organization_ids) {
+        Ok(v) => v,
+        Err(resp) => return resp.into_response(),
+    };
+
+    if let Err(resp) = ensure_shop_scope_subset(&ctx, &shop_ids) {
+        return resp.into_response();
+    }
+    if let Err(resp) =
+        ensure_uuid_scope_subset(&ctx, &merchant_ids, &ctx.merchant_ids, "merchant")
+    {
+        return resp.into_response();
+    }
+    if let Err(resp) =
+        ensure_uuid_scope_subset(&ctx, &organization_ids, &ctx.organization_ids, "organization")
+    {
+        return resp.into_response();
+    }
 
     let repo = DataScopesRepo::new(state.db.pool());
     if let Err(e) = repo.replace_user_shops(tenant_id, user_id, &shop_ids).await {
@@ -52892,6 +53011,18 @@ async fn update_user_data_scopes(
     }
     if let Err(e) = repo
         .replace_user_warehouses(tenant_id, user_id, &warehouse_ids)
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
+    if let Err(e) = repo
+        .replace_user_merchants(tenant_id, user_id, &merchant_ids)
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
+    if let Err(e) = repo
+        .replace_user_organizations(tenant_id, user_id, &organization_ids)
         .await
     {
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
@@ -52906,8 +53037,10 @@ async fn update_user_data_scopes(
         Some(user_id.to_string()),
         None,
         Some(serde_json::json!({
-            "shop_ids": req.shop_ids,
-            "warehouse_ids": req.warehouse_ids,
+        "shop_ids": req.shop_ids,
+        "warehouse_ids": req.warehouse_ids,
+        "merchant_ids": req.merchant_ids,
+        "organization_ids": req.organization_ids,
         })),
     )
     .await;
@@ -55251,7 +55384,7 @@ async fn bind_serials_for_shipment(
             .await
         {
             Ok(v) => v,
-            Err(e) => return Err(bad_request(&e.to_string()).into_response()),
+            Err(e) => return Err(serial_bind_error_response(e)),
         };
         bound.extend(serials);
     }
@@ -55501,6 +55634,38 @@ fn warehouse_scope_filter(ctx: &AuthContext) -> Option<Vec<uuid::Uuid>> {
     } else {
         Some(ctx.warehouse_ids.clone())
     }
+}
+
+fn ensure_shop_scope_subset(
+    ctx: &AuthContext,
+    requested: &[ShopId],
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    if ctx.is_admin || ctx.shop_ids.is_empty() {
+        return Ok(());
+    }
+    for shop_id in requested {
+        if !ctx.shop_ids.contains(shop_id) {
+            return Err(forbidden("shop access denied"));
+        }
+    }
+    Ok(())
+}
+
+fn ensure_uuid_scope_subset(
+    ctx: &AuthContext,
+    requested: &[uuid::Uuid],
+    allowed: &[uuid::Uuid],
+    label: &str,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    if ctx.is_admin || allowed.is_empty() {
+        return Ok(());
+    }
+    for id in requested {
+        if !allowed.contains(id) {
+            return Err(forbidden(&format!("{label} access denied")));
+        }
+    }
+    Ok(())
 }
 
 async fn pdd_only_mode_enabled(
@@ -58687,8 +58852,77 @@ fn after_sales_import_base_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::anyhow;
     use axum::{Extension, Json};
     use serde_json::json;
+    use std::sync::{Arc, Mutex};
+
+    struct RecordingSkuSerialRepo {
+        calls: Mutex<Vec<(uuid::Uuid, uuid::Uuid)>>,
+        fail_mark_shipped: bool,
+    }
+
+    impl RecordingSkuSerialRepo {
+        fn new(fail_mark_shipped: bool) -> Self {
+            Self {
+                calls: Mutex::new(Vec::new()),
+                fail_mark_shipped,
+            }
+        }
+
+        fn calls(&self) -> Vec<(uuid::Uuid, uuid::Uuid)> {
+            self.calls.lock().expect("calls mutex poisoned").clone()
+        }
+    }
+
+    #[async_trait]
+    impl SkuSerialRepo for RecordingSkuSerialRepo {
+        async fn list_serials(
+            &self,
+            _tenant_id: TenantId,
+            _filters: SkuSerialListFilters,
+        ) -> anyhow::Result<SkuSerialListResult> {
+            Err(anyhow!("list_serials not implemented in test mock"))
+        }
+
+        async fn generate_serials(
+            &self,
+            _input: SkuSerialGenerateInput,
+        ) -> anyhow::Result<Vec<SkuSerial>> {
+            Err(anyhow!("generate_serials not implemented in test mock"))
+        }
+
+        async fn bind_serials_to_shipment(
+            &self,
+            _input: RepoShipmentSerialBindInput,
+        ) -> anyhow::Result<Vec<SkuSerial>> {
+            Err(anyhow!("bind_serials_to_shipment not implemented in test mock"))
+        }
+
+        async fn count_shipment_serials(
+            &self,
+            _tenant_id: TenantId,
+            _shipment_id: uuid::Uuid,
+        ) -> anyhow::Result<Vec<ShipmentSerialCount>> {
+            Err(anyhow!("count_shipment_serials not implemented in test mock"))
+        }
+
+        async fn mark_shipment_serials_shipped(
+            &self,
+            tenant_id: TenantId,
+            shipment_id: uuid::Uuid,
+        ) -> anyhow::Result<()> {
+            self.calls
+                .lock()
+                .expect("calls mutex poisoned")
+                .push((uuid::Uuid::from(tenant_id), shipment_id));
+            if self.fail_mark_shipped {
+                Err(anyhow!("mark_shipment_serials_shipped failed"))
+            } else {
+                Ok(())
+            }
+        }
+    }
 
     fn sample_shop(status: &str) -> Shop {
         let now = Utc::now();
@@ -58724,6 +58958,54 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sync_shipment_serials_after_wms_ship_marks_bound_serials_shipped() {
+        let db = Db::connect_lazy("postgres://postgres@localhost/postgres")
+            .expect("lazy db should be constructible");
+        let jwt = JwtService::new("test-secret".to_string());
+        let mut state = AppState::new(db, Arc::new(jwt));
+        let repo = Arc::new(RecordingSkuSerialRepo::new(false));
+        state.sku_serials_repo = repo.clone();
+
+        let tenant_id = TenantId(uuid::Uuid::new_v4());
+        let shipment_id = uuid::Uuid::new_v4();
+
+        sync_shipment_serials_after_wms_ship(&state, tenant_id, Some(shipment_id)).await;
+
+        assert_eq!(repo.calls(), vec![(uuid::Uuid::from(tenant_id), shipment_id)]);
+    }
+
+    #[tokio::test]
+    async fn sync_shipment_serials_after_wms_ship_ignores_missing_shipment_id() {
+        let db = Db::connect_lazy("postgres://postgres@localhost/postgres")
+            .expect("lazy db should be constructible");
+        let jwt = JwtService::new("test-secret".to_string());
+        let mut state = AppState::new(db, Arc::new(jwt));
+        let repo = Arc::new(RecordingSkuSerialRepo::new(false));
+        state.sku_serials_repo = repo.clone();
+
+        sync_shipment_serials_after_wms_ship(&state, TenantId(uuid::Uuid::new_v4()), None).await;
+
+        assert!(repo.calls().is_empty());
+    }
+
+    #[tokio::test]
+    async fn sync_shipment_serials_after_wms_ship_swallows_repo_errors() {
+        let db = Db::connect_lazy("postgres://postgres@localhost/postgres")
+            .expect("lazy db should be constructible");
+        let jwt = JwtService::new("test-secret".to_string());
+        let mut state = AppState::new(db, Arc::new(jwt));
+        let repo = Arc::new(RecordingSkuSerialRepo::new(true));
+        state.sku_serials_repo = repo.clone();
+
+        let tenant_id = TenantId(uuid::Uuid::new_v4());
+        let shipment_id = uuid::Uuid::new_v4();
+
+        sync_shipment_serials_after_wms_ship(&state, tenant_id, Some(shipment_id)).await;
+
+        assert_eq!(repo.calls(), vec![(uuid::Uuid::from(tenant_id), shipment_id)]);
+    }
+
+    #[tokio::test]
     async fn wms_verify_handlers_validate_path_params_before_db_access() {
         let db = Db::connect_lazy("postgres://postgres@localhost/postgres")
             .expect("lazy db should be constructible");
@@ -58736,6 +59018,8 @@ mod tests {
             is_admin: false,
             shop_ids: Vec::new(),
             warehouse_ids: Vec::new(),
+            merchant_ids: Vec::new(),
+            organization_ids: Vec::new(),
         };
         let req_ctx = RequestContext {
             request_id: "req-wms-verify".to_string(),

@@ -2331,13 +2331,17 @@ impl<'a> WmsStore<'a> {
         struct ItemRow {
             sku_id: uuid::Uuid,
             planned_qty: i64,
+            batch_enabled: bool,
         }
 
         let items: Vec<ItemRow> = sqlx::query_as(
             r#"
-            select sku_id, planned_qty
-            from outbound_doc_items
-            where tenant_id = $1 and outbound_doc_id = $2
+            select i.sku_id, i.planned_qty, s.batch_enabled
+            from outbound_doc_items i
+            join skus s
+              on s.tenant_id = i.tenant_id
+             and s.sku_id = i.sku_id
+            where i.tenant_id = $1 and i.outbound_doc_id = $2
             "#,
         )
         .bind(uuid::Uuid::from(input.tenant_id))
@@ -2347,6 +2351,125 @@ impl<'a> WmsStore<'a> {
 
         if items.is_empty() {
             return Err(anyhow!("outbound items missing"));
+        }
+
+        let batch_required: Vec<uuid::Uuid> = items
+            .iter()
+            .filter(|item| item.batch_enabled)
+            .map(|item| item.sku_id)
+            .collect();
+        if !batch_required.is_empty() {
+            let shipment_id = doc
+                .shipment_id
+                .ok_or_else(|| anyhow!("shipment_id required for batch check"))?;
+            #[derive(sqlx::FromRow)]
+            struct BatchCountRow {
+                sku_id: uuid::Uuid,
+                qty: i64,
+            }
+            let rows: Vec<BatchCountRow> = sqlx::query_as(
+                r#"
+                select sku_id, sum(qty)::bigint as qty
+                from shipment_sku_batches
+                where tenant_id = $1
+                  and shipment_id = $2
+                  and sku_id = any($3)
+                group by sku_id
+                "#,
+            )
+            .bind(uuid::Uuid::from(input.tenant_id))
+            .bind(shipment_id)
+            .bind(&batch_required)
+            .fetch_all(&mut *tx)
+            .await?;
+
+            let batch_map: HashMap<uuid::Uuid, i64> =
+                rows.into_iter().map(|row| (row.sku_id, row.qty)).collect();
+            for item in &items {
+                if !item.batch_enabled {
+                    continue;
+                }
+                let bound_qty = batch_map.get(&item.sku_id).copied().unwrap_or(0);
+                if bound_qty < item.planned_qty {
+                    return Err(anyhow!("batch info required before shipping"));
+                }
+            }
+
+            #[derive(sqlx::FromRow)]
+            struct ExpiredBatchRow {
+                sku_id: uuid::Uuid,
+                batch_no: String,
+                expire_at: DateTime<Utc>,
+            }
+            let expired_batch: Option<ExpiredBatchRow> = sqlx::query_as(
+                r#"
+                select sb.sku_id, sb.batch_no, b.expire_at
+                from shipment_sku_batches sb
+                join sku_batches b
+                  on b.tenant_id = sb.tenant_id
+                 and b.batch_id = sb.batch_id
+                where sb.tenant_id = $1
+                  and sb.shipment_id = $2
+                  and sb.sku_id = any($3)
+                  and b.expire_at is not null
+                  and b.expire_at <= $4
+                order by b.expire_at asc, sb.batch_no asc
+                limit 1
+                "#,
+            )
+            .bind(uuid::Uuid::from(input.tenant_id))
+            .bind(shipment_id)
+            .bind(&batch_required)
+            .bind(Utc::now())
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            if let Some(expired_batch) = expired_batch {
+                return Err(anyhow!(
+                    "batch expired before shipping: sku_id={}, batch_no={}, expire_at={}",
+                    expired_batch.sku_id,
+                    expired_batch.batch_no,
+                    expired_batch.expire_at.to_rfc3339(),
+                ));
+            }
+
+            #[derive(sqlx::FromRow)]
+            struct FutureProductionBatchRow {
+                sku_id: uuid::Uuid,
+                batch_no: String,
+                production_date: DateTime<Utc>,
+            }
+            let future_production_batch: Option<FutureProductionBatchRow> = sqlx::query_as(
+                r#"
+                select sb.sku_id, sb.batch_no, b.production_date
+                from shipment_sku_batches sb
+                join sku_batches b
+                  on b.tenant_id = sb.tenant_id
+                 and b.batch_id = sb.batch_id
+                where sb.tenant_id = $1
+                  and sb.shipment_id = $2
+                  and sb.sku_id = any($3)
+                  and b.production_date is not null
+                  and b.production_date > $4
+                order by b.production_date asc, sb.batch_no asc
+                limit 1
+                "#,
+            )
+            .bind(uuid::Uuid::from(input.tenant_id))
+            .bind(shipment_id)
+            .bind(&batch_required)
+            .bind(Utc::now())
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            if let Some(future_production_batch) = future_production_batch {
+                return Err(anyhow!(
+                    "batch production date in future before shipping: sku_id={}, batch_no={}, production_date={}",
+                    future_production_batch.sku_id,
+                    future_production_batch.batch_no,
+                    future_production_batch.production_date.to_rfc3339(),
+                ));
+            }
         }
 
         let service = InventoryService::new(self.pool);
