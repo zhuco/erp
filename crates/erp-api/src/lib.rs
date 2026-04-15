@@ -7595,6 +7595,7 @@ struct PaymentReconcileRunResponse {
 #[derive(Debug, Deserialize)]
 struct PaymentReconcileJobListQuery {
     status: Option<String>,
+    statement_id: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -14954,12 +14955,20 @@ async fn list_payment_reconcile_jobs(
     }
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
     let offset = query.offset.unwrap_or(0).max(0);
+    let statement_id = match query.statement_id.and_then(non_empty) {
+        Some(value) => match uuid::Uuid::parse_str(&value) {
+            Ok(parsed) => Some(parsed),
+            Err(_) => return bad_request("bad statement_id").into_response(),
+        },
+        None => None,
+    };
     let repo = PaymentReconcileJobsRepo::new(state.db.pool());
     let result = match repo
         .list_jobs(
             tenant_id,
             PaymentReconcileJobListFilters {
                 status: query.status.and_then(non_empty),
+                statement_id,
                 offset,
                 limit,
             },

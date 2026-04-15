@@ -368,11 +368,14 @@ export const runPaymentReconcile = async (
 
 export const listPaymentReconcileJobs = async (
   tenantId: string,
-  query: { status?: string; offset?: number; limit?: number }
+  query: { status?: string; statement_id?: string; offset?: number; limit?: number }
 ): Promise<PaymentReconcileJobListResponse> => {
   const params = new URLSearchParams();
   if (query.status) {
     params.set('status', query.status);
+  }
+  if (query.statement_id) {
+    params.set('statement_id', query.statement_id);
   }
   if (query.offset != null) {
     params.set('offset', String(query.offset));

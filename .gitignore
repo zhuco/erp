@@ -28,3 +28,5 @@ status_*.png
 # Web 前端实验构建目录
 apps/erp-web/dist-*/
 apps/erp-web/test-results/
+
+.vercel
