@@ -240,13 +240,20 @@
 以下高冲突资源默认不允许并行直接修改：
 
 1. `crates/erp-api/src/lib.rs`
-2. `crates/erp-repo/src/lib.rs`
-3. `openapi/erp_api_v1.yaml`
-4. `apps/erp-web/src/app/router.tsx`
-5. `apps/erp-web/src/app/layout/menu.tsx`
-6. `migrations/*.sql`
-7. `scripts/release_gate_backend.mjs`
-8. `scripts/verify_openapi_gate_v2.mjs`
+2. `crates/erp-api/src/router.rs`
+3. `crates/erp-api/src/app_state.rs`
+4. `crates/erp-api/src/orders.rs`
+5. `crates/erp-worker/src/main.rs`
+6. `crates/erp-worker/src/event_router.rs`
+7. `openapi/src/openapi.yaml`
+8. `openapi/src/paths.yaml`
+9. `openapi/src/components.yaml`
+10. `openapi/erp_api_v1.yaml`
+11. `scripts/openapi/lib/openapi_tools.mjs`
+12. `scripts/verify_openapi_gate_v2.mjs`
+13. `apps/erp-web/src/app/router.tsx`
+14. `apps/erp-web/src/app/layout/menu.tsx`
+15. `migrations/*.sql`
 
 这些文件必须采用“共享文件锁”机制：
 
@@ -317,9 +324,13 @@ git rev-parse --show-toplevel
    [validate_task_boundary.mjs](/F:/erp/scripts/ops/validate_task_boundary.mjs)
 3. 评分卡生成：
    [generate_parallel_scorecard.mjs](/F:/erp/scripts/ops/generate_parallel_scorecard.mjs)
-4. 使用说明：
+4. 共享锁登记：
+   [register_shared_lock.mjs](/F:/erp/scripts/ops/register_shared_lock.mjs)
+5. 使用说明：
    [PARALLEL_TOOLING_USAGE.md](/F:/erp/docs/ops/PARALLEL_TOOLING_USAGE.md)
-5. 独立模板目录：
+6. 10 窗口矩阵与提示词：
+   [PARALLEL_WINDOW_MATRIX_V2.md](/F:/erp/docs/ops/PARALLEL_WINDOW_MATRIX_V2.md)
+7. 独立模板目录：
    `docs/ops/templates/`
 
 ### 6.1 子任务卡模板

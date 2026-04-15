@@ -5,16 +5,23 @@ const KEY_MAP = {
   goal: 'goal',
   background: 'background',
   owner: 'owner',
+  window: 'window',
+  domain: 'domain',
+  slot: 'slot',
   branch: 'branch',
   worktree: 'worktree',
   allowed_files: 'allowedFiles',
   allowedFiles: 'allowedFiles',
   disallowed_files: 'disallowedFiles',
   disallowedFiles: 'disallowedFiles',
+  shared_lock_targets: 'sharedLockTargets',
+  sharedLockTargets: 'sharedLockTargets',
   dependencies: 'dependencies',
   dod: 'dod',
   test_commands: 'testCommands',
   testCommands: 'testCommands',
+  submission_format: 'submissionFormat',
+  submissionFormat: 'submissionFormat',
   delivery: 'delivery',
 };
 
@@ -76,19 +83,24 @@ function uniqueSorted(items) {
 }
 
 function buildFrontMatter(metadata) {
-  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + 相关资源';
+  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + related assets';
   const lines = ['---'];
   lines.push(`name: ${sanitizeScalar(metadata.name)}`);
   lines.push(`goal: ${sanitizeScalar(metadata.goal)}`);
   lines.push(`background: ${sanitizeScalar(metadata.background)}`);
   lines.push(`owner: ${sanitizeScalar(metadata.owner)}`);
+  lines.push(`window: ${sanitizeScalar(metadata.window)}`);
+  lines.push(`domain: ${sanitizeScalar(metadata.domain)}`);
+  lines.push(`slot: ${sanitizeScalar(metadata.slot)}`);
   lines.push(`branch: ${sanitizeScalar(metadata.branch)}`);
   lines.push(`worktree: ${sanitizeScalar(metadata.worktree)}`);
   lines.push(...listLines('allowed_files', ensureArray(metadata.allowedFiles)));
   lines.push(...listLines('disallowed_files', ensureArray(metadata.disallowedFiles)));
+  lines.push(...listLines('shared_lock_targets', ensureArray(metadata.sharedLockTargets)));
   lines.push(...listLines('dependencies', ensureArray(metadata.dependencies)));
   lines.push(...listLines('dod', ensureArray(metadata.dod)));
   lines.push(...listLines('test_commands', ensureArray(metadata.testCommands)));
+  lines.push(`submission_format: ${sanitizeScalar(metadata.submissionFormat)}`);
   lines.push(`delivery: ${delivery}`);
   lines.push('---');
   return lines.join('\n');
@@ -99,23 +111,51 @@ function bulletList(items, emptyPlaceholder, formatter = (item) => `- ${item}`) 
   return list.length ? list.join('\n') : emptyPlaceholder;
 }
 
+const DEFAULT_SECTION_LABELS = {
+  goal: 'Goal',
+  background: 'Background',
+  dod: 'DoD',
+  preconditions: 'Preconditions',
+  testCommands: 'Test Commands',
+  submissionFormat: 'Submission Format',
+  deliveryFormat: 'Delivery Format',
+  emptyDod: '- TBD',
+  emptyPreconditions: '- None',
+  emptyTestCommands: '- TBD',
+};
+
+function resolveSectionLabels(overrides) {
+  if (!overrides || typeof overrides !== 'object') {
+    return DEFAULT_SECTION_LABELS;
+  }
+  return {
+    ...DEFAULT_SECTION_LABELS,
+    ...overrides,
+  };
+}
+
 function buildBodySections(metadata) {
+  const labels = resolveSectionLabels(metadata.sectionLabels);
   const sections = [];
   const goal = sanitizeScalar(metadata.goal);
   if (goal) {
-    sections.push(`## 目标\n${goal}`);
+    sections.push(`## ${labels.goal}\n${goal}`);
   }
   const background = sanitizeScalar(metadata.background);
   if (background) {
-    sections.push(`## 业务背景\n${background}`);
+    sections.push(`## ${labels.background}\n${background}`);
   }
-  sections.push(`## DoD\n${bulletList(metadata.dod, '- 待补充')}`);
-  sections.push(`## 依赖前提\n${bulletList(metadata.dependencies, '- 暂无')}`);
+  sections.push(`## ${labels.dod}\n${bulletList(metadata.dod, labels.emptyDod)}`);
+  sections.push(`## ${labels.preconditions}\n${bulletList(metadata.dependencies, labels.emptyPreconditions)}`);
   sections.push(
-    `## 测试命令\n${bulletList(metadata.testCommands, '- 待定', (item) => `- \`${item}\``)}`,
+    `## ${labels.testCommands}\n${bulletList(metadata.testCommands, labels.emptyTestCommands, (item) => `- \`${item}\``)}`,
   );
-  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + 相关资源';
-  sections.push(`## 交付格式\n${delivery}`);
+  const submissionFormat = sanitizeScalar(metadata.submissionFormat);
+  if (submissionFormat) {
+    sections.push(`## ${labels.submissionFormat}\n${submissionFormat}`);
+  }
+  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + related assets';
+  sections.push(`## ${labels.deliveryFormat}\n${delivery}`);
   return sections.join('\n\n');
 }
 
@@ -126,7 +166,8 @@ function createTaskCard(metadata) {
 }
 
 function parseTaskCard(cardText) {
-  const match = cardText.match(/^---\s*\r?\n([\s\S]*?)\r?\n---/);
+  const normalized = String(cardText).replace(/^\uFEFF/, '');
+  const match = normalized.match(/^---\s*\r?\n([\s\S]*?)\r?\n---/);
   if (!match) {
     throw new Error('task card front matter is missing');
   }
@@ -218,7 +259,10 @@ function readGitChangedFiles({ repoRoot, mode = 'working' }) {
 
 export {
   createTaskCard,
+  matchesAnyPattern,
+  normalizePath,
   parseTaskCard,
   readGitChangedFiles,
+  uniqueSorted,
   validateTaskFiles,
 };

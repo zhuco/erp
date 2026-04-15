@@ -1,41 +1,48 @@
 ---
-name: 售后 SLA 收敛示例
-goal: 修复售后超时率统计并补齐页面展示
-background: 用于售后工业级收敛与客服协同
-owner: integrator-01
-branch: codex/aftersales-sla-20260414
-worktree: .worktrees/aftersales-sla-20260414
+name: OMS 审核规则收敛示例
+goal: 统一订单审核与例外处理动作规则
+background: 用于降低审核链路回归并提升主链路稳定性
+owner: W2-owner
+window: W2
+domain: oms-review-exception
+slot: T1
+branch: codex/oms-review-rules-20260414
+worktree: .worktrees/oms-review-rules-20260414
 allowed_files:
-  - crates/erp-api/tests/after_sales_sla_escalation.rs
-  - crates/erp-repo/src/after_sales_sla_rules.rs
-  - apps/erp-web/src/pages/afterSales/AfterSalesSlaPage.tsx
+  - crates/erp-api/src/orders/review_control.rs
+  - crates/erp-api/src/orders/exception_workbench.rs
+  - apps/erp-web/src/pages/orders/review-native/**
 disallowed_files:
-  - crates/erp-repo/src/audit_logs.rs
+  - crates/erp-api/src/orders/intake.rs
+  - crates/erp-api/src/orders/settlement.rs
+shared_lock_targets:
+  - crates/erp-api/src/orders.rs
 dependencies:
-  - 共享文件锁已登记
+  - 共享锁已登记
 dod:
-  - 通过 after_sales_sla_escalation 测试
+  - OMS 审核主链路回归通过
   - 无越界修改
 test_commands:
-  - cargo test -p erp-api --test after_sales_sla_escalation -- --nocapture
-delivery: Markdown + 相关资源
+  - cargo test -p erp-api --test oms_orders -- --nocapture
+submission_format: task | commit | changed_files | test_results | residual_risks
+delivery: commit hash + 测试结果 + 残余风险
 ---
 
 ## 目标
-修复售后超时率统计并补齐页面展示
+统一订单审核与例外处理动作规则。
 
 ## 业务背景
-用于售后工业级收敛与客服协同
+用于降低审核链路回归并提升主链路稳定性。
 
 ## DoD
-- 通过 after_sales_sla_escalation 测试
+- OMS 审核主链路回归通过
 - 无越界修改
 
 ## 依赖前提
-- 共享文件锁已登记
+- 共享锁已登记
 
 ## 测试命令
-- `cargo test -p erp-api --test after_sales_sla_escalation -- --nocapture`
+- `cargo test -p erp-api --test oms_orders -- --nocapture`
 
-## 交付格式
-Markdown + 相关资源
+## 提交格式
+- `task | commit | changed_files | test_results | residual_risks`

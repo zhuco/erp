@@ -4,12 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   createTaskCard,
   parseTaskCard,
   validateTaskFiles,
   readGitChangedFiles,
 } from './task_card.mjs';
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const repoRoot = path.resolve(path.dirname(currentFilePath), '..', '..');
 
 function createTempGitRepo() {
   const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-ops-git-'));
@@ -34,32 +38,32 @@ function createTempGitRepo() {
 
 test('task card front matter round trips', () => {
   const card = createTaskCard({
-    name: '并行任务示例',
-    goal: '校验卡片',
-    background: '用于示范',
+    name: '骞惰浠诲姟绀轰緥',
+    goal: '鏍￠獙鍗＄墖',
+    background: '鐢ㄤ簬绀鸿寖',
     owner: 'test-owner',
     branch: 'codex/demo',
     worktree: '.worktrees/demo',
     allowedFiles: ['scripts/ops/**', 'apps/backend/**'],
     disallowedFiles: ['apps/frontend/secret.md'],
-    dependencies: ['共享文件锁已登记'],
-    dod: ['通过单测', '通过边界校验'],
+    dependencies: ['鍏变韩鏂囦欢閿佸凡鐧昏'],
+    dod: ['閫氳繃鍗曟祴', '閫氳繃杈圭晫鏍￠獙'],
     testCommands: ['node --test scripts/ops/task_ops.test.mjs'],
-    delivery: 'commit hash + 测试结果 + 风险',
+    delivery: 'commit hash + 娴嬭瘯缁撴灉 + 椋庨櫓',
   });
 
   const parsed = parseTaskCard(card);
-  assert.equal(parsed.name, '并行任务示例');
-  assert.equal(parsed.goal, '校验卡片');
+  assert.equal(parsed.name, '骞惰浠诲姟绀轰緥');
+  assert.equal(parsed.goal, '鏍￠獙鍗＄墖');
   assert.deepEqual(parsed.allowedFiles, ['scripts/ops/**', 'apps/backend/**']);
   assert.deepEqual(parsed.disallowedFiles, ['apps/frontend/secret.md']);
   assert.deepEqual(parsed.testCommands, ['node --test scripts/ops/task_ops.test.mjs']);
 });
 
-test('validateTaskFiles 在白名单范围内时 PASS', () => {
+test('validateTaskFiles 鍦ㄧ櫧鍚嶅崟鑼冨洿鍐呮椂 PASS', () => {
   const task = parseTaskCard(createTaskCard({
-    name: '白名单通过',
-    goal: '验证白名单',
+    name: '鐧藉悕鍗曢€氳繃',
+    goal: 'validate allow-list',
     owner: 'owner',
     branch: 'codex/pass',
     worktree: '.worktrees/pass',
@@ -77,10 +81,10 @@ test('validateTaskFiles 在白名单范围内时 PASS', () => {
   assert.deepEqual(result.blockedFiles, []);
 });
 
-test('validateTaskFiles 命中禁区或越界时 FAIL', () => {
+test('validateTaskFiles 鍛戒腑绂佸尯鎴栬秺鐣屾椂 FAIL', () => {
   const task = parseTaskCard(createTaskCard({
-    name: '边界失败',
-    goal: '验证禁区',
+    name: '杈圭晫澶辫触',
+    goal: '楠岃瘉绂佸尯',
     owner: 'owner',
     branch: 'codex/fail',
     worktree: '.worktrees/fail',
@@ -98,7 +102,7 @@ test('validateTaskFiles 命中禁区或越界时 FAIL', () => {
   assert.deepEqual(result.outOfScopeFiles, ['apps/erp-web/src/pages/afterSales/AfterSalesListPage.tsx']);
 });
 
-test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
+test('new_parallel_task CLI 鐢熸垚鍖呭惈鏍稿績瀛楁鐨勪换鍔″崱', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-card-'));
   const dest = path.join(tmpDir, 'task-card.md');
   const result = spawnSync(
@@ -106,11 +110,11 @@ test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
     [
       'scripts/ops/new_parallel_task.mjs',
       '--name',
-      '示例卡片',
+      '绀轰緥鍗＄墖',
       '--goal',
-      '落地任务卡脚手架',
+      '钀藉湴浠诲姟鍗¤剼鎵嬫灦',
       '--background',
-      '用于售后多 AI 并行',
+      '鐢ㄤ簬鍞悗澶?AI 骞惰',
       '--owner',
       'cli-owner',
       '--branch',
@@ -127,25 +131,25 @@ test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
       dest,
     ],
     {
-      cwd: 'F:/erp',
+      cwd: repoRoot,
       encoding: 'utf8',
     },
   );
 
   assert.equal(result.status, 0, `CLI exited with ${result.stderr || result.stdout}`);
   const contents = fs.readFileSync(dest, 'utf8');
-  assert.ok(contents.includes('name: 示例卡片'));
-  assert.ok(contents.includes('goal: 落地任务卡脚手架'));
+  assert.ok(contents.includes('name: 绀轰緥鍗＄墖'));
+  assert.ok(contents.includes('goal: 钀藉湴浠诲姟鍗¤剼鎵嬫灦'));
   assert.ok(contents.includes('allowed_files:'));
-  assert.ok(contents.includes('## 测试命令'));
+  assert.ok(contents.includes('## Test Commands'));
 });
 
-test('validate_task_boundary CLI 支持显式文件列表', () => {
+test('validate_task_boundary CLI 鏀寔鏄惧紡鏂囦欢鍒楄〃', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-boundary-'));
   const taskPath = path.join(tmpDir, 'task-card.md');
   fs.writeFileSync(taskPath, createTaskCard({
-    name: '显式文件边界校验',
-    goal: '验证 CLI',
+    name: '鏄惧紡鏂囦欢杈圭晫鏍￠獙',
+    goal: '楠岃瘉 CLI',
     owner: 'owner',
     branch: 'codex/validate',
     worktree: '.worktrees/validate',
@@ -163,7 +167,7 @@ test('validate_task_boundary CLI 支持显式文件列表', () => {
       'scripts/ops/task_card.mjs',
     ],
     {
-      cwd: 'F:/erp',
+      cwd: repoRoot,
       encoding: 'utf8',
     },
   );
@@ -180,7 +184,7 @@ test('validate_task_boundary CLI 支持显式文件列表', () => {
       'apps/erp-web/src/pages/afterSales/AfterSalesListPage.tsx',
     ],
     {
-      cwd: 'F:/erp',
+      cwd: repoRoot,
       encoding: 'utf8',
     },
   );
@@ -188,7 +192,7 @@ test('validate_task_boundary CLI 支持显式文件列表', () => {
   assert.ok(failResult.stdout.includes('FAIL'));
 });
 
-test('readGitChangedFiles 支持 staged / working / all 三种模式', () => {
+test('readGitChangedFiles 鏀寔 staged / working / all 涓夌妯″紡', () => {
   const repoDir = createTempGitRepo();
   const stagedFile = path.join(repoDir, 'scripts', 'ops', 'staged.txt');
   const workingFile = path.join(repoDir, 'docs', 'ops', 'working.txt');
@@ -212,3 +216,133 @@ test('readGitChangedFiles 支持 staged / working / all 三种模式', () => {
   assert.deepEqual(workingFiles, ['docs/ops/working.txt']);
   assert.deepEqual(allFiles, ['docs/ops/working.txt', 'scripts/ops/staged.txt']);
 });
+
+test('task card supports window/slot/lock metadata fields', () => {
+  const card = createTaskCard({
+    name: 'window-meta',
+    goal: 'validate metadata parsing',
+    owner: 'W10',
+    branch: 'codex/window-meta',
+    worktree: '.worktrees/window-meta',
+    window: 'W10',
+    domain: 'system-governance',
+    slot: 'T1',
+    sharedLockTargets: ['openapi/src/openapi.yaml', 'scripts/openapi/**'],
+  });
+
+  const parsed = parseTaskCard(card);
+  assert.equal(parsed.window, 'W10');
+  assert.equal(parsed.domain, 'system-governance');
+  assert.equal(parsed.slot, 'T1');
+  assert.deepEqual(parsed.sharedLockTargets, ['openapi/src/openapi.yaml', 'scripts/openapi/**']);
+});
+
+test('validate_task_boundary fails when shared lock target changed without active lock', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-shared-lock-fail-'));
+  const taskPath = path.join(tmpDir, 'task-card.md');
+  const policyPath = path.join(tmpDir, 'policy.json');
+  const registryPath = path.join(tmpDir, 'registry.json');
+
+  fs.writeFileSync(taskPath, createTaskCard({
+    name: 'shared-lock-fail',
+    goal: 'must fail without lock',
+    owner: 'W10',
+    branch: 'codex/shared-lock-fail',
+    worktree: '.worktrees/shared-lock-fail',
+    window: 'W10',
+    domain: 'system-governance',
+    slot: 'T1',
+    allowedFiles: ['openapi/src/**'],
+    sharedLockTargets: ['openapi/src/openapi.yaml'],
+  }), 'utf8');
+
+  fs.writeFileSync(policyPath, JSON.stringify({
+    version: 'v2',
+    locked_patterns: ['openapi/src/openapi.yaml'],
+  }, null, 2), 'utf8');
+  fs.writeFileSync(registryPath, JSON.stringify({
+    version: 'v2',
+    locks: [],
+  }, null, 2), 'utf8');
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/ops/validate_task_boundary.mjs',
+      '--task',
+      taskPath,
+      '--file',
+      'openapi/src/openapi.yaml',
+      '--policy-file',
+      policyPath,
+      '--lock-registry',
+      registryPath,
+    ],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.ok(result.stdout.includes('shared lock'));
+});
+
+test('validate_task_boundary passes when shared lock is active for current task', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-shared-lock-pass-'));
+  const taskPath = path.join(tmpDir, 'task-card.md');
+  const policyPath = path.join(tmpDir, 'policy.json');
+  const registryPath = path.join(tmpDir, 'registry.json');
+
+  fs.writeFileSync(taskPath, createTaskCard({
+    name: 'shared-lock-pass',
+    goal: 'must pass with lock',
+    owner: 'W10',
+    branch: 'codex/shared-lock-pass',
+    worktree: '.worktrees/shared-lock-pass',
+    window: 'W10',
+    domain: 'system-governance',
+    slot: 'T1',
+    allowedFiles: ['openapi/src/**'],
+    sharedLockTargets: ['openapi/src/openapi.yaml'],
+  }), 'utf8');
+
+  fs.writeFileSync(policyPath, JSON.stringify({
+    version: 'v2',
+    locked_patterns: ['openapi/src/openapi.yaml'],
+  }, null, 2), 'utf8');
+  fs.writeFileSync(registryPath, JSON.stringify({
+    version: 'v2',
+    locks: [
+      {
+        pattern: 'openapi/src/openapi.yaml',
+        task: path.resolve(taskPath).replace(/\\/g, '/'),
+        owner: 'W10',
+        acquired_at: '2026-04-14T16:00:00+08:00',
+      },
+    ],
+  }, null, 2), 'utf8');
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/ops/validate_task_boundary.mjs',
+      '--task',
+      taskPath,
+      '--file',
+      'openapi/src/openapi.yaml',
+      '--policy-file',
+      policyPath,
+      '--lock-registry',
+      registryPath,
+    ],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.ok(result.stdout.includes('PASS'));
+});
+
