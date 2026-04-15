@@ -208,7 +208,10 @@ fn is_order_exception_action_allowed(action: &str, status: &str) -> bool {
         "ESCALATE" => matches!(status, "ASSIGNED" | "PROCESSING"),
         "HOLD" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"),
         "RESOLVE" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED"),
-        "REJECT" => matches!(status, "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED" | "RESOLVED"),
+        "REJECT" => matches!(
+            status,
+            "OPEN" | "ASSIGNED" | "PROCESSING" | "ESCALATED" | "RESOLVED"
+        ),
         _ => false,
     }
 }
@@ -776,9 +779,7 @@ pub(super) async fn execute_order_exception_workbench_action(
     let reason = trim_to_option(payload.reason.as_deref());
 
     if !is_order_exception_action_allowed(action, current_status.as_str()) {
-        return Err(
-            conflict(invalid_order_exception_action_message(action)).into_response()
-        );
+        return Err(conflict(invalid_order_exception_action_message(action)).into_response());
     }
 
     let orders_repo = OrdersRepo::new(state.db.pool());
@@ -810,12 +811,9 @@ pub(super) async fn execute_order_exception_workbench_action(
             "ESCALATED".to_string(),
             requested_assignee_id
                 .or_else(|| {
-                    parse_optional_user_id(
-                        current_summary.assignee_id.as_deref(),
-                        "assignee_id",
-                    )
-                    .ok()
-                    .flatten()
+                    parse_optional_user_id(current_summary.assignee_id.as_deref(), "assignee_id")
+                        .ok()
+                        .flatten()
                 })
                 .or(Some(operator_id)),
             Some(now),

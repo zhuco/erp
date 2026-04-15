@@ -560,6 +560,8 @@ struct AuthContext {
     is_admin: bool,
     shop_ids: Vec<ShopId>,
     warehouse_ids: Vec<uuid::Uuid>,
+    merchant_ids: Vec<uuid::Uuid>,
+    organization_ids: Vec<uuid::Uuid>,
 }
 
 #[allow(dead_code)]
@@ -8845,12 +8847,16 @@ struct UserRolesResponse {
 struct DataScopeUpdateRequest {
     shop_ids: Vec<String>,
     warehouse_ids: Vec<String>,
+    merchant_ids: Vec<String>,
+    organization_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct DataScopeResponse {
     shop_ids: Vec<String>,
     warehouse_ids: Vec<String>,
+    merchant_ids: Vec<String>,
+    organization_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -9060,15 +9066,45 @@ async fn auth_middleware(
                 }
             }
             let perms = normalize_permissions(claims.perms);
-            let (shop_ids, warehouse_ids) = if claims.is_admin {
-                (Vec::new(), Vec::new())
+            let (shop_ids, warehouse_ids, merchant_ids, organization_ids) = if claims.is_admin {
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new())
             } else {
                 let scopes_repo = DataScopesRepo::new(state.db.pool());
                 match scopes_repo.list_user_scopes(tenant_id, user_id).await {
-                    Ok(scopes) => (scopes.shop_ids, scopes.warehouse_ids),
+                    Ok(scopes) => {
+                        let tenants_repo = TenantsRepo::new(state.db.pool());
+                        let (multi_merchant_enabled, multi_organization_enabled) =
+                            match tenants_repo.multi_entity_flags(tenant_id).await {
+                                Ok(flags) => flags,
+                                Err(err) => {
+                                    warn!(
+                                        tenant_id=%tenant_id,
+                                        error=%err,
+                                        "failed to load multi-entity flags; disabling scopes"
+                                    );
+                                    (false, false)
+                                }
+                            };
+                        let merchant_ids = if multi_merchant_enabled {
+                            scopes.merchant_ids
+                        } else {
+                            Vec::new()
+                        };
+                        let organization_ids = if multi_organization_enabled {
+                            scopes.organization_ids
+                        } else {
+                            Vec::new()
+                        };
+                        (
+                            scopes.shop_ids,
+                            scopes.warehouse_ids,
+                            merchant_ids,
+                            organization_ids,
+                        )
+                    }
                     Err(err) => {
                         warn!(tenant_id=%tenant_id, user_id=%user_id, error=%err, "failed to load data scopes");
-                        (Vec::new(), Vec::new())
+                        (Vec::new(), Vec::new(), Vec::new(), Vec::new())
                     }
                 }
             };
@@ -9079,6 +9115,8 @@ async fn auth_middleware(
                 is_admin: claims.is_admin,
                 shop_ids,
                 warehouse_ids,
+                merchant_ids,
+                organization_ids,
             });
             next.run(req).await
         }
@@ -9264,6 +9302,12 @@ async fn get_current_user(
         data_scopes: DataScopeResponse {
             shop_ids: ctx.shop_ids.iter().map(|id| id.to_string()).collect(),
             warehouse_ids: ctx.warehouse_ids.iter().map(|id| id.to_string()).collect(),
+            merchant_ids: ctx.merchant_ids.iter().map(|id| id.to_string()).collect(),
+            organization_ids: ctx
+                .organization_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect(),
         },
     };
 
@@ -52851,6 +52895,16 @@ async fn get_user_data_scopes(
             .iter()
             .map(|id| id.to_string())
             .collect(),
+        merchant_ids: scopes
+            .merchant_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect(),
+        organization_ids: scopes
+            .organization_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect(),
     };
     (StatusCode::OK, Json(response)).into_response()
 }
@@ -52885,6 +52939,14 @@ async fn update_user_data_scopes(
         Ok(v) => v,
         Err(resp) => return resp.into_response(),
     };
+    let merchant_ids = match parse_uuid_list(&req.merchant_ids) {
+        Ok(v) => v,
+        Err(resp) => return resp.into_response(),
+    };
+    let organization_ids = match parse_uuid_list(&req.organization_ids) {
+        Ok(v) => v,
+        Err(resp) => return resp.into_response(),
+    };
 
     let repo = DataScopesRepo::new(state.db.pool());
     if let Err(e) = repo.replace_user_shops(tenant_id, user_id, &shop_ids).await {
@@ -52892,6 +52954,18 @@ async fn update_user_data_scopes(
     }
     if let Err(e) = repo
         .replace_user_warehouses(tenant_id, user_id, &warehouse_ids)
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
+    if let Err(e) = repo
+        .replace_user_merchants(tenant_id, user_id, &merchant_ids)
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
+    if let Err(e) = repo
+        .replace_user_organizations(tenant_id, user_id, &organization_ids)
         .await
     {
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
@@ -52908,6 +52982,8 @@ async fn update_user_data_scopes(
         Some(serde_json::json!({
             "shop_ids": req.shop_ids,
             "warehouse_ids": req.warehouse_ids,
+            "merchant_ids": req.merchant_ids,
+            "organization_ids": req.organization_ids,
         })),
     )
     .await;

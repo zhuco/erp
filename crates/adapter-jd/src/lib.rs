@@ -168,8 +168,7 @@ impl Adapter {
 
     fn map_http_error(source: &str, status: reqwest::StatusCode, body: &[u8]) -> AdapterError {
         let body_text = String::from_utf8_lossy(body);
-        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
-        {
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
             return AdapterError::Auth(format!(
                 "{source} gateway auth error status={} body={}...",
                 status, body_text
@@ -334,9 +333,7 @@ impl Adapter {
                 AfterSaleState::Processing
             }
             "3" | "success" | "done" | "finished" | "complete" => AfterSaleState::Success,
-            "4" | "5" | "closed" | "cancelled" | "canceled" | "rejected" => {
-                AfterSaleState::Closed
-            }
+            "4" | "5" | "closed" | "cancelled" | "canceled" | "rejected" => AfterSaleState::Closed,
             _ if normalized.contains("process") || normalized.contains("pending") => {
                 AfterSaleState::Processing
             }
@@ -881,14 +878,16 @@ impl Adapter {
         if let Some(overridden) = Self::extract_values_by_pointer(v, list_pointer) {
             items = overridden;
         }
-        if let Some(cursor) =
-            Self::extract_text_by_pointer(v, Self::credential_string(shop, "refund_next_cursor_pointer"))
-        {
+        if let Some(cursor) = Self::extract_text_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_next_cursor_pointer"),
+        ) {
             next_cursor = Some(cursor);
         }
-        if let Some(flag) =
-            Self::extract_bool_by_pointer(v, Self::credential_string(shop, "refund_has_more_pointer"))
-        {
+        if let Some(flag) = Self::extract_bool_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_has_more_pointer"),
+        ) {
             has_more = flag;
         }
 
@@ -1641,7 +1640,10 @@ mod tests {
             .await
             .expect("pull refunds");
         assert_eq!(result.orders.len(), 1);
-        assert_eq!(result.orders[0].platform_order_id, "JD-ORDER-REFUND-ONLY-001");
+        assert_eq!(
+            result.orders[0].platform_order_id,
+            "JD-ORDER-REFUND-ONLY-001"
+        );
     }
 
     #[tokio::test]
@@ -1722,7 +1724,10 @@ mod tests {
             .raw
             .get("_erp_refund_meta")
             .expect("refund meta exists");
-        assert_eq!(meta.get("reason").and_then(|v| v.as_str()), Some("质量问题"));
+        assert_eq!(
+            meta.get("reason").and_then(|v| v.as_str()),
+            Some("质量问题")
+        );
         assert_eq!(
             meta.get("responsibility").and_then(|v| v.as_str()),
             Some("seller")

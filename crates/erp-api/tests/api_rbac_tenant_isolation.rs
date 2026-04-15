@@ -5,6 +5,7 @@ use axum::{
 use chrono::Utc;
 use erp_api::{build_app, AppState, Claims, JwtService};
 use erp_repo::db::Db;
+use serde_json::json;
 use tower::ServiceExt;
 
 mod support;
@@ -128,4 +129,39 @@ async fn tenant_mismatch_aftersales_forbidden() {
         .unwrap();
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn admin_data_scope_multi_entity_extended() {
+    let (app, jwt) = build_state();
+    let tenant = tenant_id();
+    let user_id = uuid::Uuid::new_v4();
+    let merchant_id = uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap();
+    let org_id = uuid::Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap();
+
+    let token = build_token(&jwt, &tenant, vec!["users.write"]);
+    let payload = json!({
+        "shop_ids": [],
+        "warehouse_ids": [],
+        "merchant_ids": [merchant_id.to_string()],
+        "organization_ids": [org_id.to_string()]
+    });
+
+    let request = Request::builder()
+        .uri(format!("/admin/users/{}/data-scopes", user_id))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(payload.to_string()))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let data_scope: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(data_scope["merchant_ids"], json!([merchant_id.to_string()]));
+    assert_eq!(data_scope["organization_ids"], json!([org_id.to_string()]));
 }

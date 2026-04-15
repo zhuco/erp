@@ -996,7 +996,10 @@ fn merge_adjustment_linkage(
 
     let mut linkage = Map::new();
     if let Some(gain_id) = gain_adjust_id {
-        linkage.insert("gain_adjust_id".to_string(), Value::String(gain_id.to_string()));
+        linkage.insert(
+            "gain_adjust_id".to_string(),
+            Value::String(gain_id.to_string()),
+        );
     }
     if let Some(scrap_id) = scrap_adjust_id {
         linkage.insert(

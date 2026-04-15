@@ -77,10 +77,15 @@ export const DataScopesPage = () => {
     }
     const loadScopes = async () => {
       try {
-        const scopes = await getUserDataScopes(tenantId, selectedUserId);
+        const scopes = (await getUserDataScopes(
+          tenantId,
+          selectedUserId
+        )) as ExtendedDataScope;
         form.setFieldsValue({
           shop_ids: scopes.shop_ids ?? [],
-          warehouse_ids: scopes.warehouse_ids ?? []
+          warehouse_ids: scopes.warehouse_ids ?? [],
+          merchant_ids: scopes.merchant_ids ?? [],
+          organization_ids: scopes.organization_ids ?? []
         });
       } catch (error) {
         message.error(error instanceof Error ? error.message : '加载数据权限失败');
@@ -97,7 +102,17 @@ export const DataScopesPage = () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
-      await updateUserDataScopes(tenantId, selectedUserId, values);
+      const payload = {
+        shop_ids: values.shop_ids ?? [],
+        warehouse_ids: values.warehouse_ids ?? [],
+        merchant_ids: values.merchant_ids ?? [],
+        organization_ids: values.organization_ids ?? []
+      };
+      await updateUserDataScopes(
+        tenantId,
+        selectedUserId,
+        payload as unknown as DataScopeUpdateRequest
+      );
       message.success('数据权限已更新');
     } catch (error) {
       if (error instanceof Error) {
@@ -143,6 +158,12 @@ export const DataScopesPage = () => {
                 options={warehouseOptions}
                 loading={warehousesQuery.isFetching}
               />
+            </Form.Item>
+            <Form.Item name="merchant_ids" label="商户">
+              <Select mode="tags" allowClear placeholder="输入商户 ID" />
+            </Form.Item>
+            <Form.Item name="organization_ids" label="组织">
+              <Select mode="tags" allowClear placeholder="输入组织 ID" />
             </Form.Item>
           </Form>
         </Space>

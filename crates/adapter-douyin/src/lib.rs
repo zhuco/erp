@@ -1074,14 +1074,16 @@ impl Adapter {
             items = overridden;
         }
 
-        if let Some(cursor) =
-            Self::extract_text_by_pointer(v, Self::credential_string(shop, "refund_next_cursor_pointer"))
-        {
+        if let Some(cursor) = Self::extract_text_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_next_cursor_pointer"),
+        ) {
             next_cursor = Some(cursor);
         }
-        if let Some(flag) =
-            Self::extract_bool_by_pointer(v, Self::credential_string(shop, "refund_has_more_pointer"))
-        {
+        if let Some(flag) = Self::extract_bool_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_has_more_pointer"),
+        ) {
             has_more = flag;
         }
 

@@ -133,16 +133,23 @@ impl Adapter {
     fn oauth_authorize_url(shop: &ShopAuthContext) -> String {
         Self::auth_meta_string(
             shop,
-            &["/oauth/authorize_url", "/authorize_url", "/oauth_authorize_url"],
+            &[
+                "/oauth/authorize_url",
+                "/authorize_url",
+                "/oauth_authorize_url",
+            ],
         )
         .or_else(|| Self::credential_string(shop, "authorize_url"))
         .unwrap_or_else(|| PDD_OAUTH_AUTHORIZE_URL.to_string())
     }
 
     fn oauth_token_url(shop: &ShopAuthContext) -> String {
-        Self::auth_meta_string(shop, &["/oauth/token_url", "/token_url", "/oauth_token_url"])
-            .or_else(|| Self::credential_string(shop, "token_url"))
-            .unwrap_or_else(|| PDD_OAUTH_TOKEN_URL.to_string())
+        Self::auth_meta_string(
+            shop,
+            &["/oauth/token_url", "/token_url", "/oauth_token_url"],
+        )
+        .or_else(|| Self::credential_string(shop, "token_url"))
+        .unwrap_or_else(|| PDD_OAUTH_TOKEN_URL.to_string())
     }
 
     fn default_redirect_uri(shop: &ShopAuthContext) -> Option<String> {
@@ -187,12 +194,20 @@ impl Adapter {
     ) -> Result<TokenRefreshResult, AdapterError> {
         let access_token = Self::read_string_any(
             payload,
-            &["/access_token", "/result/access_token", "/data/access_token"],
+            &[
+                "/access_token",
+                "/result/access_token",
+                "/data/access_token",
+            ],
         )
         .ok_or_else(|| AdapterError::Auth("oauth token response missing access_token".into()))?;
         let refresh_token = Self::read_string_any(
             payload,
-            &["/refresh_token", "/result/refresh_token", "/data/refresh_token"],
+            &[
+                "/refresh_token",
+                "/result/refresh_token",
+                "/data/refresh_token",
+            ],
         );
         let scopes = Self::read_string_any(
             payload,
@@ -333,8 +348,7 @@ impl Adapter {
 
     fn map_http_error(source: &str, status: reqwest::StatusCode, body: &[u8]) -> AdapterError {
         let body_text = String::from_utf8_lossy(body);
-        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
-        {
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
             return AdapterError::Auth(format!(
                 "{source} gateway auth error status={} body={}...",
                 status, body_text
@@ -1152,14 +1166,16 @@ impl Adapter {
         if let Some(overridden) = Self::extract_values_by_pointer(v, list_pointer) {
             items = overridden;
         }
-        if let Some(cursor) =
-            Self::extract_text_by_pointer(v, Self::credential_string(shop, "refund_next_cursor_pointer"))
-        {
+        if let Some(cursor) = Self::extract_text_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_next_cursor_pointer"),
+        ) {
             next_cursor = Some(cursor);
         }
-        if let Some(flag) =
-            Self::extract_bool_by_pointer(v, Self::credential_string(shop, "refund_has_more_pointer"))
-        {
+        if let Some(flag) = Self::extract_bool_by_pointer(
+            v,
+            Self::credential_string(shop, "refund_has_more_pointer"),
+        ) {
             has_more = flag;
         }
 
@@ -1591,10 +1607,9 @@ impl PlatformAdapter for Adapter {
             .await
             .map_err(|err| AdapterError::Temporary(format!("oauth token request failed: {err}")))?;
         let status = response.status();
-        let payload = response
-            .json::<Value>()
-            .await
-            .map_err(|err| AdapterError::Unexpected(format!("oauth token response parse failed: {err}")))?;
+        let payload = response.json::<Value>().await.map_err(|err| {
+            AdapterError::Unexpected(format!("oauth token response parse failed: {err}"))
+        })?;
         if !status.is_success() {
             return Err(AdapterError::Auth(format!(
                 "oauth token exchange failed: status={status}, payload={payload}"
@@ -1740,9 +1755,9 @@ impl PlatformAdapter for Adapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use erp_types::{Platform, ShopId, TenantId};
     use httpmock::Method::POST;
     use httpmock::MockServer;
-    use erp_types::{Platform, ShopId, TenantId};
 
     fn dummy_shop() -> ShopAuthContext {
         ShopAuthContext {
@@ -2033,7 +2048,10 @@ mod tests {
         let url = adapter
             .build_authorize_url(
                 &shop,
-                Some("https://erp.example.com/channels/shops?auth_callback=1&shop_id=SHOP-1".to_string()),
+                Some(
+                    "https://erp.example.com/channels/shops?auth_callback=1&shop_id=SHOP-1"
+                        .to_string(),
+                ),
                 "state-abc",
             )
             .expect("authorize url should exist");
@@ -2057,7 +2075,8 @@ mod tests {
             "expires_in": 7200,
             "scope": "orders,shipping",
         });
-        let parsed_top = Adapter::parse_oauth_token_response(&top_level, now).expect("top level parse");
+        let parsed_top =
+            Adapter::parse_oauth_token_response(&top_level, now).expect("top level parse");
         assert_eq!(parsed_top.access_token.as_deref(), Some("access-a"));
         assert_eq!(parsed_top.refresh_token.as_deref(), Some("refresh-a"));
         assert_eq!(parsed_top.scopes.as_deref(), Some("orders,shipping"));
@@ -2074,7 +2093,8 @@ mod tests {
                 "scope": "orders",
             }
         });
-        let parsed_nested = Adapter::parse_oauth_token_response(&nested, now).expect("nested parse");
+        let parsed_nested =
+            Adapter::parse_oauth_token_response(&nested, now).expect("nested parse");
         assert_eq!(parsed_nested.access_token.as_deref(), Some("access-b"));
         assert_eq!(parsed_nested.refresh_token.as_deref(), Some("refresh-b"));
         assert_eq!(parsed_nested.scopes.as_deref(), Some("orders"));
