@@ -1,4 +1,4 @@
-import {
+﻿import {
   Button,
   Card,
   Checkbox,
@@ -67,6 +67,22 @@ import {
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 import { resolveOperationActionLabel } from '@/utils/logLabels';
+import { ProductApparelSpecComposer } from '@/pages/products/components/ProductApparelSpecComposer';
+import { ProductIndustrySections } from '@/pages/products/components/ProductIndustrySections';
+import { ProductIndustrySummary } from '@/pages/products/components/ProductIndustrySummary';
+import {
+  buildProductIndustryAttrs,
+  getSpecNamePreview,
+  industryProfileOptions,
+  omitProductIndustryAttrs,
+  readBooleanAttr,
+  readNumberAttr,
+  readProductAttrs,
+  readStringAttr,
+  type IndustryProfile,
+  type ProductIndustryFormValues,
+  type ProductSpecForm,
+} from '@/pages/products/productIndustry';
 
 import './productsPage.css';
 
@@ -82,22 +98,7 @@ type WarningStockForm = {
   lower?: WarningStockEntry;
 };
 
-type ProductSpecForm = {
-  spec_code?: string;
-  spec_name?: string;
-  cost?: number;
-  color?: string;
-  size?: string;
-  ingredient?: string;
-  barcode?: string;
-  weight?: number;
-  unit?: string;
-  remark?: string;
-  tag?: string;
-  second_unit?: string;
-};
-
-type ProductFormValues = {
+type ProductFormValues = ProductIndustryFormValues & {
   product_code?: string;
   name?: string;
   alias?: string;
@@ -111,12 +112,6 @@ type ProductFormValues = {
   product_tags?: string[];
   remark?: string;
   warning_stock?: WarningStockForm;
-  batch_enabled?: boolean;
-  shelf_life_days?: number;
-  forbid_sale_days?: number;
-  serial_enabled?: boolean;
-  serial_push_platform?: boolean;
-  specs?: ProductSpecForm[];
 };
 
 type ProductFilters = {
@@ -303,6 +298,7 @@ export const ProductsPage = () => {
   const [quickFilterSettingsOpen, setQuickFilterSettingsOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const attrsSnapshotRef = useRef<Record<string, unknown>>({});
+  const industryProfileSeedRef = useRef<IndustryProfile>('GENERAL');
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<InputRef>(null);
   const searchInputFocusedRef = useRef(false);
@@ -598,12 +594,11 @@ export const ProductsPage = () => {
     );
 
   const applyProductToForm = (record: Product, overrides: Partial<ProductFormValues> = {}) => {
-    const attrs =
-      record.attrs && typeof record.attrs === 'object'
-        ? (record.attrs as Record<string, unknown>)
-        : {};
+    const attrs = readProductAttrs(record);
     const { specs, ...rest } = attrs;
     attrsSnapshotRef.current = rest;
+    const industryProfileValue = readStringAttr(attrs, 'industry_profile', 'GENERAL');
+    industryProfileSeedRef.current = industryProfileValue;
     const normalizedWarning = normalizeWarningStock(record.warning_stock as WarningStockForm);
     form.setFieldsValue({
       product_code: record.product_code ?? undefined,
@@ -624,6 +619,23 @@ export const ProductsPage = () => {
       forbid_sale_days: record.forbid_sale_days ?? undefined,
       serial_enabled: record.serial_enabled ?? false,
       serial_push_platform: record.serial_push_platform ?? false,
+      industry_profile: industryProfileValue,
+      production_date_enabled: readBooleanAttr(attrs, 'production_date_enabled'),
+      shelf_life_unit: readStringAttr(attrs, 'shelf_life_unit', 'DAY'),
+      near_expiry_warning_days: readNumberAttr(attrs, 'near_expiry_warning_days'),
+      variant_mode: readStringAttr(
+        attrs,
+        'variant_mode',
+        industryProfileValue === 'APPAREL' ? 'APPAREL_MATRIX' : 'STANDARD',
+      ),
+      apparel_size_system: readStringAttr(attrs, 'apparel_size_system', 'CN'),
+      serial_tracking_mode: readStringAttr(
+        attrs,
+        'serial_tracking_mode',
+        industryProfileValue === 'DIGITAL' ? 'ITEM' : 'NONE',
+      ),
+      serial_outbound_required: readBooleanAttr(attrs, 'serial_outbound_required'),
+      serial_inbound_unique_required: readBooleanAttr(attrs, 'serial_inbound_unique_required'),
       specs: Array.isArray(specs) ? (specs as ProductSpecForm[]) : [],
       ...overrides,
     });
@@ -632,6 +644,7 @@ export const ProductsPage = () => {
   const openCreateModal = () => {
     setEditingProduct(null);
     attrsSnapshotRef.current = {};
+    industryProfileSeedRef.current = 'GENERAL';
     setModalOpen(true);
     setActiveTab('basic');
     form.resetFields();
@@ -640,6 +653,15 @@ export const ProductsPage = () => {
       batch_enabled: false,
       serial_enabled: false,
       serial_push_platform: false,
+      industry_profile: 'GENERAL',
+      production_date_enabled: false,
+      shelf_life_unit: 'DAY',
+      near_expiry_warning_days: undefined,
+      variant_mode: 'STANDARD',
+      apparel_size_system: 'CN',
+      serial_tracking_mode: 'NONE',
+      serial_outbound_required: false,
+      serial_inbound_unique_required: false,
       product_tags: [],
       specs: [],
     });
@@ -669,6 +691,13 @@ export const ProductsPage = () => {
     setEditingProduct(null);
     setActiveTab('basic');
     attrsSnapshotRef.current = {};
+    industryProfileSeedRef.current = 'GENERAL';
+  };
+
+  const handleProductModalAfterOpenChange = (open: boolean) => {
+    if (open && editingProduct) {
+      applyProductToForm(editingProduct);
+    }
   };
 
   const handleSave = async () => {
@@ -681,7 +710,8 @@ export const ProductsPage = () => {
       const warning_stock = normalizeWarningStock(values.warning_stock);
       const specs = normalizeSpecs(values.specs);
       const attrs = {
-        ...attrsSnapshotRef.current,
+        ...omitProductIndustryAttrs(attrsSnapshotRef.current),
+        ...buildProductIndustryAttrs(values),
         specs,
       };
       const payload: ProductCreateRequest = {
@@ -1375,6 +1405,41 @@ export const ProductsPage = () => {
 
   const batchEnabled = Form.useWatch('batch_enabled', form);
   const serialEnabled = Form.useWatch('serial_enabled', form);
+  const industryProfile = Form.useWatch('industry_profile', form) ?? 'GENERAL';
+  const specs = Form.useWatch('specs', form) ?? [];
+
+  useEffect(() => {
+    if (!modalOpen || !industryProfile || industryProfileSeedRef.current === industryProfile) {
+      return;
+    }
+    industryProfileSeedRef.current = industryProfile;
+    if (industryProfile === 'FOOD') {
+      form.setFieldsValue({
+        batch_enabled: true,
+        production_date_enabled: true,
+        shelf_life_unit: form.getFieldValue('shelf_life_unit') ?? 'DAY',
+      });
+      return;
+    }
+    if (industryProfile === 'APPAREL') {
+      form.setFieldsValue({
+        variant_mode: 'APPAREL_MATRIX',
+        apparel_size_system: form.getFieldValue('apparel_size_system') ?? 'CN',
+      });
+      return;
+    }
+    if (industryProfile === 'DIGITAL') {
+      form.setFieldsValue({
+        serial_enabled: true,
+        serial_tracking_mode: form.getFieldValue('serial_tracking_mode') ?? 'ITEM',
+      });
+      return;
+    }
+    form.setFieldsValue({
+      variant_mode: 'STANDARD',
+      serial_tracking_mode: 'NONE',
+    });
+  }, [form, industryProfile, modalOpen]);
 
   const warehouseQuery = useQuery({
     queryKey: ['product-warehouses', tenantId, editingProduct?.product_id],
@@ -1838,42 +1903,45 @@ export const ProductsPage = () => {
   const detailPanels = useMemo(() => {
     const tags = selectedProduct?.product_tags ?? [];
     const detailContent = selectedProduct ? (
-      <Descriptions size="small" column={1}>
-        <Descriptions.Item label="货品编号">
-          {selectedProduct.product_code ?? '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="货品名称">{selectedProduct.name ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="货品别名">{selectedProduct.alias ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="分类">{selectedProduct.category ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="品牌">{selectedProduct.brand ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="基础单位">{selectedProduct.base_unit ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="第二单位">{selectedProduct.second_unit ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="默认供应商">
-          {selectedProduct.default_supplier_id
-            ? (supplierMap.get(selectedProduct.default_supplier_id)?.name ??
-              selectedProduct.default_supplier_id)
-            : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="默认仓库">
-          {selectedProduct.default_warehouse_id
-            ? (warehouseMap.get(selectedProduct.default_warehouse_id)?.name ??
-              selectedProduct.default_warehouse_id)
-            : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="主条码">
-          {selectedProduct.primary_barcode ?? '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="状态">
-          {isProductInactive(selectedProduct.status) ? (
-            <Tag>停用</Tag>
-          ) : (
-            <Tag color="green">启用</Tag>
-          )}
-        </Descriptions.Item>
-        <Descriptions.Item label="更新时间">
-          {formatDateTime(selectedProduct.updated_at ?? selectedProduct.created_at)}
-        </Descriptions.Item>
-      </Descriptions>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Descriptions size="small" column={1}>
+          <Descriptions.Item label="货品编号">
+            {selectedProduct.product_code ?? '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="货品名称">{selectedProduct.name ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="货品别名">{selectedProduct.alias ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="分类">{selectedProduct.category ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="品牌">{selectedProduct.brand ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="基础单位">{selectedProduct.base_unit ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="第二单位">{selectedProduct.second_unit ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="默认供应商">
+            {selectedProduct.default_supplier_id
+              ? (supplierMap.get(selectedProduct.default_supplier_id)?.name ??
+                selectedProduct.default_supplier_id)
+              : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="默认仓库">
+            {selectedProduct.default_warehouse_id
+              ? (warehouseMap.get(selectedProduct.default_warehouse_id)?.name ??
+                selectedProduct.default_warehouse_id)
+              : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="主条码">
+            {selectedProduct.primary_barcode ?? '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {isProductInactive(selectedProduct.status) ? (
+              <Tag>停用</Tag>
+            ) : (
+              <Tag color="green">启用</Tag>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+            {formatDateTime(selectedProduct.updated_at ?? selectedProduct.created_at)}
+          </Descriptions.Item>
+        </Descriptions>
+        <ProductIndustrySummary product={selectedProduct} />
+      </Space>
     ) : (
       <Typography.Text type="secondary">请选择货品查看详情</Typography.Text>
     );
@@ -2180,6 +2248,7 @@ export const ProductsPage = () => {
         title={editingProduct ? '编辑货品' : '新建货品'}
         open={modalOpen}
         onCancel={handleCloseModal}
+        afterOpenChange={handleProductModalAfterOpenChange}
         className="products-edit-modal"
         rootClassName="products-edit-modal"
         width={1100}
@@ -2311,6 +2380,14 @@ export const ProductsPage = () => {
                       </Form.Item>
                     </Col>
                     <Col span={6}>
+                      <Form.Item label="行业模板" name="industry_profile">
+                        <Select
+                          options={industryProfileOptions}
+                          data-testid="products-industry-profile"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
                       <Form.Item label="货品标记" name="product_tags">
                         <Select
                           mode="multiple"
@@ -2435,6 +2512,21 @@ export const ProductsPage = () => {
                       </Form.Item>
                     </Col>
                   </Row>
+                  <ProductIndustrySections
+                    industryProfile={industryProfile}
+                    batchEnabled={Boolean(batchEnabled)}
+                    serialEnabled={Boolean(serialEnabled)}
+                    apparelComposer={
+                      industryProfile === 'APPAREL' ? (
+                        <ProductApparelSpecComposer
+                          specs={specs}
+                          onApply={(nextSpecs) => {
+                            form.setFieldsValue({ specs: nextSpecs });
+                          }}
+                        />
+                      ) : null
+                    }
+                  />
                   <Divider style={{ margin: '8px 0' }} />
                   <Form.List name="specs">
                     {(fields, { add, remove }) => (
@@ -2492,6 +2584,11 @@ export const ProductsPage = () => {
                                       >
                                         <Input placeholder="规格名称" />
                                       </Form.Item>
+                                      {industryProfile === 'APPAREL' ? (
+                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                          自动预览：{getSpecNamePreview(specs[field.name])}
+                                        </Typography.Text>
+                                      ) : null}
                                     </Col>
                                     <Col flex="120px">
                                       <Form.Item {...field} name={[field.name, 'cost']} noStyle>
@@ -2721,3 +2818,4 @@ export const ProductsPage = () => {
     </>
   );
 };
+

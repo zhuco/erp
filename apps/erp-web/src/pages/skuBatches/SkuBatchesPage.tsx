@@ -1,4 +1,5 @@
-import {
+﻿import {
+  Alert,
   Button,
   Card,
   Col,
@@ -36,10 +37,12 @@ import {
   type SkuBatchStrategy,
   type SkuBatchStrategyPayload
 } from '@/api/skuBatchStrategies';
-import { searchSkus, type SkuSearchItem } from '@/api/skus';
+import { listProducts, type Product } from '@/api/products';
+import { listSkus, searchSkus, type Sku, type SkuSearchItem } from '@/api/skus';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { getFoodPolicySummary, getProductIndustryProfile } from '@/pages/products/productIndustry';
 
 type FilterValues = {
   sku_id?: string;
@@ -374,6 +377,8 @@ export const SkuBatchesPage = () => {
   const [saving, setSaving] = useState(false);
   const [skuOptions, setSkuOptions] = useState<SkuSearchItem[]>([]);
   const [skuLoading, setSkuLoading] = useState(false);
+  const selectedSkuId = Form.useWatch('sku_id', drawerForm);
+  const selectedExpireAt = Form.useWatch('expire_at', drawerForm);
 
   const currentPage = pagination.current ?? 1;
   const pageSize = pagination.pageSize ?? 20;
@@ -394,6 +399,20 @@ export const SkuBatchesPage = () => {
     queryFn: () => listSkuBatches(tenantId, query),
     keepPreviousData: true,
     enabled: Boolean(tenantId)
+  });
+
+  const { data: skuMasterData } = useQuery({
+    queryKey: ['sku-batches-runtime-skus', tenantId],
+    queryFn: () => listSkus(tenantId, { limit: 200 }),
+    enabled: Boolean(tenantId),
+    staleTime: 5 * 60 * 1000
+  });
+
+  const { data: productMasterData } = useQuery({
+    queryKey: ['sku-batches-runtime-products', tenantId],
+    queryFn: () => listProducts(tenantId, { limit: 200 }),
+    enabled: Boolean(tenantId),
+    staleTime: 5 * 60 * 1000
   });
 
   useEffect(() => {
@@ -434,13 +453,53 @@ export const SkuBatchesPage = () => {
     return map;
   }, [editingBatch, skuOptions]);
 
+  const skuRuntimeMap = useMemo(() => {
+    const map = new Map<string, Sku>();
+    skuMasterData?.data.forEach((item) => map.set(item.sku_id, item));
+    return map;
+  }, [skuMasterData?.data]);
+
+  const productMap = useMemo(() => {
+    const map = new Map<string, Product>();
+    productMasterData?.data.forEach((item) => map.set(item.product_id, item));
+    return map;
+  }, [productMasterData?.data]);
+
+  const selectedRuntimeSku = selectedSkuId ? skuRuntimeMap.get(selectedSkuId) : undefined;
+  const selectedRuntimeProduct = selectedRuntimeSku
+    ? productMap.get(selectedRuntimeSku.product_id)
+    : undefined;
+  const isFoodGovernedSku = getProductIndustryProfile(selectedRuntimeProduct) === 'FOOD';
+  const foodPolicySummary = selectedRuntimeProduct
+    ? getFoodPolicySummary(selectedRuntimeProduct)
+    : '-';
+  const batchBlockReason = useMemo(() => {
+    if (editingBatch) {
+      return null;
+    }
+    if (!selectedSkuId) {
+      return '请选择 SKU 后再保存批次。';
+    }
+    if (!selectedRuntimeSku) {
+      return '当前 SKU 运行期主数据未加载完成，请稍后重试。';
+    }
+    if (!selectedRuntimeSku.batch_enabled) {
+      return '当前 SKU 未启用批次管理，不能新建批次。';
+    }
+    if (isFoodGovernedSku && !selectedExpireAt) {
+      return '食品 SKU 需先填写失效日期后才可保存。';
+    }
+    return null;
+  }, [editingBatch, isFoodGovernedSku, selectedExpireAt, selectedRuntimeSku, selectedSkuId]);
+  const canSaveBatch = canWrite && !batchBlockReason;
+
   const loadSkuOptions = async (keyword?: string) => {
     setSkuLoading(true);
     try {
       const response = await searchSkus(tenantId, keyword ?? '');
       setSkuOptions(response.items);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'SKU 搜索失败');
+      message.error(err instanceof Error ? err.message : 'SKU ????');
     } finally {
       setSkuLoading(false);
     }
@@ -519,27 +578,41 @@ export const SkuBatchesPage = () => {
     try {
       const values = await drawerForm.validateFields();
       const expireAt = values.expire_at ? values.expire_at.toISOString() : undefined;
-      setSaving(true);
       if (editingBatch) {
+        setSaving(true);
         const payload: SkuBatchUpdateRequest = {
           batch_no: values.batch_no?.trim() || undefined,
           expire_at: expireAt
         };
         await updateSkuBatch(tenantId, editingBatch.batch_id, payload);
-        message.success('批次已更新');
+        message.success('?????');
       } else {
         if (!values.sku_id) {
-          message.error('请选择 SKU');
-          setSaving(false);
+          message.error('??? SKU');
           return;
         }
+        const runtimeSku = skuRuntimeMap.get(values.sku_id);
+        const runtimeProduct = runtimeSku ? productMap.get(runtimeSku.product_id) : undefined;
+        if (!runtimeSku) {
+          message.error('SKU ??????????????');
+          return;
+        }
+        if (!runtimeSku.batch_enabled) {
+          message.error('?? SKU ??????????????');
+          return;
+        }
+        if (getProductIndustryProfile(runtimeProduct) === 'FOOD' && !expireAt) {
+          message.error('?? SKU ?????????????');
+          return;
+        }
+        setSaving(true);
         const payload: SkuBatchCreateRequest = {
           sku_id: values.sku_id,
           batch_no: values.batch_no.trim(),
           expire_at: expireAt
         };
         await createSkuBatch(tenantId, payload);
-        message.success('批次已创建');
+        message.success('?????');
       }
       setDrawerOpen(false);
       setEditingBatch(null);
@@ -557,12 +630,24 @@ export const SkuBatchesPage = () => {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          SKU 批次
+          SKU 批次台账
         </Typography.Title>
-        <Button type="primary" onClick={openCreateDrawer} disabled={!canWrite}>
-          New Batch
+        <Button
+          type="primary"
+          onClick={openCreateDrawer}
+          disabled={!canWrite}
+          data-testid="sku-batches-create-button"
+        >
+          新建批次
         </Button>
       </Space>
+      <Alert
+        type="info"
+        showIcon
+        data-testid="sku-batches-runtime-governance-summary"
+        message="运行治理摘要"
+        description="食品 SKU 在批次页会前置校验批次管理能力与失效日期，减少错建批次和遗漏效期。"
+      />
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
@@ -571,7 +656,7 @@ export const SkuBatchesPage = () => {
                 <Select
                   showSearch
                   allowClear
-                  placeholder="Search SKU"
+                  placeholder="搜索 SKU"
                   options={skuOptions.map((sku) => ({
                     value: sku.sku_id,
                     label: buildSkuLabel(sku)
@@ -585,15 +670,15 @@ export const SkuBatchesPage = () => {
             </Col>
             <Col xs={24} md={8}>
               <Form.Item name="batch_no" label="Batch No">
-                <Input allowClear placeholder="Batch number" />
+                <Input allowClear placeholder="批次号" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  Search
+                  查询
                 </Button>
-                <Button onClick={handleReset}>Reset</Button>
+                <Button onClick={handleReset}>重置</Button>
               </Space>
             </Col>
           </Row>
@@ -606,8 +691,8 @@ export const SkuBatchesPage = () => {
         loading={isLoading || isFetching}
         error={error}
         onRetry={() => refetch()}
-        errorTitle="批次加载失败"
-        emptyText="暂无批次"
+        errorTitle="批次台账加载失败"
+        emptyText="暂无批次数据"
         total={total}
         pagination={pagination}
         onPaginationChange={setPagination}
@@ -615,52 +700,88 @@ export const SkuBatchesPage = () => {
         enablePanels={false}
       />
       <Drawer
-        title={editingBatch ? 'Edit Batch' : 'New Batch'}
+        title={editingBatch ? '编辑批次' : '新建批次'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
         destroyOnClose
         footer={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button type="primary" loading={saving} onClick={handleSave}>
-              Save
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+            <Button
+              type="primary"
+              loading={saving}
+              onClick={handleSave}
+              disabled={!editingBatch && !canSaveBatch}
+              data-testid="sku-batches-save-button"
+            >
+              保存批次
             </Button>
           </Space>
         }
       >
-        <Form form={drawerForm} layout="vertical">
-          <Form.Item
-            name="sku_id"
-            label="SKU"
-            rules={[{ required: true, message: '请选择 SKU' }]}
-          >
-            <Select
-              showSearch
-              allowClear
-              disabled={Boolean(editingBatch)}
-              placeholder="Search SKU"
-              options={skuOptions.map((sku) => ({
-                value: sku.sku_id,
-                label: buildSkuLabel(sku)
-              }))}
-              filterOption={false}
-              loading={skuLoading}
-              onSearch={(value) => loadSkuOptions(value)}
-              onFocus={() => loadSkuOptions()}
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {isFoodGovernedSku ? (
+            <Alert
+              type="info"
+              showIcon
+              data-testid="sku-batches-food-governance-alert"
+              message="食品治理策略"
+              description={`${foodPolicySummary}。食品 SKU 新建批次时必须补齐失效日期。`}
             />
-          </Form.Item>
-          <Form.Item
-            name="batch_no"
-            label="Batch No"
-            rules={[{ required: true, message: '输入批次号' }]}
-          >
-            <Input placeholder="Batch number" />
-          </Form.Item>
-          <Form.Item name="expire_at" label="Expire At">
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-        </Form>
+          ) : null}
+          {selectedSkuId && selectedRuntimeSku && !selectedRuntimeSku.batch_enabled ? (
+            <Alert
+              type="error"
+              showIcon
+              data-testid="sku-batches-batch-disabled-alert"
+              message="批次能力已关闭"
+              description="当前 SKU 未启用批次管理，本页将阻止继续保存。"
+            />
+          ) : null}
+          {!editingBatch && batchBlockReason ? (
+            <Alert
+              type={selectedSkuId && selectedRuntimeSku && !selectedRuntimeSku.batch_enabled ? 'error' : 'warning'}
+              showIcon
+              data-testid="sku-batches-save-reason-alert"
+              message="当前无法保存"
+              description={batchBlockReason}
+            />
+          ) : null}
+          <Form form={drawerForm} layout="vertical">
+            <Form.Item
+              name="sku_id"
+              label="SKU"
+              rules={[{ required: true, message: '请选择 SKU' }]}
+            >
+              <Select
+                showSearch
+                allowClear
+                data-testid="sku-batches-drawer-sku"
+                disabled={Boolean(editingBatch)}
+                placeholder="搜索 SKU"
+                options={skuOptions.map((sku) => ({
+                  value: sku.sku_id,
+                  label: buildSkuLabel(sku)
+                }))}
+                filterOption={false}
+                loading={skuLoading}
+                onSearch={(value) => loadSkuOptions(value)}
+                onFocus={() => loadSkuOptions()}
+              />
+            </Form.Item>
+            <Form.Item
+              name="batch_no"
+              label="批次号"
+              rules={[{ required: true, message: '请输入批次号' }]}
+            >
+              <Input placeholder="请输入批次号" data-testid="sku-batches-drawer-batch-no" />
+            </Form.Item>
+            <Form.Item name="expire_at" label="失效日期">
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+          </Form>
+        </Space>
       </Drawer>
     </Space>
   );
@@ -669,8 +790,8 @@ export const SkuBatchesPage = () => {
     <Tabs
       defaultActiveKey="batches"
       items={[
-        { key: 'batches', label: '批次列表', children: batchListContent },
-        { key: 'strategies', label: '批次策略', children: <SkuBatchStrategiesPanel /> }
+        { key: 'batches', label: '批次台账', children: batchListContent },
+        { key: 'strategies', label: '治理策略', children: <SkuBatchStrategiesPanel /> }
       ]}
     />
   );
