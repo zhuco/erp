@@ -25,6 +25,21 @@ test.describe('workbench menu navigation', () => {
     await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
   });
 
+  test('can open the shop order query experience from the sales module panel', async ({ page }) => {
+    await page.goto('/dashboard');
+    await loginAndSelectTenant(page);
+    await expect(page.locator('.workbench-shell')).toBeVisible();
+
+    await openModulePanel(page, SALES_MODULE_NAME);
+    await page
+      .getByTestId('workbench-module-panel')
+      .getByTestId('module-link-sales-shop-order-download')
+      .click();
+
+    await expect(page).toHaveURL(/\/sales\/shop-order-download(\?.*)?$/);
+    await expect(page.locator('.shop-order-query-page')).toBeVisible();
+  });
+
   test('can navigate to order review page from sales module groups', async ({ page }) => {
     await page.goto('/dashboard');
     await loginAndSelectTenant(page);

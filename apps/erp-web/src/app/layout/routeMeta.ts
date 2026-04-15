@@ -16,7 +16,10 @@ const dynamicRouteMeta: RouteMeta[] = [
   { pattern: '/wms/inbounds/:doc_id/receive', title: '入库收货' },
   { pattern: '/wms/inbounds/:doc_id/putaway', title: '入库上架' },
   { pattern: '/procurement/orders/:po_id', title: '采购订单详情' },
-  { pattern: '/kits/:kit_sku_id', title: '组合装编辑' }
+  { pattern: '/kits/:kit_sku_id', title: '组合装编辑' },
+  { pattern: '/system/erp-data-grid-next', title: 'AG Grid Enterprise 演示' },
+  { pattern: '/system/ag-grid-enterprise', title: 'AG Grid Enterprise 演示' },
+  { pattern: '/system/demo/ag-grid-enterprise', title: 'AG Grid Enterprise 演示' },
 ];
 
 export type RouteTitleResult = {
