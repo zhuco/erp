@@ -200,7 +200,17 @@ export const UsersPage = () => {
     try {
       const values = await scopeForm.validateFields();
       setSavingScope(true);
-      await updateUserDataScopes(tenantId, scopingUser.user_id, values);
+      const payload = {
+        shop_ids: values.shop_ids ?? [],
+        warehouse_ids: values.warehouse_ids ?? [],
+        merchant_ids: values.merchant_ids ?? [],
+        organization_ids: values.organization_ids ?? []
+      };
+      await updateUserDataScopes(
+        tenantId,
+        scopingUser.user_id,
+        payload as unknown as DataScopeUpdateRequest
+      );
       message.success('数据权限已更新');
       setDataScopeOpen(false);
     } catch (error) {

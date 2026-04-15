@@ -396,7 +396,7 @@ impl<'a> MappingRulesRepo<'a> {
         .bind(platform.to_string())
         .bind(entity_type)
         .fetch_optional(self.pool)
-            .await?;
+        .await?;
 
         Ok(version)
     }

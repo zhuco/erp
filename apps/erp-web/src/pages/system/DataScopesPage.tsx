@@ -110,7 +110,17 @@ export const DataScopesPage = () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
-      await updateUserDataScopes(tenantId, selectedUserId, values);
+      const payload = {
+        shop_ids: values.shop_ids ?? [],
+        warehouse_ids: values.warehouse_ids ?? [],
+        merchant_ids: values.merchant_ids ?? [],
+        organization_ids: values.organization_ids ?? []
+      };
+      await updateUserDataScopes(
+        tenantId,
+        selectedUserId,
+        payload as unknown as DataScopeUpdateRequest
+      );
       message.success('数据权限已更新');
     } catch (error) {
       if (error instanceof Error) {

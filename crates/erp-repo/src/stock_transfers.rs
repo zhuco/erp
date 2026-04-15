@@ -662,7 +662,9 @@ mod tests {
         let mut input = sample_transfer_input();
         input.to_warehouse_id = input.from_warehouse_id;
         let err = validate_transfer_create_input(&input).expect_err("should reject same warehouse");
-        assert!(err.to_string().contains("from and to warehouse must differ"));
+        assert!(err
+            .to_string()
+            .contains("from and to warehouse must differ"));
     }
 
     #[test]

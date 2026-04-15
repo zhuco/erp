@@ -9073,12 +9073,37 @@ async fn auth_middleware(
             } else {
                 let scopes_repo = DataScopesRepo::new(state.db.pool());
                 match scopes_repo.list_user_scopes(tenant_id, user_id).await {
-                    Ok(scopes) => (
-                        scopes.shop_ids,
-                        scopes.warehouse_ids,
-                        scopes.merchant_ids,
-                        scopes.organization_ids,
-                    ),
+                    Ok(scopes) => {
+                        let tenants_repo = TenantsRepo::new(state.db.pool());
+                        let (multi_merchant_enabled, multi_organization_enabled) =
+                            match tenants_repo.multi_entity_flags(tenant_id).await {
+                                Ok(flags) => flags,
+                                Err(err) => {
+                                    warn!(
+                                        tenant_id=%tenant_id,
+                                        error=%err,
+                                        "failed to load multi-entity flags; disabling scopes"
+                                    );
+                                    (false, false)
+                                }
+                            };
+                        let merchant_ids = if multi_merchant_enabled {
+                            scopes.merchant_ids
+                        } else {
+                            Vec::new()
+                        };
+                        let organization_ids = if multi_organization_enabled {
+                            scopes.organization_ids
+                        } else {
+                            Vec::new()
+                        };
+                        (
+                            scopes.shop_ids,
+                            scopes.warehouse_ids,
+                            merchant_ids,
+                            organization_ids,
+                        )
+                    }
                     Err(err) => {
                         warn!(tenant_id=%tenant_id, user_id=%user_id, error=%err, "failed to load data scopes");
                         (Vec::new(), Vec::new(), Vec::new(), Vec::new())
@@ -9280,7 +9305,11 @@ async fn get_current_user(
             shop_ids: ctx.shop_ids.iter().map(|id| id.to_string()).collect(),
             warehouse_ids: ctx.warehouse_ids.iter().map(|id| id.to_string()).collect(),
             merchant_ids: ctx.merchant_ids.iter().map(|id| id.to_string()).collect(),
-            organization_ids: ctx.organization_ids.iter().map(|id| id.to_string()).collect(),
+            organization_ids: ctx
+                .organization_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect(),
         },
     };
 
@@ -52942,7 +52971,11 @@ async fn get_user_data_scopes(
             .iter()
             .map(|id| id.to_string())
             .collect(),
-        merchant_ids: scopes.merchant_ids.iter().map(|id| id.to_string()).collect(),
+        merchant_ids: scopes
+            .merchant_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect(),
         organization_ids: scopes
             .organization_ids
             .iter()
@@ -52990,7 +53023,6 @@ async fn update_user_data_scopes(
         Ok(v) => v,
         Err(resp) => return resp.into_response(),
     };
-
     if let Err(resp) = ensure_shop_scope_subset(&ctx, &shop_ids) {
         return resp.into_response();
     }
@@ -53037,10 +53069,10 @@ async fn update_user_data_scopes(
         Some(user_id.to_string()),
         None,
         Some(serde_json::json!({
-        "shop_ids": req.shop_ids,
-        "warehouse_ids": req.warehouse_ids,
-        "merchant_ids": req.merchant_ids,
-        "organization_ids": req.organization_ids,
+            "shop_ids": req.shop_ids,
+            "warehouse_ids": req.warehouse_ids,
+            "merchant_ids": req.merchant_ids,
+            "organization_ids": req.organization_ids,
         })),
     )
     .await;

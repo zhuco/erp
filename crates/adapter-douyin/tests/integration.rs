@@ -214,7 +214,10 @@ async fn pull_refunds_should_use_refund_api_and_write_meta() {
     let meta = item_raw
         .get("_erp_refund_meta")
         .expect("refund meta should exist");
-    assert_eq!(meta.get("reason").and_then(|v| v.as_str()), Some("商品破损"));
+    assert_eq!(
+        meta.get("reason").and_then(|v| v.as_str()),
+        Some("商品破损")
+    );
     assert_eq!(
         meta.get("responsibility").and_then(|v| v.as_str()),
         Some("seller")

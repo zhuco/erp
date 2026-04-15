@@ -25,10 +25,7 @@ impl<'a> TenantsRepo<'a> {
         Ok(value.unwrap_or(false))
     }
 
-    pub async fn multi_entity_flags(
-        &self,
-        tenant_id: TenantId,
-    ) -> anyhow::Result<(bool, bool)> {
+    pub async fn multi_entity_flags(&self, tenant_id: TenantId) -> anyhow::Result<(bool, bool)> {
         let row: Option<(bool, bool)> = sqlx::query_as(
             r#"
             select multi_merchant_enabled, multi_organization_enabled

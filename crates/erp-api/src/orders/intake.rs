@@ -133,7 +133,9 @@ pub(super) fn normalize_manual_order_items(
                 return Err(bad_request("item discount_cent must be non-negative").into_response());
             }
             if discount_cent > amount_cent {
-                return Err(bad_request("item discount_cent must be <= amount_cent").into_response());
+                return Err(
+                    bad_request("item discount_cent must be <= amount_cent").into_response()
+                );
             }
         }
 
