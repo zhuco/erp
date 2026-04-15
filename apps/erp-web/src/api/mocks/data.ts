@@ -1065,6 +1065,148 @@ const buildProduct = (index: number): Product => ({
 });
 
 const mockProductSeeds = Array.from({ length: 12 }, (_, index) => buildProduct(index));
+const specialRuntimeGovernanceProducts: Product[] = [
+  {
+    product_id: 'PROD-FOOD-GOV-001',
+    tenant_id: mockTenantId,
+    product_code: 'FOOD-GOV-001',
+    alias: '食品运行治理样本',
+    name: '食品批次治理样品',
+    brand: '治理样本品牌',
+    category: '食品治理',
+    base_unit: '件',
+    second_unit: null,
+    default_supplier_id: null,
+    default_warehouse_id: null,
+    primary_barcode: 'PB-FOOD-GOV-001',
+    product_tags: ['runtime-governance', 'food'],
+    remark: '用于食品批次运行期治理验证',
+    warning_stock: {
+      upper: { mode: 'FIXED', value: 180 },
+      lower: { mode: 'FIXED', value: 12 }
+    },
+    batch_enabled: true,
+    shelf_life_days: 180,
+    forbid_sale_days: 7,
+    serial_enabled: false,
+    serial_push_platform: false,
+    attrs: {
+      industry_profile: 'FOOD',
+      production_date_enabled: true,
+      shelf_life_unit: 'DAY',
+      near_expiry_warning_days: 15
+    },
+    allow_negative_stock: false,
+    status: 'ACTIVE',
+    created_at: dayjs().subtract(1, 'day').toISOString(),
+    updated_at: dayjs().subtract(1, 'hour').toISOString()
+  },
+  {
+    product_id: 'PROD-FOOD-GOV-002',
+    tenant_id: mockTenantId,
+    product_code: 'FOOD-GOV-002',
+    alias: '食品禁批次样本',
+    name: '食品禁建批次样品',
+    brand: '治理样本品牌',
+    category: '食品治理',
+    base_unit: '件',
+    second_unit: null,
+    default_supplier_id: null,
+    default_warehouse_id: null,
+    primary_barcode: 'PB-FOOD-GOV-002',
+    product_tags: ['runtime-governance', 'food'],
+    remark: '用于验证未启用批次管理的食品 SKU',
+    warning_stock: {
+      upper: { mode: 'FIXED', value: 120 },
+      lower: { mode: 'FIXED', value: 8 }
+    },
+    batch_enabled: false,
+    shelf_life_days: 90,
+    forbid_sale_days: 3,
+    serial_enabled: false,
+    serial_push_platform: false,
+    attrs: {
+      industry_profile: 'FOOD',
+      production_date_enabled: true,
+      shelf_life_unit: 'DAY',
+      near_expiry_warning_days: 10
+    },
+    allow_negative_stock: false,
+    status: 'ACTIVE',
+    created_at: dayjs().subtract(2, 'day').toISOString(),
+    updated_at: dayjs().subtract(2, 'hour').toISOString()
+  },
+  {
+    product_id: 'PROD-DIGITAL-GOV-001',
+    tenant_id: mockTenantId,
+    product_code: 'DIGITAL-GOV-001',
+    alias: '数码运行治理样本',
+    name: '数码序列治理样品',
+    brand: '治理样本品牌',
+    category: '数码治理',
+    base_unit: '件',
+    second_unit: null,
+    default_supplier_id: null,
+    default_warehouse_id: null,
+    primary_barcode: 'PB-DIGITAL-GOV-001',
+    product_tags: ['runtime-governance', 'digital'],
+    remark: '用于数码序列号运行期治理验证',
+    warning_stock: {
+      upper: { mode: 'FIXED', value: 80 },
+      lower: { mode: 'FIXED', value: 5 }
+    },
+    batch_enabled: false,
+    shelf_life_days: null,
+    forbid_sale_days: null,
+    serial_enabled: true,
+    serial_push_platform: true,
+    attrs: {
+      industry_profile: 'DIGITAL',
+      serial_tracking_mode: 'DEVICE',
+      serial_outbound_required: true,
+      serial_inbound_unique_required: true
+    },
+    allow_negative_stock: false,
+    status: 'ACTIVE',
+    created_at: dayjs().subtract(1, 'day').toISOString(),
+    updated_at: dayjs().subtract(50, 'minute').toISOString()
+  },
+  {
+    product_id: 'PROD-DIGITAL-GOV-002',
+    tenant_id: mockTenantId,
+    product_code: 'DIGITAL-GOV-002',
+    alias: '数码禁序列号样本',
+    name: '数码禁生成序列样品',
+    brand: '治理样本品牌',
+    category: '数码治理',
+    base_unit: '件',
+    second_unit: null,
+    default_supplier_id: null,
+    default_warehouse_id: null,
+    primary_barcode: 'PB-DIGITAL-GOV-002',
+    product_tags: ['runtime-governance', 'digital'],
+    remark: '用于验证未启用序列号管理的数码 SKU',
+    warning_stock: {
+      upper: { mode: 'FIXED', value: 60 },
+      lower: { mode: 'FIXED', value: 4 }
+    },
+    batch_enabled: false,
+    shelf_life_days: null,
+    forbid_sale_days: null,
+    serial_enabled: false,
+    serial_push_platform: false,
+    attrs: {
+      industry_profile: 'DIGITAL',
+      serial_tracking_mode: 'DEVICE',
+      serial_outbound_required: true,
+      serial_inbound_unique_required: true
+    },
+    allow_negative_stock: false,
+    status: 'ACTIVE',
+    created_at: dayjs().subtract(3, 'day').toISOString(),
+    updated_at: dayjs().subtract(90, 'minute').toISOString()
+  }
+];
 const specialMockProducts: Product[] = [
   {
     product_id: 'PROD-NEG-001',
@@ -1157,7 +1299,11 @@ const specialMockProducts: Product[] = [
     updated_at: dayjs().subtract(4, 'hour').toISOString()
   }
 ];
-const mockProducts = [...specialMockProducts, ...mockProductSeeds];
+const mockProducts = [
+  ...specialRuntimeGovernanceProducts,
+  ...specialMockProducts,
+  ...mockProductSeeds
+];
 
 const mockProductCategories = [
   {
@@ -1511,7 +1657,109 @@ const mockStockSyncJobs: StockSyncJob[] = Array.from({ length: 8 }, (_, index) =
   created_at: dayjs().subtract(index + 1, 'hour').toISOString(),
   updated_at: dayjs().subtract(index, 'hour').toISOString()
 }));
-const mockSkus = Array.from({ length: 42 }, (_, index) => buildSku(index));
+const specialRuntimeGovernanceSkus: Sku[] = [
+  {
+    sku_id: 'SKU-FOOD-GOV-001',
+    tenant_id: mockTenantId,
+    product_id: 'PROD-FOOD-GOV-001',
+    sku_code: 'SKU-FOOD-GOV-001',
+    barcode: 'BAR-FOOD-GOV-001',
+    note: '食品批次治理启用样本',
+    name: '食品批次治理SKU',
+    spec: { spec: '食品治理标准装' },
+    tags: ['runtime-governance', 'food'],
+    image_urls: [],
+    weight_gram: 520,
+    length_mm: 180,
+    width_mm: 120,
+    height_mm: 90,
+    volume_cm3: 1944,
+    cost_cent: 2580,
+    sku_kind: 'NORMAL',
+    is_active: true,
+    status: 'ACTIVE',
+    batch_enabled: true,
+    serial_enabled: false,
+    created_at: dayjs().subtract(1, 'day').toISOString(),
+    updated_at: dayjs().subtract(1, 'hour').toISOString()
+  },
+  {
+    sku_id: 'SKU-FOOD-NOBATCH-001',
+    tenant_id: mockTenantId,
+    product_id: 'PROD-FOOD-GOV-002',
+    sku_code: 'SKU-FOOD-NOBATCH-001',
+    barcode: 'BAR-FOOD-NOBATCH-001',
+    note: '食品批次治理禁用样本',
+    name: '食品禁批次SKU',
+    spec: { spec: '食品治理禁建批次装' },
+    tags: ['runtime-governance', 'food'],
+    image_urls: [],
+    weight_gram: 480,
+    length_mm: 170,
+    width_mm: 110,
+    height_mm: 88,
+    volume_cm3: 1645,
+    cost_cent: 2180,
+    sku_kind: 'NORMAL',
+    is_active: true,
+    status: 'ACTIVE',
+    batch_enabled: false,
+    serial_enabled: false,
+    created_at: dayjs().subtract(2, 'day').toISOString(),
+    updated_at: dayjs().subtract(2, 'hour').toISOString()
+  },
+  {
+    sku_id: 'SKU-DIGITAL-GOV-001',
+    tenant_id: mockTenantId,
+    product_id: 'PROD-DIGITAL-GOV-001',
+    sku_code: 'SKU-DIGITAL-GOV-001',
+    barcode: 'BAR-DIGITAL-GOV-001',
+    note: '数码序列治理启用样本',
+    name: '数码序列治理SKU',
+    spec: { spec: '设备追踪版' },
+    tags: ['runtime-governance', 'digital'],
+    image_urls: [],
+    weight_gram: 960,
+    length_mm: 220,
+    width_mm: 140,
+    height_mm: 60,
+    volume_cm3: 1848,
+    cost_cent: 56800,
+    sku_kind: 'NORMAL',
+    is_active: true,
+    status: 'ACTIVE',
+    batch_enabled: false,
+    serial_enabled: true,
+    created_at: dayjs().subtract(1, 'day').toISOString(),
+    updated_at: dayjs().subtract(40, 'minute').toISOString()
+  },
+  {
+    sku_id: 'SKU-DIGITAL-NOSERIAL-001',
+    tenant_id: mockTenantId,
+    product_id: 'PROD-DIGITAL-GOV-002',
+    sku_code: 'SKU-DIGITAL-NOSERIAL-001',
+    barcode: 'BAR-DIGITAL-NOSERIAL-001',
+    note: '数码序列治理禁用样本',
+    name: '数码禁序列号SKU',
+    spec: { spec: '设备追踪禁用版' },
+    tags: ['runtime-governance', 'digital'],
+    image_urls: [],
+    weight_gram: 910,
+    length_mm: 210,
+    width_mm: 135,
+    height_mm: 58,
+    volume_cm3: 1644,
+    cost_cent: 49800,
+    sku_kind: 'NORMAL',
+    is_active: true,
+    status: 'ACTIVE',
+    batch_enabled: false,
+    serial_enabled: false,
+    created_at: dayjs().subtract(3, 'day').toISOString(),
+    updated_at: dayjs().subtract(70, 'minute').toISOString()
+  }
+];
+const mockSkus = [...specialRuntimeGovernanceSkus, ...Array.from({ length: 42 }, (_, index) => buildSku(index))];
 const buildSkuBatch = (index: number): SkuBatch => {
   const sku = mockSkus[index % mockSkus.length];
   return {

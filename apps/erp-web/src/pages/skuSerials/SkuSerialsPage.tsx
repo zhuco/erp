@@ -1,4 +1,5 @@
-import {
+﻿import {
+  Alert,
   Button,
   Card,
   Col,
@@ -39,7 +40,8 @@ import {
   type SkuSerialRule,
   type SkuSerialRulePayload
 } from '@/api/skuSerialRules';
-import { searchSkus, type SkuSearchItem } from '@/api/skus';
+import { listProducts, type Product } from '@/api/products';
+import { listSkus, searchSkus, type Sku, type SkuSearchItem } from '@/api/skus';
 import {
   listPrintTemplates,
   type PrintTemplate
@@ -47,6 +49,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { getDigitalPolicySummary, getProductIndustryProfile } from '@/pages/products/productIndustry';
 
 type FilterValues = {
   sku_id?: string;
@@ -103,6 +106,25 @@ const buildSkuLabel = (sku: SkuSearchItem) => {
   const name = sku.name ? ` ${sku.name}` : '';
   const barcode = sku.barcode ? ` (${sku.barcode})` : '';
   return `${sku.sku_code}${name}${barcode}`;
+};
+
+const buildSuggestedSerialPrefix = (sku?: Sku, product?: Product) => {
+  const source = (product?.product_code ?? sku?.sku_code ?? '').toUpperCase();
+  if (!source) {
+    return undefined;
+  }
+  const parts = source.split(/[^A-Z0-9]+/).filter(Boolean);
+  const letterPrefix = parts
+    .map((part) => part.replace(/[0-9]/g, '').slice(0, 3))
+    .join('')
+    .slice(0, 6);
+  const digitSuffix = parts
+    .map((part) => part.replace(/\D/g, ''))
+    .join('')
+    .slice(-3);
+  const fallback = source.replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  const suggestion = `${letterPrefix}${digitSuffix}` || fallback;
+  return suggestion.slice(0, 10);
 };
 
 const SkuSerialRulesPanel = () => {
@@ -422,6 +444,9 @@ export const SkuSerialsPage = () => {
   const [templateOptions, setTemplateOptions] = useState<PrintTemplate[]>([]);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [ruleOptions, setRuleOptions] = useState<SkuSerialRule[]>([]);
+  const selectedSkuId = Form.useWatch('sku_id', generateForm);
+  const selectedRuleId = Form.useWatch('rule_id', generateForm);
+  const selectedPrefix = Form.useWatch('prefix', generateForm);
 
   const currentPage = pagination.current ?? 1;
   const pageSize = pagination.pageSize ?? 20;
@@ -443,6 +468,20 @@ export const SkuSerialsPage = () => {
     queryFn: () => listSkuSerials(tenantId, query),
     keepPreviousData: true,
     enabled: Boolean(tenantId)
+  });
+
+  const { data: skuMasterData } = useQuery({
+    queryKey: ['sku-serials-runtime-skus', tenantId],
+    queryFn: () => listSkus(tenantId, { limit: 200 }),
+    enabled: Boolean(tenantId),
+    staleTime: 5 * 60 * 1000
+  });
+
+  const { data: productMasterData } = useQuery({
+    queryKey: ['sku-serials-runtime-products', tenantId],
+    queryFn: () => listProducts(tenantId, { limit: 200 }),
+    enabled: Boolean(tenantId),
+    staleTime: 5 * 60 * 1000
   });
 
   useEffect(() => {
@@ -485,13 +524,61 @@ export const SkuSerialsPage = () => {
     return map;
   }, [data?.data, skuOptions]);
 
+  const skuRuntimeMap = useMemo(() => {
+    const map = new Map<string, Sku>();
+    skuMasterData?.data.forEach((item) => map.set(item.sku_id, item));
+    return map;
+  }, [skuMasterData?.data]);
+
+  const productMap = useMemo(() => {
+    const map = new Map<string, Product>();
+    productMasterData?.data.forEach((item) => map.set(item.product_id, item));
+    return map;
+  }, [productMasterData?.data]);
+
+  const selectedRuntimeSku = selectedSkuId ? skuRuntimeMap.get(selectedSkuId) : undefined;
+  const selectedRuntimeProduct = selectedRuntimeSku
+    ? productMap.get(selectedRuntimeSku.product_id)
+    : undefined;
+  const isDigitalGovernedSku = getProductIndustryProfile(selectedRuntimeProduct) === 'DIGITAL';
+  const digitalPolicySummary = selectedRuntimeProduct
+    ? getDigitalPolicySummary(selectedRuntimeProduct)
+    : '-';
+  const suggestedPrefix = useMemo(
+    () => buildSuggestedSerialPrefix(selectedRuntimeSku, selectedRuntimeProduct),
+    [selectedRuntimeProduct, selectedRuntimeSku]
+  );
+  const generateBlockReason = useMemo(() => {
+    const prefixValue = selectedPrefix?.trim();
+    if (!selectedSkuId) {
+      return '请选择 SKU 后再生成序列号。';
+    }
+    if (!selectedRuntimeSku) {
+      return '当前 SKU 运行期主数据未加载完成，请稍后重试。';
+    }
+    if (!selectedRuntimeSku.serial_enabled) {
+      return '当前 SKU 未启用序列号管理，不能生成唯一码。';
+    }
+    if (!selectedRuleId && !prefixValue) {
+      if (isDigitalGovernedSku && suggestedPrefix) {
+        return `建议使用前缀 ${suggestedPrefix}，或选择生成规则后再生成。`;
+      }
+      if (isDigitalGovernedSku) {
+        return '数码 SKU 需填写前缀或选择生成规则后才能生成。';
+      }
+      return '请填写前缀或选择生成规则。';
+    }
+    return null;
+  }, [isDigitalGovernedSku, selectedPrefix, selectedRuleId, selectedRuntimeSku, selectedSkuId, suggestedPrefix]);
+  const canGenerateSerials = canWrite && !generateBlockReason;
+
   const loadSkuOptions = async (keyword?: string) => {
     setSkuLoading(true);
     try {
       const response = await searchSkus(tenantId, keyword ?? '');
       setSkuOptions(response.items);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'SKU 搜索失败');
+      message.error(err instanceof Error ? err.message : 'SKU ????');
     } finally {
       setSkuLoading(false);
     }
@@ -501,10 +588,30 @@ export const SkuSerialsPage = () => {
     try {
       const response = await listSkuSerialRules(tenantId, { offset: 0, limit: 200, enabled: true });
       setRuleOptions(response.items);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '序列号规则加载失败');
+    } catch {
+      setRuleOptions([]);
     }
   };
+
+  useEffect(() => {
+    if (!generateOpen || !suggestedPrefix || selectedRuleId) {
+      return;
+    }
+    if (!selectedRuntimeSku?.serial_enabled || !isDigitalGovernedSku) {
+      return;
+    }
+    const currentPrefix = generateForm.getFieldValue('prefix')?.trim();
+    if (!currentPrefix || currentPrefix === suggestedPrefix) {
+      generateForm.setFieldsValue({ prefix: suggestedPrefix });
+    }
+  }, [
+    generateForm,
+    generateOpen,
+    isDigitalGovernedSku,
+    selectedRuleId,
+    selectedRuntimeSku?.serial_enabled,
+    suggestedPrefix
+  ]);
 
   const loadTemplateOptions = async () => {
     setTemplateLoading(true);
@@ -515,7 +622,7 @@ export const SkuSerialsPage = () => {
         printForm.setFieldsValue({ template_id: response.items[0].template_id });
       }
     } catch (err) {
-      message.error(err instanceof Error ? err.message : '打印模板加载失败');
+      message.error(err instanceof Error ? err.message : '????????');
     } finally {
       setTemplateLoading(false);
     }
@@ -581,11 +688,25 @@ export const SkuSerialsPage = () => {
     try {
       const values = await generateForm.validateFields();
       if (!values.sku_id) {
-        message.error('请选择 SKU');
+        message.error('??? SKU');
+        return;
+      }
+      const runtimeSku = skuRuntimeMap.get(values.sku_id);
+      const runtimeProduct = runtimeSku ? productMap.get(runtimeSku.product_id) : undefined;
+      if (!runtimeSku) {
+        message.error('SKU ??????????????');
+        return;
+      }
+      if (!runtimeSku.serial_enabled) {
+        message.error('?? SKU ????????????????');
+        return;
+      }
+      if (getProductIndustryProfile(runtimeProduct) === 'DIGITAL' && !values.prefix?.trim() && !values.rule_id) {
+        message.error('?? SKU ????????????????');
         return;
       }
       if (!values.prefix?.trim() && !values.rule_id) {
-        message.error('请输入前缀或选择规则');
+        message.error('??????????');
         return;
       }
       const payload: SkuSerialGenerateRequest = {
@@ -596,7 +717,7 @@ export const SkuSerialsPage = () => {
       };
       setSaving(true);
       await generateSkuSerials(tenantId, payload);
-      message.success('唯一码已生成');
+      message.success('??????');
       setGenerateOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['sku-serials', tenantId] });
     } catch (err) {
@@ -619,11 +740,11 @@ export const SkuSerialsPage = () => {
       const values = await printForm.validateFields();
       const serialIds = selectedRowKeys.map((key) => String(key));
       if (!serialIds.length) {
-        message.error('请选择要打印的唯一码');
+        message.error('??????????');
         return;
       }
       if (!values.template_id) {
-        message.error('请选择打印模板');
+        message.error('???????');
         return;
       }
       const payload: SkuSerialPrintRequest = {
@@ -633,7 +754,7 @@ export const SkuSerialsPage = () => {
       };
       setSaving(true);
       await printSkuSerials(tenantId, payload);
-      message.success('打印任务已创建');
+      message.success('???????');
       setPrintOpen(false);
       setSelectedRowKeys([]);
       await queryClient.invalidateQueries({ queryKey: ['print-jobs', tenantId] });
@@ -649,178 +770,221 @@ export const SkuSerialsPage = () => {
   return (
     <>
       <Tabs
-      defaultActiveKey="serials"
-      items={[
-        {
-          key: 'serials',
-          label: '序列号列表',
-          children: (
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Typography.Title level={3} style={{ margin: 0 }}>
-                  SKU Serials
-                </Typography.Title>
-                <Space>
-                  <Button onClick={openGenerateDrawer} disabled={!canWrite}>
-                    Generate Serials
-                  </Button>
-                  <Button
-                    type="primary"
-                    onClick={openPrintModal}
-                    disabled={!canPrint || selectedRowKeys.length === 0}
-                  >
-                    Print Selected
-                  </Button>
+        defaultActiveKey="serials"
+        items={[
+          {
+            key: 'serials',
+            label: '序列号台账',
+            children: (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Typography.Title level={3} style={{ margin: 0 }}>
+                    SKU 序列号台账
+                  </Typography.Title>
+                  <Space>
+                    <Button
+                      onClick={openGenerateDrawer}
+                      disabled={!canWrite}
+                      data-testid="sku-serials-generate-button"
+                    >
+                      生成序列号
+                    </Button>
+                    <Button
+                      type="primary"
+                      onClick={openPrintModal}
+                      disabled={!canPrint || selectedRowKeys.length === 0}
+                    >
+                      打印选中项
+                    </Button>
+                  </Space>
                 </Space>
+                <Alert
+                  type="info"
+                  showIcon
+                  data-testid="sku-serials-runtime-governance-summary"
+                  message="运行治理摘要"
+                  description="数码 SKU 在序列号页会前置校验序列号能力，并优先给出推荐前缀，减少误生成。"
+                />
+                <Card>
+                  <Form form={form} layout="vertical" onFinish={handleSearch}>
+                    <Row gutter={16}>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="sku_id" label="SKU">
+                          <Select
+                            showSearch
+                            allowClear
+                            placeholder="搜索 SKU"
+                            options={skuOptions.map((sku) => ({
+                              value: sku.sku_id,
+                              label: buildSkuLabel(sku)
+                            }))}
+                            filterOption={false}
+                            loading={skuLoading}
+                            onSearch={(value) => loadSkuOptions(value)}
+                            onFocus={() => loadSkuOptions()}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Form.Item name="status" label="状态">
+                          <Select allowClear options={statusOptions} placeholder="全部" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Form.Item name="serial_no" label="序列号">
+                          <Input allowClear placeholder="序列号" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
+                        <Space>
+                          <Button type="primary" htmlType="submit">
+                            查询
+                          </Button>
+                          <Button onClick={handleReset}>重置</Button>
+                        </Space>
+                      </Col>
+                    </Row>
+                  </Form>
+                </Card>
+                <UiModule03MainTableSection<SkuSerial>
+                  rowKey="serial_id"
+                  columns={columns}
+                  data={data?.data ?? []}
+                  loading={isLoading || isFetching}
+                  error={error}
+                  onRetry={() => refetch()}
+                  errorTitle="序列号台账加载失败"
+                  emptyText="暂无序列号数据"
+                  total={total}
+                  pagination={pagination}
+                  onPaginationChange={(next) => {
+                    setPagination(next);
+                    setSelectedRowKeys([]);
+                  }}
+                  columnSettingsKey="sku-serials.table.columns"
+                  rowSelection={{
+                    selectedRowKeys,
+                    onChange: (keys) => setSelectedRowKeys(keys)
+                  }}
+                  enablePanels={false}
+                />
               </Space>
-              <Card>
-                <Form form={form} layout="vertical" onFinish={handleSearch}>
-                  <Row gutter={16}>
-                    <Col xs={24} md={8}>
-                      <Form.Item name="sku_id" label="SKU">
-                        <Select
-                          showSearch
-                          allowClear
-                          placeholder="Search SKU"
-                          options={skuOptions.map((sku) => ({
-                            value: sku.sku_id,
-                            label: buildSkuLabel(sku)
-                          }))}
-                          filterOption={false}
-                          loading={skuLoading}
-                          onSearch={(value) => loadSkuOptions(value)}
-                          onFocus={() => loadSkuOptions()}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={6}>
-                      <Form.Item name="status" label="Status">
-                        <Select allowClear options={statusOptions} placeholder="All" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={6}>
-                      <Form.Item name="serial_no" label="Serial No">
-                        <Input allowClear placeholder="Serial number" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
-                      <Space>
-                        <Button type="primary" htmlType="submit">
-                          Search
-                        </Button>
-                        <Button onClick={handleReset}>Reset</Button>
-                      </Space>
-                    </Col>
-                  </Row>
-                </Form>
-              </Card>
-              <UiModule03MainTableSection<SkuSerial>
-                rowKey="serial_id"
-                columns={columns}
-                data={data?.data ?? []}
-                loading={isLoading || isFetching}
-                error={error}
-                onRetry={() => refetch()}
-                errorTitle="唯一码加载失败"
-                emptyText="暂无唯一码"
-                total={total}
-                pagination={pagination}
-                onPaginationChange={(next) => {
-                  setPagination(next);
-                  setSelectedRowKeys([]);
-                }}
-                columnSettingsKey="sku-serials.table.columns"
-                rowSelection={{
-                  selectedRowKeys,
-                  onChange: (keys) => setSelectedRowKeys(keys)
-                }}
-                enablePanels={false}
-              />
-            </Space>
-          )
-        },
-        {
-          key: 'rules',
-          label: '序列号规则',
-          children: <SkuSerialRulesPanel />
-        }
-      ]}
-    />
+            )
+          },
+          {
+            key: 'rules',
+            label: '规则中心',
+            children: <SkuSerialRulesPanel />
+          }
+        ]}
+      />
       <Drawer
-        title="Generate Serials"
+        title="生成序列号"
         open={generateOpen}
         onClose={() => setGenerateOpen(false)}
         width={520}
         destroyOnClose
         footer={
           <Space>
-            <Button onClick={() => setGenerateOpen(false)}>Cancel</Button>
-            <Button type="primary" loading={saving} onClick={handleGenerate}>
-              Generate
+            <Button onClick={() => setGenerateOpen(false)}>取消</Button>
+            <Button
+              type="primary"
+              loading={saving}
+              onClick={handleGenerate}
+              disabled={!canGenerateSerials}
+              data-testid="sku-serials-confirm-generate-button"
+            >
+              生成序列号
             </Button>
           </Space>
         }
       >
-        <Form form={generateForm} layout="vertical" initialValues={{ count: 10 }}>
-          <Form.Item
-            name="sku_id"
-            label="SKU"
-            rules={[{ required: true, message: '请选择 SKU' }]}
-          >
-            <Select
-              showSearch
-              allowClear
-              placeholder="Search SKU"
-              options={skuOptions.map((sku) => ({
-                value: sku.sku_id,
-                label: buildSkuLabel(sku)
-              }))}
-              filterOption={false}
-              loading={skuLoading}
-              onSearch={(value) => loadSkuOptions(value)}
-              onFocus={() => loadSkuOptions()}
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {isDigitalGovernedSku ? (
+            <Alert
+              type={selectedRuntimeSku?.serial_enabled ? 'info' : 'error'}
+              showIcon
+              data-testid="sku-serials-digital-governance-alert"
+              message="数码治理策略"
+              description={`${digitalPolicySummary}。${selectedRuntimeSku?.serial_enabled ? '当前 SKU 可生成唯一码。' : '当前 SKU 未启用序列号管理，已阻断生成。'}`}
             />
-          </Form.Item>
-          <Form.Item name="rule_id" label="规则">
-            <Select
-              allowClear
-              placeholder="选择规则"
-              options={ruleOptions.map((rule) => ({
-                value: rule.rule_id,
-                label: `${rule.name} (${rule.prefix})`
-              }))}
+          ) : null}
+          {generateBlockReason ? (
+            <Alert
+              type={selectedRuntimeSku?.serial_enabled ? 'warning' : 'error'}
+              showIcon
+              data-testid="sku-serials-generate-reason-alert"
+              message="当前无法生成"
+              description={generateBlockReason}
             />
-          </Form.Item>
-          <Form.Item name="prefix" label="Prefix">
-            <Input placeholder="SN prefix" />
-          </Form.Item>
-          <Form.Item
-            name="count"
-            label="Count"
-            rules={[{ required: true, message: '输入数量' }]}
-          >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
-          </Form.Item>
-        </Form>
+          ) : null}
+          <Form form={generateForm} layout="vertical" initialValues={{ count: 10 }}>
+            <Form.Item
+              name="sku_id"
+              label="SKU"
+              rules={[{ required: true, message: '请选择 SKU' }]}
+            >
+              <Select
+                showSearch
+                allowClear
+                data-testid="sku-serials-generate-sku"
+                placeholder="搜索 SKU"
+                options={skuOptions.map((sku) => ({
+                  value: sku.sku_id,
+                  label: buildSkuLabel(sku)
+                }))}
+                filterOption={false}
+                loading={skuLoading}
+                onSearch={(value) => loadSkuOptions(value)}
+                onFocus={() => loadSkuOptions()}
+              />
+            </Form.Item>
+            <Form.Item name="rule_id" label="生成规则">
+              <Select
+                allowClear
+                placeholder="选择规则"
+                options={ruleOptions.map((rule) => ({
+                  value: rule.rule_id,
+                  label: `${rule.name} (${rule.prefix})`
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="prefix" label="前缀">
+              <Input placeholder="请输入前缀" data-testid="sku-serials-generate-prefix" />
+            </Form.Item>
+            {suggestedPrefix ? (
+              <Typography.Text type="secondary" data-testid="sku-serials-prefix-suggestion">
+                推荐前缀：{suggestedPrefix}
+              </Typography.Text>
+            ) : null}
+            <Form.Item
+              name="count"
+              label="生成数量"
+              rules={[{ required: true, message: '请输入生成数量' }]}
+            >
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} data-testid="sku-serials-generate-count" />
+            </Form.Item>
+          </Form>
+        </Space>
       </Drawer>
       <Modal
-        title="Print Serials"
+        title="打印序列号"
         open={printOpen}
         onCancel={() => setPrintOpen(false)}
         onOk={handlePrint}
         confirmLoading={saving}
-        okText="Print"
+        okText="打印"
       >
         <Form form={printForm} layout="vertical">
           <Form.Item
             name="template_id"
-            label="Template"
-            rules={[{ required: true, message: '选择模板' }]}
+            label="模板"
+            rules={[{ required: true, message: '请选择模板' }]}
           >
             <Select
               showSearch
               allowClear
-              placeholder="Select template"
+              placeholder="选择模板"
               loading={templateLoading}
               options={templateOptions.map((template) => ({
                 value: template.template_id,
@@ -828,11 +992,11 @@ export const SkuSerialsPage = () => {
               }))}
             />
           </Form.Item>
-          <Form.Item name="device_fingerprint" label="Device Fingerprint">
-            <Input placeholder="Optional device fingerprint" />
+          <Form.Item name="device_fingerprint" label="设备指纹">
+            <Input placeholder="可选设备指纹" />
           </Form.Item>
           <Typography.Text type="secondary">
-            已选择 {selectedRowKeys.length} 个唯一码
+            已选择 {selectedRowKeys.length} 条序列号。
           </Typography.Text>
         </Form>
       </Modal>
