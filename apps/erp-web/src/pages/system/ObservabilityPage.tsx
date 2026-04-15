@@ -881,7 +881,6 @@ export const ObservabilityPage = () => {
     frontendRouteBackendQuery.error &&
     frontendRouteBackendPaths.length === 0 &&
     frontendRouteBackendEvents.length === 0;
-
   useEffect(() => {
     const hasLocalRouteSignals = routeEvents.length > 0 || routeSnapshots.length > 0;
     const hasBackendTelemetry =
