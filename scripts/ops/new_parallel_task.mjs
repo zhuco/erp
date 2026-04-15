@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTaskCard } from './task_card.mjs';
@@ -10,6 +10,8 @@ const repoRoot = path.resolve(scriptDir, '..', '..');
 const LIST_FLAGS = {
   '--allowed': 'allowedFiles',
   '--disallowed': 'disallowedFiles',
+  '--shared-lock-target': 'sharedLockTargets',
+  '--shared-lock-targets': 'sharedLockTargets',
   '--dependency': 'dependencies',
   '--dependencies': 'dependencies',
   '--dod': 'dod',
@@ -23,26 +25,30 @@ const SINGLE_FLAGS = {
   '--goal': 'goal',
   '--background': 'background',
   '--owner': 'owner',
+  '--window': 'window',
+  '--domain': 'domain',
+  '--slot': 'slot',
   '--branch': 'branch',
   '--worktree': 'worktree',
   '--delivery': 'delivery',
-  '--retry-policy': 'retryPolicy',
-  '--fallback-strategy': 'fallbackStrategy',
-  '--fallback': 'fallbackStrategy',
+  '--submission-format': 'submissionFormat',
   '--output': 'output',
 };
 
 const USAGE = `Usage: node new_parallel_task.mjs --name NAME --goal GOAL --owner OWNER --branch BRANCH --worktree WORKTREE [options]
 Options:
   --background TEXT
+  --window Wn
+  --domain DOMAIN
+  --slot T1|T2|T3
   --delivery TEXT
-  --retry-policy TEXT
-  --fallback-strategy TEXT
+  --submission-format TEXT
   --allowed PATH
   --disallowed PATH
+  --shared-lock-target PATH_OR_GLOB
   --dependency TEXT
   --dod ITEM
-  --test COMMANDs
+  --test COMMAND
   --output PATH (default: task-card.md)
 `;
 
@@ -65,6 +71,7 @@ if (!args.length || args.includes('--help')) {
 const parsed = {
   allowedFiles: [],
   disallowedFiles: [],
+  sharedLockTargets: [],
   dependencies: [],
   dod: [],
   testCommands: [],
@@ -106,16 +113,19 @@ const metadata = {
   goal: parsed.goal,
   background: parsed.background,
   owner: parsed.owner,
+  window: parsed.window,
+  domain: parsed.domain,
+  slot: parsed.slot,
   branch: parsed.branch,
   worktree: parsed.worktree,
   allowedFiles: parsed.allowedFiles,
   disallowedFiles: parsed.disallowedFiles,
+  sharedLockTargets: parsed.sharedLockTargets,
   dependencies: parsed.dependencies,
   dod: parsed.dod,
   testCommands: parsed.testCommands,
+  submissionFormat: parsed.submissionFormat,
   delivery: parsed.delivery,
-  retryPolicy: parsed.retryPolicy,
-  fallbackStrategy: parsed.fallbackStrategy,
 };
 
 const outputPath = path.resolve(repoRoot, parsed.output || 'task-card.md');

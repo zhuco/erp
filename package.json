@@ -1,7 +1,7 @@
 {
   "name": "erp-workspace",
   "private": true,
-  "x-entrypoint-note": "根级 package.json scripts 是官方入口；Makefile 与 scripts/accept_*.sh 仅作兼容包装层。",
+  "x-entrypoint-note": "Root package.json scripts are the canonical command entrypoints; Makefile and scripts/accept_*.sh are compatibility wrappers.",
   "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "pnpm --filter erp-web dev",
@@ -12,6 +12,7 @@
     "typecheck": "pnpm --filter erp-web typecheck",
     "openapi:bundle": "node scripts/openapi_bundle.mjs",
     "test:openapi:tools": "node --test scripts/openapi/openapi_tools.test.mjs",
+    "test:ops": "node --test scripts/ops/task_ops.test.mjs scripts/ops/shared_lock_ops.test.mjs",
     "test": "cargo test --all && pnpm --filter erp-web test:unit",
     "accept:web": "pnpm lint && pnpm typecheck && pnpm build",
     "accept:backend": "cargo fmt --all --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all",

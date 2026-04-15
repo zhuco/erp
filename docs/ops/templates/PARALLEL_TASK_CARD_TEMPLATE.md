@@ -1,50 +1,65 @@
-# 多 AI 并行子任务卡模板（脚本/人工双兼容）
+# 多 AI 并行子任务卡模板（V2）
 
 ```yaml
 ---
 name: 任务名称
 goal: 一句话目标
 background: 业务背景说明
-owner: 主负责人或主控会话
-branch: codex/<task-name>
-worktree: .worktrees/<task-name>
+owner: 负责人（如 W2-owner）
+window: W2
+domain: oms-review-exception
+slot: T1
+branch: codex/<domain>-<scope>-<yyyymmdd>
+worktree: .worktrees/<domain>-<scope>-<yyyymmdd>
 allowed_files:
-  - scripts/ops/**
+  - crates/erp-api/src/orders/review_control.rs
+  - apps/erp-web/src/pages/orders/review-native/**
 disallowed_files:
-  - apps/erp-web/**
+  - crates/erp-api/src/orders/intake.rs
+shared_lock_targets:
+  - crates/erp-api/src/orders.rs
 dependencies:
-  - 共享文件锁已登记
+  - 共享锁已登记
 dod:
-  - 通过指定测试
+  - 核心场景回归通过
   - 无越界修改
 test_commands:
-  - node --test scripts/ops/task_ops.test.mjs
-delivery: commit hash + 测试结果 + 风险说明
+  - cargo test -p erp-api --test oms_orders -- --nocapture
+submission_format: task | commit | changed_files | test_results | residual_risks
+delivery: commit hash + 测试结果 + 残余风险
 ---
 ```
 
 ## 目标
-补充业务成功标准、用户结果和边界。
+
+- 写清业务结果，不写实现动作。
 
 ## 业务背景
-说明该任务与售后、退换货、补发、平台联动、逆向入库或客服工作台的关系。
+
+- 说明为什么做这个子任务、风险是什么、影响哪条主链路。
 
 ## DoD
-- 写明必须达到的完成定义
-- 包括幂等、审计、落库、SLA 或回滚要求
+
+- 列出可验收项（行为、数据、审计、回滚点）。
 
 ## 依赖前提
-- 写明依赖的上游任务、共享文件锁、平台沙箱、数据库准备
+
+- 上游任务、共享锁、环境依赖。
 
 ## 测试命令
-- 写明单测、集成测试、E2E 或回放命令
 
-## 交付格式
-- `commit hash`
-- 变更摘要
-- 测试结果
-- 残余风险
+- 只写当前任务最小必跑集。
 
-说明：
-- 若使用脚本生成，可执行 `node scripts/ops/new_parallel_task.mjs ...`
-- 若手工填写，请保持 front matter 字段完整，便于 `validate_task_boundary.mjs` 自动解析
+## 提交格式
+
+- `task`
+- `commit`
+- `changed_files`
+- `test_results`
+- `residual_risks`
+
+## 说明
+
+1. 可用脚本生成模板：`node scripts/ops/new_parallel_task.mjs ...`
+2. 共享锁文件改动前，先执行：`node scripts/ops/register_shared_lock.mjs --mode acquire ...`
+3. 提交前必须执行：`node scripts/ops/validate_task_boundary.mjs --task <task-card> --mode all`
