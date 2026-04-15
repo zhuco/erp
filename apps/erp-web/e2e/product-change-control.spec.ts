@@ -19,3 +19,14 @@ test('product change control supports create drawer', async ({ page }) => {
   await expect(drawer).toBeVisible();
   await expect(drawer.getByTestId('product-change-drawer-form')).toBeVisible();
 });
+
+test('product diff analysis page surfaces conflict context', async ({ page }) => {
+  await page.goto('/products/diff');
+  await loginAndSelectTenant(page);
+
+  await expect(page.getByTestId('product-diff-title')).toBeVisible();
+  await expect(page.getByTestId('product-diff-filter-form')).toBeVisible();
+  await expect(page.getByTestId('product-diff-table')).toBeVisible();
+  const reasonPills = page.getByTestId('product-diff-reason-pills');
+  await expect(reasonPills).toBeVisible();
+});
