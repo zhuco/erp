@@ -168,6 +168,7 @@ pub struct PaymentReconcileJobUpdate {
 #[derive(Debug, Clone)]
 pub struct PaymentReconcileJobListFilters {
     pub status: Option<String>,
+    pub statement_id: Option<uuid::Uuid>,
     pub offset: i64,
     pub limit: i64,
 }
@@ -1117,6 +1118,10 @@ impl<'a> PaymentReconcileJobsRepo<'a> {
             qb.push(" and status = ");
             qb.push_bind(status);
         }
+        if let Some(statement_id) = filters.statement_id {
+            qb.push(" and statement_id = ");
+            qb.push_bind(statement_id);
+        }
         qb.push(" order by created_at desc");
         qb.push(" limit ");
         qb.push_bind(filters.limit);
@@ -1140,6 +1145,10 @@ impl<'a> PaymentReconcileJobsRepo<'a> {
         if let Some(status) = filters.status {
             count_qb.push(" and status = ");
             count_qb.push_bind(status);
+        }
+        if let Some(statement_id) = filters.statement_id {
+            count_qb.push(" and statement_id = ");
+            count_qb.push_bind(statement_id);
         }
         let total: i64 = count_qb.build_query_scalar().fetch_one(self.pool).await?;
         Ok(PaymentReconcileJobListResult { items, total })

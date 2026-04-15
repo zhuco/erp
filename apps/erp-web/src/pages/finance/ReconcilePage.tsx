@@ -13,8 +13,8 @@ import {
 } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import dayjs, { type Dayjs } from 'dayjs';
-import { useEffect, useMemo, useState } from 'react';
+import type { Dayjs } from 'dayjs';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { createExportJob } from '@/api/exports';
@@ -39,6 +39,19 @@ import { useTenantId } from '@/features/tenant';
 import { shopOptions } from '@/features/tenantOptions';
 
 const { Text } = Typography;
+
+const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  hour12: false
+});
+
+const amountFormatter = new Intl.NumberFormat('zh-CN', {
+  style: 'currency',
+  currency: 'CNY',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
 
 type ImportFormValues = {
   statement_type: StatementImportType;
@@ -81,6 +94,13 @@ const buildDiffTag = (diff: number) => {
   return <Tag color="orange">{diff}</Tag>;
 };
 
+const buildDiffAmountTag = (diffCent: number) => (
+  <Tag color={diffCent === 0 ? 'green' : 'orange'}>{amountFormatter.format(diffCent / 100)}</Tag>
+);
+
+const formatDateTime = (value?: string | null) =>
+  value ? dateTimeFormatter.format(new Date(value)) : '-';
+
 export const ReconcilePage = () => {
   const tenantId = useTenantId();
   const canWrite = useCan('finance.write');
@@ -94,6 +114,7 @@ export const ReconcilePage = () => {
   const [statementId, setStatementId] = useState<string | null>(null);
   const [paymentFileList, setPaymentFileList] = useState<UploadFile[]>([]);
   const [paymentStatementId, setPaymentStatementId] = useState<string | null>(null);
+  const [paymentStatementFilterInput, setPaymentStatementFilterInput] = useState('');
   const [jobPagination, setJobPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10
@@ -117,6 +138,7 @@ export const ReconcilePage = () => {
   const [exporting, setExporting] = useState(false);
   const [paymentImporting, setPaymentImporting] = useState(false);
   const [paymentRunning, setPaymentRunning] = useState(false);
+  const deferredPaymentStatementFilter = useDeferredValue(paymentStatementFilterInput);
 
   useEffect(() => {
     if (statementId) {
@@ -129,6 +151,13 @@ export const ReconcilePage = () => {
       paymentReconcileForm.setFieldsValue({ statement_id: paymentStatementId });
     }
   }, [paymentStatementId, paymentReconcileForm]);
+
+  useEffect(() => {
+    setPaymentJobPagination((prev) => ({
+      current: 1,
+      pageSize: prev.pageSize ?? 10
+    }));
+  }, [deferredPaymentStatementFilter]);
 
   const jobQuery = useMemo(() => {
     const offset = ((jobPagination.current ?? 1) - 1) * (jobPagination.pageSize ?? 10);
@@ -165,11 +194,17 @@ export const ReconcilePage = () => {
   const paymentJobQuery = useMemo(() => {
     const offset =
       ((paymentJobPagination.current ?? 1) - 1) * (paymentJobPagination.pageSize ?? 10);
+    const statementId = deferredPaymentStatementFilter.trim();
     return {
+      statement_id: statementId || undefined,
       offset,
       limit: paymentJobPagination.pageSize ?? 10
     };
-  }, [paymentJobPagination.current, paymentJobPagination.pageSize]);
+  }, [
+    deferredPaymentStatementFilter,
+    paymentJobPagination.current,
+    paymentJobPagination.pageSize
+  ]);
 
   const paymentJobList = useQuery({
     queryKey: ['paymentReconcileJobs', tenantId, paymentJobQuery],
@@ -345,12 +380,12 @@ export const ReconcilePage = () => {
       {
         title: '开始时间',
         dataIndex: 'started_at',
-        render: (_, record) => (record.started_at ? dayjs(record.started_at).format('YYYY-MM-DD HH:mm') : '-')
+        render: (_, record) => formatDateTime(record.started_at)
       },
       {
         title: '结束时间',
         dataIndex: 'finished_at',
-        render: (_, record) => (record.finished_at ? dayjs(record.finished_at).format('YYYY-MM-DD HH:mm') : '-')
+        render: (_, record) => formatDateTime(record.finished_at)
       },
       {
         title: '错误',
@@ -365,12 +400,12 @@ export const ReconcilePage = () => {
     () => [
       { title: '类型', dataIndex: 'ref_type' },
       { title: '引用ID', dataIndex: 'ref_id', ellipsis: true },
-      { title: '应收', dataIndex: 'expected_cent' },
-      { title: '实收', dataIndex: 'actual_cent' },
+      { title: '应收', dataIndex: 'expected_cent', render: (_, record) => amountFormatter.format(record.expected_cent / 100) },
+      { title: '实收', dataIndex: 'actual_cent', render: (_, record) => amountFormatter.format(record.actual_cent / 100) },
       {
         title: '差异',
         dataIndex: 'diff_cent',
-        render: (_, record) => buildDiffTag(record.diff_cent)
+        render: (_, record) => buildDiffAmountTag(record.diff_cent)
       },
       { title: '原因', dataIndex: 'diff_reason', render: (_, record) => record.diff_reason ?? '-' }
     ],
@@ -399,14 +434,12 @@ export const ReconcilePage = () => {
       {
         title: '开始时间',
         dataIndex: 'started_at',
-        render: (_, record) =>
-          record.started_at ? dayjs(record.started_at).format('YYYY-MM-DD HH:mm') : '-'
+        render: (_, record) => formatDateTime(record.started_at)
       },
       {
         title: '结束时间',
         dataIndex: 'finished_at',
-        render: (_, record) =>
-          record.finished_at ? dayjs(record.finished_at).format('YYYY-MM-DD HH:mm') : '-'
+        render: (_, record) => formatDateTime(record.finished_at)
       },
       {
         title: '错误',
@@ -426,12 +459,12 @@ export const ReconcilePage = () => {
         render: (_, record) => record.order_id ?? '-',
         ellipsis: true
       },
-      { title: '应收', dataIndex: 'expected_cent' },
-      { title: '实收', dataIndex: 'actual_cent' },
+      { title: '应收', dataIndex: 'expected_cent', render: (_, record) => amountFormatter.format(record.expected_cent / 100) },
+      { title: '实收', dataIndex: 'actual_cent', render: (_, record) => amountFormatter.format(record.actual_cent / 100) },
       {
         title: '差异',
         dataIndex: 'diff_cent',
-        render: (_, record) => buildDiffTag(record.diff_cent)
+        render: (_, record) => buildDiffAmountTag(record.diff_cent)
       },
       { title: '原因', dataIndex: 'diff_reason', render: (_, record) => record.diff_reason ?? '-' }
     ],
@@ -518,7 +551,11 @@ export const ReconcilePage = () => {
             {({ getFieldValue }) =>
               getFieldValue('job_type') === 'PLATFORM' ? (
                 <Form.Item name="statement_id" label="账单ID" rules={[{ required: true }]}>
-                  <Input style={{ width: 280 }} placeholder="platform statement id" />
+                  <Input
+                    style={{ width: 280 }}
+                    placeholder="例如 11111111-1111-1111-1111-111111111111…"
+                    autoComplete="off"
+                  />
                 </Form.Item>
               ) : (
                 <Form.Item name="occurred_range" label="发生时间" rules={[{ required: true }]}>
@@ -581,7 +618,7 @@ export const ReconcilePage = () => {
       <Card title="支付账单导入">
         <Form form={paymentImportForm} layout="inline" onFinish={handlePaymentImport}>
           <Form.Item name="channel" label="支付渠道" rules={[{ required: true }]}>
-            <Input style={{ width: 180 }} placeholder="ALIPAY/WECHAT" />
+            <Input style={{ width: 180 }} placeholder="ALIPAY / WECHAT…" autoComplete="off" />
           </Form.Item>
           <Form.Item name="period" label="账期">
             <DatePicker.RangePicker />
@@ -615,7 +652,11 @@ export const ReconcilePage = () => {
       <Card title="运行支付对账">
         <Form form={paymentReconcileForm} layout="inline" onFinish={handlePaymentRun}>
           <Form.Item name="statement_id" label="账单ID" rules={[{ required: true }]}>
-            <Input style={{ width: 280 }} placeholder="payment statement id" />
+            <Input
+              style={{ width: 280 }}
+              placeholder="例如 11111111-1111-1111-1111-111111111111…"
+              autoComplete="off"
+            />
           </Form.Item>
           <Form.Item>
             <Button
@@ -630,7 +671,23 @@ export const ReconcilePage = () => {
         </Form>
       </Card>
 
-      <Card title="支付对账任务">
+      <Card
+        title="支付对账任务"
+        extra={
+          <Input
+            allowClear
+            style={{ width: 320 }}
+            placeholder="按支付账单ID筛选…"
+            value={paymentStatementFilterInput}
+            onChange={(event) => {
+              setPaymentStatementFilterInput(event.target.value);
+              setSelectedPaymentJobId(null);
+            }}
+            autoComplete="off"
+            aria-label="支付账单ID筛选"
+          />
+        }
+      >
         <Table
           rowKey="job_id"
           columns={paymentJobColumns}
