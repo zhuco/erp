@@ -151,13 +151,13 @@ const SalesOrderCreatePage = lazyNamedPage(() => import('@/pages/sales/SalesOrde
 const SalesOrderImportPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderImportPage'), 'SalesOrderImportPage');
 const SalesSettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesSettingsPage'), 'SalesSettingsPage');
 const SalesStrategySettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesStrategySettingsPage'), 'SalesStrategySettingsPage');
-const ShopOrderDownloadPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
-  'ShopOrderDownloadPage'
+const ShopOrderQueryPage = lazyNamedPage(
+  () => import('@/pages/sales/ShopOrderQueryPage'),
+  'ShopOrderQueryPage'
 );
-const ShopProductMatchQueryPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
-  'ShopProductMatchQueryPage'
+const SalesProductMatchPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesProductMatchPage'),
+  'SalesProductMatchPage'
 );
 const ShopInventorySyncPage = lazyNamedPage(
   () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
@@ -217,6 +217,8 @@ const ProductLifecyclePage = lazyNamedPage(() => import('@/pages/products/Produc
 const ProductPackagingSpecsPage = lazyNamedPage(() => import('@/pages/products/ProductPackagingSpecsPage'), 'ProductPackagingSpecsPage');
 const ProductsPage = lazyNamedPage(() => import('@/pages/products/ProductsPage'), 'ProductsPage');
 const ProductUnitsPage = lazyNamedPage(() => import('@/pages/products/ProductUnitsPage'), 'ProductUnitsPage');
+const SkuBatchesPage = lazyNamedPage(() => import('@/pages/skuBatches/SkuBatchesPage'), 'SkuBatchesPage');
+const SkuSerialsPage = lazyNamedPage(() => import('@/pages/skuSerials/SkuSerialsPage'), 'SkuSerialsPage');
 const SyncJobsPage = lazyNamedPage(() => import('@/pages/shops/SyncJobsPage'), 'SyncJobsPage');
 const ShopProductDownloadPage = lazyNamedPage(() => import('@/pages/shopProducts/ShopProductDownloadPage'), 'ShopProductDownloadPage');
 const OrderTagDefinitionsPage = lazyNamedPage(() => import('@/pages/tags/OrderTagDefinitionsPage'), 'OrderTagDefinitionsPage');
@@ -283,14 +285,6 @@ const ChannelDirectoryPage = lazyNamedPage(
 const ShopAccessPage = lazyNamedPage(
   () => import('@/pages/channels/ShopAccessPage'),
   'ShopAccessPage'
-);
-const SalesProductMatchPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesProductMatchPage'),
-  'SalesProductMatchPage'
-);
-const ShopOrderQueryPage = lazyNamedPage(
-  () => import('@/pages/sales/ShopOrderQueryPage'),
-  'ShopOrderQueryPage'
 );
 const LogisticsUploadPage = lazyNamedPage(
   () => import('@/pages/sales/LogisticsUploadPage'),
@@ -526,7 +520,7 @@ const routeConfig = [
                 path: 'sales/shop-order-download',
                 element: (
                   <PermissionGuard permission="orders.read">
-                    <ShopOrderDownloadPage />
+                    <ShopOrderQueryPage />
                   </PermissionGuard>
                 )
               },
@@ -566,7 +560,7 @@ const routeConfig = [
                 path: 'sales/shop-product-match-query',
                 element: (
                   <PermissionGuard permission="shop_products.read">
-                    <ShopProductMatchQueryPage />
+                    <SalesProductMatchPage />
                   </PermissionGuard>
                 )
               },
@@ -1555,6 +1549,22 @@ const routeConfig = [
                 )
               },
               {
+                path: 'sku-batches',
+                element: (
+                  <PermissionGuard permission="skus.read">
+                    <SkuBatchesPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'sku-serials',
+                element: (
+                  <PermissionGuard permission="skus.read">
+                    <SkuSerialsPage />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'kits',
                 element: (
                   <PermissionGuard permission="kits.read">
@@ -1739,7 +1749,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/erp-data-grid-next',
+                path: 'system/demo/ag-grid-enterprise',
                 element: (
                   <PermissionGuard permission="orders.read">
                     <AgGridEnterpriseDemoPage />
@@ -1747,10 +1757,18 @@ const routeConfig = [
                 )
               },
               {
+                path: 'system/erp-data-grid-next',
+                element: (
+                  <PermissionGuard permission="orders.read">
+                    <Navigate to="/system/demo/ag-grid-enterprise" replace />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'system/ag-grid-enterprise',
                 element: (
                   <PermissionGuard permission="orders.read">
-                    <AgGridEnterpriseDemoPage />
+                    <Navigate to="/system/demo/ag-grid-enterprise" replace />
                   </PermissionGuard>
                 )
               },
@@ -1877,5 +1895,6 @@ const createRouter = routerMode === 'hash' ? createHashRouter : createBrowserRou
 const routerBasename = routerMode === 'hash' ? '/' : routerBasePath;
 
 export const router = createRouter(routeConfig, { basename: routerBasename });
+
 
 
