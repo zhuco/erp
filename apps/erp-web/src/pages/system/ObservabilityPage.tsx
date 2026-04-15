@@ -871,7 +871,9 @@ export const ObservabilityPage = () => {
   const showDeadLetterError = deadLettersQuery.error && deadLetters.length === 0;
   const showOutboxError = outboxEventsQuery.error && outboxEvents.length === 0;
   const showFrontendRouteBackendError =
-    frontendRouteBackendQuery.error && frontendRouteBackendPaths.length === 0;
+    frontendRouteBackendQuery.error &&
+    frontendRouteBackendPaths.length === 0 &&
+    frontendRouteBackendEvents.length === 0;
 
   const handleRefresh = () => {
     metricsQuery.refetch();
