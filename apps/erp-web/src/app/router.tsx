@@ -151,13 +151,13 @@ const SalesOrderCreatePage = lazyNamedPage(() => import('@/pages/sales/SalesOrde
 const SalesOrderImportPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderImportPage'), 'SalesOrderImportPage');
 const SalesSettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesSettingsPage'), 'SalesSettingsPage');
 const SalesStrategySettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesStrategySettingsPage'), 'SalesStrategySettingsPage');
-const ShopOrderDownloadPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
-  'ShopOrderDownloadPage'
+const ShopOrderQueryPage = lazyNamedPage(
+  () => import('@/pages/sales/ShopOrderQueryPage'),
+  'ShopOrderQueryPage'
 );
-const ShopProductMatchQueryPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
-  'ShopProductMatchQueryPage'
+const SalesProductMatchPage = lazyNamedPage(
+  () => import('@/pages/sales/SalesProductMatchPage'),
+  'SalesProductMatchPage'
 );
 const ShopInventorySyncPage = lazyNamedPage(
   () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
@@ -283,14 +283,6 @@ const ChannelDirectoryPage = lazyNamedPage(
 const ShopAccessPage = lazyNamedPage(
   () => import('@/pages/channels/ShopAccessPage'),
   'ShopAccessPage'
-);
-const SalesProductMatchPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesProductMatchPage'),
-  'SalesProductMatchPage'
-);
-const ShopOrderQueryPage = lazyNamedPage(
-  () => import('@/pages/sales/ShopOrderQueryPage'),
-  'ShopOrderQueryPage'
 );
 const LogisticsUploadPage = lazyNamedPage(
   () => import('@/pages/sales/LogisticsUploadPage'),
@@ -526,7 +518,7 @@ const routeConfig = [
                 path: 'sales/shop-order-download',
                 element: (
                   <PermissionGuard permission="orders.read">
-                    <ShopOrderDownloadPage />
+                    <ShopOrderQueryPage />
                   </PermissionGuard>
                 )
               },
@@ -1739,7 +1731,7 @@ const routeConfig = [
                 )
               },
               {
-                path: 'system/erp-data-grid-next',
+                path: 'system/demo/ag-grid-enterprise',
                 element: (
                   <PermissionGuard permission="orders.read">
                     <AgGridEnterpriseDemoPage />
@@ -1747,10 +1739,18 @@ const routeConfig = [
                 )
               },
               {
+                path: 'system/erp-data-grid-next',
+                element: (
+                  <PermissionGuard permission="orders.read">
+                    <Navigate to="/system/demo/ag-grid-enterprise" replace />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'system/ag-grid-enterprise',
                 element: (
                   <PermissionGuard permission="orders.read">
-                    <AgGridEnterpriseDemoPage />
+                    <Navigate to="/system/demo/ag-grid-enterprise" replace />
                   </PermissionGuard>
                 )
               },
