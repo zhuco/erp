@@ -1,6 +1,11 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders } from '@/api/client';
 import { ApiError, createApiError, handleApiError } from '@/api/errors';
+import {
+  cancelMockInventoryFreeze,
+  createMockInventoryFreeze,
+  getMockInventoryFreezeList,
+} from '@/api/mocks';
 
 export type InventoryFreeze = {
   freeze_id: string;
@@ -37,10 +42,7 @@ const FREEZE_REQUEST_TIMEOUT_MS = 15000;
 
 const requestJson = async <T>(input: RequestInfo, init: RequestInit, message: string) => {
   const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(
-    () => controller.abort(),
-    FREEZE_REQUEST_TIMEOUT_MS
-  );
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), FREEZE_REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(input, { ...init, signal: controller.signal });
     let payload: unknown = undefined;
@@ -90,26 +92,26 @@ const buildQueryString = (query: InventoryFreezeListQuery): string => {
 
 export const listInventoryFreezes = async (
   tenantId: string,
-  query: InventoryFreezeListQuery
+  query: InventoryFreezeListQuery,
 ): Promise<InventoryFreezeListResponse> => {
   if (useMocks) {
-    return { items: [], total: 0 };
+    return getMockInventoryFreezeList(query);
   }
   return requestJson<InventoryFreezeListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/inventory/freezes${buildQueryString(query)}`,
     {
-      headers: buildAuthHeaders()
+      headers: buildAuthHeaders(),
     },
-    '获取库存冻结失败'
+    '获取库存冻结失败',
   );
 };
 
 export const createInventoryFreeze = async (
   tenantId: string,
-  payload: InventoryFreezeCreatePayload
+  payload: InventoryFreezeCreatePayload,
 ): Promise<InventoryFreeze> => {
   if (useMocks) {
-    throw createApiError('Mock未实现', 501);
+    return createMockInventoryFreeze(payload);
   }
   return requestJson<InventoryFreeze>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/inventory/freezes`,
@@ -117,27 +119,27 @@ export const createInventoryFreeze = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...buildAuthHeaders()
+        ...buildAuthHeaders(),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     },
-    '创建冻结失败'
+    '创建冻结失败',
   );
 };
 
 export const cancelInventoryFreeze = async (
   tenantId: string,
-  freezeId: string
+  freezeId: string,
 ): Promise<InventoryFreeze> => {
   if (useMocks) {
-    throw createApiError('Mock未实现', 501);
+    return cancelMockInventoryFreeze(freezeId);
   }
   return requestJson<InventoryFreeze>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/inventory/freezes/${freezeId}/cancel`,
     {
       method: 'POST',
-      headers: buildAuthHeaders()
+      headers: buildAuthHeaders(),
     },
-    '取消冻结失败'
+    '取消冻结失败',
   );
 };

@@ -34,32 +34,36 @@ function createTempGitRepo() {
 
 test('task card front matter round trips', () => {
   const card = createTaskCard({
-    name: '并行任务示例',
-    goal: '校验卡片',
-    background: '用于示范',
+    name: 'parallel-demo',
+    goal: 'verify task card parser',
+    background: 'for ops automation',
     owner: 'test-owner',
     branch: 'codex/demo',
     worktree: '.worktrees/demo',
     allowedFiles: ['scripts/ops/**', 'apps/backend/**'],
     disallowedFiles: ['apps/frontend/secret.md'],
-    dependencies: ['共享文件锁已登记'],
-    dod: ['通过单测', '通过边界校验'],
+    dependencies: ['shared lock registered'],
+    dod: ['unit tests pass', 'boundary check pass'],
     testCommands: ['node --test scripts/ops/task_ops.test.mjs'],
-    delivery: 'commit hash + 测试结果 + 风险',
+    retryPolicy: 'transient-auto-retry(max=3,delay=10s)',
+    fallbackStrategy: 'switch-to-local-execution',
+    delivery: 'commit hash + test evidence + risk note',
   });
 
   const parsed = parseTaskCard(card);
-  assert.equal(parsed.name, '并行任务示例');
-  assert.equal(parsed.goal, '校验卡片');
+  assert.equal(parsed.name, 'parallel-demo');
+  assert.equal(parsed.goal, 'verify task card parser');
   assert.deepEqual(parsed.allowedFiles, ['scripts/ops/**', 'apps/backend/**']);
   assert.deepEqual(parsed.disallowedFiles, ['apps/frontend/secret.md']);
   assert.deepEqual(parsed.testCommands, ['node --test scripts/ops/task_ops.test.mjs']);
+  assert.equal(parsed.retryPolicy, 'transient-auto-retry(max=3,delay=10s)');
+  assert.equal(parsed.fallbackStrategy, 'switch-to-local-execution');
 });
 
-test('validateTaskFiles 在白名单范围内时 PASS', () => {
+test('validateTaskFiles passes when all changes are in allowed scope', () => {
   const task = parseTaskCard(createTaskCard({
-    name: '白名单通过',
-    goal: '验证白名单',
+    name: 'allowlist-pass',
+    goal: 'verify allowlist',
     owner: 'owner',
     branch: 'codex/pass',
     worktree: '.worktrees/pass',
@@ -77,10 +81,10 @@ test('validateTaskFiles 在白名单范围内时 PASS', () => {
   assert.deepEqual(result.blockedFiles, []);
 });
 
-test('validateTaskFiles 命中禁区或越界时 FAIL', () => {
+test('validateTaskFiles fails on blocked and out-of-scope files', () => {
   const task = parseTaskCard(createTaskCard({
-    name: '边界失败',
-    goal: '验证禁区',
+    name: 'boundary-fail',
+    goal: 'verify disallowed paths',
     owner: 'owner',
     branch: 'codex/fail',
     worktree: '.worktrees/fail',
@@ -98,7 +102,7 @@ test('validateTaskFiles 命中禁区或越界时 FAIL', () => {
   assert.deepEqual(result.outOfScopeFiles, ['apps/erp-web/src/pages/afterSales/AfterSalesListPage.tsx']);
 });
 
-test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
+test('new_parallel_task CLI generates task card with retry and fallback fields', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-card-'));
   const dest = path.join(tmpDir, 'task-card.md');
   const result = spawnSync(
@@ -106,11 +110,11 @@ test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
     [
       'scripts/ops/new_parallel_task.mjs',
       '--name',
-      '示例卡片',
+      'example-card',
       '--goal',
-      '落地任务卡脚手架',
+      'generate a card from cli',
       '--background',
-      '用于售后多 AI 并行',
+      'for subtask resilience',
       '--owner',
       'cli-owner',
       '--branch',
@@ -123,6 +127,10 @@ test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
       'apps/erp-web/**',
       '--test',
       'node --test scripts/ops/task_ops.test.mjs',
+      '--retry-policy',
+      'transient-auto-retry(max=4,delay=15s)',
+      '--fallback-strategy',
+      'switch-to-local-execution',
       '--output',
       dest,
     ],
@@ -134,18 +142,20 @@ test('new_parallel_task CLI 生成包含核心字段的任务卡', () => {
 
   assert.equal(result.status, 0, `CLI exited with ${result.stderr || result.stdout}`);
   const contents = fs.readFileSync(dest, 'utf8');
-  assert.ok(contents.includes('name: 示例卡片'));
-  assert.ok(contents.includes('goal: 落地任务卡脚手架'));
+  assert.ok(contents.includes('name: example-card'));
+  assert.ok(contents.includes('goal: generate a card from cli'));
   assert.ok(contents.includes('allowed_files:'));
-  assert.ok(contents.includes('## 测试命令'));
+  assert.ok(contents.includes('retry_policy: transient-auto-retry(max=4,delay=15s)'));
+  assert.ok(contents.includes('fallback_strategy: switch-to-local-execution'));
+  assert.ok(contents.includes('## Test Commands'));
 });
 
-test('validate_task_boundary CLI 支持显式文件列表', () => {
+test('validate_task_boundary CLI supports explicit file list', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-boundary-'));
   const taskPath = path.join(tmpDir, 'task-card.md');
   fs.writeFileSync(taskPath, createTaskCard({
-    name: '显式文件边界校验',
-    goal: '验证 CLI',
+    name: 'explicit-file-validation',
+    goal: 'verify validator cli',
     owner: 'owner',
     branch: 'codex/validate',
     worktree: '.worktrees/validate',
@@ -188,7 +198,7 @@ test('validate_task_boundary CLI 支持显式文件列表', () => {
   assert.ok(failResult.stdout.includes('FAIL'));
 });
 
-test('readGitChangedFiles 支持 staged / working / all 三种模式', () => {
+test('readGitChangedFiles supports staged, working, all modes', () => {
   const repoDir = createTempGitRepo();
   const stagedFile = path.join(repoDir, 'scripts', 'ops', 'staged.txt');
   const workingFile = path.join(repoDir, 'docs', 'ops', 'working.txt');

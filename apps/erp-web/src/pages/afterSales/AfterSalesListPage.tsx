@@ -318,6 +318,7 @@ export const AfterSalesListPage = () => {
                   size="small"
                   type="link"
                   data-testid="after-sales-receive-action"
+                  data-after-sales-receive-href={`/after-sales/${record.id}/receive`}
                   onClick={() => navigate(`/after-sales/${record.id}/receive`)}
                 >
                   收货

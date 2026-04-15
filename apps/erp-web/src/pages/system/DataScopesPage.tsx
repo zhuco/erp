@@ -6,6 +6,7 @@ import {
   getUserDataScopes,
   listUsers,
   updateUserDataScopes,
+  type DataScopeResponse,
   type User
 } from '@/api/system';
 import { listShops } from '@/api/shops';
@@ -16,6 +17,13 @@ import { isTenantSelected, useTenantId } from '@/features/tenant';
 type ScopeFormValues = {
   shop_ids: string[];
   warehouse_ids: string[];
+  merchant_ids: string[];
+  organization_ids: string[];
+};
+
+type ExtendedDataScope = DataScopeResponse & {
+  merchant_ids?: string[];
+  organization_ids?: string[];
 };
 
 export const DataScopesPage = () => {
@@ -77,10 +85,15 @@ export const DataScopesPage = () => {
     }
     const loadScopes = async () => {
       try {
-        const scopes = await getUserDataScopes(tenantId, selectedUserId);
+        const scopes = (await getUserDataScopes(
+          tenantId,
+          selectedUserId
+        )) as ExtendedDataScope;
         form.setFieldsValue({
           shop_ids: scopes.shop_ids ?? [],
-          warehouse_ids: scopes.warehouse_ids ?? []
+          warehouse_ids: scopes.warehouse_ids ?? [],
+          merchant_ids: scopes.merchant_ids ?? [],
+          organization_ids: scopes.organization_ids ?? []
         });
       } catch (error) {
         message.error(error instanceof Error ? error.message : '加载数据权限失败');
@@ -143,6 +156,12 @@ export const DataScopesPage = () => {
                 options={warehouseOptions}
                 loading={warehousesQuery.isFetching}
               />
+            </Form.Item>
+            <Form.Item name="merchant_ids" label="可访问商家">
+              <Select mode="tags" allowClear placeholder="输入或选择商家 ID" />
+            </Form.Item>
+            <Form.Item name="organization_ids" label="可访问组织">
+              <Select mode="tags" allowClear placeholder="输入或选择组织 ID" />
             </Form.Item>
           </Form>
         </Space>

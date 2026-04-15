@@ -8,13 +8,19 @@ import {
 
 import type { components, paths } from './generated/schema';
 
-export type SkuBatch = components['schemas']['SkuBatch'];
+export type SkuBatch = components['schemas']['SkuBatch'] & {
+  production_date?: string | null;
+};
 export type SkuBatchListResponse = components['schemas']['SkuBatchListResponse'];
 export type SkuBatchListQuery = NonNullable<
   paths['/v1/tenants/{tenant_id}/sku-batches']['get']['parameters']['query']
 >;
-export type SkuBatchCreateRequest = components['schemas']['SkuBatchCreateRequest'];
-export type SkuBatchUpdateRequest = components['schemas']['SkuBatchUpdateRequest'];
+export type SkuBatchCreateRequest = components['schemas']['SkuBatchCreateRequest'] & {
+  production_date?: string | null;
+};
+export type SkuBatchUpdateRequest = components['schemas']['SkuBatchUpdateRequest'] & {
+  production_date?: string | null;
+};
 
 export const listSkuBatches = async (
   tenantId: string,

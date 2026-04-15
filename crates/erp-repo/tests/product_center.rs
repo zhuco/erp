@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use erp_repo::products::{ProductCreate, ProductListFilters, ProductUpdate, ProductsRepo};
 use erp_repo::sku_batches::{SkuBatchCreate, SkuBatchListFilters, SkuBatchUpdate, SkuBatchesRepo};
 use erp_repo::sku_serials::{SkuSerialGenerateInput, SkuSerialListFilters, SkuSerialsRepo};
@@ -62,6 +63,7 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
           tenant_id uuid not null,
           sku_id uuid not null references skus(sku_id),
           batch_no text not null,
+          production_date timestamptz,
           expire_at timestamptz,
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now()
@@ -259,14 +261,19 @@ async fn sku_batch_repo_flow() -> Result<()> {
     let sku_id = seed_sku(&pool, tenant_id, product_id).await?;
 
     let repo = SkuBatchesRepo::new(&pool);
+    let production_date = DateTime::parse_from_rfc3339("2026-04-01T00:00:00Z")
+        .expect("valid production date")
+        .with_timezone(&Utc);
     let batch = repo
         .create_batch(SkuBatchCreate {
             tenant_id,
             sku_id,
             batch_no: "BATCH-001".to_string(),
+            production_date: Some(production_date),
             expire_at: None,
         })
         .await?;
+    assert_eq!(batch.production_date, Some(production_date));
 
     let updated = repo
         .update_batch(
@@ -274,12 +281,17 @@ async fn sku_batch_repo_flow() -> Result<()> {
             batch.batch_id,
             SkuBatchUpdate {
                 batch_no: Some("BATCH-002".to_string()),
+                production_date: Some(production_date + chrono::Duration::days(2)),
                 expire_at: None,
             },
         )
         .await?
         .expect("batch updated");
     assert_eq!(updated.batch_no, "BATCH-002");
+    assert_eq!(
+        updated.production_date,
+        Some(production_date + chrono::Duration::days(2))
+    );
 
     let list = repo
         .list_batches(
@@ -293,6 +305,10 @@ async fn sku_batch_repo_flow() -> Result<()> {
         )
         .await?;
     assert_eq!(list.items.len(), 1);
+    assert_eq!(
+        list.items[0].production_date,
+        Some(production_date + chrono::Duration::days(2))
+    );
     Ok(())
 }
 

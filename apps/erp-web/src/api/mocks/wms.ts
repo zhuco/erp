@@ -38,8 +38,9 @@ import type {
   WmsWaveRunPayload,
   WmsWaveRunResponse
 } from '../wms';
-import { applyPagination, mockShops, mockSkus, mockWarehouses } from './data';
+import { applyPagination, mockShops, mockSkuSerials, mockWarehouses } from './data';
 import { createMockPrintJob } from './print';
+import { evaluateMockBatchGovernance, findMockBatchByNo, findMockSkuById } from './skus';
 
 const defaultWarehouseId = mockWarehouses[0]?.warehouse_id ?? 'WH-DEFAULT';
 const defaultShopId = mockShops[0]?.shop_id ?? 'SHOP-DEFAULT';
@@ -162,8 +163,11 @@ const buildOutboundDoc = (index: number): WmsOutboundDoc => {
 };
 
 const buildOutboundItems = (docIndex: number, status: WmsOutboundStatus): WmsOutboundItem[] => {
-  const baseSku = mockSkus[docIndex % mockSkus.length];
-  const secondarySku = mockSkus[(docIndex + 1) % mockSkus.length];
+  const governanceSkus = ['SKU-FOOD-GOV-001', 'SKU-DIGITAL-GOV-001'];
+  const baseSku = findMockSkuById(governanceSkus[docIndex % governanceSkus.length] ?? 'SKU-FOOD-GOV-001');
+  const secondarySku = findMockSkuById(
+    governanceSkus[(docIndex + 1) % governanceSkus.length] ?? 'SKU-DIGITAL-GOV-001',
+  );
   const plannedQty = (docIndex % 3) + 1;
   const pickedQty = status === 'PACKED' || status === 'SHIPPED' ? plannedQty : 0;
   const packedQty = status === 'PACKED' || status === 'SHIPPED' ? plannedQty : 0;
@@ -173,16 +177,16 @@ const buildOutboundItems = (docIndex: number, status: WmsOutboundStatus): WmsOut
       planned_qty: plannedQty,
       picked_qty: pickedQty,
       packed_qty: packedQty,
-      batch_enabled: false,
-      serial_enabled: false
+      batch_enabled: baseSku?.batch_enabled ?? false,
+      serial_enabled: baseSku?.serial_enabled ?? false
     },
     {
       sku_id: secondarySku?.sku_id ?? `SKU-${docIndex + 2}`,
       planned_qty: 1,
       picked_qty: status === 'SHIPPED' ? 1 : 0,
       packed_qty: status === 'SHIPPED' ? 1 : 0,
-      batch_enabled: false,
-      serial_enabled: false
+      batch_enabled: secondarySku?.batch_enabled ?? false,
+      serial_enabled: secondarySku?.serial_enabled ?? false
     }
   ];
 };
@@ -209,6 +213,21 @@ const mockWmsOutbounds: WmsOutboundDoc[] = Array.from({ length: 16 }, (_, index)
 const mockWmsOutboundDetails = new Map<string, WmsOutboundDetail>();
 const mockWmsPickTasks: WmsPickTask[] = [];
 
+const seedGovernanceOutbound = (
+  doc: WmsOutboundDoc,
+  items: WmsOutboundItem[],
+) => {
+    const pickTasks = buildPickTasks(doc.outbound_doc_id, items);
+    mockWmsOutbounds.unshift(doc);
+    mockWmsOutboundDetails.set(doc.outbound_doc_id, {
+      doc,
+      items,
+      pick_tasks: pickTasks,
+      pack_records: [],
+    });
+    mockWmsPickTasks.push(...pickTasks);
+};
+
 const ensureOutboundDetail = (doc: WmsOutboundDoc, index: number) => {
   const existing = mockWmsOutboundDetails.get(doc.outbound_doc_id);
   if (existing) {
@@ -226,6 +245,74 @@ const ensureOutboundDetail = (doc: WmsOutboundDoc, index: number) => {
   mockWmsPickTasks.push(...pickTasks);
   return detail;
 };
+
+seedGovernanceOutbound(
+  {
+    outbound_doc_id: 'OB-FOOD-GOV-001',
+    warehouse_id: defaultWarehouseId,
+    doc_type: 'SALES',
+    shipment_id: 'SHIP-FOOD-GOV-001',
+    order_id: 'ORDER-FOOD-GOV-001',
+    platform: 'taobao',
+    platform_order_id: 'TB-FOOD-GOV-001',
+    shop_id: defaultShopId,
+    receiver_name: '食品治理客户',
+    receiver_phone: '13800008888',
+    receiver_address: '上海市治理路 1 号',
+    carrier_code: 'SF',
+    tracking_no: 'SF8899001',
+    exception_flags: [],
+    tags: ['food-governance'],
+    doc_no: 'OUT-FOOD-GOV-001',
+    status: 'PICKED',
+    created_at: dayjs().subtract(30, 'minute').toISOString(),
+    updated_at: dayjs().subtract(10, 'minute').toISOString(),
+  },
+  [
+    {
+      sku_id: 'SKU-FOOD-GOV-001',
+      planned_qty: 1,
+      picked_qty: 1,
+      packed_qty: 0,
+      batch_enabled: true,
+      serial_enabled: false,
+    },
+  ],
+);
+
+seedGovernanceOutbound(
+  {
+    outbound_doc_id: 'OB-DIGITAL-GOV-001',
+    warehouse_id: defaultWarehouseId,
+    doc_type: 'SALES',
+    shipment_id: 'SHIP-DIGITAL-GOV-001',
+    order_id: 'ORDER-DIGITAL-GOV-001',
+    platform: 'jd',
+    platform_order_id: 'JD-DIGITAL-GOV-001',
+    shop_id: defaultShopId,
+    receiver_name: '数码治理客户',
+    receiver_phone: '13800009999',
+    receiver_address: '上海市治理路 2 号',
+    carrier_code: 'SF',
+    tracking_no: 'SF8899002',
+    exception_flags: [],
+    tags: ['digital-governance'],
+    doc_no: 'OUT-DIGITAL-GOV-001',
+    status: 'PICKED',
+    created_at: dayjs().subtract(25, 'minute').toISOString(),
+    updated_at: dayjs().subtract(5, 'minute').toISOString(),
+  },
+  [
+    {
+      sku_id: 'SKU-DIGITAL-GOV-001',
+      planned_qty: 1,
+      picked_qty: 1,
+      packed_qty: 0,
+      batch_enabled: false,
+      serial_enabled: true,
+    },
+  ],
+);
 
 mockWmsOutbounds.forEach((doc, index) => ensureOutboundDetail(doc, index));
 
@@ -363,7 +450,7 @@ export const auditMockWmsOutbound = (outboundDocId: string): WmsOutboundDetail =
 export const createMockWmsOutbound = (payload: WmsOutboundCreatePayload): WmsOutboundDetail => {
   const timestamp = dayjs().toISOString();
   const doc: WmsOutboundDoc = {
-    outbound_doc_id: `OB-${Date.now()}`,
+    outbound_doc_id: `OB-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
     warehouse_id: payload.warehouse_id,
     doc_type: payload.doc_type,
     shipment_id: payload.shipment_id ?? null,
@@ -389,8 +476,8 @@ export const createMockWmsOutbound = (payload: WmsOutboundCreatePayload): WmsOut
     planned_qty: item.planned_qty,
     picked_qty: 0,
     packed_qty: 0,
-    batch_enabled: false,
-    serial_enabled: false
+    batch_enabled: findMockSkuById(item.sku_id)?.batch_enabled ?? false,
+    serial_enabled: findMockSkuById(item.sku_id)?.serial_enabled ?? false
   }));
   const pickTasks = buildPickTasks(doc.outbound_doc_id, items);
   mockWmsPickTasks.push(...pickTasks);
@@ -638,7 +725,88 @@ const updateOutboundStatus = (outboundDocId: string, status: WmsOutboundStatus) 
   return detail;
 };
 
+const buildPackItemMap = (payload: WmsPackPayload) =>
+  new Map(payload.items.map((item) => [item.sku_id, item]));
+
+const validateBatchGovernance = (detail: WmsOutboundDetail, payload: WmsPackPayload) => {
+  const packItemMap = buildPackItemMap(payload);
+  detail.items.forEach((item) => {
+    const packedQty = packItemMap.get(item.sku_id)?.packed_qty ?? 0;
+    if (!item.batch_enabled || packedQty <= 0) {
+      return;
+    }
+
+    const targetBatches = (payload.batches ?? []).filter((batch) => batch.sku_id === item.sku_id);
+    if (!targetBatches.length) {
+      throw new Error(`SKU ${item.sku_id} 已启用批次管理，打包时必须录入批次。`);
+    }
+
+    const totalQty = targetBatches.reduce((sum, batch) => sum + batch.qty, 0);
+    if (totalQty < packedQty) {
+      throw new Error(`SKU ${item.sku_id} 的批次数量不足，无法完成打包。`);
+    }
+
+    targetBatches.forEach((batchEntry) => {
+      const batch = batchEntry.batch_no ? findMockBatchByNo(item.sku_id, batchEntry.batch_no) : null;
+      if (!batch) {
+        throw new Error(`未找到 SKU ${item.sku_id} 的批次 ${batchEntry.batch_no ?? '-' }。`);
+      }
+      const governance = evaluateMockBatchGovernance(batch);
+      if (governance.status === 'FORBID_SALE') {
+        throw new Error(`批次 ${batch.batch_no} 已进入禁售期，系统已冻结库存并阻断出库。`);
+      }
+    });
+  });
+};
+
+const validateSerialGovernance = (detail: WmsOutboundDetail, payload: WmsPackPayload) => {
+  const requestSerialNos = new Set<string>();
+  const packItemMap = buildPackItemMap(payload);
+
+  detail.items.forEach((item) => {
+    const packedQty = packItemMap.get(item.sku_id)?.packed_qty ?? 0;
+    if (!item.serial_enabled || packedQty <= 0) {
+      return;
+    }
+
+    const serialEntries = (payload.serials ?? []).filter((serial) => serial.sku_id === item.sku_id);
+    if (!serialEntries.length) {
+      throw new Error(`SKU ${item.sku_id} 已启用序列号管理，打包时必须录入序列号。`);
+    }
+
+    const serialNos = serialEntries.flatMap((entry) => entry.serial_nos);
+    if (serialNos.length < packedQty) {
+      throw new Error(`SKU ${item.sku_id} 的序列号数量不足，无法完成打包。`);
+    }
+
+    serialNos.forEach((serialNo) => {
+      if (requestSerialNos.has(serialNo)) {
+        throw new Error(`序列号 ${serialNo} 在同一打包请求中重复录入。`);
+      }
+      requestSerialNos.add(serialNo);
+
+      const serial = mockSkuSerials.find((itemSerial) => itemSerial.serial_no === serialNo);
+      if (!serial) {
+        throw new Error(`序列号 ${serialNo} 不存在。`);
+      }
+      if (serial.sku_id !== item.sku_id) {
+        throw new Error(`序列号 ${serialNo} 与 SKU ${item.sku_id} 不匹配。`);
+      }
+      if (serial.status === 'SHIPPED') {
+        throw new Error(`序列号 ${serialNo} 已发货，不可重复出库。`);
+      }
+      if (serial.ref_doc_id && serial.ref_doc_id !== detail.doc.outbound_doc_id) {
+        throw new Error(`序列号 ${serialNo} 已绑定其他出库单，不可重复占用。`);
+      }
+    });
+  });
+};
+
 export const packMockWmsOutbound = (outboundDocId: string, payload: WmsPackPayload) => {
+  const currentDetail = getMockWmsOutbound(outboundDocId);
+  validateBatchGovernance(currentDetail, payload);
+  validateSerialGovernance(currentDetail, payload);
+
   const detail = updateOutboundStatus(outboundDocId, 'PACKED');
   const timestamp = dayjs().toISOString();
   detail.pack_records.push({
@@ -656,11 +824,33 @@ export const packMockWmsOutbound = (outboundDocId: string, payload: WmsPackPaylo
     }
     return { ...item, packed_qty: matched.packed_qty };
   });
+
+  (payload.serials ?? []).forEach((serialEntry) => {
+    serialEntry.serial_nos.forEach((serialNo) => {
+      const serial = mockSkuSerials.find((item) => item.serial_no === serialNo);
+      if (!serial) {
+        return;
+      }
+      serial.status = 'ALLOCATED';
+      serial.ref_doc_type = 'OUTBOUND';
+      serial.ref_doc_id = detail.doc.outbound_doc_id;
+      serial.updated_at = timestamp;
+    });
+  });
 };
 
 export const shipMockWmsOutbound = (outboundDocId: string, payload: WmsShipPayload) => {
   void payload;
-  updateOutboundStatus(outboundDocId, 'SHIPPED');
+  const detail = updateOutboundStatus(outboundDocId, 'SHIPPED');
+  const timestamp = dayjs().toISOString();
+  mockSkuSerials.forEach((serial) => {
+    if (serial.ref_doc_id !== detail.doc.outbound_doc_id) {
+      return;
+    }
+    serial.status = 'SHIPPED';
+    serial.ref_doc_type = 'OUTBOUND';
+    serial.updated_at = timestamp;
+  });
 };
 
 export const inspectMockWmsOutbound = (outboundDocId: string) => {

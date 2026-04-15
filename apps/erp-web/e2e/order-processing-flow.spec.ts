@@ -14,25 +14,22 @@ test.describe('Order Processing Flow', () => {
     await expect(page.getByTestId('order-review-split')).toBeVisible();
   });
 
-  test('order list status filters cover core stages', async ({ page }) => {
+  test('order list status overview covers core stages', async ({ page }) => {
     await page.goto('/orders');
     await loginAndSelectTenant(page);
     await expect(page.getByTestId('orders-keyword-input')).toBeVisible();
 
-    const rows = page.locator('[data-testid="orders-grid"] .erp-data-grid-next__row');
+    const grid = page.getByTestId('orders-grid');
     const quickFilterPanel = page.getByTestId('orders-left-panel');
+    const statusGroup = quickFilterPanel.locator('.ag-row').filter({ hasText: '订单状态' }).first();
+
+    await expect(grid).toBeVisible();
     await expect(quickFilterPanel).toBeVisible();
+    await expect(statusGroup).toBeVisible();
+    await expect(statusGroup).toContainText('订单状态');
 
-    const statusRows = quickFilterPanel.locator('.ag-row[row-id^="status-"] .ag-cell');
-    const statusCount = await statusRows.count();
-    test.skip(statusCount === 0, '当前页面未展示左侧状态筛选节点');
-
-    for (let index = 0; index < Math.min(statusCount, 2); index += 1) {
-      const statusNode = statusRows.nth(index);
-      await expect(statusNode).toBeVisible();
-      await statusNode.click();
-      await expect(rows.first()).toBeVisible();
-    }
+    await expect(grid.getByText('待发货').first()).toBeVisible();
+    await expect(grid.getByText('待复核').first()).toBeVisible();
   });
 
   test('split order allocation preview', async ({ page }) => {
@@ -62,15 +59,44 @@ test.describe('Order Processing Flow', () => {
     await expect(page.getByText(/拆单完成/)).toBeVisible();
   });
 
-  test.skip('shipment detail supports downstream flow', async ({ page }) => {
-    await page.goto('/shipments');
+  test('exceptions workbench supports search and detail focus', async ({ page }) => {
+    await page.goto('/orders/exceptions');
     await loginAndSelectTenant(page);
 
-    const viewButton = page.getByTestId('shipment-view-button').first();
-    await expect(viewButton).toBeVisible();
-    await viewButton.click();
+    await expect(page.getByTestId('order-exceptions-page')).toBeVisible();
+    await expect(page.getByTestId('order-exceptions-search-input')).toBeVisible();
+    await page.getByTestId('order-exceptions-search-input').fill('收件人');
+    await page.getByTestId('order-exceptions-search-trigger').click();
 
-    await expect(page.getByText('发货单号').first()).toBeVisible();
+    const grid = page.getByTestId('order-exceptions-data-grid');
+    await expect(grid).toBeVisible();
+    const rows = grid.locator('.erp-data-grid-row');
+    await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+
+    await rows.first().click();
+    await expect(page.getByTestId('order-exceptions-resolve-action')).toBeVisible();
+    await expect(page.getByTestId('order-exceptions-detail-panel')).toBeVisible();
+  });
+
+  test('shipment detail supports downstream flow', async ({ page }) => {
+    await page.goto('/orders/TEST-ORDER-MANY-ITEMS');
+    await loginAndSelectTenant(page);
+
+    await expect(page.getByTestId('order-items-card')).toBeVisible();
+    const shipTrigger = page.getByTestId('order-detail-ship');
+    await expect(shipTrigger).toBeVisible();
+    await shipTrigger.click();
+
+    const shipDrawer = page.getByTestId('ship-drawer');
+    await expect(shipDrawer).toBeVisible();
+    await shipDrawer.getByTestId('ship-carrier-input').fill('SF');
+    await shipDrawer.getByTestId('ship-tracking-input').fill(`TRACK-${Date.now()}`);
+
+    const idempotencyInput = shipDrawer.getByTestId('ship-idempotency-input');
+    await expect(idempotencyInput).toHaveValue(/.+/);
+
+    await shipDrawer.getByTestId('ship-submit').click();
+    await expect(page.getByTestId('ship-status-card')).toBeVisible();
   });
 
   test('settlement detail shows completion status', async ({ page }) => {

@@ -275,6 +275,7 @@ impl<'a> SkuSerialsRepo<'a> {
             serial_id: uuid::Uuid,
             serial_no: String,
             status: String,
+            ref_doc_type: Option<String>,
             ref_doc_id: Option<String>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
@@ -283,7 +284,7 @@ impl<'a> SkuSerialsRepo<'a> {
         for serial_no in &input.serial_nos {
             let row: Row = sqlx::query_as(
                 r#"
-                select serial_id, serial_no, status, ref_doc_id, created_at, updated_at
+                select serial_id, serial_no, status, ref_doc_type, ref_doc_id, created_at, updated_at
                 from sku_serials
                 where tenant_id = $1 and sku_id = $2 and serial_no = $3
                 for update
@@ -300,7 +301,13 @@ impl<'a> SkuSerialsRepo<'a> {
                 && !(row.status == "ALLOCATED"
                     && row.ref_doc_id.as_deref() == Some(&input.shipment_id.to_string()))
             {
-                return Err(anyhow!("serial not available"));
+                return Err(anyhow!(
+                    "serial not available: serial_no={}, status={}, ref_doc_type={}, ref_doc_id={}",
+                    row.serial_no,
+                    row.status,
+                    row.ref_doc_type.as_deref().unwrap_or(""),
+                    row.ref_doc_id.as_deref().unwrap_or(""),
+                ));
             }
 
             sqlx::query(

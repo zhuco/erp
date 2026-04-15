@@ -1,10 +1,10 @@
-import { expect, test, loginAndSelectTenant } from './fixtures';
+﻿import { expect, test, loginAndSelectTenant } from './fixtures';
 import type { Locator, Page } from '@playwright/test';
 
 const selectOptionByText = async (
   page: Page,
   trigger: Locator,
-  optionText: RegExp | string
+  optionText: RegExp | string,
 ): Promise<void> => {
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();
@@ -25,41 +25,39 @@ const checkRow = async (row: Locator): Promise<void> => {
   await checkbox.click({ force: true });
 };
 
-test('shop product matching governance supports failure triage and manual remediation', async ({
-  page
+test('shop product matching governance supports apparel dictionary triage and manual remediation', async ({
+  page,
 }) => {
   await page.goto('/shop-products');
   await loginAndSelectTenant(page);
 
   const targetRow = page.locator('tbody tr').filter({ hasText: 'TB-001-RED' }).first();
   await expect(targetRow).toBeVisible();
-  await expect(targetRow).toContainText(/CONFLICT|冲突/);
-  await expect(targetRow).toContainText(/无候选 SKU|NO_CANDIDATE/);
+  await expect(targetRow).toContainText(/CONFLICT/);
+  await expect(targetRow).toContainText(/COLOR_DICT_MISS/);
+
   await checkRow(targetRow);
+  await page.getByTestId('shop-products-auto-match-button').click();
+  await page.getByTestId('shop-products-auto-match-selected').click();
 
-  const autoMatchButton = page.getByRole('button', { name: /自动匹配/ }).first();
-  await autoMatchButton.click();
-  await page.getByText(/按勾选匹配|Match Selected/).first().click();
-
-  const warningDialog = page.getByRole('dialog').filter({ hasText: /无可用候选SKU|NO_CANDIDATE/ }).first();
-  await expect(warningDialog).toBeVisible();
-  await warningDialog.getByRole('button').last().click();
-
-  const taskDrawer = page.locator('.ant-drawer-content-wrapper:visible');
-  if (await taskDrawer.count()) {
-    const closeButton = taskDrawer.locator('.ant-drawer-close').first();
-    if (await closeButton.count()) {
-      await closeButton.click();
-    } else {
-      await page.keyboard.press('Escape');
-    }
-    await expect(taskDrawer).toHaveCount(0);
+  const warningDialog = page.getByRole('dialog').filter({ hasText: /COLOR_DICT_MISS|自动匹配失败/ }).first();
+  if (await warningDialog.count()) {
+    await expect(warningDialog).toBeVisible();
+    await warningDialog.locator('.ant-modal-footer .ant-btn-primary').click();
+    await expect(warningDialog).toBeHidden({ timeout: 10_000 });
   }
 
-  await checkRow(targetRow);
-  await page.getByRole('button', { name: /手动匹配/ }).first().click();
+  await expect(page.locator('.ant-drawer-content-wrapper:visible')).toHaveCount(0);
+  await expect(targetRow).toContainText(/CONFLICT/);
+  await expect(targetRow).toContainText(/COLOR_DICT_MISS/);
 
-  const manualDialog = page.getByRole('dialog').filter({ hasText: /手动匹配/ }).first();
+  await checkRow(targetRow);
+  await page.getByTestId('shop-products-manual-match-button').click();
+
+  const manualDialog = page
+    .getByRole('dialog')
+    .filter({ has: page.getByTestId('shop-products-manual-match-sku-select') })
+    .first();
   await expect(manualDialog).toBeVisible();
 
   await selectOptionByText(page, manualDialog.locator('.ant-select').first(), /SKU|sku/i);
@@ -68,6 +66,7 @@ test('shop product matching governance supports failure triage and manual remedi
 
   const remediatedRow = page.locator('tbody tr').filter({ hasText: 'TB-001-RED' }).first();
   await expect(remediatedRow).toBeVisible();
-  await expect(remediatedRow).toContainText(/MANUAL|手动/);
-  await expect(remediatedRow).not.toContainText(/无候选 SKU|NO_CANDIDATE/);
+  await expect(remediatedRow).toContainText(/MANUAL|手动匹配/);
+  await expect(remediatedRow).not.toContainText(/COLOR_DICT_MISS/);
 });
+

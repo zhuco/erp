@@ -1,0 +1,76 @@
+.order-workbench-table.order-workbench-table-with-footer {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.order-workbench-table-with-footer > .ant-space-vertical {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  row-gap: 0 !important;
+}
+
+.order-workbench-table-with-footer .ant-space-item:empty {
+  display: none;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-container,
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.order-workbench-table-with-footer .ant-table-wrapper > .ant-table .ant-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .ant-table-content,
+.order-workbench-table-with-footer .ant-table-body {
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+.order-workbench-table-with-footer .ant-table-pagination {
+  display: none;
+}
+
+.order-workbench-table-with-footer .erp-data-grid,
+.order-workbench-table-with-footer .erp-data-grid-next,
+.order-workbench-table-with-footer .erp-data-grid-table,
+.order-workbench-table-with-footer .erp-data-grid-next__table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-workbench-table-with-footer .erp-data-grid-shell {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.order-workbench-table-with-footer .ag-root-wrapper,
+.order-workbench-table-with-footer .ag-root-wrapper-body,
+.order-workbench-table-with-footer .ag-root,
+.order-workbench-table-with-footer .ag-body,
+.order-workbench-table-with-footer .ag-body-viewport,
+.order-workbench-table-with-footer .ag-center-cols-viewport {
+  min-height: 0;
+}

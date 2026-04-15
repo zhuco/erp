@@ -106,13 +106,19 @@ type SkuKind = 'KIT' | 'NORMAL';
 type SkuSearchItem = components['schemas']['SkuSearchItem'];
 type SkuCreatePayload = components['schemas']['SkuCreateRequest'];
 type SkuUpdatePayload = components['schemas']['SkuUpdateRequest'];
-type SkuBatch = components['schemas']['SkuBatch'];
+type SkuBatch = components['schemas']['SkuBatch'] & {
+  production_date?: string | null;
+};
 type SkuBatchListResponse = components['schemas']['SkuBatchListResponse'];
 type SkuBatchListQuery = NonNullable<
   paths['/v1/tenants/{tenant_id}/sku-batches']['get']['parameters']['query']
 >;
-type SkuBatchCreateRequest = components['schemas']['SkuBatchCreateRequest'];
-type SkuBatchUpdateRequest = components['schemas']['SkuBatchUpdateRequest'];
+type SkuBatchCreateRequest = components['schemas']['SkuBatchCreateRequest'] & {
+  production_date?: string | null;
+};
+type SkuBatchUpdateRequest = components['schemas']['SkuBatchUpdateRequest'] & {
+  production_date?: string | null;
+};
 type SkuSerial = components['schemas']['SkuSerial'];
 type SkuSerialListResponse = components['schemas']['SkuSerialListResponse'];
 type SkuSerialListQuery = NonNullable<
@@ -151,6 +157,28 @@ type MappingRecord = {
   barcode?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+type MappingRuleRecord = {
+  rule_id: string;
+  tenant_id: string;
+  platform: string;
+  entity_type: string;
+  version: number;
+  enabled: boolean;
+  rule_json: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+type InventoryFreezeRecord = {
+  freeze_id: string;
+  warehouse_id: string;
+  sku_id: string;
+  qty: number;
+  reason?: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  batch_no?: string | null;
 };
 type KitComponent = {
   component_sku_id: string;
@@ -1772,7 +1800,39 @@ const buildSkuBatch = (index: number): SkuBatch => {
     updated_at: dayjs().subtract(index, 'hour').toISOString()
   };
 };
-const mockSkuBatches = Array.from({ length: 16 }, (_, index) => buildSkuBatch(index));
+const specialRuntimeGovernanceBatches: SkuBatch[] = [
+  {
+    batch_id: 'BATCH-FOOD-NORMAL-001',
+    tenant_id: mockTenantId,
+    sku_id: 'SKU-FOOD-GOV-001',
+    batch_no: 'BATCH-FOOD-NORMAL-001',
+    production_date: dayjs().add(40, 'day').subtract(180, 'day').toISOString(),
+    expire_at: dayjs().add(40, 'day').toISOString(),
+    created_at: dayjs().subtract(2, 'day').toISOString(),
+    updated_at: dayjs().subtract(3, 'hour').toISOString()
+  },
+  {
+    batch_id: 'BATCH-FOOD-NEAR-001',
+    tenant_id: mockTenantId,
+    sku_id: 'SKU-FOOD-GOV-001',
+    batch_no: 'BATCH-FOOD-NEAR-001',
+    production_date: dayjs().add(10, 'day').subtract(180, 'day').toISOString(),
+    expire_at: dayjs().add(10, 'day').toISOString(),
+    created_at: dayjs().subtract(3, 'day').toISOString(),
+    updated_at: dayjs().subtract(4, 'hour').toISOString()
+  },
+  {
+    batch_id: 'BATCH-FOOD-FORBID-001',
+    tenant_id: mockTenantId,
+    sku_id: 'SKU-FOOD-GOV-001',
+    batch_no: 'BATCH-FOOD-FORBID-001',
+    production_date: dayjs().add(3, 'day').subtract(180, 'day').toISOString(),
+    expire_at: dayjs().add(3, 'day').toISOString(),
+    created_at: dayjs().subtract(4, 'day').toISOString(),
+    updated_at: dayjs().subtract(5, 'hour').toISOString()
+  }
+];
+const mockSkuBatches = [...specialRuntimeGovernanceBatches, ...Array.from({ length: 16 }, (_, index) => buildSkuBatch(index))];
 const buildSkuSerial = (index: number): SkuSerial => {
   const sku = mockSkus[index % mockSkus.length];
   return {
@@ -1808,6 +1868,77 @@ const buildMapping = (index: number): MappingRecord => {
 const mockMappings: MappingRecord[] = Array.from({ length: 24 }, (_, index) =>
   buildMapping(index)
 );
+const mockMappingRules: MappingRuleRecord[] = [
+  {
+    rule_id: 'MAP-RULE-APPAREL-001',
+    tenant_id: mockTenantId,
+    platform: 'taobao',
+    entity_type: 'SHOP_PRODUCT',
+    version: 1,
+    enabled: true,
+    rule_json: {
+      industry_profile: 'APPAREL',
+      template_name: '鞋服颜色尺码模板',
+      color_dict: {
+        红色: '红色',
+        大红: '红色',
+        蓝色: '蓝色',
+        藏青: '蓝色',
+        navy: '蓝色',
+        黑色: '黑色',
+        曜石黑: '黑色',
+      },
+      size_dict: {
+        s: 'S',
+        small: 'S',
+        m: 'M',
+        medium: 'M',
+        l: 'L',
+        large: 'L',
+        xl: 'XL',
+        xlarge: 'XL',
+      },
+    },
+    created_at: dayjs().subtract(5, 'day').toISOString(),
+    updated_at: dayjs().subtract(1, 'hour').toISOString(),
+  },
+  {
+    rule_id: 'MAP-RULE-APPAREL-002',
+    tenant_id: mockTenantId,
+    platform: 'jd',
+    entity_type: 'SHOP_PRODUCT',
+    version: 1,
+    enabled: true,
+    rule_json: {
+      industry_profile: 'APPAREL',
+      template_name: '鞋服颜色尺码模板',
+      color_dict: {
+        黑色: '黑色',
+        蓝色: '蓝色',
+      },
+      size_dict: {
+        xl: 'XL',
+        xlarge: 'XL',
+        42: '42',
+      },
+    },
+    created_at: dayjs().subtract(4, 'day').toISOString(),
+    updated_at: dayjs().subtract(2, 'hour').toISOString(),
+  },
+];
+const mockInventoryFreezes: InventoryFreezeRecord[] = [
+  {
+    freeze_id: 'FREEZE-FOOD-FORBID-001',
+    warehouse_id: mockWarehouses[0]?.warehouse_id ?? 'WH-001',
+    sku_id: 'SKU-FOOD-GOV-001',
+    qty: 1,
+    reason: '食品批次 BATCH-FOOD-FORBID-001 已进入禁售期，冻结库存并阻断出库。',
+    status: 'ACTIVE',
+    created_at: dayjs().subtract(5, 'hour').toISOString(),
+    updated_at: dayjs().subtract(5, 'hour').toISOString(),
+    batch_no: 'BATCH-FOOD-FORBID-001',
+  },
+];
 const mockSkuSearchIndex: SkuSearchItem[] = mockSkus.map((sku, index) => ({
   sku_id: sku.sku_id,
   sku_code: sku.sku_code,
@@ -2679,6 +2810,8 @@ export {
   mockSkuSerials,
   buildMapping,
   mockMappings,
+  mockMappingRules,
+  mockInventoryFreezes,
   mockSkuSearchIndex,
   mockKitSkus,
   mockStandardSkus,
@@ -2755,6 +2888,8 @@ export type {
   MappingListQuery,
   MappingPayload,
   MappingRecord,
+  MappingRuleRecord,
+  InventoryFreezeRecord,
   KitComponent,
   KitDetail,
   KitSummary,

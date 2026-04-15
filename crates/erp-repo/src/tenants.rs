@@ -24,4 +24,22 @@ impl<'a> TenantsRepo<'a> {
 
         Ok(value.unwrap_or(false))
     }
+
+    pub async fn multi_entity_flags(
+        &self,
+        tenant_id: TenantId,
+    ) -> anyhow::Result<(bool, bool)> {
+        let row: Option<(bool, bool)> = sqlx::query_as(
+            r#"
+            select multi_merchant_enabled, multi_organization_enabled
+            from tenants
+            where tenant_id = $1
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .fetch_optional(self.pool)
+        .await?;
+
+        Ok(row.unwrap_or((false, false)))
+    }
 }

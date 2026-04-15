@@ -64,6 +64,46 @@ fn validate_version(version: i32) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn required_non_empty_string(rule_json: &Value, key: &str) -> anyhow::Result<String> {
+    let value = rule_json
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    match value {
+        Some(text) => Ok(text.to_string()),
+        None => anyhow::bail!("invalid mapping rule: {key} is required"),
+    }
+}
+
+fn required_non_empty_object(rule_json: &Value, key: &str) -> anyhow::Result<()> {
+    let value = rule_json.get(key).and_then(Value::as_object);
+    match value {
+        Some(map) if !map.is_empty() => Ok(()),
+        _ => anyhow::bail!("invalid mapping rule: {key} must be non-empty object"),
+    }
+}
+
+fn validate_shop_product_rule_json(rule_json: &Value) -> anyhow::Result<()> {
+    if !rule_json.is_object() {
+        anyhow::bail!("invalid mapping rule: rule_json must be object");
+    }
+    let industry_profile = required_non_empty_string(rule_json, "industry_profile")?;
+    let _ = required_non_empty_string(rule_json, "template_name")?;
+    if industry_profile.eq_ignore_ascii_case("APPAREL") {
+        required_non_empty_object(rule_json, "color_dict")?;
+        required_non_empty_object(rule_json, "size_dict")?;
+    }
+    Ok(())
+}
+
+fn validate_rule_json_for_entity(entity_type: &str, rule_json: &Value) -> anyhow::Result<()> {
+    if entity_type.eq_ignore_ascii_case("SHOP_PRODUCT") {
+        validate_shop_product_rule_json(rule_json)?;
+    }
+    Ok(())
+}
+
 impl<'a> MappingRulesRepo<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self { pool }
@@ -155,6 +195,7 @@ impl<'a> MappingRulesRepo<'a> {
     pub async fn create_rule(&self, input: MappingRuleCreate) -> anyhow::Result<MappingRule> {
         let entity_type = normalize_entity_type(&input.entity_type)?;
         validate_version(input.version)?;
+        validate_rule_json_for_entity(&entity_type, &input.rule_json)?;
         let enabled = input.enabled.unwrap_or(true);
         #[derive(sqlx::FromRow)]
         struct Row {
@@ -223,18 +264,21 @@ impl<'a> MappingRulesRepo<'a> {
         rule_id: uuid::Uuid,
         input: MappingRuleUpdate,
     ) -> anyhow::Result<Option<MappingRule>> {
-        if input.enabled.is_none() && input.rule_json.is_none() {
+        let MappingRuleUpdate { enabled, rule_json } = input;
+        if enabled.is_none() && rule_json.is_none() {
             return Ok(None);
         }
-        let mut tx = self.pool.begin().await?;
-        if matches!(input.enabled, Some(true)) {
-            #[derive(sqlx::FromRow)]
-            struct RuleScope {
-                platform: String,
-                entity_type: String,
-            }
 
-            let scope: Option<RuleScope> = sqlx::query_as(
+        #[derive(sqlx::FromRow)]
+        struct RuleScope {
+            platform: String,
+            entity_type: String,
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let mut scope: Option<RuleScope> = None;
+        if rule_json.is_some() || matches!(enabled, Some(true)) {
+            scope = sqlx::query_as(
                 r#"
                 select platform, entity_type
                 from mapping_rules
@@ -246,11 +290,23 @@ impl<'a> MappingRulesRepo<'a> {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let Some(scope) = scope else {
+            let Some(current_scope) = scope else {
                 tx.rollback().await?;
                 return Ok(None);
             };
+            scope = Some(current_scope);
+        }
+        if let Some(ref next_rule_json) = rule_json {
+            let current = scope
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("invalid mapping rule: rule scope missing"))?;
+            validate_rule_json_for_entity(&current.entity_type, next_rule_json)?;
+        }
 
+        if matches!(enabled, Some(true)) {
+            let scope = scope
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("invalid mapping rule: rule scope missing"))?;
             sqlx::query(
                 r#"
                 update mapping_rules
@@ -263,19 +319,19 @@ impl<'a> MappingRulesRepo<'a> {
                 "#,
             )
             .bind(uuid::Uuid::from(tenant_id))
-            .bind(scope.platform)
-            .bind(scope.entity_type)
+            .bind(scope.platform.clone())
+            .bind(scope.entity_type.clone())
             .bind(rule_id)
             .execute(&mut *tx)
             .await?;
         }
         let mut qb = QueryBuilder::<Postgres>::new("update mapping_rules set ");
         let mut separated = qb.separated(", ");
-        if let Some(enabled) = input.enabled {
+        if let Some(enabled) = enabled {
             separated.push("enabled = ");
             separated.push_bind(enabled);
         }
-        if let Some(rule_json) = input.rule_json {
+        if let Some(rule_json) = rule_json {
             separated.push("rule_json = ");
             separated.push_bind(rule_json);
         }
@@ -348,7 +404,12 @@ impl<'a> MappingRulesRepo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_entity_type, validate_version};
+    use serde_json::json;
+
+    use super::{
+        normalize_entity_type, validate_rule_json_for_entity, validate_shop_product_rule_json,
+        validate_version,
+    };
 
     #[test]
     fn normalize_entity_type_trims_and_uppercases() {
@@ -366,5 +427,49 @@ mod tests {
     fn validate_version_rejects_non_positive_values() {
         let err = validate_version(0).expect_err("zero version should fail");
         assert!(err.to_string().contains("greater than 0"));
+    }
+
+    #[test]
+    fn validate_shop_product_rule_json_rejects_non_object() {
+        let err = validate_shop_product_rule_json(&json!(["not-object"]))
+            .expect_err("non-object should fail");
+        assert!(err.to_string().contains("rule_json must be object"));
+    }
+
+    #[test]
+    fn validate_shop_product_rule_json_requires_template_fields() {
+        let err = validate_shop_product_rule_json(&json!({
+            "industry_profile": "APPAREL"
+        }))
+        .expect_err("missing template fields should fail");
+        assert!(err.to_string().contains("template_name is required"));
+    }
+
+    #[test]
+    fn validate_shop_product_rule_json_requires_color_and_size_for_apparel() {
+        let err = validate_shop_product_rule_json(&json!({
+            "industry_profile": "APPAREL",
+            "template_name": "鞋服标准模板",
+            "color_dict": {}
+        }))
+        .expect_err("apparel requires non-empty color/size dictionaries");
+        assert!(err.to_string().contains("color_dict must be non-empty object"));
+    }
+
+    #[test]
+    fn validate_shop_product_rule_json_accepts_apparel_rule() {
+        validate_shop_product_rule_json(&json!({
+            "industry_profile": "APPAREL",
+            "template_name": "鞋服标准模板",
+            "color_dict": {"black": "黑色"},
+            "size_dict": {"42": "42码"}
+        }))
+        .expect("valid apparel rule should pass");
+    }
+
+    #[test]
+    fn validate_rule_json_for_entity_skips_non_shop_product() {
+        validate_rule_json_for_entity("ORDER", &json!({"any": "value"}))
+            .expect("non SHOP_PRODUCT entity should skip validation");
     }
 }

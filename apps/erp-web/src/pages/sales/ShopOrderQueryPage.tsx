@@ -589,6 +589,45 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
     setColumnFilters((prev) => ({ ...prev, [key]: normalized }));
   };
 
+  const tableFooterSyncKey = useMemo(
+    () => `${columns.length}-${listItems.length}`,
+    [columns.length, listItems.length]
+  );
+
+  const handleApplyLeftFilters = () => {
+    setAppliedLeftFilters({
+      platformOrderId: leftPlatformOrderId.trim() || undefined,
+      customerKeyword: leftCustomerKeyword.trim() || undefined,
+      shopId: leftShopId
+    });
+  };
+
+  const handleResetLeftFilters = () => {
+    setLeftPlatformOrderId('');
+    setLeftCustomerKeyword('');
+    setLeftShopId(undefined);
+    setAppliedLeftFilters({});
+  };
+
+  const handleKeywordChange = (value: string) => {
+    setSearchValue(value);
+    if (!value.trim()) {
+      setSearchKeyword('');
+    }
+  };
+
+  const handleKeywordSearch = (value: string) => {
+    setSearchKeyword(value.trim());
+  };
+
+  const handleSearch = (value: string) => {
+    handleKeywordSearch(value);
+  };
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleKeywordChange(event.target.value);
+  };
+
   const queryCells = useMemo(
     () =>
       buildOrderQuickFilterCells([
@@ -710,45 +749,6 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
       tradeStatusOptions
     ]
   );
-
-  const tableFooterSyncKey = useMemo(
-    () => `${columns.length}-${listItems.length}`,
-    [columns.length, listItems.length]
-  );
-
-  const handleApplyLeftFilters = () => {
-    setAppliedLeftFilters({
-      platformOrderId: leftPlatformOrderId.trim() || undefined,
-      customerKeyword: leftCustomerKeyword.trim() || undefined,
-      shopId: leftShopId
-    });
-  };
-
-  const handleResetLeftFilters = () => {
-    setLeftPlatformOrderId('');
-    setLeftCustomerKeyword('');
-    setLeftShopId(undefined);
-    setAppliedLeftFilters({});
-  };
-
-  const handleKeywordChange = (value: string) => {
-    setSearchValue(value);
-    if (!value.trim()) {
-      setSearchKeyword('');
-    }
-  };
-
-  const handleKeywordSearch = (value: string) => {
-    setSearchKeyword(value.trim());
-  };
-
-  const handleSearch = (value: string) => {
-    handleKeywordSearch(value);
-  };
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    handleKeywordChange(event.target.value);
-  };
 
   const leftPanel = useMemo(
     () => (

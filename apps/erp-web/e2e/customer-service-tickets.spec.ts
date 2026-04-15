@@ -6,19 +6,18 @@ const capturePage = async (page: Page, testInfo: TestInfo, name: string) => {
 };
 
 const selectOption = async (page: Page, label: string) => {
-  const dropdown = page.locator('.ant-select-dropdown:visible').first();
+  const dropdown = page
+    .locator('.ant-select-dropdown:visible, .ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+    .last();
   await expect(dropdown).toBeVisible();
-  const roleOption = dropdown.getByRole('option', { name: label, exact: true }).first();
-  if ((await roleOption.count()) > 0) {
-    await roleOption.scrollIntoViewIfNeeded();
-    await roleOption.click({ force: true });
-    return;
-  }
-  const fallbackOption = dropdown
-    .locator('.ant-select-item-option-content', { hasText: label })
+  const option = dropdown
+    .locator('[role="option"]:visible, .ant-select-item-option:visible')
+    .filter({ hasText: label })
     .first();
-  await fallbackOption.scrollIntoViewIfNeeded();
-  await fallbackOption.click({ force: true });
+  await expect(option).toBeVisible();
+  await option.evaluate((element) => {
+    (element as HTMLElement).click();
+  });
 };
 
 test('customer service tickets create and search', async ({ page }, testInfo) => {

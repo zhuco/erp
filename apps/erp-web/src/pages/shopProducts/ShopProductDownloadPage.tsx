@@ -1,4 +1,4 @@
-import {
+﻿import {
   Alert,
   Button,
   Card,
@@ -29,6 +29,7 @@ import type {
   ShopProductCreateSkuPayload,
   ShopProductDownloadPayload,
   ShopProductDeleteMatchPayload,
+  ShopProductMatchFailure,
   ShopProductManualMatchPayload,
   ShopProductSku,
   ShopProductSkuListQuery,
@@ -41,6 +42,7 @@ import {
   downloadShopProducts,
   manualMatchShopProducts
 } from '@/api/shopProducts';
+import { listMappingRules } from '@/api/mappingRules';
 import { useShopProductSkus, useShopProductTasks, useSkusList } from '@/api/hooks';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
@@ -161,7 +163,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const canWrite = useCan('shop_products.write');
-  const pageTitle = title ?? '网店商品';
+  const pageTitle = title ?? '缃戝簵鍟嗗搧';
   const [filters, setFilters] = useState<FilterValues>({});
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
@@ -184,6 +186,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const [autoMatchLoading, setAutoMatchLoading] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [autoMatchFailures, setAutoMatchFailures] = useState<ShopProductMatchFailure[]>([]);
 
   const [filterForm] = Form.useForm<FilterValues>();
   const [downloadForm] = Form.useForm<DownloadFormValues>();
@@ -224,6 +227,33 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     });
     return map;
   }, [shopData?.items]);
+  const activeRulePlatform = filters.platform ?? shopData?.items?.[0]?.platform;
+  const { data: mappingRuleData } = useQuery({
+    queryKey: ['mapping-rules', tenantId, activeRulePlatform, 'shop-products'],
+    queryFn: () =>
+      listMappingRules(tenantId, {
+        platform: activeRulePlatform,
+        entity_type: 'SHOP_PRODUCT',
+        enabled: true,
+        limit: 20
+      }),
+    enabled: Boolean(tenantId && activeRulePlatform)
+  });
+  const apparelRuleSummary = useMemo(() => {
+    const targetRule = mappingRuleData?.items.find(
+      (rule) => rule.rule_json?.industry_profile === 'APPAREL'
+    );
+    if (!targetRule) {
+      return null;
+    }
+    const colorDict = (targetRule.rule_json?.color_dict as Record<string, string> | undefined) ?? {};
+    const sizeDict = (targetRule.rule_json?.size_dict as Record<string, string> | undefined) ?? {};
+    return {
+      templateName: String(targetRule.rule_json?.template_name ?? '闉嬫湇妯℃澘'),
+      colorCount: Object.keys(colorDict).length,
+      sizeCount: Object.keys(sizeDict).length
+    };
+  }, [mappingRuleData?.items]);
 
   const { data: warehouseData, isLoading: warehouseLoading } = useQuery({
     queryKey: ['warehouses', tenantId, 'shop-product-create'],
@@ -286,37 +316,37 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const columns = useMemo<ColumnsType<ShopProductSku>>(
     () => [
       {
-        title: '平台',
+        title: '骞冲彴',
         dataIndex: 'platform',
         render: (_, record) => <PlatformTag platform={record.platform} />
       },
       {
-        title: '店铺',
+        title: '搴楅摵',
         dataIndex: 'shop_id',
         render: (value: string) => shopMap.get(value) ?? value
       },
       {
-        title: '商品标题',
+        title: '鍟嗗搧鏍囬',
         dataIndex: 'product_title'
       },
       {
-        title: '商家编码',
+        title: '鍟嗗缂栫爜',
         dataIndex: 'merchant_code',
         render: (value: string | null | undefined) => value ?? '-'
       },
       {
-        title: '规格编码',
+        title: '瑙勬牸缂栫爜',
         dataIndex: 'merchant_sku_code',
         render: (value: string | null | undefined, record) => value ?? record.platform_sku_id
       },
       {
-        title: '规格信息',
+        title: '瑙勬牸淇℃伅',
         dataIndex: 'spec_text',
         render: (value: string | null | undefined, record) =>
           value ?? record.sku_title ?? '-'
       },
       {
-        title: '价格',
+        title: '浠锋牸',
         dataIndex: 'price_cent',
         render: (value: number | null | undefined) => formatCurrency(value)
       },
@@ -326,7 +356,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         render: (value: string) => <Tag>{value}</Tag>
       },
       {
-        title: '更新时间',
+        title: '鏇存柊鏃堕棿',
         dataIndex: 'platform_updated_at',
         render: (value: string | null | undefined, record) =>
           formatDateTime(value ?? record.updated_at)
@@ -345,13 +375,13 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         render: (value: string | null | undefined) => (value ? <Tag>{value}</Tag> : '-')
       },
       {
-        title: '冲突原因',
+        title: '鍐茬獊鍘熷洜',
         dataIndex: 'conflict_reason',
         render: (value: string | null | undefined) =>
           value ? conflictReasonLabelMap[value] ?? value : '-'
       },
       {
-        title: '匹配货品',
+        title: '鍖归厤璐у搧',
         dataIndex: 'mapped_sku_code',
         render: (_, record) =>
           record.mapped_sku_code
@@ -365,7 +395,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const taskColumns = useMemo<ColumnsType<ShopProductTask>>(
     () => [
       {
-        title: '任务类型',
+        title: '浠诲姟绫诲瀷',
         dataIndex: 'task_type'
       },
       {
@@ -374,19 +404,19 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         render: (value: string) => <Tag>{value}</Tag>
       },
       {
-        title: '总数',
+        title: '鎬绘暟',
         dataIndex: 'total_count'
       },
       {
-        title: '成功',
+        title: '鎴愬姛',
         dataIndex: 'success_count'
       },
       {
-        title: '失败',
+        title: '澶辫触',
         dataIndex: 'failure_count'
       },
       {
-        title: '错误',
+        title: '閿欒',
         dataIndex: 'error',
         render: (value: string) => value || '-'
       },
@@ -396,7 +426,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         render: (value: string) => formatDateTime(value)
       },
       {
-        title: '完成时间',
+        title: '瀹屾垚鏃堕棿',
         dataIndex: 'finished_at',
         render: (value: string | null | undefined) => formatDateTime(value)
       }
@@ -462,12 +492,12 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       message.success('下载任务已创建');
       if (response.auto_match_failures?.length) {
         Modal.warning({
-          title: '自动匹配失败',
+          title: '鑷姩鍖归厤澶辫触',
           content: (
             <div>
               {response.auto_match_failures.slice(0, 6).map((item) => (
                 <div key={item.sku_record_id}>
-                  {item.platform_sku_id}：{item.reason}
+                  {`${item.platform_sku_id}: ${item.reason}`}
                 </div>
               ))}
             </div>
@@ -480,7 +510,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       setTaskDrawerOpen(true);
     } catch (err) {
       if (err instanceof Error) {
-        message.error(err.message || '下载失败');
+        message.error(err.message || '涓嬭浇澶辫触');
       }
     } finally {
       setDownloadLoading(false);
@@ -502,7 +532,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     try {
       const values = await createForm.validateFields();
       if (createScope === 'selected' && selectedRowKeys.length === 0) {
-        message.warning('请先选择商品');
+        message.warning('璇峰厛閫夋嫨鍟嗗搧');
         return;
       }
       const payload: ShopProductCreateSkuPayload = {
@@ -524,7 +554,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       setTaskDrawerOpen(true);
     } catch (err) {
       if (err instanceof Error) {
-        message.error(err.message || '创建失败');
+        message.error(err.message || '鍒涘缓澶辫触');
       }
     } finally {
       setCreateLoading(false);
@@ -534,7 +564,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const handleAutoMatch = async (scope: 'selected' | 'filtered') => {
     try {
       if (scope === 'selected' && selectedRowKeys.length === 0) {
-        message.warning('请先选择商品');
+        message.warning('璇峰厛閫夋嫨鍟嗗搧');
         return;
       }
       const payload: ShopProductAutoMatchPayload = {
@@ -545,27 +575,18 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       const response = await autoMatchShopProducts(tenantId, payload);
       message.success('自动匹配任务已提交');
       if (response.failures?.length) {
-        Modal.warning({
-          title: '自动匹配失败',
-          content: (
-            <div>
-              {response.failures.slice(0, 6).map((item) => (
-                <div key={item.sku_record_id}>
-                  {item.platform_sku_id}：{item.reason}
-                </div>
-              ))}
-            </div>
-          )
-        });
+        setAutoMatchFailures(response.failures);
+      } else {
+        setAutoMatchFailures([]);
       }
       setSelectedRowKeys([]);
       setSelectedRows([]);
       await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
       await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      setTaskDrawerOpen(true);
+      setTaskDrawerOpen(!response.failures?.length);
     } catch (err) {
       if (err instanceof Error) {
-        message.error(err.message || '自动匹配失败');
+        message.error(err.message || '鑷姩鍖归厤澶辫触');
       }
     } finally {
       setAutoMatchLoading(false);
@@ -576,11 +597,11 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     try {
       const values = await manualForm.validateFields();
       if (!selectedRowKeys.length) {
-        message.warning('请先选择商品');
+        message.warning('璇峰厛閫夋嫨鍟嗗搧');
         return;
       }
       if (!values.sku_id) {
-        message.warning('请选择货品档案');
+        message.warning('璇烽€夋嫨璐у搧妗ｆ');
         return;
       }
       const payload: ShopProductManualMatchPayload = {
@@ -589,7 +610,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       };
       setManualLoading(true);
       await manualMatchShopProducts(tenantId, payload);
-      message.success('手动匹配完成');
+      message.success('鎵嬪姩鍖归厤瀹屾垚');
       setManualOpen(false);
       setSelectedRowKeys([]);
       setSelectedRows([]);
@@ -598,7 +619,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       setTaskDrawerOpen(true);
     } catch (err) {
       if (err instanceof Error) {
-        message.error(err.message || '手动匹配失败');
+        message.error(err.message || '鎵嬪姩鍖归厤澶辫触');
       }
     } finally {
       setManualLoading(false);
@@ -608,7 +629,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const handleDeleteMatch = async () => {
     try {
       if (!selectedRowKeys.length) {
-        message.warning('请先选择商品');
+        message.warning('璇峰厛閫夋嫨鍟嗗搧');
         return;
       }
       const payload: ShopProductDeleteMatchPayload = {
@@ -624,7 +645,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
       setTaskDrawerOpen(true);
     } catch (err) {
       if (err instanceof Error) {
-        message.error(err.message || '删除匹配失败');
+        message.error(err.message || '鍒犻櫎鍖归厤澶辫触');
       }
     } finally {
       setDeleteLoading(false);
@@ -635,33 +656,43 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     <>
       <WorkbenchListPage
         query={
-          <Card size="small">
-            <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-              <Row gutter={16}>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            {apparelRuleSummary ? (
+              <Alert
+                type="info"
+                showIcon
+                data-testid="shop-products-apparel-rule-summary"
+                message="鞋服模板字典已启用"
+                description={`当前平台已启用 ${apparelRuleSummary.templateName}，颜色字典 ${apparelRuleSummary.colorCount} 项，尺码字典 ${apparelRuleSummary.sizeCount} 项，自动匹配会按规格文本联动治理。`}
+              />
+            ) : null}
+            <Card size="small">
+              <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
+                <Row gutter={16}>
                 <Col xs={24}>
-                  <Form.Item name="platform" label="平台">
+                  <Form.Item name="platform" label="骞冲彴">
                     <Select
                       allowClear
                       options={platformOptions}
-                      placeholder="选择平台"
+                      placeholder="閫夋嫨骞冲彴"
                       loading={shopLoading}
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="shop_ids" label="店铺">
+                  <Form.Item name="shop_ids" label="搴楅摵">
                     <Select
                       mode="multiple"
                       allowClear
                       options={shopOptions}
-                      placeholder="选择店铺"
+                      placeholder="閫夋嫨搴楅摵"
                       loading={shopLoading}
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="product_type" label="商品类型">
-                    <Input allowClear placeholder="输入商品类型" />
+                  <Form.Item name="product_type" label="鍟嗗搧绫诲瀷">
+                    <Input allowClear placeholder="杈撳叆鍟嗗搧绫诲瀷" />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
@@ -694,36 +725,36 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="match_source" label="匹配来源">
+                  <Form.Item name="match_source" label="鍖归厤鏉ユ簮">
                     <Select
                       data-testid="shop-products-filter-match-source"
                       allowClear
                       options={matchSourceOptions}
-                      placeholder="选择匹配来源"
+                      placeholder="閫夋嫨鍖归厤鏉ユ簮"
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="conflict_reason" label="冲突原因">
+                  <Form.Item name="conflict_reason" label="鍐茬獊鍘熷洜">
                     <Select
                       data-testid="shop-products-filter-conflict-reason"
                       allowClear
                       options={conflictReasonOptions}
-                      placeholder="选择冲突原因"
+                      placeholder="閫夋嫨鍐茬獊鍘熷洜"
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="keyword" label="关键字">
+                  <Form.Item name="keyword" label="关键词">
                     <Input
                       data-testid="shop-products-filter-keyword"
                       allowClear
-                      placeholder="标题/商家编码/规格编码"
+                      placeholder="鏍囬/鍟嗗缂栫爜/瑙勬牸缂栫爜"
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item name="updated_range" label="更新时间">
+                  <Form.Item name="updated_range" label="鏇存柊鏃堕棿">
                     <DatePicker.RangePicker style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
@@ -735,16 +766,17 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                       htmlType="submit"
                       size="small"
                     >
-                      查询
+                      鏌ヨ
                     </Button>
                     <Button data-testid="shop-products-filter-reset" onClick={handleReset} size="small">
-                      重置
+                      閲嶇疆
                     </Button>
                   </Space>
                 </Col>
-              </Row>
-            </Form>
-          </Card>
+                </Row>
+              </Form>
+            </Card>
+          </Space>
         }
         toolbarLeft={
           <Space size={8} wrap={false} align="center">
@@ -760,7 +792,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 onClick: () => openDownloadModal(true)
               }}
             >
-              下载商品
+              涓嬭浇鍟嗗搧
             </Dropdown.Button>
             <Dropdown
               menu={{
@@ -771,7 +803,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 onClick: ({ key }) => openCreateModal(key as 'selected' | 'filtered')
               }}
             >
-              <Button disabled={!canWrite}>创建货品档案</Button>
+              <Button disabled={!canWrite}>鍒涘缓璐у搧妗ｆ</Button>
             </Dropdown>
             <Dropdown
               menu={{
@@ -793,7 +825,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 loading={autoMatchLoading}
                 disabled={!canWrite}
               >
-                自动匹配
+                鑷姩鍖归厤
               </Button>
             </Dropdown>
             <Button
@@ -804,14 +836,14 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
                 setManualOpen(true);
               }}
             >
-              手动匹配
+              鎵嬪姩鍖归厤
             </Button>
             <Popconfirm
-              title="确定删除匹配吗？"
+              title="纭畾鍒犻櫎鍖归厤鍚楋紵"
               onConfirm={handleDeleteMatch}
               okButtonProps={{ loading: deleteLoading }}
             >
-              <Button disabled={!canWrite}>删除匹配</Button>
+              <Button disabled={!canWrite}>鍒犻櫎鍖归厤</Button>
             </Popconfirm>
           </Space>
         }
@@ -825,14 +857,14 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         detailGroups={[
           {
             key: 'tasks',
-            label: '任务中心',
+            label: '浠诲姟涓績',
             children: (
               <Space direction="vertical" size={8}>
                 <Typography.Text type="secondary">
-                  下载/创建/匹配任务会记录在任务列表。
+                  涓嬭浇/鍒涘缓/鍖归厤浠诲姟浼氳褰曞湪浠诲姟鍒楄〃銆?
                 </Typography.Text>
                 <Button size="small" onClick={() => setTaskDrawerOpen(true)}>
-                  查看任务
+                  鏌ョ湅浠诲姟
                 </Button>
               </Space>
             )
@@ -842,9 +874,9 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             label: '匹配状态',
             children: (
               <Space direction="vertical" size={4}>
-                <Typography.Text>未匹配：未关联ERP货品</Typography.Text>
-                <Typography.Text>自动匹配：系统规则匹配</Typography.Text>
-                <Typography.Text>手动匹配：人工指定ERP货品</Typography.Text>
+                <Typography.Text>鏈尮閰嶏細鏈叧鑱擡RP璐у搧</Typography.Text>
+                <Typography.Text>自动匹配：系统按规则匹配 ERP 货品</Typography.Text>
+                <Typography.Text>鎵嬪姩鍖归厤锛氫汉宸ユ寚瀹欵RP璐у搧</Typography.Text>
               </Space>
             )
           }
@@ -857,8 +889,8 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             loading={isLoading || isFetching}
             error={error}
             onRetry={() => refetch()}
-            errorTitle={`${pageTitle}加载失败`}
-            emptyText={`暂无${pageTitle}`}
+            errorTitle={`${pageTitle}鍔犺浇澶辫触`}
+            emptyText={`鏆傛棤${pageTitle}`}
             total={data?.total ?? 0}
             pagination={pagination}
             onPaginationChange={setPagination}
@@ -874,6 +906,20 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         }
       />
       <Modal
+        title="自动匹配失败"
+        open={autoMatchFailures.length > 0}
+        onCancel={() => setAutoMatchFailures([])}
+        onOk={() => setAutoMatchFailures([])}
+        okText="知道了"
+        cancelButtonProps={{ style: { display: 'none' } }}
+      >
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {autoMatchFailures.slice(0, 6).map((item) => (
+            <Typography.Text key={item.sku_record_id}>{`${item.platform_sku_id}: ${item.reason}`}</Typography.Text>
+          ))}
+        </Space>
+      </Modal>
+      <Modal
         title={downloadAutoMatch ? '下载商品并匹配' : '下载商品'}
         open={downloadOpen}
         onCancel={() => setDownloadOpen(false)}
@@ -884,11 +930,11 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         <Form form={downloadForm} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="platform" label="平台">
+              <Form.Item name="platform" label="骞冲彴">
                 <Select
                   allowClear
                   options={platformOptions}
-                  placeholder="选择平台"
+                  placeholder="閫夋嫨骞冲彴"
                   loading={shopLoading}
                 />
               </Form.Item>
@@ -896,21 +942,21 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             <Col xs={24} md={12}>
               <Form.Item
                 name="shop_ids"
-                label="店铺"
-                rules={[{ required: true, message: '请选择店铺' }]}
+                label="搴楅摵"
+                rules={[{ required: true, message: '璇烽€夋嫨搴楅摵' }]}
               >
                 <Select
                   mode="multiple"
                   allowClear
                   options={shopOptions}
-                  placeholder="选择店铺"
+                  placeholder="閫夋嫨搴楅摵"
                   loading={shopLoading}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="product_type" label="商品类型">
-                <Input allowClear placeholder="输入商品类型" />
+              <Form.Item name="product_type" label="鍟嗗搧绫诲瀷">
+                <Input allowClear placeholder="杈撳叆鍟嗗搧绫诲瀷" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -923,12 +969,12 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="标题/商家编码/规格编码" />
+              <Form.Item name="keyword" label="关键词">
+                <Input allowClear placeholder="鏍囬/鍟嗗缂栫爜/瑙勬牸缂栫爜" />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="updated_range" label="更新时间">
+              <Form.Item name="updated_range" label="鏇存柊鏃堕棿">
                 <DatePicker.RangePicker style={{ width: '100%' }} showTime />
               </Form.Item>
             </Col>
@@ -936,22 +982,22 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         </Form>
       </Modal>
       <Modal
-        title={createScope === 'selected' ? '创建货品档案（勾选）' : '创建货品档案（筛选）'}
+        title={createScope === 'selected' ? '鍒涘缓璐у搧妗ｆ锛堝嬀閫夛級' : '鍒涘缓璐у搧妗ｆ锛堢瓫閫夛級'}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={handleCreateSkus}
-        okText="提交创建"
+        okText="鎻愪氦鍒涘缓"
         confirmLoading={createLoading}
       >
         <Form form={createForm} layout="vertical">
           <Form.Item name="import_price" valuePropName="checked">
-            <Checkbox>导入网店价格</Checkbox>
+            <Checkbox>瀵煎叆缃戝簵浠锋牸</Checkbox>
           </Form.Item>
           <Form.Item name="import_image" valuePropName="checked">
-            <Checkbox>导入商品图片</Checkbox>
+            <Checkbox>瀵煎叆鍟嗗搧鍥剧墖</Checkbox>
           </Form.Item>
           <Form.Item name="import_stock" valuePropName="checked">
-            <Checkbox>导入网店库存</Checkbox>
+            <Checkbox>瀵煎叆缃戝簵搴撳瓨</Checkbox>
           </Form.Item>
           {importStock ? (
             <>
@@ -962,12 +1008,12 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
               />
               <Form.Item
                 name="warehouse_id"
-                label="存放仓库"
-                rules={[{ required: true, message: '请选择仓库' }]}
+                label="瀛樻斁浠撳簱"
+                rules={[{ required: true, message: '璇烽€夋嫨浠撳簱' }]}
               >
                 <Select
                   allowClear
-                  placeholder="选择仓库"
+                  placeholder="閫夋嫨浠撳簱"
                   options={warehouseOptions}
                   loading={warehouseLoading}
                 />
@@ -977,25 +1023,25 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
         </Form>
       </Modal>
       <Modal
-        title="手动匹配"
+        title="鎵嬪姩鍖归厤"
         open={manualOpen}
         onCancel={() => setManualOpen(false)}
         onOk={handleManualMatch}
-        okText="提交匹配"
+        okText="鎻愪氦鍖归厤"
         confirmLoading={manualLoading}
       >
         <Form form={manualForm} layout="vertical">
           <Form.Item
             name="sku_id"
-            label="选择货品档案"
-            rules={[{ required: true, message: '请选择货品档案' }]}
+            label="閫夋嫨璐у搧妗ｆ"
+            rules={[{ required: true, message: '璇烽€夋嫨璐у搧妗ｆ' }]}
           >
             <Select
               data-testid="shop-products-manual-match-sku-select"
               showSearch
               loading={skuLoading}
               optionFilterProp="label"
-              placeholder="选择ERP货品"
+              placeholder="閫夋嫨ERP璐у搧"
               options={skuOptions.map((sku) => ({
                 value: sku.sku_id,
                 label: `${sku.sku_code} ${sku.name ?? ''}`
@@ -1003,12 +1049,12 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
             />
           </Form.Item>
           <Typography.Text type="secondary">
-            已勾选 {selectedRows.length} 个网店规格，将映射到同一货品。
+            宸插嬀閫?{selectedRows.length} 涓綉搴楄鏍硷紝灏嗘槧灏勫埌鍚屼竴璐у搧銆?
           </Typography.Text>
         </Form>
       </Modal>
       <Drawer
-        title="商品下载任务"
+        title="鍟嗗搧涓嬭浇浠诲姟"
         open={taskDrawerOpen}
         onClose={() => setTaskDrawerOpen(false)}
         width={720}
@@ -1020,8 +1066,8 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
           loading={taskFetching}
           error={taskError}
           onRetry={() => refetchTasks()}
-          errorTitle="任务加载失败"
-          emptyText="暂无任务"
+          errorTitle="浠诲姟鍔犺浇澶辫触"
+          emptyText="鏆傛棤浠诲姟"
           total={taskData?.total ?? 0}
           pagination={taskPagination}
           onPaginationChange={setTaskPagination}

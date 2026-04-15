@@ -10,6 +10,7 @@ pub struct SkuBatch {
     pub tenant_id: TenantId,
     pub sku_id: uuid::Uuid,
     pub batch_no: String,
+    pub production_date: Option<DateTime<Utc>>,
     pub expire_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -57,11 +58,13 @@ pub struct SkuBatchCreate {
     pub tenant_id: TenantId,
     pub sku_id: uuid::Uuid,
     pub batch_no: String,
+    pub production_date: Option<DateTime<Utc>>,
     pub expire_at: Option<DateTime<Utc>>,
 }
 
 pub struct SkuBatchUpdate {
     pub batch_no: Option<String>,
+    pub production_date: Option<DateTime<Utc>>,
     pub expire_at: Option<DateTime<Utc>>,
 }
 
@@ -81,7 +84,7 @@ impl<'a> SkuBatchesRepo<'a> {
     ) -> anyhow::Result<SkuBatchListResult> {
         let mut qb = QueryBuilder::<Postgres>::new(
             r#"
-            select batch_id, sku_id, batch_no, expire_at, created_at, updated_at
+            select batch_id, sku_id, batch_no, production_date, expire_at, created_at, updated_at
             from sku_batches
             where tenant_id =
             "#,
@@ -113,6 +116,7 @@ impl<'a> SkuBatchesRepo<'a> {
             batch_id: uuid::Uuid,
             sku_id: uuid::Uuid,
             batch_no: String,
+            production_date: Option<DateTime<Utc>>,
             expire_at: Option<DateTime<Utc>>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
@@ -130,6 +134,7 @@ impl<'a> SkuBatchesRepo<'a> {
                 tenant_id,
                 sku_id: row.sku_id,
                 batch_no: row.batch_no,
+                production_date: row.production_date,
                 expire_at: row.expire_at,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
@@ -149,6 +154,7 @@ impl<'a> SkuBatchesRepo<'a> {
             batch_id: uuid::Uuid,
             sku_id: uuid::Uuid,
             batch_no: String,
+            production_date: Option<DateTime<Utc>>,
             expire_at: Option<DateTime<Utc>>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
@@ -156,7 +162,7 @@ impl<'a> SkuBatchesRepo<'a> {
 
         let row: Option<Row> = sqlx::query_as(
             r#"
-            select batch_id, sku_id, batch_no, expire_at, created_at, updated_at
+            select batch_id, sku_id, batch_no, production_date, expire_at, created_at, updated_at
             from sku_batches
             where tenant_id = $1 and batch_id = $2
             "#,
@@ -171,6 +177,7 @@ impl<'a> SkuBatchesRepo<'a> {
             tenant_id,
             sku_id: row.sku_id,
             batch_no: row.batch_no,
+            production_date: row.production_date,
             expire_at: row.expire_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -183,6 +190,7 @@ impl<'a> SkuBatchesRepo<'a> {
             batch_id: uuid::Uuid,
             sku_id: uuid::Uuid,
             batch_no: String,
+            production_date: Option<DateTime<Utc>>,
             expire_at: Option<DateTime<Utc>>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
@@ -190,14 +198,15 @@ impl<'a> SkuBatchesRepo<'a> {
 
         let row: Row = sqlx::query_as(
             r#"
-            insert into sku_batches(tenant_id, sku_id, batch_no, expire_at)
-            values ($1,$2,$3,$4)
-            returning batch_id, sku_id, batch_no, expire_at, created_at, updated_at
+            insert into sku_batches(tenant_id, sku_id, batch_no, production_date, expire_at)
+            values ($1,$2,$3,$4,$5)
+            returning batch_id, sku_id, batch_no, production_date, expire_at, created_at, updated_at
             "#,
         )
         .bind(uuid::Uuid::from(input.tenant_id))
         .bind(input.sku_id)
         .bind(&input.batch_no)
+        .bind(input.production_date)
         .bind(input.expire_at)
         .fetch_one(self.pool)
         .await?;
@@ -207,6 +216,7 @@ impl<'a> SkuBatchesRepo<'a> {
             tenant_id: input.tenant_id,
             sku_id: row.sku_id,
             batch_no: row.batch_no,
+            production_date: row.production_date,
             expire_at: row.expire_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -226,6 +236,10 @@ impl<'a> SkuBatchesRepo<'a> {
             separated.push("batch_no = ");
             separated.push_bind(batch_no);
         }
+        if let Some(production_date) = input.production_date {
+            separated.push("production_date = ");
+            separated.push_bind(production_date);
+        }
         if let Some(expire_at) = input.expire_at {
             separated.push("expire_at = ");
             separated.push_bind(expire_at);
@@ -236,13 +250,16 @@ impl<'a> SkuBatchesRepo<'a> {
         qb.push_bind(uuid::Uuid::from(tenant_id));
         qb.push(" and batch_id = ");
         qb.push_bind(batch_id);
-        qb.push(" returning batch_id, sku_id, batch_no, expire_at, created_at, updated_at");
+        qb.push(
+            " returning batch_id, sku_id, batch_no, production_date, expire_at, created_at, updated_at",
+        );
 
         #[derive(sqlx::FromRow)]
         struct Row {
             batch_id: uuid::Uuid,
             sku_id: uuid::Uuid,
             batch_no: String,
+            production_date: Option<DateTime<Utc>>,
             expire_at: Option<DateTime<Utc>>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
@@ -254,6 +271,7 @@ impl<'a> SkuBatchesRepo<'a> {
             tenant_id,
             sku_id: row.sku_id,
             batch_no: row.batch_no,
+            production_date: row.production_date,
             expire_at: row.expire_at,
             created_at: row.created_at,
             updated_at: row.updated_at,

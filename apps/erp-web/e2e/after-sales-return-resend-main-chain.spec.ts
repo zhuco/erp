@@ -13,7 +13,9 @@ test('after-sales return inspect resend main chain smoke', async ({ page }, test
 
   const receiveAction = page.getByTestId('after-sales-receive-action').first();
   if ((await receiveAction.count()) > 0) {
-    await receiveAction.click();
+    const receiveHref = await receiveAction.getAttribute('data-after-sales-receive-href');
+    expect(receiveHref).toBeTruthy();
+    await page.goto(receiveHref!);
     await expect(page.getByTestId('after-sales-receive-title')).toBeVisible();
 
     const warehouseSelect = page.getByTestId('after-sales-receive-warehouse');

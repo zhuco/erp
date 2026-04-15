@@ -17,10 +17,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, 'VITE_');
   const rawBase = env.VITE_ROUTER_BASENAME || env.VITE_BASE_URL || '/';
   const base = normalizeBase(rawBase);
+  const workspaceRoot = path.resolve(__dirname, '../..');
 
   return {
     base,
     plugins: [react()],
+    cacheDir: path.resolve(workspaceRoot, 'build/vite/cache'),
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
@@ -35,6 +37,8 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     build: {
+      outDir: path.resolve(workspaceRoot, 'build/web'),
+      emptyOutDir: true,
       sourcemap: true,
       rollupOptions: {
         output: {

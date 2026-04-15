@@ -115,6 +115,21 @@ export const WmsPackPage = () => {
       })) ?? [],
     [activeDetail?.pack_records]
   );
+  const packGovernanceHints = useMemo(() => {
+    if (!activeDetail) {
+      return [];
+    }
+    return activeDetail.items.flatMap((item) => {
+      const hints: string[] = [];
+      if (item.batch_enabled) {
+        hints.push(`SKU ${item.sku_id} 已启用食品批次治理，打包时必须录入可出库批次。`);
+      }
+      if (item.serial_enabled) {
+        hints.push(`SKU ${item.sku_id} 已启用数码序列号治理，打包时必须录入唯一序列号。`);
+      }
+      return hints;
+    });
+  }, [activeDetail]);
 
   const query = useMemo<WmsOutboundListQuery>(() => {
     return {
@@ -416,6 +431,22 @@ export const WmsPackPage = () => {
         okButtonProps={{ 'data-testid': 'pack-submit' }}
       >
         <Form form={packForm} layout="vertical" onFinish={handlePack}>
+          {packGovernanceHints.length ? (
+            <Alert
+              type="info"
+              showIcon
+              data-testid="pack-governance-alert"
+              message="打包治理提示"
+              description={
+                <Space direction="vertical" size={4}>
+                  {packGovernanceHints.map((hint) => (
+                    <Typography.Text key={hint}>{hint}</Typography.Text>
+                  ))}
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            />
+          ) : null}
           <Form.Item name="package_no" label="包裹号" rules={[{ required: true }]}>
             <Input data-testid="pack-package-no-input" />
           </Form.Item>
@@ -453,10 +484,10 @@ export const WmsPackPage = () => {
                       <InputNumber min={1} />
                     </Form.Item>
                     {activeDetail?.items[field.name]?.serial_enabled ? (
-                      <Tag color="purple">SN Required</Tag>
+                      <Tag color="purple">序列号必填</Tag>
                     ) : null}
                     {activeDetail?.items[field.name]?.batch_enabled ? (
-                      <Tag color="blue">Batch Required</Tag>
+                      <Tag color="blue">批次必填</Tag>
                     ) : null}
                   </Space>
                 ))}
@@ -466,7 +497,7 @@ export const WmsPackPage = () => {
           <Form.List name="serials">
             {(fields, { add, remove }) => (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Typography.Text strong>Serial Collection</Typography.Text>
+                <Typography.Text strong>序列号采集</Typography.Text>
                 {fields.map((field) => (
                   <Space key={field.key} align="baseline" style={{ width: '100%' }}>
                     <Form.Item
@@ -479,19 +510,19 @@ export const WmsPackPage = () => {
                     </Form.Item>
                     <Form.Item
                       {...field}
-                      label="Serial Nos"
+                      label="序列号"
                       name={[field.name, 'serial_nos']}
                       rules={[{ required: true }]}
                     >
                       <Input.TextArea rows={2} />
                     </Form.Item>
                     <Button type="link" danger onClick={() => remove(field.name)}>
-                      Remove
+                      删除
                     </Button>
                   </Space>
                 ))}
                 <Button type="dashed" onClick={() => add()}>
-                  Add Serials
+                  新增序列号
                 </Button>
               </Space>
             )}
@@ -499,7 +530,7 @@ export const WmsPackPage = () => {
           <Form.List name="batches">
             {(fields, { add, remove }) => (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Typography.Text strong>Batch Collection</Typography.Text>
+                <Typography.Text strong>批次采集</Typography.Text>
                 {fields.map((field) => (
                   <Space key={field.key} align="baseline" style={{ width: '100%' }}>
                     <Form.Item
@@ -512,7 +543,7 @@ export const WmsPackPage = () => {
                     </Form.Item>
                     <Form.Item
                       {...field}
-                      label="Batch No"
+                      label="批次号"
                       name={[field.name, 'batch_no']}
                       rules={[{ required: true }]}
                     >
@@ -520,19 +551,19 @@ export const WmsPackPage = () => {
                     </Form.Item>
                     <Form.Item
                       {...field}
-                      label="Qty"
+                      label="数量"
                       name={[field.name, 'qty']}
                       rules={[{ required: true }]}
                     >
                       <InputNumber min={1} />
                     </Form.Item>
                     <Button type="link" danger onClick={() => remove(field.name)}>
-                      Remove
+                      删除
                     </Button>
                   </Space>
                 ))}
                 <Button type="dashed" onClick={() => add()}>
-                  Add Batch
+                  新增批次
                 </Button>
               </Space>
             )}

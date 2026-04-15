@@ -127,6 +127,10 @@ export const WmsShipPage = () => {
     onSuccess: () => {
       message.success('验货完成');
       queryClient.invalidateQueries({ queryKey: ['wms-ship-outbounds', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['wms-outbounds', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-summary', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-atp', tenantId] });
     },
     onError: (err) => {
       message.error(err instanceof Error ? err.message : '验货失败');
@@ -139,6 +143,10 @@ export const WmsShipPage = () => {
     onSuccess: () => {
       message.success('发货已提交');
       queryClient.invalidateQueries({ queryKey: ['wms-ship-outbounds', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['wms-outbounds', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-summary', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-atp', tenantId] });
     },
     onError: (err) => {
       message.error(err instanceof Error ? err.message : '发货失败');

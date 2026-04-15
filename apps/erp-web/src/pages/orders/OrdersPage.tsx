@@ -2414,7 +2414,7 @@ export const OrdersPage = ({
         total={total}
         pagination={pagination}
         onPaginationChange={handlePaginationChange}
-        showFooterScrollbarRow={false}
+        showFooterScrollbarRow
         bottomPanel={bottomTabs}
       />
       <Modal

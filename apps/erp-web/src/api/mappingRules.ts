@@ -1,6 +1,11 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders, fetchWithAuth } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
+import {
+  createMockMappingRule,
+  getMockMappingRuleList,
+  updateMockMappingRule,
+} from '@/api/mocks';
 
 export type MappingRule = {
   rule_id: string;
@@ -78,24 +83,24 @@ const buildQueryString = (query: MappingRuleListQuery): string => {
 
 export const listMappingRules = async (
   tenantId: string,
-  query: MappingRuleListQuery
+  query: MappingRuleListQuery,
 ): Promise<MappingRuleListResponse> => {
   if (useMocks) {
-    return { items: [], total: 0 };
+    return getMockMappingRuleList(query);
   }
   return requestJson<MappingRuleListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/mapping-rules${buildQueryString(query)}`,
     { headers: buildAuthHeaders() },
-    '获取映射规则失败'
+    '获取映射规则失败',
   );
 };
 
 export const createMappingRule = async (
   tenantId: string,
-  payload: MappingRuleCreatePayload
+  payload: MappingRuleCreatePayload,
 ): Promise<MappingRule> => {
   if (useMocks) {
-    throw createApiError('Mock not supported', 500);
+    return createMockMappingRule(payload);
   }
   return requestJson<MappingRule>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/mapping-rules`,
@@ -103,21 +108,21 @@ export const createMappingRule = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...buildAuthHeaders()
+        ...buildAuthHeaders(),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     },
-    '创建映射规则失败'
+    '创建映射规则失败',
   );
 };
 
 export const updateMappingRule = async (
   tenantId: string,
   ruleId: string,
-  payload: MappingRuleUpdatePayload
+  payload: MappingRuleUpdatePayload,
 ): Promise<MappingRule> => {
   if (useMocks) {
-    throw createApiError('Mock not supported', 500);
+    return updateMockMappingRule(ruleId, payload);
   }
   return requestJson<MappingRule>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/mapping-rules/${ruleId}`,
@@ -125,10 +130,10 @@ export const updateMappingRule = async (
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        ...buildAuthHeaders()
+        ...buildAuthHeaders(),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     },
-    '更新映射规则失败'
+    '更新映射规则失败',
   );
 };
