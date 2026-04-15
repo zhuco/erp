@@ -6,7 +6,7 @@ export const ProductDiffPage = () => (
   <UiModule02WorkbenchTemplate
     header={
       <Typography.Title level={3} style={{ margin: 0 }}>
-        货品相差
+        货品差异
       </Typography.Title>
     }
     tableContent={
