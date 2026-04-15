@@ -420,6 +420,18 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
         )
         "#,
         r#"
+        create table if not exists order_settlement_records (
+          tenant_id uuid not null references tenants(tenant_id),
+          order_id uuid not null,
+          status text not null,
+          locked_at timestamptz,
+          export_job_id text,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now(),
+          primary key (tenant_id, order_id)
+        )
+        "#,
+        r#"
         create table if not exists order_exception_tickets (
           ticket_id uuid primary key default gen_random_uuid(),
           tenant_id uuid not null references tenants(tenant_id),
@@ -1250,6 +1262,379 @@ async fn split_order_writes_action_and_status_history_inner() -> Result<()> {
     .fetch_one(db.pool())
     .await?;
     assert_eq!(status_history_count, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn settlement_lock_writes_action_and_status_history() -> Result<()> {
+    if let Err(err) = settlement_lock_writes_action_and_status_history_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping settlement_lock_writes_action_and_status_history: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn settlement_lock_writes_action_and_status_history_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("settlement-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-SETTLEMENT")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("SETTLEMENT-ORDER")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'REVIEW_PENDING','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',
+          '[]'::jsonb,$8,$9,false,0,$10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("SETTLEMENT-ORDER")
+    .bind("PENDING_SHIPMENT")
+    .bind("SF")
+    .bind("SF-SETTLEMENT")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let request = Request::builder()
+        .uri(format!(
+            "/v1/tenants/{tenant_id}/orders/settlements/{order_id}/lock"
+        ))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::json!({}).to_string()))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_LOCK'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(action_log_count, 1);
+
+    let status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_LOCK'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(status_history_count, 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn settlement_unlock_export_writes_action_and_status_history() -> Result<()> {
+    if let Err(err) = settlement_unlock_export_writes_action_and_status_history_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping settlement_unlock_export_writes_action_and_status_history: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn settlement_unlock_export_writes_action_and_status_history_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("settlement-action-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-SETTLEMENT-ACTION")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("SETTLEMENT-ORDER-ACTION")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version, order_created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'REVIEW_PENDING','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',
+          '[]'::jsonb,$8,$9,false,0,$10)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("SETTLEMENT-ORDER-ACTION")
+    .bind("PENDING_SHIPMENT")
+    .bind("SF")
+    .bind("SF-SETTLEMENT-ACTION")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+
+    let lock_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/v1/tenants/{tenant_id}/orders/settlements/{order_id}/lock"
+                ))
+                .method("POST")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::json!({}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(lock_response.status(), StatusCode::OK);
+
+    let unlock_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/v1/tenants/{tenant_id}/orders/settlements/{order_id}/unlock"
+                ))
+                .method("POST")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::json!({}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(unlock_response.status(), StatusCode::OK);
+
+    let relock_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/v1/tenants/{tenant_id}/orders/settlements/{order_id}/lock"
+                ))
+                .method("POST")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::json!({}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(relock_response.status(), StatusCode::OK);
+
+    let export_response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/v1/tenants/{tenant_id}/orders/settlements/{order_id}/export"
+                ))
+                .method("POST")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"export_job_id": "EXP-JOB-001"}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(export_response.status(), StatusCode::OK);
+
+    let unlock_action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_UNLOCK'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(unlock_action_log_count, 1);
+
+    let export_action_log_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_action_log
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_EXPORT'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(export_action_log_count, 1);
+
+    let unlock_status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_UNLOCK'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(unlock_status_history_count, 1);
+
+    let export_status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.SETTLEMENT_EXPORT'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(export_status_history_count, 1);
+
+    let settlement_record =
+        sqlx::query_as::<_, (String, Option<String>)>(
+            r#"
+            select status, export_job_id
+            from order_settlement_records
+            where tenant_id = $1 and order_id = $2
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(order_id)
+        .fetch_one(db.pool())
+        .await?;
+    assert_eq!(settlement_record.0, "EXPORTED");
+    assert_eq!(settlement_record.1.as_deref(), Some("EXP-JOB-001"));
 
     Ok(())
 }
@@ -2211,6 +2596,21 @@ async fn review_order_concurrent_requests_are_version_safe_inner() -> Result<()>
     .fetch_one(db.pool())
     .await?;
     assert_eq!(action_log_count, 1);
+
+    let status_history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1
+          and order_id = $2
+          and action_code = 'OMS.REVIEW_PASS'
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(status_history_count, 1);
 
     Ok(())
 }
