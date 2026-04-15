@@ -13,6 +13,7 @@ import {
   updateUser,
   updateUserDataScopes,
   updateUserRoles,
+  type DataScopeResponse,
   type Role,
   type User
 } from '@/api/system';
@@ -31,6 +32,13 @@ type UserFormValues = {
 type ScopeFormValues = {
   shop_ids: string[];
   warehouse_ids: string[];
+  merchant_ids: string[];
+  organization_ids: string[];
+};
+
+type ExtendedDataScope = DataScopeResponse & {
+  merchant_ids?: string[];
+  organization_ids?: string[];
 };
 
 const statusOptions = [
@@ -135,10 +143,12 @@ export const UsersPage = () => {
       setDataScopeOpen(true);
       scopeForm.resetFields();
       try {
-        const scopes = await getUserDataScopes(tenantId, user.user_id);
+        const scopes = (await getUserDataScopes(tenantId, user.user_id)) as ExtendedDataScope;
         scopeForm.setFieldsValue({
           shop_ids: scopes.shop_ids ?? [],
-          warehouse_ids: scopes.warehouse_ids ?? []
+          warehouse_ids: scopes.warehouse_ids ?? [],
+          merchant_ids: scopes.merchant_ids ?? [],
+          organization_ids: scopes.organization_ids ?? []
         });
       } catch (error) {
         message.error(error instanceof Error ? error.message : '加载数据权限失败');
@@ -230,7 +240,11 @@ export const UsersPage = () => {
             <Button type="link" onClick={() => openEdit(record)}>
               编辑
             </Button>
-            <Button type="link" onClick={() => openDataScopes(record)}>
+            <Button
+              type="link"
+              data-testid={`users-open-data-scopes-${record.user_id}`}
+              onClick={() => openDataScopes(record)}
+            >
               数据权限
             </Button>
           </Space>
@@ -331,6 +345,12 @@ export const UsersPage = () => {
               options={warehouseOptions}
               loading={warehousesQuery.isFetching}
             />
+          </Form.Item>
+          <Form.Item name="merchant_ids" label="可访问商家">
+            <Select mode="tags" allowClear placeholder="输入或选择商家 ID" />
+          </Form.Item>
+          <Form.Item name="organization_ids" label="可访问组织">
+            <Select mode="tags" allowClear placeholder="输入或选择组织 ID" />
           </Form.Item>
         </Form>
       </Modal>

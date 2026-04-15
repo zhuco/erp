@@ -82,7 +82,7 @@
   padding-top: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .order-query-table > .ant-space-vertical {

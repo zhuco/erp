@@ -95,6 +95,7 @@ async fn setup_schema(pool: &sqlx::PgPool) -> Result<()> {
           tenant_id uuid not null,
           sku_id uuid not null,
           batch_no text not null,
+          production_date timestamptz,
           expire_at timestamptz,
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now(),

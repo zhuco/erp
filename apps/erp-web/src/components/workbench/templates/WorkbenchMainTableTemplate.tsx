@@ -1,3 +1,5 @@
+import './WorkbenchMainTableTemplate.css';
+
 import type { TablePaginationConfig } from 'antd';
 import type { MutableRefObject, ReactNode, Ref } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';

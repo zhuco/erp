@@ -49,7 +49,12 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
-import { getDigitalPolicySummary, getProductIndustryProfile } from '@/pages/products/productIndustry';
+import {
+  getDigitalPolicySummary,
+  getProductIndustryProfile,
+  readBooleanAttr,
+  readProductAttrs
+} from '@/pages/products/productIndustry';
 
 type FilterValues = {
   sku_id?: string;
@@ -544,6 +549,29 @@ export const SkuSerialsPage = () => {
   const digitalPolicySummary = selectedRuntimeProduct
     ? getDigitalPolicySummary(selectedRuntimeProduct)
     : '-';
+  const digitalPolicyChecklist = useMemo(() => {
+    if (!selectedRuntimeProduct || !isDigitalGovernedSku) {
+      return [];
+    }
+    const attrs = readProductAttrs(selectedRuntimeProduct);
+    return [
+      {
+        key: 'inbound-unique',
+        label: '入库唯一校验',
+        enabled: readBooleanAttr(attrs, 'serial_inbound_unique_required')
+      },
+      {
+        key: 'outbound-required',
+        label: '出库强绑定',
+        enabled: readBooleanAttr(attrs, 'serial_outbound_required')
+      },
+      {
+        key: 'platform-push',
+        label: '平台回传',
+        enabled: Boolean(selectedRuntimeProduct.serial_push_platform)
+      }
+    ];
+  }, [isDigitalGovernedSku, selectedRuntimeProduct]);
   const suggestedPrefix = useMemo(
     () => buildSuggestedSerialPrefix(selectedRuntimeSku, selectedRuntimeProduct),
     [selectedRuntimeProduct, selectedRuntimeSku]
@@ -917,6 +945,21 @@ export const SkuSerialsPage = () => {
               message="当前无法生成"
               description={generateBlockReason}
             />
+          ) : null}
+          {digitalPolicyChecklist.length ? (
+            <Card size="small" data-testid="sku-serials-policy-checklist">
+              <Space size={[8, 8]} wrap>
+                {digitalPolicyChecklist.map((policy) => (
+                  <Tag
+                    key={policy.key}
+                    color={policy.enabled ? 'blue' : 'default'}
+                    data-testid={`sku-serials-policy-${policy.key}`}
+                  >
+                    {policy.label}
+                  </Tag>
+                ))}
+              </Space>
+            </Card>
           ) : null}
           <Form form={generateForm} layout="vertical" initialValues={{ count: 10 }}>
             <Form.Item

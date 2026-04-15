@@ -1945,7 +1945,15 @@ export const OrderReviewPage = () => {
   return (
     <div
       data-testid="order-review-page"
-      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        maxWidth: '100%',
+        height: '100%',
+      }}
     >
       {mainContent}
       {splitModal}

@@ -26,6 +26,9 @@ const SINGLE_FLAGS = {
   '--branch': 'branch',
   '--worktree': 'worktree',
   '--delivery': 'delivery',
+  '--retry-policy': 'retryPolicy',
+  '--fallback-strategy': 'fallbackStrategy',
+  '--fallback': 'fallbackStrategy',
   '--output': 'output',
 };
 
@@ -33,6 +36,8 @@ const USAGE = `Usage: node new_parallel_task.mjs --name NAME --goal GOAL --owner
 Options:
   --background TEXT
   --delivery TEXT
+  --retry-policy TEXT
+  --fallback-strategy TEXT
   --allowed PATH
   --disallowed PATH
   --dependency TEXT
@@ -109,6 +114,8 @@ const metadata = {
   dod: parsed.dod,
   testCommands: parsed.testCommands,
   delivery: parsed.delivery,
+  retryPolicy: parsed.retryPolicy,
+  fallbackStrategy: parsed.fallbackStrategy,
 };
 
 const outputPath = path.resolve(repoRoot, parsed.output || 'task-card.md');

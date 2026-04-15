@@ -65,6 +65,7 @@
   display: flex;
   align-items: center;
   gap: var(--erp-gap-sm);
+  flex-wrap: nowrap;
   padding-top: 4px;
   padding-bottom: 2px;
   flex-shrink: 0;
@@ -75,13 +76,24 @@
 
 .order-review-pagination-summary,
 .order-workbench-pagination-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
-  white-space: nowrap;
 }
 
 .order-review-pagination-controls,
 .order-workbench-pagination-controls {
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+.order-review-pagination-summary > *,
+.order-workbench-pagination-summary > * {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

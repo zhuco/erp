@@ -7,9 +7,10 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo .cargo
 COPY crates crates
 
-RUN cargo build -p erp-api -p erp-worker -p erp-channel --release
+RUN cargo build -p erp-api -p erp-worker -p erp-channel --release --target-dir /workspace/build/cargo
 
 FROM debian:bookworm-slim
 
@@ -19,9 +20,9 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /workspace/target/release/erp-api /app/erp-api
-COPY --from=builder /workspace/target/release/erp-worker /app/erp-worker
-COPY --from=builder /workspace/target/release/erp-channel /app/erp-channel
+COPY --from=builder /workspace/build/cargo/release/erp-api /app/erp-api
+COPY --from=builder /workspace/build/cargo/release/erp-worker /app/erp-worker
+COPY --from=builder /workspace/build/cargo/release/erp-channel /app/erp-channel
 
 ENV RUST_LOG=info
 

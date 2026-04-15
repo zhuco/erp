@@ -302,8 +302,12 @@ export const WmsWavesPage = () => {
         setShipResult(response);
         message.success('波次发货已执行');
         await queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-outbounds', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-ship-outbounds', tenantId] });
         const latest = await getWmsWave(tenantId, currentWaveId);
         setDetail(latest);
+        queryClient.invalidateQueries({ queryKey: ['inventory-summary', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['inventory-atp', tenantId] });
       } catch (err) {
         if (err instanceof Error && err.message) {
           message.error(err.message);

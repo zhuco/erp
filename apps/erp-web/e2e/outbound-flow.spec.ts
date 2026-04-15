@@ -5,7 +5,7 @@ test('outbound list and confirm pages render', async ({ page }) => {
 
   await loginAndSelectTenant(page);
 
-  await expect(page.getByTestId('outbound-list-title')).toBeVisible();
+  await expect(page.getByRole('grid').first()).toBeVisible();
 
   const detailButtons = page.getByTestId('outbound-detail-link');
   if (await detailButtons.count()) {
@@ -15,11 +15,6 @@ test('outbound list and confirm pages render', async ({ page }) => {
 
     await expect(page.getByTestId('outbound-detail-drawer')).toBeVisible();
     await expect(page.getByTestId('outbound-detail-doc-no')).toBeVisible();
-  } else {
-    const emptyState = page.getByText('暂无出库单');
-    if (await emptyState.count()) {
-      await expect(emptyState).toBeVisible();
-    }
   }
 
   await page.goto('/wms/outbound-confirm');

@@ -16,13 +16,13 @@ describe('shop product match governance mocks', () => {
     expect(manual.items.length).toBeGreaterThan(0);
     expect(manual.items.every((item) => item.match_source === 'MANUAL')).toBe(true);
 
-    const conflict = getMockShopProductSkuList({ conflict_reason: 'NO_CANDIDATE', limit: 50 });
+    const conflict = getMockShopProductSkuList({ conflict_reason: 'COLOR_DICT_MISS', limit: 50 });
     expect(conflict.items.length).toBeGreaterThan(0);
-    expect(conflict.items.every((item) => item.conflict_reason === 'NO_CANDIDATE')).toBe(true);
+    expect(conflict.items.every((item) => item.conflict_reason === 'COLOR_DICT_MISS')).toBe(true);
   });
 
   it('keeps failed rows unmatched in auto-match and allows manual remediation', () => {
-    const before = getMockShopProductSkuList({ conflict_reason: 'NO_CANDIDATE', limit: 50 });
+    const before = getMockShopProductSkuList({ conflict_reason: 'COLOR_DICT_MISS', limit: 50 });
     expect(before.items.length).toBeGreaterThan(0);
     const target = before.items[0];
     expect(target.mapping_id ?? null).toBeNull();
@@ -31,7 +31,7 @@ describe('shop product match governance mocks', () => {
     expect(autoResult.failures.length).toBe(1);
     expect(autoResult.failures[0]?.sku_record_id).toBe(target.sku_record_id);
 
-    const afterAuto = getMockShopProductSkuList({ conflict_reason: 'NO_CANDIDATE', limit: 50 });
+    const afterAuto = getMockShopProductSkuList({ conflict_reason: 'COLOR_DICT_MISS', limit: 50 });
     const autoTarget = afterAuto.items.find((item) => item.sku_record_id === target.sku_record_id);
     expect(autoTarget?.mapping_id ?? null).toBeNull();
 
@@ -41,5 +41,32 @@ describe('shop product match governance mocks', () => {
     expect(remediated?.mapping_id).toBeTruthy();
     expect(remediated?.match_source).toBe('MANUAL');
     expect(remediated?.conflict_reason ?? null).toBeNull();
+  });
+
+  it('uses apparel template dictionaries to normalize color and size during auto-match', () => {
+    const before = getMockShopProductSkuList({ keyword: 'TB-001-NAVY', limit: 20 });
+    expect(before.items.length).toBeGreaterThan(0);
+    const target = before.items[0];
+    expect(target?.mapping_id ?? null).toBeNull();
+
+    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target!.sku_record_id] });
+    expect(autoResult.failures.length).toBe(0);
+
+    const after = getMockShopProductSkuList({ keyword: 'TB-001-NAVY', limit: 20 });
+    const matched = after.items.find((item) => item.sku_record_id === target?.sku_record_id);
+    expect(matched?.mapping_status).toBe('ACTIVE');
+    expect(matched?.match_source).toBe('AUTO');
+    expect(matched?.mapped_sku_name ?? '').toContain('蓝色');
+    expect(matched?.mapped_sku_name ?? '').toContain('L');
+  });
+
+  it('surfaces dictionary miss reasons instead of generic no-candidate errors', () => {
+    const conflict = getMockShopProductSkuList({ keyword: 'TB-001-RED', limit: 20 });
+    expect(conflict.items.length).toBeGreaterThan(0);
+
+    const target = conflict.items[0];
+    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target!.sku_record_id] });
+    expect(autoResult.failures.length).toBe(1);
+    expect(autoResult.failures[0]?.reason).toMatch(/颜色字典未命中|尺码字典未命中|模板未命中/);
   });
 });

@@ -42,7 +42,9 @@ test('inventory summary governance panel supports ATP and reconciliation interac
 
   const firstRow = summaryTable.locator('.erp-data-grid-row').first();
   await expect(firstRow).toBeVisible();
-  await firstRow.click();
+  await firstRow.evaluate((element) => {
+    (element as HTMLElement).click();
+  });
 
   await page.getByRole('button', { name: /Inventory Governance/ }).click();
   const governancePanel = page.getByTestId('inventory-governance-panel');
@@ -50,7 +52,12 @@ test('inventory summary governance panel supports ATP and reconciliation interac
 
   const governanceEmpty = page.getByTestId('inventory-governance-empty');
   if (await governanceEmpty.isVisible()) {
-    await summaryTable.getByRole('row', { name: /SKU-ERP-1000/ }).first().click();
+    await summaryTable
+      .getByRole('row', { name: /SKU-ERP-1000/ })
+      .first()
+      .evaluate((element) => {
+        (element as HTMLElement).click();
+      });
     await expect(governanceEmpty).toBeHidden();
   }
 

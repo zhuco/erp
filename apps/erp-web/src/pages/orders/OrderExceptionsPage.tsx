@@ -812,7 +812,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
 
   const rightPanel = useMemo(
     () => (
-      <div className="order-exceptions-detail-panel">
+      <div className="order-exceptions-detail-panel" data-testid="order-exceptions-detail-panel">
         {activeRow ? (
           <UiModule05OrderReviewRightPanelTemplate
             detailError={detailQuery.error}
@@ -1009,7 +1009,15 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   return (
     <div
       data-testid="order-exceptions-page"
-      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        maxWidth: '100%',
+        height: '100%',
+      }}
     >
       {mainContent}
       <UiModule03ContextMenu

@@ -17,6 +17,7 @@ import {
 import type { InputRef } from 'antd';
 import { QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 
 import type { ApiError } from '@/api/errors';
@@ -64,6 +65,7 @@ export const WmsOutboundConfirmPage = () => {
   const canWrite = useCan('wms.write');
   const waveFlag = useFeatureFlag('wms.enable_wave');
   const userName = useSessionStore((state) => state.userName);
+  const queryClient = useQueryClient();
   const inputRef = useRef<InputRef>(null);
   const [keyword, setKeyword] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -184,6 +186,11 @@ export const WmsOutboundConfirmPage = () => {
           shipped_at: new Date().toISOString()
         });
         setShippedCount((prev) => prev + 1);
+        queryClient.invalidateQueries({ queryKey: ['wms-outbounds', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-ship-outbounds', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['inventory-summary', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['inventory-atp', tenantId] });
         message.success(`出库确认成功：${doc.doc_no}`);
         addRecord({
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -340,6 +347,11 @@ export const WmsOutboundConfirmPage = () => {
 
       if (successCount > 0) {
         setShippedCount((prev) => prev + successCount);
+        queryClient.invalidateQueries({ queryKey: ['wms-outbounds', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-ship-outbounds', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['wms-waves', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['inventory-summary', tenantId] });
+        queryClient.invalidateQueries({ queryKey: ['inventory-atp', tenantId] });
         message.success(`波次出库完成：成功 ${successCount} 单`);
       }
       if (failures.length > 0) {

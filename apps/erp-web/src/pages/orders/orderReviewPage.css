@@ -728,10 +728,6 @@
   min-height: 120px;
 }
 
-.order-review-table .order-review-table-footer {
-  position: static;
-}
-
 .order-review-table>.ant-space-vertical {
   row-gap: 0 !important;
   flex: 1;
@@ -892,20 +888,6 @@
   height: 1px;
 }
 
-.order-review-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--erp-gap-sm);
-  padding-top: 4px;
-  flex-shrink: 0;
-  background: var(--erp-bg-panel);
-}
-
-.order-review-pagination-summary {
-  white-space: nowrap;
-}
-
 .order-review-page .order-review-scrollbar-row {
   position: relative;
   z-index: 2;
@@ -921,9 +903,41 @@
 }
 
 .order-review-page .order-review-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--erp-gap-sm);
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
   padding-top: 2px;
   padding-bottom: 2px;
   min-height: 24px;
+  background: var(--erp-bg-panel);
+}
+
+.order-review-page .order-review-pagination-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.order-review-page .order-review-pagination-summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-review-page .order-review-pagination-controls {
+  margin-left: auto;
+  flex: 0 0 auto;
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--erp-bg-panel);
+  padding-left: 8px;
 }
 
 .order-review-page .order-review-pagination .ant-pagination {
@@ -931,6 +945,8 @@
 }
 
 .order-review-page .order-review-table-footer {
+  position: sticky;
+  bottom: 0;
   overflow: hidden;
   padding-bottom: 0;
 }

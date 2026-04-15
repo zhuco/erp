@@ -11,6 +11,7 @@
   Select,
   Space,
   Switch,
+  Tag,
   Tabs,
   Typography,
   message
@@ -42,16 +43,23 @@ import { listSkus, searchSkus, type Sku, type SkuSearchItem } from '@/api/skus';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
-import { getFoodPolicySummary, getProductIndustryProfile } from '@/pages/products/productIndustry';
+import {
+  getFoodPolicySummary,
+  getProductIndustryProfile,
+  readNumberAttr,
+  readProductAttrs
+} from '@/pages/products/productIndustry';
 
 type FilterValues = {
   sku_id?: string;
   batch_no?: string;
+  governance_status?: 'NORMAL' | 'NEAR_EXPIRY' | 'FORBID_SALE';
 };
 
 type FormValues = {
   sku_id?: string;
   batch_no: string;
+  production_date?: dayjs.Dayjs;
   expire_at?: dayjs.Dayjs;
 };
 
@@ -62,6 +70,31 @@ const buildSkuLabel = (sku: SkuSearchItem) => {
   const name = sku.name ? ` ${sku.name}` : '';
   const barcode = sku.barcode ? ` (${sku.barcode})` : '';
   return `${sku.sku_code}${name}${barcode}`;
+};
+
+type BatchGovernanceStatus = 'NORMAL' | 'NEAR_EXPIRY' | 'FORBID_SALE';
+type BatchGovernanceMeta = {
+  status: BatchGovernanceStatus | null;
+  label: string;
+  color: string;
+  isFood: boolean;
+  remainingDays: number | null;
+  productionDateText: string;
+  shelfLifeText: string;
+  governanceAction: string;
+};
+
+const batchGovernanceStatusMeta: Record<BatchGovernanceStatus, { label: string; color: string }> = {
+  NORMAL: { label: '正常', color: 'green' },
+  NEAR_EXPIRY: { label: '临期', color: 'orange' },
+  FORBID_SALE: { label: '禁售', color: 'red' }
+};
+
+const formatDayCount = (value: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '-';
+  }
+  return `${value} 天`;
 };
 
 type StrategyFilterValues = {
@@ -378,6 +411,7 @@ export const SkuBatchesPage = () => {
   const [skuOptions, setSkuOptions] = useState<SkuSearchItem[]>([]);
   const [skuLoading, setSkuLoading] = useState(false);
   const selectedSkuId = Form.useWatch('sku_id', drawerForm);
+  const selectedProductionDate = Form.useWatch('production_date', drawerForm);
   const selectedExpireAt = Form.useWatch('expire_at', drawerForm);
 
   const currentPage = pagination.current ?? 1;
@@ -473,6 +507,92 @@ export const SkuBatchesPage = () => {
   const foodPolicySummary = selectedRuntimeProduct
     ? getFoodPolicySummary(selectedRuntimeProduct)
     : '-';
+  const selectedFoodAttrs = selectedRuntimeProduct ? readProductAttrs(selectedRuntimeProduct) : {};
+  const selectedShelfLifeDays = selectedRuntimeProduct?.shelf_life_days ?? null;
+  const selectedProductionDateEnabled = Boolean(selectedFoodAttrs.production_date_enabled);
+  const batchGovernanceMetaMap = useMemo(() => {
+    const map = new Map<string, BatchGovernanceMeta>();
+    (data?.data ?? []).forEach((batch) => {
+      const runtimeSku = skuRuntimeMap.get(batch.sku_id);
+      const runtimeProduct = runtimeSku ? productMap.get(runtimeSku.product_id) : undefined;
+      if (!runtimeSku || getProductIndustryProfile(runtimeProduct) !== 'FOOD') {
+        map.set(batch.batch_id, {
+          status: null,
+          label: '-',
+          color: 'default',
+          isFood: false,
+          remainingDays: null,
+          productionDateText: '-',
+          shelfLifeText: '-',
+          governanceAction: '-'
+        });
+        return;
+      }
+      const expireAt = batch.expire_at ? dayjs(batch.expire_at) : null;
+      const attrs = readProductAttrs(runtimeProduct);
+      const nearExpiryWarningDays = readNumberAttr(attrs, 'near_expiry_warning_days') ?? 0;
+      const forbidSaleDays = runtimeProduct?.forbid_sale_days ?? null;
+      const shelfLifeDays = runtimeProduct?.shelf_life_days ?? null;
+      const productionDateEnabled = Boolean(attrs.production_date_enabled);
+      const remainingDays = expireAt?.isValid()
+        ? expireAt.startOf('day').diff(dayjs().startOf('day'), 'day')
+        : Number.POSITIVE_INFINITY;
+
+      let status: BatchGovernanceStatus = 'NORMAL';
+      if (typeof forbidSaleDays === 'number' && remainingDays <= forbidSaleDays) {
+        status = 'FORBID_SALE';
+      } else if (remainingDays <= nearExpiryWarningDays) {
+        status = 'NEAR_EXPIRY';
+      }
+
+      const storedProductionDate = batch.production_date ? dayjs(batch.production_date) : null;
+      const productionDateText = storedProductionDate?.isValid()
+        ? storedProductionDate.format('YYYY-MM-DD')
+        : productionDateEnabled && expireAt?.isValid() && typeof shelfLifeDays === 'number'
+          ? expireAt.subtract(shelfLifeDays, 'day').format('YYYY-MM-DD')
+          : productionDateEnabled
+            ? '待补保质期规则'
+            : '-';
+      const governanceAction =
+        status === 'FORBID_SALE'
+          ? '冻结库存并复核'
+          : status === 'NEAR_EXPIRY'
+            ? '优先出库周转'
+            : '按先进先出周转';
+
+      map.set(batch.batch_id, {
+        status,
+        label: batchGovernanceStatusMeta[status].label,
+        color: batchGovernanceStatusMeta[status].color,
+        isFood: true,
+        remainingDays: Number.isFinite(remainingDays) ? remainingDays : null,
+        productionDateText,
+        shelfLifeText: formatDayCount(typeof shelfLifeDays === 'number' ? shelfLifeDays : null),
+        governanceAction
+      });
+    });
+    return map;
+  }, [data?.data, productMap, skuRuntimeMap]);
+  const batchGovernanceSummary = useMemo(() => {
+    const summary = {
+      NORMAL: 0,
+      NEAR_EXPIRY: 0,
+      FORBID_SALE: 0
+    } satisfies Record<BatchGovernanceStatus, number>;
+    batchGovernanceMetaMap.forEach((meta) => {
+      if (meta.status) {
+        summary[meta.status] += 1;
+      }
+    });
+    return summary;
+  }, [batchGovernanceMetaMap]);
+  const filteredBatches = useMemo(() => {
+    const currentRows = data?.data ?? [];
+    if (!filters.governance_status) {
+      return currentRows;
+    }
+    return currentRows.filter((batch) => batchGovernanceMetaMap.get(batch.batch_id)?.status === filters.governance_status);
+  }, [batchGovernanceMetaMap, data?.data, filters.governance_status]);
   const batchBlockReason = useMemo(() => {
     if (editingBatch) {
       return null;
@@ -492,6 +612,53 @@ export const SkuBatchesPage = () => {
     return null;
   }, [editingBatch, isFoodGovernedSku, selectedExpireAt, selectedRuntimeSku, selectedSkuId]);
   const canSaveBatch = canWrite && !batchBlockReason;
+  const productionDatePreview = useMemo(() => {
+    if (!isFoodGovernedSku || !selectedExpireAt) {
+      return null;
+    }
+    if (!selectedProductionDateEnabled) {
+      return null;
+    }
+    if (typeof selectedShelfLifeDays !== 'number') {
+      return {
+        type: 'warning' as const,
+        message: '当前商品未配置保质期规则',
+        description: '该食品 SKU 已启用生产日期管理，但缺少保质期(天)配置，暂时无法推算生产日期。'
+      };
+    }
+    return {
+      type: 'info' as const,
+      message: '推算生产日期',
+      description: `按保质期 ${selectedShelfLifeDays} 天推算，当前批次生产日期约为 ${selectedExpireAt
+        .subtract(selectedShelfLifeDays, 'day')
+        .format('YYYY-MM-DD')}，剩余保质期 ${selectedExpireAt
+        .startOf('day')
+        .diff(dayjs().startOf('day'), 'day')} 天。`
+    };
+  }, [
+    isFoodGovernedSku,
+    selectedExpireAt,
+    selectedProductionDateEnabled,
+    selectedShelfLifeDays
+  ]);
+
+  useEffect(() => {
+    if (!drawerOpen || !isFoodGovernedSku || !selectedProductionDateEnabled) {
+      return;
+    }
+    if (selectedProductionDate || !selectedExpireAt || typeof selectedShelfLifeDays !== 'number') {
+      return;
+    }
+    drawerForm.setFieldValue('production_date', selectedExpireAt.subtract(selectedShelfLifeDays, 'day'));
+  }, [
+    drawerForm,
+    drawerOpen,
+    isFoodGovernedSku,
+    selectedExpireAt,
+    selectedProductionDate,
+    selectedProductionDateEnabled,
+    selectedShelfLifeDays
+  ]);
 
   const loadSkuOptions = async (keyword?: string) => {
     setSkuLoading(true);
@@ -516,21 +683,65 @@ export const SkuBatchesPage = () => {
         }
       },
       {
-        title: 'Batch No',
+        title: '批次号',
         dataIndex: 'batch_no'
       },
       {
-        title: 'Expire At',
+        title: '失效日期',
         dataIndex: 'expire_at',
         render: (_, record) => formatDateTime(record.expire_at)
       },
       {
-        title: 'Updated At',
+        title: '推算生产日期',
+        key: 'production_date',
+        render: (_, record) => {
+          const meta = batchGovernanceMetaMap.get(record.batch_id);
+          return (
+            <span data-testid="sku-batches-production-date-cell">
+              {meta?.productionDateText ?? '-'}
+            </span>
+          );
+        }
+      },
+      {
+        title: '剩余保质期',
+        key: 'remaining_days',
+        render: (_, record) => {
+          const meta = batchGovernanceMetaMap.get(record.batch_id);
+          return (
+            <span data-testid="sku-batches-shelf-life-cell">
+              {formatDayCount(meta?.remainingDays ?? null)}
+            </span>
+          );
+        }
+      },
+      {
+        title: '治理状态',
+        key: 'governance_status',
+        render: (_, record) => {
+          const meta = batchGovernanceMetaMap.get(record.batch_id);
+          if (!meta?.status) {
+            return '-';
+          }
+          return (
+            <Space direction="vertical" size={0}>
+              <Tag color={meta.color} data-testid="sku-batches-status-tag">
+                {meta.label}
+              </Tag>
+              <Typography.Text type="secondary" data-testid="sku-batches-governance-action">
+                {meta.governanceAction}
+              </Typography.Text>
+            </Space>
+          );
+        }
+      },
+      {
+        title: '更新时间',
         dataIndex: 'updated_at',
         render: (_, record) => formatDateTime(record.updated_at)
       },
       {
-        title: 'Actions',
+        title: '操作',
         key: 'actions',
         render: (_, record) => (
           <Button
@@ -542,16 +753,17 @@ export const SkuBatchesPage = () => {
               drawerForm.setFieldsValue({
                 sku_id: record.sku_id,
                 batch_no: record.batch_no,
+                production_date: record.production_date ? dayjs(record.production_date) : undefined,
                 expire_at: record.expire_at ? dayjs(record.expire_at) : undefined
               });
             }}
           >
-            Edit
+            编辑
           </Button>
         )
       }
     ],
-    [canWrite, drawerForm, skuMap]
+    [batchGovernanceMetaMap, canWrite, drawerForm, skuMap]
   );
 
   const handleSearch = (values: FilterValues) => {
@@ -577,11 +789,13 @@ export const SkuBatchesPage = () => {
   const handleSave = async () => {
     try {
       const values = await drawerForm.validateFields();
+      const productionDate = values.production_date ? values.production_date.toISOString() : undefined;
       const expireAt = values.expire_at ? values.expire_at.toISOString() : undefined;
       if (editingBatch) {
         setSaving(true);
         const payload: SkuBatchUpdateRequest = {
           batch_no: values.batch_no?.trim() || undefined,
+          production_date: productionDate,
           expire_at: expireAt
         };
         await updateSkuBatch(tenantId, editingBatch.batch_id, payload);
@@ -609,6 +823,7 @@ export const SkuBatchesPage = () => {
         const payload: SkuBatchCreateRequest = {
           sku_id: values.sku_id,
           batch_no: values.batch_no.trim(),
+          production_date: productionDate,
           expire_at: expireAt
         };
         await createSkuBatch(tenantId, payload);
@@ -646,12 +861,38 @@ export const SkuBatchesPage = () => {
         showIcon
         data-testid="sku-batches-runtime-governance-summary"
         message="运行治理摘要"
-        description="食品 SKU 在批次页会前置校验批次管理能力与失效日期，减少错建批次和遗漏效期。"
+        description="食品 SKU 在批次页会前置校验批次管理能力与失效日期，并把推算生产日期、剩余保质期、正常/临期/禁售状态与治理动作前台化展示。"
       />
+      <Row gutter={16}>
+        <Col xs={24} md={8}>
+          <Card size="small" data-testid="sku-batches-summary-normal">
+            <Typography.Text type="secondary">正常批次</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '8px 0 0' }}>
+              {batchGovernanceSummary.NORMAL}
+            </Typography.Title>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small" data-testid="sku-batches-summary-near-expiry">
+            <Typography.Text type="secondary">临期批次</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '8px 0 0' }}>
+              {batchGovernanceSummary.NEAR_EXPIRY}
+            </Typography.Title>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small" data-testid="sku-batches-summary-forbid-sale">
+            <Typography.Text type="secondary">禁售批次</Typography.Text>
+            <Typography.Title level={4} style={{ margin: '8px 0 0' }}>
+              {batchGovernanceSummary.FORBID_SALE}
+            </Typography.Title>
+          </Card>
+        </Col>
+      </Row>
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
-            <Col xs={24} md={8}>
+            <Col xs={24} md={6}>
               <Form.Item name="sku_id" label="SKU">
                 <Select
                   showSearch
@@ -668,12 +909,30 @@ export const SkuBatchesPage = () => {
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="batch_no" label="Batch No">
+            <Col xs={24} md={6}>
+              <Form.Item name="batch_no" label="批次号">
                 <Input allowClear placeholder="批次号" />
               </Form.Item>
             </Col>
-            <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
+            <Col xs={24} md={6}>
+              <Form.Item name="governance_status" label="治理状态">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  data-testid="sku-batches-governance-status-filter"
+                  onChange={(value) => {
+                    setFilters((prev) => ({ ...prev, governance_status: value ?? undefined }));
+                    setPagination((prev) => ({ ...prev, current: 1 }));
+                  }}
+                  options={[
+                    { value: 'NORMAL', label: '正常' },
+                    { value: 'NEAR_EXPIRY', label: '临期' },
+                    { value: 'FORBID_SALE', label: '禁售' }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
                   查询
@@ -687,13 +946,13 @@ export const SkuBatchesPage = () => {
       <UiModule03MainTableSection<SkuBatch>
         rowKey="batch_id"
         columns={columns}
-        data={data?.data ?? []}
+        data={filteredBatches}
         loading={isLoading || isFetching}
         error={error}
         onRetry={() => refetch()}
         errorTitle="批次台账加载失败"
         emptyText="暂无批次数据"
-        total={total}
+        total={filters.governance_status ? filteredBatches.length : total}
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="sku-batches.table.columns"
@@ -727,7 +986,16 @@ export const SkuBatchesPage = () => {
               showIcon
               data-testid="sku-batches-food-governance-alert"
               message="食品治理策略"
-              description={`${foodPolicySummary}。食品 SKU 新建批次时必须补齐失效日期。`}
+              description={`${foodPolicySummary}。食品 SKU 新建批次时必须补齐失效日期，并按保质期规则推算生产日期。`}
+            />
+          ) : null}
+          {productionDatePreview ? (
+            <Alert
+              type={productionDatePreview.type}
+              showIcon
+              data-testid="sku-batches-production-date-preview"
+              message={productionDatePreview.message}
+              description={productionDatePreview.description}
             />
           ) : null}
           {selectedSkuId && selectedRuntimeSku && !selectedRuntimeSku.batch_enabled ? (
@@ -778,7 +1046,14 @@ export const SkuBatchesPage = () => {
               <Input placeholder="请输入批次号" data-testid="sku-batches-drawer-batch-no" />
             </Form.Item>
             <Form.Item name="expire_at" label="失效日期">
-              <DatePicker showTime style={{ width: '100%' }} />
+              <DatePicker showTime style={{ width: '100%' }} data-testid="sku-batches-drawer-expire-at" />
+            </Form.Item>
+            <Form.Item name="production_date" label="生产日期">
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                data-testid="sku-batches-drawer-production-date"
+              />
             </Form.Item>
           </Form>
         </Space>

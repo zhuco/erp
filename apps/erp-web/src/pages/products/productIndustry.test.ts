@@ -3,6 +3,7 @@
 import type { Product } from '@/api/products';
 import {
   buildApparelSpecs,
+  getApparelPolicySummary,
   getDigitalPolicySummary,
   getFoodPolicySummary,
   type ProductSpecForm,
@@ -84,6 +85,28 @@ describe('productIndustry', () => {
     expect(summary).toContain('保质期 180天');
     expect(summary).toContain('临期预警 15 天');
     expect(summary).toContain('禁售提前 7 天');
+  });
+
+  it('生成鞋服策略摘要时会突出颜色数、尺码数与矩阵规格数', () => {
+    const summary = getApparelPolicySummary(
+      buildProduct({
+        attrs: {
+          industry_profile: 'APPAREL',
+          apparel_size_system: 'EU',
+          specs: [
+            { spec_name: '黑色 / 41', color: '黑色', size: '41' },
+            { spec_name: '黑色 / 42', color: '黑色', size: '42' },
+            { spec_name: '白色 / 41', color: '白色', size: '41' },
+            { spec_name: '白色 / 42', color: '白色', size: '42' },
+          ],
+        },
+      }),
+    );
+
+    expect(summary).toContain('尺码体系 欧码');
+    expect(summary).toContain('颜色 2 个');
+    expect(summary).toContain('尺码 2 个');
+    expect(summary).toContain('规格 4 条');
   });
 
   it('生成数码策略摘要时会突出追踪模式与出入库校验规则', () => {

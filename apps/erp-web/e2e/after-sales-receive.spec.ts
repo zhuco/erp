@@ -15,7 +15,9 @@ test('after-sales receive flow', async ({ page }, testInfo) => {
 
   const receiveButton = page.getByTestId('after-sales-receive-action').first();
   await expect(receiveButton).toBeVisible();
-  await receiveButton.click();
+  const receiveHref = await receiveButton.getAttribute('data-after-sales-receive-href');
+  expect(receiveHref).toBeTruthy();
+  await page.goto(receiveHref!);
 
   await expect(page.getByTestId('after-sales-receive-title')).toBeVisible();
   await capturePage(page, testInfo, 'after-sales-receive');

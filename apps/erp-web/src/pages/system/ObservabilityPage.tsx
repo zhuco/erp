@@ -19,14 +19,15 @@ import { useNavigate } from 'react-router-dom';
 
 import type { DeadLetter, DeadLetterStatus, OutboxEvent, OutboxStatus } from '@/api/failureQueue';
 import { listDeadLetters, listOutboxEvents } from '@/api/failureQueue';
+import type { MetricsSnapshot } from '@/api/system';
+import { fetchMetrics } from '@/api/system';
 import type {
   FrontendRouteDiagnosticEventType,
   FrontendRouteDiagnosticReport,
   FrontendRouteDiagnosticStatus,
   FrontendRouteDiagnosticsPathSummary,
-  MetricsSnapshot,
-} from '@/api/system';
-import { fetchMetrics, getFrontendRouteDiagnostics } from '@/api/system';
+} from '@/api/frontendRouteDiagnostics';
+import { getFrontendRouteDiagnostics } from '@/api/frontendRouteDiagnostics';
 import { getStatsInfraHealth } from '@/api/stats';
 import {
   ROUTE_LOADING_TIMEOUT_MS,
@@ -60,6 +61,8 @@ import {
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
+
+const FRONTEND_ROUTE_BACKEND_AUTO_REFRESH_DELAY_MS = 1500;
 
 const formatRateText = (numerator: number, denominator: number) => {
   if (!denominator) {
@@ -179,6 +182,7 @@ export const ObservabilityPage = () => {
   const navigate = useNavigate();
   const [routeSnapshots, setRouteSnapshots] = useState(() => getAllRouteLoadingSnapshots());
   const [routeEvents, setRouteEvents] = useState(() => getRouteDiagnosticEvents());
+  const [backendAutoRefreshKey, setBackendAutoRefreshKey] = useState('');
   const [backendPathKeyword, setBackendPathKeyword] = useState('');
   const [backendStatus, setBackendStatus] = useState<FrontendRouteDiagnosticStatus | 'all'>('all');
   const [backendEventType, setBackendEventType] = useState<
@@ -203,16 +207,19 @@ export const ObservabilityPage = () => {
   const statsInfraQuery = useQuery({
     queryKey: ['stats-infra-health', tenantId],
     queryFn: () => getStatsInfraHealth(tenantId),
+    enabled: Boolean(tenantId),
   });
 
   const deadLettersQuery = useQuery({
     queryKey: ['dead-letters', tenantId, 'observability'],
     queryFn: () => listDeadLetters(tenantId, { status: 'PENDING', limit: 5 }),
+    enabled: Boolean(tenantId),
   });
 
   const outboxEventsQuery = useQuery({
     queryKey: ['outbox-events', tenantId, 'observability'],
     queryFn: () => listOutboxEvents(tenantId, { status: 'FAILED', limit: 5 }),
+    enabled: Boolean(tenantId),
   });
   const frontendRouteBackendQuery = useQuery({
     queryKey: [
@@ -871,7 +878,54 @@ export const ObservabilityPage = () => {
   const showDeadLetterError = deadLettersQuery.error && deadLetters.length === 0;
   const showOutboxError = outboxEventsQuery.error && outboxEvents.length === 0;
   const showFrontendRouteBackendError =
-    frontendRouteBackendQuery.error && frontendRouteBackendPaths.length === 0;
+    frontendRouteBackendQuery.error &&
+    frontendRouteBackendPaths.length === 0 &&
+    frontendRouteBackendEvents.length === 0;
+
+  useEffect(() => {
+    const hasLocalRouteSignals = routeEvents.length > 0 || routeSnapshots.length > 0;
+    const hasBackendTelemetry =
+      frontendRouteBackendPaths.length > 0 || frontendRouteBackendEvents.length > 0;
+    const nextAutoRefreshKey = [
+      tenantId ?? '',
+      backendPathKeyword.trim(),
+      backendStatus,
+      backendEventType,
+      String(backendWindowHours),
+      String(routeEvents.length),
+      String(routeSnapshots.length),
+    ].join('|');
+
+    if (!tenantId || frontendRouteBackendQuery.isFetching || !hasLocalRouteSignals || hasBackendTelemetry) {
+      if (backendAutoRefreshKey) {
+        setBackendAutoRefreshKey('');
+      }
+      return;
+    }
+
+    if (backendAutoRefreshKey === nextAutoRefreshKey) {
+      return;
+    }
+
+    setBackendAutoRefreshKey(nextAutoRefreshKey);
+    const timer = window.setTimeout(() => {
+      void frontendRouteBackendQuery.refetch();
+    }, FRONTEND_ROUTE_BACKEND_AUTO_REFRESH_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    backendAutoRefreshKey,
+    backendEventType,
+    backendPathKeyword,
+    backendStatus,
+    backendWindowHours,
+    frontendRouteBackendEvents.length,
+    frontendRouteBackendPaths.length,
+    frontendRouteBackendQuery,
+    routeEvents.length,
+    routeSnapshots.length,
+    tenantId,
+  ]);
 
   const handleRefresh = () => {
     metricsQuery.refetch();

@@ -50,6 +50,7 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
           tenant_id uuid not null references tenants(tenant_id),
           sku_id uuid not null references skus(sku_id),
           batch_no text not null,
+          production_date timestamptz,
           expire_at timestamptz,
           created_at timestamptz not null default now(),
           updated_at timestamptz not null default now(),

@@ -5,6 +5,7 @@ export type FunctionSearchEntry = {
   name: string;
   moduleName: string;
   groupName?: string;
+  aliases?: string[];
 };
 
 export type FunctionRecommendation = FunctionSearchEntry & {
@@ -18,6 +19,10 @@ export type FunctionSearchGroup<TEntry> = {
 };
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
+
+const functionSearchAliases: Record<string, string[]> = {
+  '/orders/review': ['订单审核', '单审'],
+};
 
 const isSubsequenceMatch = (keyword: string, candidate: string) => {
   if (!keyword) {
@@ -75,6 +80,7 @@ export const buildFunctionSearchEntries = (menuItems: AppMenuItem[]): FunctionSe
         name: item.name ?? item.path,
         moduleName,
         groupName,
+        aliases: functionSearchAliases[item.path] ?? [],
       });
       return;
     }
@@ -91,6 +97,7 @@ export const buildFunctionSearchEntries = (menuItems: AppMenuItem[]): FunctionSe
         path: moduleItem.path,
         name: moduleName,
         moduleName,
+        aliases: functionSearchAliases[moduleItem.path] ?? [],
       });
       return;
     }
@@ -116,6 +123,17 @@ export const searchFunctionEntries = (
       const normalizedModuleName = normalizeText(entry.moduleName);
       const normalizedGroupName = normalizeText(entry.groupName ?? '');
       const normalizedPath = normalizeText(entry.path);
+      const aliasScore = Math.max(
+        ...((entry.aliases ?? []).map((alias) =>
+          scoreText(normalizedKeyword, normalizeText(alias), {
+            exact: 138,
+            prefix: 128,
+            includes: 118,
+            fuzzy: 112,
+          }),
+        )),
+        0,
+      );
 
       const score = Math.max(
         scoreText(normalizedKeyword, normalizedName, {
@@ -142,6 +160,7 @@ export const searchFunctionEntries = (
           includes: 50,
           fuzzy: 40,
         }),
+        aliasScore,
       );
 
       return { entry, score };

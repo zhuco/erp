@@ -16,6 +16,10 @@ const KEY_MAP = {
   test_commands: 'testCommands',
   testCommands: 'testCommands',
   delivery: 'delivery',
+  retry_policy: 'retryPolicy',
+  retryPolicy: 'retryPolicy',
+  fallback_strategy: 'fallbackStrategy',
+  fallbackStrategy: 'fallbackStrategy',
 };
 
 function ensureArray(value) {
@@ -76,7 +80,7 @@ function uniqueSorted(items) {
 }
 
 function buildFrontMatter(metadata) {
-  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + 相关资源';
+  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + artifacts';
   const lines = ['---'];
   lines.push(`name: ${sanitizeScalar(metadata.name)}`);
   lines.push(`goal: ${sanitizeScalar(metadata.goal)}`);
@@ -89,6 +93,8 @@ function buildFrontMatter(metadata) {
   lines.push(...listLines('dependencies', ensureArray(metadata.dependencies)));
   lines.push(...listLines('dod', ensureArray(metadata.dod)));
   lines.push(...listLines('test_commands', ensureArray(metadata.testCommands)));
+  lines.push(`retry_policy: ${sanitizeScalar(metadata.retryPolicy) || 'transient-auto-retry(max=2,delay=8s)'}`);
+  lines.push(`fallback_strategy: ${sanitizeScalar(metadata.fallbackStrategy) || 'switch-to-local-execution'}`);
   lines.push(`delivery: ${delivery}`);
   lines.push('---');
   return lines.join('\n');
@@ -103,19 +109,21 @@ function buildBodySections(metadata) {
   const sections = [];
   const goal = sanitizeScalar(metadata.goal);
   if (goal) {
-    sections.push(`## 目标\n${goal}`);
+    sections.push(`## Goal\n${goal}`);
   }
   const background = sanitizeScalar(metadata.background);
   if (background) {
-    sections.push(`## 业务背景\n${background}`);
+    sections.push(`## Background\n${background}`);
   }
-  sections.push(`## DoD\n${bulletList(metadata.dod, '- 待补充')}`);
-  sections.push(`## 依赖前提\n${bulletList(metadata.dependencies, '- 暂无')}`);
+  sections.push(`## DoD\n${bulletList(metadata.dod, '- TBD')}`);
+  sections.push(`## Dependencies\n${bulletList(metadata.dependencies, '- None')}`);
   sections.push(
-    `## 测试命令\n${bulletList(metadata.testCommands, '- 待定', (item) => `- \`${item}\``)}`,
+    `## Test Commands\n${bulletList(metadata.testCommands, '- TBD', (item) => `- \`${item}\``)}`,
   );
-  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + 相关资源';
-  sections.push(`## 交付格式\n${delivery}`);
+  sections.push(`## Retry Policy\n${sanitizeScalar(metadata.retryPolicy) || 'transient-auto-retry(max=2,delay=8s)'}`);
+  sections.push(`## Fallback Strategy\n${sanitizeScalar(metadata.fallbackStrategy) || 'switch-to-local-execution'}`);
+  const delivery = sanitizeScalar(metadata.delivery) || 'Markdown + artifacts';
+  sections.push(`## Delivery\n${delivery}`);
   return sections.join('\n\n');
 }
 
@@ -222,3 +230,4 @@ export {
   readGitChangedFiles,
   validateTaskFiles,
 };
+

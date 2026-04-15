@@ -282,9 +282,15 @@ export const getApparelPolicySummary = (record?: Product | null) => {
     return '-';
   }
   const specs = Array.isArray(attrs.specs) ? (attrs.specs as ProductSpecForm[]) : [];
+  const colorCount = new Set(
+    specs.map((spec) => spec.color?.trim()).filter((value): value is string => Boolean(value)),
+  ).size;
+  const sizeCount = new Set(
+    specs.map((spec) => spec.size?.trim()).filter((value): value is string => Boolean(value)),
+  ).size;
   return `尺码体系 ${getApparelSizeSystemLabel(
     readStringAttr(attrs, 'apparel_size_system', 'CN'),
-  )}，规格 ${specs.length} 条，主规格为颜色 / 尺码`;
+  )}，颜色 ${colorCount} 个，尺码 ${sizeCount} 个，规格 ${specs.length} 条，主规格为颜色 / 尺码`;
 };
 
 export const getDigitalPolicySummary = (record?: Product | null) => {

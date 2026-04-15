@@ -18,10 +18,13 @@ describe('moduleSearch', () => {
     expect(orderReviewEntry).toBeDefined();
     expect(orderReviewEntry).toMatchObject({
       path: '/orders/review',
-      name: '\u8ba2\u5355\u5ba1\u6838',
+      name: '\u5ba1\u6838\u8ba2\u5355',
       moduleName: '\u9500\u552e',
       groupName: '\u8ba2\u5355\u4e2d\u5fc3',
     });
+    expect(orderReviewEntry?.aliases).toEqual(
+      expect.arrayContaining(['\u8ba2\u5355\u5ba1\u6838', '\u5355\u5ba1']),
+    );
   });
 
   it('supports fuzzy Chinese keyword matching for function lookup', () => {
@@ -30,7 +33,17 @@ describe('moduleSearch', () => {
 
     expect(results[0]).toMatchObject({
       path: '/orders/review',
-      name: '\u8ba2\u5355\u5ba1\u6838',
+      name: '\u5ba1\u6838\u8ba2\u5355',
+    });
+  });
+
+  it('supports alias keywords when the displayed menu title differs from common business wording', () => {
+    const entries = buildFunctionSearchEntries(appMenuItems);
+    const results = searchFunctionEntries(entries, '\u8ba2\u5355\u5ba1\u6838');
+
+    expect(results[0]).toMatchObject({
+      path: '/orders/review',
+      name: '\u5ba1\u6838\u8ba2\u5355',
     });
   });
 

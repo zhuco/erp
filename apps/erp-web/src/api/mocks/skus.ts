@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 
+import { syncMockBatchInventoryFreeze } from './inventoryFreezes';
 import type {
   PrintJob,
   Sku,
@@ -30,6 +31,82 @@ import {
   mockTenantId,
   resolveMockSkuCost
 } from './data';
+
+type BatchGovernanceStatus = 'NORMAL' | 'NEAR_EXPIRY' | 'FORBID_SALE';
+
+const getMockSkuById = (skuId: string) => mockSkus.find((sku) => sku.sku_id === skuId) ?? null;
+
+const getMockProductBySkuId = (skuId: string) => {
+  const sku = getMockSkuById(skuId);
+  if (!sku) {
+    return null;
+  }
+  return mockProducts.find((product) => product.product_id === sku.product_id) ?? null;
+};
+
+export const evaluateMockBatchGovernance = (batch: SkuBatch): {
+  status: BatchGovernanceStatus;
+  remaining_days: number | null;
+  is_food: boolean;
+} => {
+  const product = getMockProductBySkuId(batch.sku_id);
+  const attrs = product?.attrs ?? {};
+  const isFood = attrs.industry_profile === 'FOOD';
+  if (!isFood || !batch.expire_at) {
+    return {
+      status: 'NORMAL',
+      remaining_days: null,
+      is_food: isFood,
+    };
+  }
+
+  const remainingDays = dayjs(batch.expire_at).startOf('day').diff(dayjs().startOf('day'), 'day');
+  const forbidSaleDays =
+    typeof product?.forbid_sale_days === 'number' ? product.forbid_sale_days : null;
+  const nearExpiryWarningDays =
+    typeof attrs.near_expiry_warning_days === 'number' ? attrs.near_expiry_warning_days : 0;
+
+  if (typeof forbidSaleDays === 'number' && remainingDays <= forbidSaleDays) {
+    return {
+      status: 'FORBID_SALE',
+      remaining_days: remainingDays,
+      is_food: true,
+    };
+  }
+  if (remainingDays <= nearExpiryWarningDays) {
+    return {
+      status: 'NEAR_EXPIRY',
+      remaining_days: remainingDays,
+      is_food: true,
+    };
+  }
+  return {
+    status: 'NORMAL',
+    remaining_days: remainingDays,
+    is_food: true,
+  };
+};
+
+const syncBatchGovernanceArtifacts = (batch: SkuBatch) => {
+  const governance = evaluateMockBatchGovernance(batch);
+  if (!governance.is_food) {
+    return;
+  }
+  syncMockBatchInventoryFreeze(batch, {
+    shouldFreeze: governance.status === 'FORBID_SALE',
+    reason:
+      governance.status === 'FORBID_SALE'
+        ? `食品批次 ${batch.batch_no} 已进入禁售期，冻结库存并阻断出库。`
+        : `食品批次 ${batch.batch_no} 已解除禁售冻结。`,
+  });
+};
+
+export const findMockBatchByNo = (skuId: string, batchNo: string) =>
+  mockSkuBatches.find(
+    (batch) => batch.sku_id === skuId && batch.batch_no.toLowerCase() === batchNo.toLowerCase(),
+  ) ?? null;
+
+export const findMockSkuById = (skuId: string) => getMockSkuById(skuId);
 
 export const getMockSkuList = (query: SkuListQuery): SkuListResponse => {
   const keyword = query.keyword?.trim().toLowerCase();
@@ -187,11 +264,13 @@ export const createMockSkuBatch = (payload: SkuBatchCreateRequest): SkuBatch => 
     tenant_id: mockTenantId,
     sku_id: payload.sku_id,
     batch_no: payload.batch_no,
+    production_date: payload.production_date ?? null,
     expire_at: payload.expire_at ?? null,
     created_at: now,
     updated_at: now
   };
   mockSkuBatches.unshift(batch);
+  syncBatchGovernanceArtifacts(batch);
   return batch;
 };
 
@@ -209,6 +288,7 @@ export const updateMockSkuBatch = (
           tenant_id: mockTenantId,
           sku_id: mockSkus[0]?.sku_id ?? 'SKU-1',
           batch_no: payload.batch_no ?? batchId,
+          production_date: payload.production_date ?? null,
           expire_at: payload.expire_at ?? null,
           created_at: now,
           updated_at: now
@@ -216,6 +296,8 @@ export const updateMockSkuBatch = (
   const updated: SkuBatch = {
     ...base,
     batch_no: payload.batch_no ?? base.batch_no,
+    production_date:
+      payload.production_date === undefined ? base.production_date ?? null : payload.production_date,
     expire_at: payload.expire_at ?? base.expire_at,
     updated_at: now
   };
@@ -224,6 +306,7 @@ export const updateMockSkuBatch = (
   } else {
     mockSkuBatches.unshift(updated);
   }
+  syncBatchGovernanceArtifacts(updated);
   return updated;
 };
 
@@ -257,8 +340,14 @@ export const generateMockSkuSerials = (
 ): SkuSerial[] => {
   const now = dayjs();
   const dateKey = now.format('YYYYMMDDHHmmss');
+  const prefix = payload.prefix?.trim() || 'SN';
+  const existingSerials = new Set(mockSkuSerials.map((serial) => serial.serial_no));
   const generated = Array.from({ length: payload.count }, (_, index) => {
-    const serialNo = `${payload.prefix}${dateKey}${String(index + 1).padStart(6, '0')}`;
+    const serialNo = `${prefix}${dateKey}${String(index + 1).padStart(6, '0')}`;
+    if (existingSerials.has(serialNo)) {
+      throw new Error(`序列号 ${serialNo} 已存在，请调整前缀后重试。`);
+    }
+    existingSerials.add(serialNo);
     const serial: SkuSerial = {
       serial_id: `SERIAL-${Date.now()}-${index}`,
       tenant_id: mockTenantId,

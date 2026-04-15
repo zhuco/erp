@@ -165,6 +165,8 @@ test('商品管理支持鞋服规格批量生成并在保存后回显行业摘�
   await productRow.click();
 
   await expect(page.getByText('鞋服规格策略')).toBeVisible();
+  await expect(page.getByText('颜色 2 个')).toBeVisible();
+  await expect(page.getByText('尺码 2 个')).toBeVisible();
   await expect(page.getByText('规格 4 条')).toBeVisible();
 });
 

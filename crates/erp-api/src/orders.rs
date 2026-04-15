@@ -8,6 +8,7 @@ use erp_repo::{
     order_status_history::{OrderStatusHistoryCreate, OrderStatusHistoryRepo},
     orders::{
         OrderExceptionTicketUpdate, OrderReviewState, OrderSplitPlanChild, OrderSplitPlanItem,
+        OrdersRepo,
     },
 };
 use std::collections::HashSet;
@@ -3573,6 +3574,7 @@ async fn get_order_settlement_detail(
 async fn execute_order_settlement_action(
     state: &AppState,
     ctx: &AuthContext,
+    req_ctx: &RequestContext,
     tenant_id: TenantId,
     order_id: OrderId,
     action: &str,
@@ -3588,10 +3590,25 @@ async fn execute_order_settlement_action(
         return Err(resp.into_response());
     }
 
+    let orders_repo = OrdersRepo::new(state.db.pool());
+    let state_row = match orders_repo
+        .get_order_review_state(tenant_id, order_id)
+        .await
+    {
+        Ok(Some(v)) => v,
+        Ok(None) => return Err(not_found("order not found").into_response()),
+        Err(e) => {
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
+        }
+    };
+
     let current_status = normalize_order_settlement_status(row.settlement_status.as_deref());
     let operator_id = parse_optional_user_id(payload.operator_id.as_deref(), "operator_id")?
         .unwrap_or(ctx.user_id);
+    let operator_id_string = operator_id.to_string();
     let operator_name = trim_to_option(payload.operator_name.as_deref());
+    let initial_review_status = row.review_status.clone();
+    let initial_exception_flags = row.exception_flags.clone();
     let now = Utc::now();
     let (next_status, locked_at, export_job_id, action_code, message) = match action {
         "LOCK" => {
@@ -3653,10 +3670,60 @@ async fn execute_order_settlement_action(
         tenant_id,
         order_id,
         action_code,
-        Some(operator_id),
-        operator_name,
-        export_job_id,
+        Some(operator_id.clone()),
+        operator_name.clone(),
+        export_job_id.clone(),
         message,
+    )
+    .await;
+
+    let request_payload = serde_json::json!({
+        "action": action,
+        "operator_id": operator_id_string.clone(),
+        "operator_name": operator_name.clone(),
+        "export_job_id": export_job_id.clone(),
+    });
+    let response_payload = serde_json::json!({
+        "current_settlement_status": current_status,
+        "next_settlement_status": next_status,
+        "export_job_id": export_job_id.clone(),
+    });
+
+    record_order_state_logs(
+        state,
+        req_ctx,
+        OrderStateLogInput {
+            tenant_id,
+            order_id,
+            action_code: action_code.to_string(),
+            from_status: state_row.order_status,
+            to_status: state_row.order_status,
+            operator_id: Some(operator_id),
+            reason: None,
+            request_payload,
+            response_payload,
+        },
+    )
+    .await;
+
+    record_audit_log(
+        state,
+        ctx,
+        req_ctx,
+        action_code,
+        "ORDER",
+        Some(order_id.to_string()),
+        Some(serde_json::json!({
+            "settlement_status": current_status,
+            "review_status": initial_review_status,
+            "exception_flags": initial_exception_flags,
+        })),
+        Some(serde_json::json!({
+            "settlement_status": next_status,
+            "export_job_id": export_job_id.clone(),
+            "operator_id": operator_id_string.clone(),
+            "operator_name": operator_name,
+        })),
     )
     .await;
 
@@ -3677,6 +3744,7 @@ async fn lock_order_settlement(
     State(state): State<AppState>,
     Path((tenant_id, order_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
     Json(payload): Json<OrderSettlementActionRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -3693,8 +3761,8 @@ async fn lock_order_settlement(
         Ok(value) => value,
         Err(_) => return bad_request("bad order_id").into_response(),
     };
-    match execute_order_settlement_action(&state, &ctx, tenant_id, order_id, "LOCK", payload).await
-    {
+    match execute_order_settlement_action(&state, &ctx, &req_ctx, tenant_id, order_id, "LOCK", payload).await
+        {
         Ok(value) => (StatusCode::OK, Json(value)).into_response(),
         Err(resp) => resp,
     }
@@ -3704,6 +3772,7 @@ async fn unlock_order_settlement(
     State(state): State<AppState>,
     Path((tenant_id, order_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
     Json(payload): Json<OrderSettlementActionRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -3720,8 +3789,7 @@ async fn unlock_order_settlement(
         Ok(value) => value,
         Err(_) => return bad_request("bad order_id").into_response(),
     };
-    match execute_order_settlement_action(&state, &ctx, tenant_id, order_id, "UNLOCK", payload)
-        .await
+    match execute_order_settlement_action(&state, &ctx, &req_ctx, tenant_id, order_id, "UNLOCK", payload).await
     {
         Ok(value) => (StatusCode::OK, Json(value)).into_response(),
         Err(resp) => resp,
@@ -3732,6 +3800,7 @@ async fn export_order_settlement(
     State(state): State<AppState>,
     Path((tenant_id, order_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
     Json(payload): Json<OrderSettlementActionRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -3748,8 +3817,7 @@ async fn export_order_settlement(
         Ok(value) => value,
         Err(_) => return bad_request("bad order_id").into_response(),
     };
-    match execute_order_settlement_action(&state, &ctx, tenant_id, order_id, "EXPORT", payload)
-        .await
+    match execute_order_settlement_action(&state, &ctx, &req_ctx, tenant_id, order_id, "EXPORT", payload).await
     {
         Ok(value) => (StatusCode::OK, Json(value)).into_response(),
         Err(resp) => resp,
@@ -6937,6 +7005,8 @@ mod tests {
             is_admin: false,
             shop_ids: Vec::new(),
             warehouse_ids: Vec::new(),
+            merchant_ids: Vec::new(),
+            organization_ids: Vec::new(),
         };
         let req_ctx = RequestContext {
             request_id: "req-test".to_string(),
