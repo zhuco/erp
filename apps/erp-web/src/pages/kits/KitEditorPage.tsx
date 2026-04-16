@@ -1,4 +1,4 @@
-import {
+﻿import {
   Alert,
   Button,
   Card,
@@ -25,7 +25,7 @@ import { getKitDetail, saveKitBom } from '@/api/kits';
 import type { SkuKind, SkuSearchItem } from '@/api/skus';
 import { searchSkus } from '@/api/skus';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { useTenantId } from '@/features/tenant';
 
 type ComponentFormValues = {
@@ -356,8 +356,8 @@ export const KitEditorPage = () => {
   if (!kitSkuId) {
     return (
       <ErrorState
-        title="缺少 Kit SKU"
-        description="无法加载组合装详情"
+        title="缂哄皯 Kit SKU"
+        description="无法加载组合装详情。"
         hint="请返回组合装列表重新选择。"
         action={<Button onClick={() => navigate('/kits')}>返回列表</Button>}
       />
@@ -369,7 +369,7 @@ export const KitEditorPage = () => {
   }
 
   return (
-    <UiModule02WorkbenchTemplate
+    <WorkbenchMainTableTemplate
       header={
         <Typography.Title level={3} data-testid="kit-editor-title">
           组合装编辑
@@ -379,104 +379,104 @@ export const KitEditorPage = () => {
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <LoadingState loading={detailLoading} onRetry={() => refetch()} />
           <Card>
-        <Form layout="vertical">
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item label="Kit SKU">
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Kit SKU">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="搜索 Kit SKU"
+                      options={buildSkuOptions([...kitOptions, ...(kitSku ? [kitSku] : [])])}
+                      filterOption={false}
+                      loading={kitSearching}
+                      onSearch={(value) => loadSkuOptions(value, 'KIT', setKitOptions, setKitSearching)}
+                      onFocus={() => loadSkuOptions('', 'KIT', setKitOptions, setKitSearching)}
+                      value={kitSku?.sku_id}
+                      onChange={(value) => {
+                        const next = value ? skuIndex.get(value) ?? null : null;
+                        if (next && next.sku_kind && next.sku_kind !== 'KIT') {
+                          message.error('请选择 KIT 类型 SKU');
+                          return;
+                        }
+                        setKitSku(next);
+                      }}
+                      data-testid="kit-sku-select"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="当前组件数量">
+                    <InputNumber value={components.length} disabled style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
+            <Form
+              form={form}
+              layout="inline"
+              onFinish={handleAddComponent}
+              initialValues={{ qty: 1 }}
+            >
+              <Form.Item
+                name="component_sku_id"
+                rules={[{ required: true, message: '请选择组件 SKU' }]}
+              >
                 <Select
                   showSearch
                   allowClear
-                  placeholder="搜索 Kit SKU"
-                  options={buildSkuOptions([...kitOptions, ...(kitSku ? [kitSku] : [])])}
+                  placeholder="搜索组件 SKU/条码/名称"
+                  options={buildSkuOptions(componentOptions)}
                   filterOption={false}
-                  loading={kitSearching}
-                  onSearch={(value) => loadSkuOptions(value, 'KIT', setKitOptions, setKitSearching)}
-                  onFocus={() => loadSkuOptions('', 'KIT', setKitOptions, setKitSearching)}
-                  value={kitSku?.sku_id}
-                  onChange={(value) => {
-                    const next = value ? skuIndex.get(value) ?? null : null;
-                    if (next && next.sku_kind && next.sku_kind !== 'KIT') {
-                      message.error('请选择 KIT 类型 SKU');
-                      return;
-                    }
-                    setKitSku(next);
-                  }}
-                  data-testid="kit-sku-select"
+                  loading={componentSearching}
+                  onSearch={(value) =>
+                    loadSkuOptions(value, undefined, setComponentOptions, setComponentSearching)
+                  }
+                  onFocus={() =>
+                    loadSkuOptions('', undefined, setComponentOptions, setComponentSearching)
+                  }
+                  data-testid="kit-component-select"
                 />
               </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="当前组件数量">
-                <InputNumber value={components.length} disabled style={{ width: '100%' }} />
+              <Form.Item
+                name="qty"
+                rules={[{ required: true, message: '请输入数量' }]}
+              >
+                <InputNumber min={1} data-testid="kit-component-qty" />
               </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-        <Form
-          form={form}
-          layout="inline"
-          onFinish={handleAddComponent}
-          initialValues={{ qty: 1 }}
-        >
-          <Form.Item
-            name="component_sku_id"
-            rules={[{ required: true, message: '请选择组件 SKU' }]}
-          >
-            <Select
-              showSearch
-              allowClear
-              placeholder="搜索组件 SKU/条码/名称"
-              options={buildSkuOptions(componentOptions)}
-              filterOption={false}
-              loading={componentSearching}
-              onSearch={(value) =>
-                loadSkuOptions(value, undefined, setComponentOptions, setComponentSearching)
-              }
-              onFocus={() =>
-                loadSkuOptions('', undefined, setComponentOptions, setComponentSearching)
-              }
-              data-testid="kit-component-select"
+              <Form.Item name="expire_at">
+                <DatePicker placeholder="有效期" />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" data-testid="kit-component-add">
+                  添加组件
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+          <Card title="BOM 组件">
+            <Table<KitComponent>
+              rowKey="component_sku_id"
+              columns={componentColumns}
+              dataSource={components}
+              pagination={false}
+              loading={isLoading || isFetching}
             />
-          </Form.Item>
-          <Form.Item
-            name="qty"
-            rules={[{ required: true, message: '请输入数量' }]}
-          >
-            <InputNumber min={1} data-testid="kit-component-qty" />
-          </Form.Item>
-          <Form.Item name="expire_at">
-            <DatePicker placeholder="有效期" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" data-testid="kit-component-add">
-              添加组件
+          </Card>
+          <Space>
+            <Button type="primary" loading={saving} onClick={handleSave} data-testid="kit-save-button">
+              保存
             </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Card title="BOM 组件">
-        <Table<KitComponent>
-          rowKey="component_sku_id"
-          columns={componentColumns}
-          dataSource={components}
-          pagination={false}
-          loading={isLoading || isFetching}
-        />
-      </Card>
-      <Space>
-        <Button type="primary" loading={saving} onClick={handleSave} data-testid="kit-save-button">
-          保存
-        </Button>
-        <Button onClick={() => navigate('/kits')}>返回列表</Button>
-      </Space>
-      {saveSummary ? (
-        <Alert
-          type="success"
-          showIcon
-          message="BOM 已保存"
-          description={`新增 ${saveSummary.added}，移除 ${saveSummary.removed}，数量调整 ${saveSummary.updated}`}
-        />
-      ) : null}
+            <Button onClick={() => navigate('/kits')}>返回列表</Button>
+          </Space>
+          {saveSummary ? (
+            <Alert
+              type="success"
+              showIcon
+              message="BOM 已保存"
+              description={`新增 ${saveSummary.added}，移除 ${saveSummary.removed}，数量调整 ${saveSummary.updated}`}
+            />
+          ) : null}
           {savedSnapshot ? (
             <Card title="BOM 明细">
               <Descriptions column={2} size="small" bordered>
@@ -504,3 +504,4 @@ export const KitEditorPage = () => {
     />
   );
 };
+

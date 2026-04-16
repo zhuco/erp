@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Descriptions, Space, Table, Typography, Upload, message } from 'antd';
+﻿import { Alert, Button, Card, Descriptions, Space, Table, Typography, Upload, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useMemo, useState } from 'react';
@@ -14,7 +14,7 @@ import { createSkuImport, precheckSkuImport } from '@/api/skus';
 import type { components } from '@/api/generated/schema';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 
 type ExportJob = components['schemas']['ExportJob'];
 
@@ -161,7 +161,7 @@ export const SkuImportPage = () => {
   const hasErrors = Boolean(precheck?.errors.length);
 
   return (
-    <UiModule02WorkbenchTemplate
+    <WorkbenchMainTableTemplate
       header={
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -174,76 +174,77 @@ export const SkuImportPage = () => {
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Card>
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Alert
-            type="info"
-            showIcon
-            message="支持 CSV / Excel (XLS/XLSX) 文件"
-            description="请先上传文件并执行预检，预检通过后创建导入任务。"
-          />
-          <Upload
-            beforeUpload={() => false}
-            fileList={fileList}
-            onChange={({ fileList: nextList }) => {
-              setFileList(nextList.slice(-1));
-              setPrecheck(null);
-              setImportPayload(null);
-              setJob(null);
-            }}
-            disabled={!canWrite}
-          >
-            <Button>选择文件</Button>
-          </Upload>
-          <Space>
-            <Button type="primary" onClick={handlePrecheck} loading={prechecking} disabled={!canWrite}>
-              导入预检
-            </Button>
-            <Button
-              onClick={handleImport}
-              type="primary"
-              loading={importing}
-              disabled={!canWrite || !precheck || precheck.valid === 0}
-            >
-              创建导入任务
-            </Button>
-          </Space>
-        </Space>
-      </Card>
-      {precheck ? (
-        <Card title="预检结果">
-          <Descriptions column={3} size="small">
-            <Descriptions.Item label="总行数">{precheck.total}</Descriptions.Item>
-            <Descriptions.Item label="可导入">{precheck.valid}</Descriptions.Item>
-            <Descriptions.Item label="错误数">{precheck.errors.length}</Descriptions.Item>
-          </Descriptions>
-          {hasErrors ? (
-            <Table<SkuImportIssue>
-              rowKey={(record) => `${record.row}-${record.field ?? 'NA'}`}
-              columns={errorColumns}
-              dataSource={precheck.errors}
-              pagination={{ pageSize: 10 }}
-              style={{ marginTop: 16 }}
-            />
+              <Alert
+                type="info"
+                showIcon
+                message="支持 CSV / Excel (XLS/XLSX) 文件"
+                description="请先上传文件并执行预检，预检通过后创建导入任务。"
+              />
+              <Upload
+                beforeUpload={() => false}
+                fileList={fileList}
+                onChange={({ fileList: nextList }) => {
+                  setFileList(nextList.slice(-1));
+                  setPrecheck(null);
+                  setImportPayload(null);
+                  setJob(null);
+                }}
+                disabled={!canWrite}
+              >
+                <Button>选择文件</Button>
+              </Upload>
+              <Space>
+                <Button type="primary" onClick={handlePrecheck} loading={prechecking} disabled={!canWrite}>
+                  导入预检
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  type="primary"
+                  loading={importing}
+                  disabled={!canWrite || !precheck || precheck.valid === 0}
+                >
+                  创建导入任务
+                </Button>
+              </Space>
+            </Space>
+          </Card>
+          {precheck ? (
+            <Card title="预检结果">
+              <Descriptions column={3} size="small">
+                <Descriptions.Item label="总行数">{precheck.total}</Descriptions.Item>
+                <Descriptions.Item label="可导入">{precheck.valid}</Descriptions.Item>
+                <Descriptions.Item label="错误数">{precheck.errors.length}</Descriptions.Item>
+              </Descriptions>
+              {hasErrors ? (
+                <Table<SkuImportIssue>
+                  rowKey={(record) => `${record.row}-${record.field ?? 'NA'}`}
+                  columns={errorColumns}
+                  dataSource={precheck.errors}
+                  pagination={{ pageSize: 10 }}
+                  style={{ marginTop: 16 }}
+                />
+              ) : null}
+              <Table<SkuImportPreviewRow>
+                rowKey={(record) => `${record.row}-${record.sku_code}`}
+                columns={previewColumns}
+                dataSource={precheck.preview}
+                pagination={{ pageSize: 10 }}
+                style={{ marginTop: 16 }}
+              />
+            </Card>
           ) : null}
-          <Table<SkuImportPreviewRow>
-            rowKey={(record) => `${record.row}-${record.sku_code}`}
-            columns={previewColumns}
-            dataSource={precheck.preview}
-            pagination={{ pageSize: 10 }}
-            style={{ marginTop: 16 }}
-          />
-        </Card>
-      ) : null}
-      {job ? (
-        <Card title="导入任务">
-          <Space direction="vertical">
-            <Typography.Text>任务 ID: {job.job_id}</Typography.Text>
-            <Typography.Text>状态: {job.status}</Typography.Text>
-            <Typography.Text>进度: {job.progress}%</Typography.Text>
-          </Space>
-        </Card>
-      ) : null}
+          {job ? (
+            <Card title="导入任务">
+              <Space direction="vertical">
+                <Typography.Text>任务 ID: {job.job_id}</Typography.Text>
+                <Typography.Text>状态: {job.status}</Typography.Text>
+                <Typography.Text>进度: {job.progress}%</Typography.Text>
+              </Space>
+            </Card>
+          ) : null}
         </Space>
       }
     />
   );
 };
+

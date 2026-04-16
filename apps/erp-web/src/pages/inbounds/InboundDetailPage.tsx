@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Space, Table, Tag, Typography, message } from 'antd';
+﻿import { Button, Card, Descriptions, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
@@ -9,7 +9,7 @@ import type { InboundDocItem, InboundDocStatus, InboundInspection } from '@/api/
 import { getInboundDetail, listInboundInspections } from '@/api/inbounds';
 import { listWarehouses } from '@/api/warehouses';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -24,15 +24,15 @@ const statusColors: Record<InboundDocStatus, string> = {
 
 const traceStatusTextMap: Record<string, string> = {
   NOT_RECEIVED: '未收货',
-  PART_RECEIVED: '部分收货',
+  PART_RECEIVED: '閮ㄥ垎鏀惰揣',
   RECEIVED: '已收货',
-  NOT_REQUIRED: '免检',
-  PENDING: '待质检',
-  PASSED: '合格',
+  NOT_REQUIRED: '鍏嶆',
+  PENDING: '寰呰川妫€',
+  PASSED: '鍚堟牸',
   FAILED: '不合格',
-  PENDING_REVIEW: '待复检',
+  PENDING_REVIEW: '寰呭妫€',
   NOT_PUTAWAY: '未上架',
-  PART_PUTAWAY: '部分上架',
+  PART_PUTAWAY: '閮ㄥ垎涓婃灦',
   PUTAWAYED: '已上架'
 };
 
@@ -99,9 +99,9 @@ export const InboundDetailPage = () => {
   const columns = useMemo<ColumnsType<InboundDocItem>>(
     () => [
       { title: 'SKU ID', dataIndex: 'sku_id' },
-      { title: 'SKU 编码', dataIndex: 'sku_code' },
-      { title: '条码', dataIndex: 'barcode' },
-      { title: '计划数量', dataIndex: 'planned_qty' },
+      { title: 'SKU 缂栫爜', dataIndex: 'sku_code' },
+      { title: '鏉＄爜', dataIndex: 'barcode' },
+      { title: '璁″垝鏁伴噺', dataIndex: 'planned_qty' },
       { title: '已收货', dataIndex: 'received_qty' },
       { title: '已上架', dataIndex: 'putaway_qty' }
     ],
@@ -111,16 +111,16 @@ export const InboundDetailPage = () => {
   const inspectionColumns = useMemo<ColumnsType<InboundInspection>>(
     () => [
       { title: 'SKU ID', dataIndex: 'sku_id' },
-      { title: '数量', dataIndex: 'qty' },
+      { title: '鏁伴噺', dataIndex: 'qty' },
       {
-        title: '结果',
+        title: '缁撴灉',
         dataIndex: 'result',
         render: (value: string) =>
           value === 'PASSED' ? '合格' : value === 'FAILED' ? '不合格' : '待复检'
       },
-      { title: '备注', dataIndex: 'note', render: (value) => value ?? '-' },
+      { title: '澶囨敞', dataIndex: 'note', render: (value) => value ?? '-' },
       {
-        title: '质检时间',
+        title: '璐ㄦ鏃堕棿',
         dataIndex: 'created_at',
         render: (value) => formatDateTime(value)
       }
@@ -129,7 +129,7 @@ export const InboundDetailPage = () => {
   );
 
   if (!doc_id) {
-    message.error('缺少入库单 ID');
+    message.error('缂哄皯鍏ュ簱鍗?ID');
   }
 
   if (detailQuery.error) {
@@ -167,31 +167,31 @@ export const InboundDetailPage = () => {
   const toolbarLeft = (
     <Space align="center" size={12} wrap>
       <Typography.Title level={3} data-testid="inbound-detail-title" style={{ margin: 0 }}>
-        入库单详情
+        鍏ュ簱鍗曡鎯?
       </Typography.Title>
       <Button data-testid="inbound-detail-back" onClick={() => navigate('/wms/inbounds')}>
-        返回列表
+        杩斿洖鍒楄〃
       </Button>
       <Button
         data-testid="inbound-detail-receive"
         disabled={!canOperate}
         onClick={() => navigate(`/wms/inbounds/${doc_id}/receive`)}
       >
-        收货
+        鏀惰揣
       </Button>
       <Button
         data-testid="inbound-detail-inspect"
         disabled={!canOperate}
         onClick={() => navigate(`/wms/inbounds/${doc_id}/inspect`)}
       >
-        质检
+        璐ㄦ
       </Button>
       <Button
         data-testid="inbound-detail-putaway"
         disabled={!canOperate}
         onClick={() => navigate(`/wms/inbounds/${doc_id}/putaway`)}
       >
-        上架
+        涓婃灦
       </Button>
     </Space>
   );
@@ -199,22 +199,22 @@ export const InboundDetailPage = () => {
   const tableContent = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="入库单号">{detail.doc.doc_no}</Descriptions.Item>
+        <Descriptions.Item label="鍏ュ簱鍗曞彿">{detail.doc.doc_no}</Descriptions.Item>
         <Descriptions.Item label="状态">{statusTag}</Descriptions.Item>
-        <Descriptions.Item label="入库进度">{renderTraceStatus(traceDoc.inbound_status)}</Descriptions.Item>
+        <Descriptions.Item label="鍏ュ簱杩涘害">{renderTraceStatus(traceDoc.inbound_status)}</Descriptions.Item>
         <Descriptions.Item label="收货状态">{renderTraceStatus(traceDoc.receipt_status)}</Descriptions.Item>
         <Descriptions.Item label="质检状态">{renderTraceStatus(traceDoc.inbound_qc_status)}</Descriptions.Item>
         <Descriptions.Item label="上架状态">{renderTraceStatus(traceDoc.putaway_status)}</Descriptions.Item>
-        <Descriptions.Item label="仓库">
+        <Descriptions.Item label="浠撳簱">
           {warehouseMap.get(detail.doc.warehouse_id) ?? detail.doc.warehouse_id}
         </Descriptions.Item>
-        <Descriptions.Item label="类型">{detail.doc.doc_type}</Descriptions.Item>
-        <Descriptions.Item label="来源类型">{detail.doc.ref_type ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="来源单号">{detail.doc.ref_id ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">
+        <Descriptions.Item label="绫诲瀷">{detail.doc.doc_type}</Descriptions.Item>
+        <Descriptions.Item label="鏉ユ簮绫诲瀷">{detail.doc.ref_type ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="鏉ユ簮鍗曞彿">{detail.doc.ref_id ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="鍒涘缓鏃堕棿">
           {formatDateTime(detail.doc.created_at)}
         </Descriptions.Item>
-        <Descriptions.Item label="更新时间">
+        <Descriptions.Item label="鏇存柊鏃堕棿">
           {formatDateTime(detail.doc.updated_at)}
         </Descriptions.Item>
       </Descriptions>
@@ -226,7 +226,7 @@ export const InboundDetailPage = () => {
         pagination={false}
       />
       <Card
-        title="质检记录"
+        title="璐ㄦ璁板綍"
         loading={inspectionQuery.isFetching}
         data-testid="inbound-detail-inspections"
       >
@@ -236,11 +236,12 @@ export const InboundDetailPage = () => {
           columns={inspectionColumns}
           dataSource={inspectionQuery.data?.items ?? []}
           pagination={false}
-          locale={{ emptyText: '暂无质检记录' }}
+          locale={{ emptyText: '鏆傛棤璐ㄦ璁板綍' }}
         />
       </Card>
     </Space>
   );
 
-  return <UiModule02WorkbenchTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
 };
+

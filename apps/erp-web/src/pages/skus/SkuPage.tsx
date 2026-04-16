@@ -1,4 +1,4 @@
-import {
+﻿import {
   Affix,
   Button,
   Card,
@@ -22,7 +22,7 @@ import { createProduct } from '@/api/products';
 import type { Sku } from '@/api/skus';
 import { createSku, listSkus, updateSku } from '@/api/skus';
 import { EmptyState } from '@/components/EmptyState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -55,7 +55,7 @@ const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
 const formatCost = (costCent?: number | null) =>
-  costCent == null ? '-' : `￥${(costCent / 100).toFixed(2)}`;
+  costCent == null ? '-' : `¥${(costCent / 100).toFixed(2)}`;
 
 const playTone = (frequency: number, duration = 140) => {
   if (typeof window === 'undefined') {
@@ -158,37 +158,37 @@ const SkuDetailDrawer = ({
     >
       {sku ? (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Descriptions size="small" column={1}>
-            <Descriptions.Item label="SKU ID">{sku.sku_id}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {formatDateTime(sku.created_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新时间">
-              {formatDateTime(sku.updated_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="成本">
-              {formatCost(sku.cost_cent ?? null)}
-            </Descriptions.Item>
-          </Descriptions>
-          <Form form={form} layout="vertical">
-            <Form.Item label="SKU 编码" name="sku_code">
-              <Input disabled />
-            </Form.Item>
-            <Form.Item label="条码" name="barcode">
-              <Input disabled={!canEdit} />
-            </Form.Item>
-            <Form.Item label="名称" name="name">
-              <Input disabled={!canEdit} />
-            </Form.Item>
-            <Form.Item label="启用" name="is_active" valuePropName="checked">
-              <Switch disabled={!canEdit} />
-            </Form.Item>
-          </Form>
-        </Space>
-      ) : (
-        <EmptyState description="暂无 SKU 数据" />
-      )}
-    </Drawer>
+            <Descriptions size="small" column={1}>
+              <Descriptions.Item label="SKU ID">{sku.sku_id}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {formatDateTime(sku.created_at)}
+              </Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {formatDateTime(sku.updated_at)}
+              </Descriptions.Item>
+              <Descriptions.Item label="成本">
+                {formatCost(sku.cost_cent ?? null)}
+              </Descriptions.Item>
+            </Descriptions>
+            <Form form={form} layout="vertical">
+              <Form.Item label="SKU 编码" name="sku_code">
+                <Input disabled />
+              </Form.Item>
+              <Form.Item label="条码" name="barcode">
+                <Input disabled={!canEdit} />
+              </Form.Item>
+              <Form.Item label="名称" name="name">
+                <Input disabled={!canEdit} />
+              </Form.Item>
+              <Form.Item label="启用" name="is_active" valuePropName="checked">
+                <Switch disabled={!canEdit} />
+              </Form.Item>
+            </Form>
+          </Space>
+        ) : (
+          <EmptyState description="暂无 SKU 数据" />
+        )}
+      </Drawer>
   );
 };
 
@@ -387,7 +387,7 @@ export const SkuPage = () => {
     if (!feedback) {
       return (
         <Typography.Text type="secondary">
-          支持连续扫码，回车提交后自动清空并重新聚焦
+          支持连续扫码，回车提交后自动清空并重新聚焦。
         </Typography.Text>
       );
     }
@@ -398,58 +398,58 @@ export const SkuPage = () => {
 
   return (
     <>
-      <UiModule02WorkbenchTemplate
-        header={<Typography.Title level={3}>商品SKU</Typography.Title>}
+      <WorkbenchMainTableTemplate
+        header={<Typography.Title level={3}>商品 SKU</Typography.Title>}
         tableContent={
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Affix offsetTop={0}>
-        <Card
-          size="small"
-          title={
-            <Space>
-              <span>扫码识别栏</span>
-              <Tag color="blue">支持条码枪</Tag>
-            </Space>
-          }
-          extra={
-            <Button type="text" onClick={() => setCollapsed((prev) => !prev)}>
-              {collapsed ? '展开' : '收起'}
-              {collapsed ? <DownOutlined /> : <UpOutlined />}
-            </Button>
-          }
-          style={{ boxShadow: '0 6px 18px rgba(0,0,0,0.08)' }}
-        >
-          {collapsed ? null : (
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <Space.Compact style={{ width: '100%' }}>
-                <Input
-                  ref={inputRef}
-                  value={scanValue}
-                  allowClear
-                  autoFocus
-                  placeholder="扫描条码或输入 SKU 编码，回车识别"
-                  onChange={(event) => setScanValue(event.target.value)}
-                  onPressEnter={handleScan}
-                  data-testid="sku-scan-input"
-                  status={feedback?.status === 'error' ? 'error' : undefined}
-                />
-                <Button
-                  type="primary"
-                  onClick={handleScan}
-                  loading={isScanning}
-                  data-testid="sku-scan-submit"
-                >
-                  识别
-                </Button>
-              </Space.Compact>
-              {feedbackTag}
-            </Space>
-          )}
-        </Card>
-      </Affix>
-      <Card>
-        <EmptyState description="SKU 列表建设中" />
-      </Card>
+              <Card
+                size="small"
+                title={
+                  <Space>
+                    <span>扫码识别框</span>
+                    <Tag color="blue">支持条码枪</Tag>
+                  </Space>
+                }
+                extra={
+                  <Button type="text" onClick={() => setCollapsed((prev) => !prev)}>
+                    {collapsed ? '展开' : '收起'}
+                    {collapsed ? <DownOutlined /> : <UpOutlined />}
+                  </Button>
+                }
+                style={{ boxShadow: '0 6px 18px rgba(0,0,0,0.08)' }}
+              >
+                {collapsed ? null : (
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        ref={inputRef}
+                        value={scanValue}
+                        allowClear
+                        autoFocus
+                        placeholder="扫描条码或输入 SKU 编码，回车识别"
+                        onChange={(event) => setScanValue(event.target.value)}
+                        onPressEnter={handleScan}
+                        data-testid="sku-scan-input"
+                        status={feedback?.status === 'error' ? 'error' : undefined}
+                      />
+                      <Button
+                        type="primary"
+                        onClick={handleScan}
+                        loading={isScanning}
+                        data-testid="sku-scan-submit"
+                      >
+                        识别
+                      </Button>
+                    </Space.Compact>
+                    {feedbackTag}
+                  </Space>
+                )}
+              </Card>
+            </Affix>
+            <Card>
+              <EmptyState description="SKU 列表建设中" />
+            </Card>
           </Space>
         }
       />
@@ -498,3 +498,4 @@ export const SkuPage = () => {
     </>
   );
 };
+

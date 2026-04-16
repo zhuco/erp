@@ -1,12 +1,12 @@
-import { Card, Empty, Typography } from 'antd';
+﻿import { Card, Empty, Typography } from 'antd';
 
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 
 export const ProductDiffPage = () => (
-  <UiModule02WorkbenchTemplate
+  <WorkbenchMainTableTemplate
     header={
       <Typography.Title level={3} style={{ margin: 0 }}>
-        货品差异
+        商品差异
       </Typography.Title>
     }
     tableContent={
@@ -16,3 +16,4 @@ export const ProductDiffPage = () => (
     }
   />
 );
+

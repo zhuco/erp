@@ -1,4 +1,4 @@
-import {
+﻿import {
   Alert,
   Button,
   Card,
@@ -27,7 +27,7 @@ import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useSessionStore } from '@/features/sessionStore';
 import { useCan } from '@/features/rbac';
 import { useFeatureFlag } from '@/features/featureFlags';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 
 import './wmsOutboundConfirmPage.css';
 
@@ -336,8 +336,7 @@ export const WmsOutboundConfirmPage = () => {
         if (result.status === 'fulfilled') {
           return count + 1;
         }
-        const reason =
-          result.reason instanceof Error ? result.reason.message : '出库确认失败';
+        const reason = result.reason instanceof Error ? result.reason.message : '出库确认失败';
         failures.push({
           doc_no: waveSummary.eligibleDocs[index]?.doc_no ?? '-',
           reason
@@ -422,7 +421,7 @@ export const WmsOutboundConfirmPage = () => {
   );
 
   return (
-    <UiModule02WorkbenchTemplate
+    <WorkbenchMainTableTemplate
       toolbarLeft={toolbarLeft}
       toolbarRight={toolbarRight}
       tableContent={
@@ -430,11 +429,11 @@ export const WmsOutboundConfirmPage = () => {
           {!canWrite ? (
             <Alert
               type="warning"
-          showIcon
-          message="当前账号没有出库权限"
-          description="请联系管理员授权后再进行出库确认操作。"
-        />
-      ) : null}
+              showIcon
+              message="当前账号没有出库权限"
+              description="请联系管理员授权后再进行出库确认操作。"
+            />
+          ) : null}
 
       <Card className="wms-outbound-confirm__input-card">
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -572,3 +571,4 @@ export const WmsOutboundConfirmPage = () => {
     />
   );
 };
+

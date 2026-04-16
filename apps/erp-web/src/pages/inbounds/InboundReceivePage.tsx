@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
+﻿import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { createOperationId, getInboundDetail, receiveInbound } from '@/api/inbou
 import { createInboundRejects } from '@/api/inboundRejects';
 import { searchSkus, type SkuSearchItem } from '@/api/skus';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -361,7 +361,7 @@ export const InboundReceivePage = () => {
           message="系统会校验“收货 + 拒收”总量不超过待处理数量，超量请走补录入库。"
         />
         <Form form={receiveForm} layout="inline" style={{ marginBottom: 12 }}>
-          <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
+          <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
             <Select
               showSearch
               allowClear
@@ -404,7 +404,7 @@ export const InboundReceivePage = () => {
           message="拒收记录会占用本单待处理数量，后续补货请通过“去补录入库”新建补录单。"
         />
         <Form form={rejectForm} layout="inline" style={{ marginBottom: 12 }}>
-          <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
+          <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
             <Select
               showSearch
               allowClear
@@ -438,5 +438,6 @@ export const InboundReceivePage = () => {
     </Space>
   );
 
-  return <UiModule02WorkbenchTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
 };
+

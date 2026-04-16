@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, Space, Table, Tag, Typography, message } from 'antd';
+﻿import { Button, Card, Form, Input, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +7,7 @@ import type { InboundDocStatus, InboundDocSummary, InboundDocType } from '@/api/
 import { listInbounds } from '@/api/inbounds';
 import { listWarehouses } from '@/api/warehouses';
 import { useFeatureFlag } from '@/features/featureFlags';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useQuery } from '@tanstack/react-query';
 
@@ -143,5 +143,6 @@ export const InboundQuickReceivePage = () => {
     </Space>
   );
 
-  return <UiModule02WorkbenchTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
 };
+
