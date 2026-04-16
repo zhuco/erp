@@ -20,9 +20,22 @@ const collectGridDiagnostics = async (
 ): Promise<GridDiagnostics> =>
   page.evaluate(
     ({ targetDataTestId, targetSelectionDiagnosticTestId }) => {
+      const gridTestWindow = window as Window & {
+        __ERP_GRID_TEST_APIS?: Record<
+          string,
+          {
+            getColumnDefs?: () => Array<{ colId?: string; field?: string; headerName?: string }>;
+            getColumn?: (
+              colId: string,
+            ) => {
+              getActualWidth?: () => number;
+            } | null | undefined;
+          }
+        >;
+      };
       const root = document.querySelector<HTMLElement>(`[data-testid="${targetDataTestId}"]`);
       const shell = root?.querySelector<HTMLElement>('.ag-root-wrapper') ?? null;
-      const gridApi = window.__ERP_GRID_TEST_APIS?.[targetDataTestId];
+      const gridApi = gridTestWindow.__ERP_GRID_TEST_APIS?.[targetDataTestId];
       const columnDefs = gridApi?.getColumnDefs?.() ?? [];
       const rootRect = root?.getBoundingClientRect();
       const shellRect = shell?.getBoundingClientRect();
@@ -32,14 +45,14 @@ const collectGridDiagnostics = async (
         : null;
 
       return {
-        gridApiKeys: Object.keys(window.__ERP_GRID_TEST_APIS ?? {}),
+        gridApiKeys: Object.keys(gridTestWindow.__ERP_GRID_TEST_APIS ?? {}),
         rootExists: Boolean(root),
         rootRect: rootRect ? { width: rootRect.width, height: rootRect.height } : null,
         shellRect: shellRect ? { width: shellRect.width, height: shellRect.height } : null,
         rowCount: rows.length,
         selectionColumnExists: Boolean(gridApi?.getColumn?.('__erpSelection')),
         selectionColumnWidth: gridApi?.getColumn?.('__erpSelection')?.getActualWidth?.() ?? 0,
-        columnIds: columnDefs.map((column) =>
+        columnIds: columnDefs.map((column: { colId?: string; field?: string; headerName?: string }) =>
           String(column.colId ?? column.field ?? column.headerName ?? 'unknown'),
         ),
         diagnosticsText: selectionDiagnostic?.textContent?.trim() ?? null,

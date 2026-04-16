@@ -525,7 +525,8 @@ const aggregateOrderReviewStatsByScan = async (
   let offset = 0;
   let total = 0;
 
-  while (true) {
+  let hasMore = true;
+  while (hasMore) {
     const page = await listOrders(
       tenantId,
       {
@@ -540,7 +541,8 @@ const aggregateOrderReviewStatsByScan = async (
       total = Number(page.total ?? 0);
     }
     if (!items.length) {
-      break;
+      hasMore = false;
+      continue;
     }
 
     items.forEach((item) => {
@@ -556,10 +558,11 @@ const aggregateOrderReviewStatsByScan = async (
 
     offset += items.length;
     if (total > 0 && offset >= total) {
-      break;
+      hasMore = false;
+      continue;
     }
     if (items.length < pageSize) {
-      break;
+      hasMore = false;
     }
   }
 

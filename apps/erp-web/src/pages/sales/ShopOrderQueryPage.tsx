@@ -589,11 +589,6 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
     setColumnFilters((prev) => ({ ...prev, [key]: normalized }));
   };
 
-  const tableFooterSyncKey = useMemo(
-    () => `${columns.length}-${listItems.length}`,
-    [columns.length, listItems.length]
-  );
-
   const handleApplyLeftFilters = () => {
     setAppliedLeftFilters({
       platformOrderId: leftPlatformOrderId.trim() || undefined,
