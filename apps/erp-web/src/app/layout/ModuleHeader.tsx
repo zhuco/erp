@@ -1,4 +1,4 @@
-import { AutoComplete, Avatar, Button, Dropdown, Input, Popover, Space, Tooltip } from 'antd';
+import { AutoComplete, Avatar, Button, Dropdown, Input, Space, Tooltip } from 'antd';
 import type { InputRef, MenuProps, SelectProps } from 'antd';
 import {
   BellOutlined,
@@ -11,31 +11,22 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
-export type ModuleLinkItem = {
-  key: string;
-  label: string;
-  path: string;
-  testId?: string;
-};
-
-export type ModuleGroupItem = {
-  key: string;
-  label: string;
-  items: ModuleLinkItem[];
-};
-
-type ModuleItem = {
-  key: string;
-  label: string;
-  groups?: ModuleGroupItem[];
-  defaultPath?: string;
-};
+import type { HeaderModuleGroupItem, HeaderModuleItem } from '@/app/layout/headerMenuModel';
+import {
+  resolveSharedAnchorRect,
+  resolveSharedPanelGeometry,
+  resolveSharedPanelMaxHeight,
+  resolveSharedPanelToggle,
+  resolveSharedPanelVisibleHeight,
+  SHARED_SUBMENU_VERTICAL_GAP,
+  type SharedAnchorRect,
+} from '@/app/layout/headerSharedSubmenu';
 
 export type FunctionSearchOption = NonNullable<SelectProps['options']>[number];
 
 type ModuleHeaderProps = {
   logo?: ReactNode;
-  modules: ModuleItem[];
+  modules: HeaderModuleItem[];
   activeModuleKey?: string;
   currentPath?: string;
   onModuleClick: (path: string) => void;
@@ -53,57 +44,86 @@ type ModuleHeaderProps = {
   onSearchEnter?: () => void;
 };
 
-const fallbackModules: ModuleItem[] = [
-  { key: 'home', label: '首页', defaultPath: '/dashboard' },
-  { key: 'channels', label: '渠道', groups: [] },
-  { key: 'sales', label: '销售', groups: [] },
-  { key: 'products', label: '商品', groups: [] },
-  { key: 'procurement', label: '采购', groups: [] },
-  { key: 'planning', label: '计划', groups: [] },
-  { key: 'warehouse', label: '仓储', groups: [] },
-  { key: 'logistics', label: '物流', groups: [] },
-  { key: 'customers', label: '客户', groups: [] },
-  { key: 'finance', label: '财务', groups: [] },
-  { key: 'marketing', label: '营销', groups: [] },
-  { key: 'analytics', label: '分析', groups: [] },
-  { key: 'integrations', label: '集成', groups: [] },
-  { key: 'system', label: '系统', groups: [] },
+const PANEL_VIEWPORT_GAP = 24;
+
+const fallbackModules: HeaderModuleItem[] = [
+  { key: 'dashboard', label: '首页', defaultPath: '/dashboard', leafPaths: ['/dashboard'], groups: [] },
+  { key: 'channels', label: '渠道', leafPaths: [], groups: [] },
+  { key: 'sales', label: '销售', leafPaths: [], groups: [] },
+  { key: 'products', label: '商品', leafPaths: [], groups: [] },
+  { key: 'procurement', label: '采购', leafPaths: [], groups: [] },
+  { key: 'planning', label: '计划', leafPaths: [], groups: [] },
+  { key: 'wms', label: '仓储', leafPaths: [], groups: [] },
+  { key: 'logistics', label: '物流', leafPaths: [], groups: [] },
+  { key: 'customers', label: '客户', leafPaths: [], groups: [] },
+  { key: 'finance', label: '财务', leafPaths: [], groups: [] },
+  { key: 'marketing', label: '营销', leafPaths: [], groups: [] },
+  { key: 'stats', label: '分析', leafPaths: [], groups: [] },
+  { key: 'integrations', label: '集成', leafPaths: [], groups: [] },
+  { key: 'system', label: '系统', leafPaths: [], groups: [] },
 ];
 
+const isModulePathActive = (currentPath: string | undefined, path: string) => {
+  if (!currentPath) {
+    return false;
+  }
+  return currentPath === path || currentPath.startsWith(`${path}/`);
+};
+
+const readAnchorRect = (element: HTMLElement | null): SharedAnchorRect | null => {
+  if (!element) {
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  return resolveSharedAnchorRect({
+    bottom: rect.bottom,
+    height: rect.height,
+    left: rect.left,
+    right: rect.right,
+    top: rect.top,
+    width: rect.width,
+  });
+};
+
 const ModulePanel = ({
-  groups,
+  contentRef,
   currentPath,
+  groups,
+  maxHeight,
   onSelect,
 }: {
-  groups: ModuleGroupItem[];
+  contentRef: React.RefObject<HTMLDivElement>;
   currentPath?: string;
+  groups: HeaderModuleGroupItem[];
+  maxHeight?: number;
   onSelect: (path: string) => void;
 }) => {
   return (
-    <div className="workbench-module-panel" data-testid="workbench-module-panel">
+    <div
+      ref={contentRef}
+      className="workbench-module-panel"
+      data-testid="workbench-module-panel"
+      style={maxHeight ? { maxHeight } : undefined}
+    >
       {groups.map((group) => (
         <section className="workbench-module-group" key={group.key}>
           <div className="workbench-module-group-title">{group.label}</div>
           <div className="workbench-module-group-links">
-            {group.items.map((item) =>
-              (() => {
-                const isActive =
-                  currentPath === item.path ||
-                  (currentPath ? currentPath.startsWith(`${item.path}/`) : false);
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={`workbench-module-link ${isActive ? 'is-active' : ''}`}
-                    onClick={() => onSelect(item.path)}
-                    data-testid={item.testId}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })(),
-            )}
+            {group.items.map((item) => {
+              const isActive = isModulePathActive(currentPath, item.path);
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`workbench-module-link ${isActive ? 'is-active' : ''}`}
+                  onClick={() => onSelect(item.path)}
+                  data-testid={item.testId}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
         </section>
       ))}
@@ -134,8 +154,18 @@ export const ModuleHeader = ({
   const [openModuleKey, setOpenModuleKey] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [panelMetrics, setPanelMetrics] = useState<{
+    left: number;
+    right: number;
+    top: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
+  const [panelContentHeight, setPanelContentHeight] = useState(0);
   const searchInputRef = useRef<InputRef | null>(null);
   const searchBlurTimerRef = useRef<number | null>(null);
+  const moduleMenuShellRef = useRef<HTMLDivElement | null>(null);
+  const panelContentRef = useRef<HTMLDivElement>(null);
 
   const clearSearchBlurTimer = useCallback(() => {
     if (searchBlurTimerRef.current === null) {
@@ -170,6 +200,35 @@ export const ModuleHeader = ({
     });
   }, [openSearchDropdown]);
 
+  const syncPanelMetrics = useCallback(() => {
+    const anchorRect = readAnchorRect(moduleMenuShellRef.current);
+    const geometry = resolveSharedPanelGeometry(anchorRect);
+    if (!geometry) {
+      setPanelMetrics(null);
+      return;
+    }
+
+    setPanelMetrics({
+      ...geometry,
+      maxHeight: resolveSharedPanelMaxHeight(window.innerHeight, geometry.top, PANEL_VIEWPORT_GAP),
+    });
+  }, []);
+
+  const openModule = useMemo(
+    () => resolvedModules.find((module) => module.key === openModuleKey) ?? null,
+    [openModuleKey, resolvedModules],
+  );
+
+  const visiblePanelHeight = useMemo(() => {
+    if (!openModule) {
+      return 0;
+    }
+    return resolveSharedPanelVisibleHeight(
+      panelContentHeight,
+      panelMetrics?.maxHeight ?? panelContentHeight,
+    );
+  }, [openModule, panelContentHeight, panelMetrics]);
+
   const handleSearchInputKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key === 'Escape') {
@@ -189,9 +248,73 @@ export const ModuleHeader = ({
   useEffect(() => {
     setOpenModuleKey(null);
     closeSearchDropdown();
-  }, [activeModuleKey, closeSearchDropdown]);
+  }, [closeSearchDropdown, currentPath]);
 
   useEffect(() => () => clearSearchBlurTimer(), [clearSearchBlurTimer]);
+
+  useEffect(() => {
+    if (!openModuleKey) {
+      setPanelMetrics(null);
+      return;
+    }
+
+    syncPanelMetrics();
+    const shell = moduleMenuShellRef.current;
+    if (!shell) {
+      return;
+    }
+
+    const observer = new ResizeObserver(syncPanelMetrics);
+    observer.observe(shell);
+    window.addEventListener('resize', syncPanelMetrics);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncPanelMetrics);
+    };
+  }, [openModuleKey, syncPanelMetrics]);
+
+  useEffect(() => {
+    const content = panelContentRef.current;
+    if (!openModule || !content) {
+      setPanelContentHeight(0);
+      return;
+    }
+
+    const syncHeight = () => {
+      setPanelContentHeight(content.scrollHeight);
+    };
+
+    syncHeight();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(content);
+    window.addEventListener('resize', syncHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncHeight);
+    };
+  }, [openModule, panelMetrics?.width]);
+
+  useEffect(() => {
+    if (!openModuleKey) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (moduleMenuShellRef.current?.contains(target)) {
+        return;
+      }
+      setOpenModuleKey(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [openModuleKey]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -227,6 +350,7 @@ export const ModuleHeader = ({
     () => (
       <Input
         ref={searchInputRef}
+        aria-label="Function search input"
         placeholder="搜功能"
         size="small"
         value={searchValue}
@@ -245,91 +369,90 @@ export const ModuleHeader = ({
         onKeyDown={handleSearchInputKeyDown}
       />
     ),
-    [
-      clearSearchBlurTimer,
-      handleSearchInputKeyDown,
-      openSearchDropdown,
-      searchValue,
-    ],
+    [clearSearchBlurTimer, handleSearchInputKeyDown, openSearchDropdown, searchValue],
   );
 
   return (
     <div className="workbench-header-row workbench-header-primary">
       <div className="workbench-logo">{logo ?? '衡策云'}</div>
-      <div className="workbench-module-menu">
-        {resolvedModules.map((module) => {
-          const groups = module.groups ?? [];
-          const hasGroups = groups.length > 0;
-          const isOpen = openModuleKey === module.key;
-          const moduleLeafPaths = Array.from(
-            new Set(
-              groups.flatMap((group) => group.items.map((item) => item.path)).concat(
-                module.defaultPath ? [module.defaultPath] : [],
-              ),
-            ),
-          );
-          const button = (
-            <button
-              key={module.key}
-              className={`workbench-module-item ${
-                activeModuleKey === module.key || isOpen ? 'active' : ''
-              }`}
-              onClick={() => {
-                if (!hasGroups && module.defaultPath) {
-                  onModuleClick(module.defaultPath);
-                }
-              }}
-              onMouseEnter={() => {
-                if (moduleLeafPaths.length > 0) {
-                  onModuleIntent?.(moduleLeafPaths, 'hover');
-                }
-              }}
-              onFocus={() => {
-                if (moduleLeafPaths.length > 0) {
-                  onModuleIntent?.(moduleLeafPaths, 'hover');
-                }
-              }}
-              type="button"
-              disabled={!hasGroups && !module.defaultPath}
-              aria-expanded={hasGroups ? isOpen : undefined}
-            >
-              {module.label}
-            </button>
-          );
+      <div
+        className="workbench-module-menu-shell"
+        ref={moduleMenuShellRef}
+        data-testid="workbench-module-menu-anchor"
+      >
+        <div className="workbench-module-menu">
+          {resolvedModules.map((module) => {
+            const hasGroups = module.groups.length > 0;
+            const isOpen = openModuleKey === module.key;
+            const buttonClassName = `workbench-module-item ${
+              activeModuleKey === module.key || isOpen ? 'active' : ''
+            }`;
 
-          if (!hasGroups) {
-            return button;
-          }
+            return (
+              <button
+                key={module.key}
+                type="button"
+                className={buttonClassName}
+                data-testid={`module-trigger-${module.key}`}
+                aria-expanded={hasGroups ? isOpen : undefined}
+                aria-controls={hasGroups ? 'workbench-shared-module-panel' : undefined}
+                onClick={() => {
+                  const nextState = resolveSharedPanelToggle(openModuleKey, module);
+                  setOpenModuleKey(nextState.nextOpenModuleKey);
 
-          return (
-            <Popover
-              key={module.key}
-              trigger="click"
-              placement="bottomLeft"
-              rootClassName="workbench-module-popover"
-              overlayClassName="workbench-module-popover"
-              open={isOpen}
-              onOpenChange={(nextOpen) => {
-                setOpenModuleKey(nextOpen ? module.key : null);
-                if (nextOpen && moduleLeafPaths.length > 0) {
-                  onModuleIntent?.(moduleLeafPaths, 'open');
-                }
+                  if (nextState.nextOpenModuleKey && module.leafPaths.length > 0) {
+                    onModuleIntent?.(module.leafPaths, 'open');
+                  }
+
+                  if (nextState.navigateTo) {
+                    onModuleClick(nextState.navigateTo);
+                  }
+                }}
+                onMouseEnter={() => {
+                  if (module.leafPaths.length > 0) {
+                    onModuleIntent?.(module.leafPaths, 'hover');
+                  }
+                }}
+                onFocus={() => {
+                  if (module.leafPaths.length > 0) {
+                    onModuleIntent?.(module.leafPaths, 'hover');
+                  }
+                }}
+                disabled={!hasGroups && !module.defaultPath}
+              >
+                {module.label}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          id="workbench-shared-module-panel"
+          className={`workbench-module-panel-shell${openModule ? ' is-open' : ''}`}
+          data-open-module-key={openModule?.key ?? ''}
+          data-panel-left={panelMetrics ? Math.round(panelMetrics.left) : undefined}
+          data-panel-right={panelMetrics ? Math.round(panelMetrics.right) : undefined}
+          data-panel-top={panelMetrics ? Math.round(panelMetrics.top) : undefined}
+          data-panel-width={panelMetrics ? Math.round(panelMetrics.width) : undefined}
+          data-panel-height={openModule ? Math.round(visiblePanelHeight) : 0}
+          style={{
+            height: openModule ? visiblePanelHeight : 0,
+            opacity: openModule ? 1 : 0,
+            top: `calc(100% + ${SHARED_SUBMENU_VERTICAL_GAP}px)`,
+          }}
+        >
+          {openModule ? (
+            <ModulePanel
+              contentRef={panelContentRef}
+              groups={openModule.groups}
+              currentPath={currentPath}
+              maxHeight={panelMetrics?.maxHeight}
+              onSelect={(path) => {
+                setOpenModuleKey(null);
+                onModuleClick(path);
               }}
-              content={
-                <ModulePanel
-                  groups={groups}
-                  currentPath={currentPath}
-                  onSelect={(path) => {
-                    setOpenModuleKey(null);
-                    onModuleClick(path);
-                  }}
-                />
-              }
-            >
-              {button}
-            </Popover>
-          );
-        })}
+            />
+          ) : null}
+        </div>
       </div>
       <div className="workbench-function-search">
         <div className="workbench-function-search-control">
@@ -371,6 +494,7 @@ export const ModuleHeader = ({
               size="small"
               type="default"
               icon={<SearchOutlined />}
+              aria-label="Function search"
               className="workbench-function-search-button"
               data-testid="workbench-function-search-button"
               onClick={() => {
@@ -392,6 +516,7 @@ export const ModuleHeader = ({
                 size="small"
                 type="text"
                 icon={<ColumnHeightOutlined />}
+                aria-label={denseMode ? 'Disable compact mode' : 'Enable compact mode'}
                 onClick={onToggleDense}
                 className={`dense-toggle ${denseMode ? 'active' : ''}`}
                 aria-pressed={denseMode}
@@ -399,21 +524,23 @@ export const ModuleHeader = ({
             </Tooltip>
           ) : null}
           <Tooltip title="通知">
-            <Button size="small" type="text" icon={<BellOutlined />} />
+            <Button size="small" type="text" icon={<BellOutlined />} aria-label="Notifications" />
           </Tooltip>
           <Tooltip title="设置">
-            <Button size="small" type="text" icon={<SettingOutlined />} />
+            <Button size="small" type="text" icon={<SettingOutlined />} aria-label="Settings" />
           </Tooltip>
           <Tooltip title="退出登录">
-            <Button size="small" type="text" icon={<LogoutOutlined />} onClick={onLogout} />
+            <Button size="small" type="text" icon={<LogoutOutlined />} onClick={onLogout} aria-label="Sign out" />
           </Tooltip>
         </Space>
         <Dropdown menu={{ items: userMenuItems, onClick: onUserMenuClick }}>
-          <Space size={6} style={{ cursor: 'pointer' }}>
-            <Avatar size={24}>{userName.slice(0, 1).toUpperCase()}</Avatar>
-            <span>{userName}</span>
-            <DownOutlined />
-          </Space>
+          <Button type="text" className="workbench-user-trigger" aria-label={`User menu: ${userName}`}>
+            <Space size={6}>
+              <Avatar size={24}>{userName.slice(0, 1).toUpperCase()}</Avatar>
+              <span>{userName}</span>
+              <DownOutlined aria-hidden="true" />
+            </Space>
+          </Button>
         </Dropdown>
       </div>
     </div>

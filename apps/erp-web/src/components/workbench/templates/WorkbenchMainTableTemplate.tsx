@@ -7,8 +7,6 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useWorkbenchPanelsOptional } from '@/app/layout/workbenchPanels';
 import { UiModule03TableFooter } from '@/components/ui-modules';
 
-import { WorkbenchPageTemplate } from './WorkbenchPageTemplate';
-
 const hasOwn = Object.prototype.hasOwnProperty;
 
 type WorkbenchMainTableTemplateProps = {
@@ -175,19 +173,18 @@ export const WorkbenchMainTableTemplate = (props: WorkbenchMainTableTemplateProp
   );
 
   return (
-    <WorkbenchPageTemplate
-      className={className}
-      toolbar={resolvedToolbar}
-      mainContent={
-        <>
+    <div className={['order-workbench-page', className].filter(Boolean).join(' ')}>
+      {resolvedToolbar}
+      <div className="order-workbench-body">
+        <div className="order-workbench-main">
           {header ? <div className="order-workbench-header">{header}</div> : null}
           <div className={resolvedTableClassName} ref={handleTableContainerRef}>
             {tableContent}
             {resolvedTableFooter}
           </div>
           {actionBar ? <div className="order-workbench-action">{actionBar}</div> : null}
-        </>
-      }
-    />
+        </div>
+      </div>
+    </div>
   );
 };

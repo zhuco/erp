@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
+﻿import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { InboundDocItem } from '@/api/inbounds';
 import { createOperationId, getInboundDetail, inspectInbound } from '@/api/inbounds';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -21,9 +21,9 @@ type InspectLine = {
 };
 
 const resultOptions = [
-  { label: '合格', value: 'PASSED' },
+  { label: '鍚堟牸', value: 'PASSED' },
   { label: '不合格', value: 'FAILED' },
-  { label: '待复检', value: 'PENDING' }
+  { label: '寰呭妫€', value: 'PENDING' }
 ];
 
 const createLineId = () => `line-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -62,7 +62,7 @@ export const InboundInspectPage = () => {
       navigate(`/wms/inbounds/${doc_id}`);
     },
     onError: (err) => {
-      message.error(err instanceof Error ? err.message : '质检提交失败');
+      message.error(err instanceof Error ? err.message : '璐ㄦ鎻愪氦澶辫触');
     }
   });
 
@@ -79,9 +79,9 @@ export const InboundInspectPage = () => {
   const inboundItemColumns = useMemo<ColumnsType<InboundDocItem>>(
     () => [
       { title: 'SKU ID', dataIndex: 'sku_id' },
-      { title: 'SKU 编码', dataIndex: 'sku_code' },
-      { title: '条码', dataIndex: 'barcode' },
-      { title: '计划数量', dataIndex: 'planned_qty' },
+      { title: 'SKU 缂栫爜', dataIndex: 'sku_code' },
+      { title: '鏉＄爜', dataIndex: 'barcode' },
+      { title: '璁″垝鏁伴噺', dataIndex: 'planned_qty' },
       { title: '已收货', dataIndex: 'received_qty' },
       { title: '已上架', dataIndex: 'putaway_qty' }
     ],
@@ -91,15 +91,15 @@ export const InboundInspectPage = () => {
   const inspectLineColumns = useMemo<ColumnsType<InspectLine>>(
     () => [
       { title: 'SKU', dataIndex: 'sku_id' },
-      { title: '数量', dataIndex: 'qty' },
+      { title: '鏁伴噺', dataIndex: 'qty' },
       {
-        title: '结果',
+        title: '缁撴灉',
         dataIndex: 'result',
         render: (value) => resultOptions.find((item) => item.value === value)?.label ?? value
       },
-      { title: '备注', dataIndex: 'note', render: (value) => value ?? '-' },
+      { title: '澶囨敞', dataIndex: 'note', render: (value) => value ?? '-' },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Button
@@ -109,7 +109,7 @@ export const InboundInspectPage = () => {
               setInspectLines((prev) => prev.filter((line) => line.line_id !== record.line_id))
             }
           >
-            移除
+            绉婚櫎
           </Button>
         )
       }
@@ -120,7 +120,7 @@ export const InboundInspectPage = () => {
   if (detailQuery.error) {
     return (
       <ErrorState
-        title="质检数据加载失败"
+        title="璐ㄦ鏁版嵁鍔犺浇澶辫触"
         error={detailQuery.error}
         onRetry={() => detailQuery.refetch()}
       />
@@ -138,7 +138,7 @@ export const InboundInspectPage = () => {
       return;
     }
     if (!detail.items.find((item) => item.sku_id === values.sku_id)) {
-      message.warning('SKU 不在入库单范围内');
+      message.warning('SKU 涓嶅湪鍏ュ簱鍗曡寖鍥村唴');
       return;
     }
     setInspectLines((prev) => [
@@ -156,11 +156,11 @@ export const InboundInspectPage = () => {
 
   const handleSubmitInspect = () => {
     if (!canWrite) {
-      message.error('暂无入库操作权限');
+      message.error('鏆傛棤鍏ュ簱鎿嶄綔鏉冮檺');
       return;
     }
     if (!inspectLines.length) {
-      message.warning('请先录入质检明细');
+      message.warning('璇峰厛褰曞叆璐ㄦ鏄庣粏');
       return;
     }
     inspectMutation.mutate({ docId: doc_id, items: inspectLines });
@@ -169,23 +169,23 @@ export const InboundInspectPage = () => {
   const toolbarLeft = (
     <Space align="center" size={12} wrap>
       <Typography.Title level={3} data-testid="inbound-inspect-title" style={{ margin: 0 }}>
-        入库质检
+        鍏ュ簱璐ㄦ
       </Typography.Title>
-      <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>返回详情</Button>
+      <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>杩斿洖璇︽儏</Button>
       <Button
         type="primary"
         disabled={!canWrite}
         onClick={handleSubmitInspect}
         loading={inspectMutation.isPending}
       >
-        提交质检
+        鎻愪氦璐ㄦ
       </Button>
     </Space>
   );
 
   const tableContent = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="入库明细">
+      <Card title="鍏ュ簱鏄庣粏">
         <Table<InboundDocItem>
           data-testid="inbound-inspect-items"
           rowKey={(record) => record.sku_id}
@@ -194,34 +194,34 @@ export const InboundInspectPage = () => {
           pagination={false}
         />
       </Card>
-      <Card title="质检登记">
+      <Card title="璐ㄦ鐧昏">
         <Form form={inspectForm} layout="inline" style={{ marginBottom: 12 }}>
-          <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
+          <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
             <Select
               allowClear
               disabled={!canWrite}
-              placeholder="选择 SKU"
+              placeholder="閫夋嫨 SKU"
               options={skuOptions}
               style={{ width: 240 }}
             />
           </Form.Item>
           <Form.Item name="qty" rules={[{ required: true, message: '请输入数量' }]}>
-            <InputNumber min={1} disabled={!canWrite} placeholder="数量" />
+            <InputNumber min={1} disabled={!canWrite} placeholder="鏁伴噺" />
           </Form.Item>
-          <Form.Item name="result" rules={[{ required: true, message: '请选择结果' }]}>
+          <Form.Item name="result" rules={[{ required: true, message: '璇烽€夋嫨缁撴灉' }]}>
             <Select
               disabled={!canWrite}
               options={resultOptions}
-              placeholder="结果"
+              placeholder="缁撴灉"
               style={{ width: 160 }}
             />
           </Form.Item>
           <Form.Item name="note">
-            <Input disabled={!canWrite} placeholder="备注" />
+            <Input disabled={!canWrite} placeholder="澶囨敞" />
           </Form.Item>
           <Form.Item>
             <Button disabled={!canWrite} onClick={handleAddInspectLine}>
-              添加
+              娣诲姞
             </Button>
           </Form.Item>
         </Form>
@@ -230,11 +230,12 @@ export const InboundInspectPage = () => {
           columns={inspectLineColumns}
           dataSource={inspectLines}
           pagination={false}
-          locale={{ emptyText: '暂无质检明细' }}
+          locale={{ emptyText: '鏆傛棤璐ㄦ鏄庣粏' }}
         />
       </Card>
     </Space>
   );
 
-  return <UiModule02WorkbenchTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
 };
+

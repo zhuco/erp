@@ -411,22 +411,39 @@ export const appMenuItems: AppMenuItem[] = [
     ],
   },
   {
-    name: '分析',
+    name: '洞察',
     icon: <BarChartOutlined />,
     feature: 'ui.enable_stats',
     children: [
-      group('销售分析', [
-        leaf('/stats/sales', '销售统计', { permission: 'stats.read' }),
-        leaf('/stats/sales-daily', '销售日报表', { permission: 'stats.read' }),
-        leaf('/stats/sales-trends', '销售趋势分析', { permission: 'stats.read' }),
-        leaf('/stats/slow-moving', '滞销分析', { permission: 'stats.read' }),
-        leaf('/stats/best-sellers', '畅销分析', { permission: 'stats.read' }),
-        leaf('/stats/sales-cycle', '销售周期', { permission: 'stats.read' }),
+      group('总览快报', [
+        leaf('/insights/revenue/overview', '交易总览', { permission: 'stats.read' }),
+        leaf('/insights/revenue/daily-brief', '营运日报', { permission: 'stats.read' }),
       ]),
-      group('履约分析', [leaf('/stats/shipping', '发货统计', { permission: 'stats.read' })]),
-      group('数据输出', [
-        leaf('/reports', '经营分析报表', { permission: 'reports.read' }),
-        leaf('/exports', '导出任务', { permission: 'exports.read' }),
+      group('收入与订单质量', [
+        leaf('/insights/revenue/trend-radar', '增长雷达', { permission: 'stats.read' }),
+        leaf('/insights/revenue/order-mix', '订单结构', { permission: 'stats.read' }),
+        leaf('/insights/revenue/discount-insight', '让利诊断', { permission: 'stats.read' }),
+      ]),
+      group('履约与仓配效率', [
+        leaf('/insights/fulfillment/lead-time', '履约时效', { permission: 'stats.read' }),
+        leaf('/insights/fulfillment/order-cycle', '订单履约周期', { permission: 'stats.read' }),
+        leaf('/insights/fulfillment/operation-ledger', '收发作业流水', {
+          permission: 'stats.read',
+        }),
+      ]),
+      group('商品结构与生命周期', [
+        leaf('/insights/catalog/hot-sku', '爆品热度', { permission: 'stats.read' }),
+        leaf('/insights/catalog/slow-sku', '长尾沉积', { permission: 'stats.read' }),
+      ]),
+      group('库存健康与调拨', [
+        leaf('/insights/inventory/stock-balance', '收发存总览', { permission: 'reports.read' }),
+      ]),
+      group('售后与补偿治理', [
+        leaf('/insights/service/compensation', '补偿看板', { permission: 'stats.read' }),
+      ]),
+      group('报表与导出工坊', [
+        leaf('/insights/workbench/report-center', '报表中心', { permission: 'reports.read' }),
+        leaf('/insights/workbench/export-queue', '导出队列', { permission: 'exports.read' }),
       ]),
     ],
   },

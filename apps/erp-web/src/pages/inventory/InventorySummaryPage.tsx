@@ -821,14 +821,14 @@ export const InventorySummaryPage = () => {
                 <Typography.Text type="secondary">暂无</Typography.Text>
               )}
               <Tooltip title="功能建设中">
-                <Button size="small" type="text" icon={<PlusOutlined />} />
+                <Button size="small" type="text" icon={<PlusOutlined />} aria-label="Add product tag" />
               </Tooltip>
             </div>
             <div className="inventory-summary-detail-tags">
               <span>规格标记</span>
               <Tag>SKU</Tag>
               <Tooltip title="功能建设中">
-                <Button size="small" type="text" icon={<PlusOutlined />} />
+                <Button size="small" type="text" icon={<PlusOutlined />} aria-label="Add spec tag" />
               </Tooltip>
             </div>
           </Space>

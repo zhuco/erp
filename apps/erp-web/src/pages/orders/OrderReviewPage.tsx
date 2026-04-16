@@ -3,7 +3,7 @@
 import { Button, InputNumber, Modal, Space, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import type { GridApi } from 'ag-grid-community';
-import type { Key } from 'react';
+import type { Dispatch, Key, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +27,7 @@ import { listWarehouses } from '@/api/warehouses';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
   WorkbenchMainTableTemplate,
+  useWorkbenchSavedViewState,
   WorkbenchToolbarTemplate,
   useWorkbenchTablePagination,
 } from '@/components/workbench/templates';
@@ -40,6 +41,7 @@ import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftMode
 import { useLeftFilterModule, type LeftFilterPanelProps } from '@/pages/orders/shared/useLeftFilterModule';
 import { fetchAllOrdersByScan } from '@/pages/orders/shared/fetchAllOrdersByScan';
 import { useCan } from '@/features/rbac';
+import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
 
 import { OrderReviewBottomPanel } from './review-native/OrderReviewBottomPanel';
@@ -60,12 +62,13 @@ import {
 } from './review-native/orderReviewGridActions';
 import {
   buildOrderReviewLeftCheckedKeys,
+  clearOrderReviewMainGridColumnFilters,
   hasOrderReviewLeftManualFilter,
   reduceOrderReviewFiltersByNode,
 } from './review-native/orderReviewLeftInteractions';
 import { hasMainGridColumnFilters } from './review-native/OrderReviewGridFilters';
 import { OrderReviewLeftPanel } from './review-native/OrderReviewLeftPanel';
-import { OrderReviewMainGrid } from './review-native/OrderReviewMainGrid';
+import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';
 import {
   resolveToolbarActionOrderIds,
   runMergeOrdersAction,
@@ -338,8 +341,108 @@ const exceptionTypeOptions: Array<{
   { key: 'refundReturn', label: '有退款退货' },
 ];
 
+type OrderReviewSavedViewState = {
+  searchInput?: string;
+  searchKeyword?: string;
+  quickFilterExpanded?: boolean;
+  columnFilters?: ColumnFilters;
+  leftScreenFiltersDraft?: UiModule08StrategyScreenFilterState;
+  leftScreenFiltersApplied?: UiModule08StrategyScreenFilterState;
+  selectedRowKeys?: string[];
+  focusedOrderKey?: string | null;
+  selectionAnchorKey?: string | null;
+  activeOrderKey?: string | null;
+};
+
+const normalizePersistedString = (value: unknown) => String(value ?? '').trim();
+const normalizePersistedNullableString = (value: unknown) => normalizePersistedString(value) || null;
+
+const normalizePersistedStringArray = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = Array.from(
+    new Set(
+      value
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean),
+    ),
+  );
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const filterOrderReviewSelectionKeys = (rows: OrderSummary[], keys: Key[]) => {
+  const existingKeys = new Set(rows.map((row) => resolveOrderRowKey(row)).filter(Boolean));
+  return keys
+    .map((key) => String(key ?? '').trim())
+    .filter((key, index, values) => Boolean(key) && values.indexOf(key) === index && existingKeys.has(key));
+};
+
+const normalizePersistedOrderReviewColumnFilters = (value: unknown): ColumnFilters => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const source = value as Record<string, unknown>;
+
+  return {
+    platform: normalizePersistedStringArray(source.platform),
+    shopId: normalizePersistedStringArray(source.shopId),
+    orderIdKeyword: normalizePersistedString(source.orderIdKeyword) || undefined,
+    platformOrderIdKeyword: normalizePersistedString(source.platformOrderIdKeyword) || undefined,
+    receiverNameKeyword: normalizePersistedString(source.receiverNameKeyword) || undefined,
+    receiverPhoneKeyword: normalizePersistedString(source.receiverPhoneKeyword) || undefined,
+    createdAtFrom: normalizePersistedString(source.createdAtFrom) || undefined,
+    createdAtTo: normalizePersistedString(source.createdAtTo) || undefined,
+    status: normalizePersistedStringArray(source.status) as ColumnFilters['status'],
+    timeRange: normalizePersistedStringArray(source.timeRange) as ColumnFilters['timeRange'],
+    exceptionType: normalizePersistedStringArray(source.exceptionType) as ColumnFilters['exceptionType'],
+    warehouseId: normalizePersistedStringArray(source.warehouseId),
+    logisticsCompany: normalizePersistedStringArray(source.logisticsCompany),
+    remarkState: normalizePersistedStringArray(source.remarkState) as ColumnFilters['remarkState'],
+    tagState: normalizePersistedStringArray(source.tagState) as ColumnFilters['tagState'],
+  };
+};
+
+const normalizePersistedOrderReviewScreenFilters = (value: unknown): UiModule08StrategyScreenFilterState => {
+  const defaults = createUiModule08StrategyScreenFilterState();
+  if (!value || typeof value !== 'object') {
+    return defaults;
+  }
+  const source = value as Partial<UiModule08StrategyScreenFilterState>;
+
+  return {
+    ...defaults,
+    orderQuery: normalizePersistedString(source.orderQuery),
+    salesChannel: normalizePersistedString(source.salesChannel),
+    warehouse: normalizePersistedString(source.warehouse),
+    createdFrom: normalizePersistedString(source.createdFrom),
+    createdTo: normalizePersistedString(source.createdTo),
+    customerRemark:
+      source.customerRemark === 'has' ||
+      source.customerRemark === 'none' ||
+      source.customerRemark === 'exclude'
+        ? source.customerRemark
+        : 'any',
+    serviceRemark:
+      source.serviceRemark === 'has' ||
+      source.serviceRemark === 'none' ||
+      source.serviceRemark === 'exclude'
+        ? source.serviceRemark
+        : 'any',
+    orderTag: normalizePersistedString(source.orderTag),
+    excludedTag: normalizePersistedString(source.excludedTag),
+    carrierLoss: normalizePersistedString(source.carrierLoss),
+    regionScope: source.regionScope === 'exclude' ? 'exclude' : 'all',
+    regionKeyword: normalizePersistedString(source.regionKeyword),
+    orderType: normalizePersistedString(source.orderType),
+    includeSkuMode: source.includeSkuMode === 'all' ? 'all' : 'any',
+    includeSkuKeyword: normalizePersistedString(source.includeSkuKeyword),
+  };
+};
+
 export const OrderReviewPage = () => {
   const tenantId = useTenantId();
+  const userId = useSessionStore((state) => state.userId);
   const canWriteOrders = useCan('orders.write');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -365,6 +468,7 @@ export const OrderReviewPage = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
   const [selectionAnchorKey, setSelectionAnchorKey] = useState<string | null>(null);
+  const [activeOrderKey, setActiveOrderKey] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderSummary | null>(null);
 
   const [leftScreenFiltersDraft, setLeftScreenFiltersDraft] = useState<UiModule08StrategyScreenFilterState>(() =>
@@ -387,12 +491,94 @@ export const OrderReviewPage = () => {
     split: false,
   });
 
+  const reviewSavedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.savedView.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderSummary> | null>(null);
   const fetchStartedAtRef = useRef<number | null>(null);
   const hasInitializedActiveOrderRef = useRef(false);
   const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
   const [loadCycle, setLoadCycle] = useState(0);
+
+  const hydrateReviewSavedView = useCallback((parsed: OrderReviewSavedViewState) => {
+    if (typeof parsed.searchInput === 'string') {
+      setSearchInput(parsed.searchInput);
+    }
+    if (typeof parsed.searchKeyword === 'string') {
+      setSearchKeyword(parsed.searchKeyword);
+    }
+    if (typeof parsed.quickFilterExpanded === 'boolean') {
+      setQuickFilterExpanded(parsed.quickFilterExpanded);
+    }
+    if (parsed.columnFilters) {
+      setColumnFilters(normalizePersistedOrderReviewColumnFilters(parsed.columnFilters));
+    }
+    if (parsed.leftScreenFiltersDraft) {
+      setLeftScreenFiltersDraft(normalizePersistedOrderReviewScreenFilters(parsed.leftScreenFiltersDraft));
+    }
+    if (parsed.leftScreenFiltersApplied) {
+      setLeftScreenFiltersApplied(
+        normalizePersistedOrderReviewScreenFilters(parsed.leftScreenFiltersApplied),
+      );
+    }
+    if (parsed.selectedRowKeys) {
+      setSelectedRowKeys(normalizePersistedStringArray(parsed.selectedRowKeys) ?? []);
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'focusedOrderKey')) {
+      setFocusedOrderKey(normalizePersistedNullableString(parsed.focusedOrderKey));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'selectionAnchorKey')) {
+      setSelectionAnchorKey(normalizePersistedNullableString(parsed.selectionAnchorKey));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'activeOrderKey')) {
+      const nextActiveOrderKey =
+        normalizePersistedNullableString(parsed.activeOrderKey) ??
+        normalizePersistedNullableString(parsed.focusedOrderKey);
+      setActiveOrderKey(nextActiveOrderKey);
+      if (nextActiveOrderKey) {
+        hasInitializedActiveOrderRef.current = true;
+      }
+    }
+  }, []);
+
+  const serializeReviewSavedView = useCallback(
+    (): OrderReviewSavedViewState => ({
+      searchInput,
+      searchKeyword,
+      quickFilterExpanded,
+      columnFilters,
+      leftScreenFiltersDraft,
+      leftScreenFiltersApplied,
+      selectedRowKeys: selectedRowKeys.map((item) => String(item)),
+      focusedOrderKey,
+      selectionAnchorKey,
+      activeOrderKey: resolveOrderRowKey(activeOrder) || activeOrderKey,
+    }),
+    [
+      activeOrder,
+      activeOrderKey,
+      columnFilters,
+      focusedOrderKey,
+      leftScreenFiltersApplied,
+      leftScreenFiltersDraft,
+      quickFilterExpanded,
+      searchInput,
+      selectedRowKeys,
+      searchKeyword,
+      selectionAnchorKey,
+    ],
+  );
+
+  useWorkbenchSavedViewState<OrderReviewSavedViewState>({
+    storageKey: reviewSavedViewKey,
+    hydrate: hydrateReviewSavedView,
+    serialize: serializeReviewSavedView,
+  });
 
   const { data: shopData } = useQuery({
     queryKey: ['shops', tenantId, 'orders-review-native'],
@@ -609,7 +795,7 @@ export const OrderReviewPage = () => {
   }, [isFetching]);
 
   const serverRows = data?.items ?? [];
-  const sourceRowsForFilter = hasFullScopeColumnFilterActive ? (manualFilterScopeRows ?? []) : serverRows;
+  const sourceRowsForFilter = hasFullScopeColumnFilterActive ? (manualFilterScopeRows ?? serverRows) : serverRows;
 
   const filteredRows = useMemo(() => {
     const selectedPlatformSet = new Set(normalizeMulti(columnFilters.platform));
@@ -799,59 +985,84 @@ export const OrderReviewPage = () => {
 
   useEffect(() => {
     if (!rows.length) {
+      if (isFetching) {
+        return;
+      }
+      setSelectedRowKeys([]);
       setActiveOrder(null);
+      setActiveOrderKey(null);
       setFocusedOrderKey(null);
       return;
     }
+
+    const rowMap = new Map<string, OrderSummary>();
+    rows.forEach((row) => {
+      const key = resolveOrderRowKey(row);
+      if (key) {
+        rowMap.set(key, row);
+      }
+    });
+
+    setSelectedRowKeys((current) => {
+      const next = filterOrderReviewSelectionKeys(rows, current);
+      if (
+        next.length === current.length &&
+        next.every((key, index) => key === String(current[index] ?? ''))
+      ) {
+        return current;
+      }
+      return next;
+    });
+
     const firstKey = resolveOrderRowKey(rows[0]) || null;
-    if (!activeOrder) {
-      if (!hasInitializedActiveOrderRef.current) {
-        hasInitializedActiveOrderRef.current = true;
+    const activeOrderRecordKey = activeOrder ? resolveOrderRowKey(activeOrder) || null : null;
+    const nextActiveOrderKey =
+      (activeOrderRecordKey && rowMap.has(activeOrderRecordKey) && activeOrderRecordKey) ||
+      (activeOrderKey && rowMap.has(activeOrderKey) && activeOrderKey) ||
+      null;
+
+    if (nextActiveOrderKey) {
+      const nextActiveOrder = rowMap.get(nextActiveOrderKey) ?? null;
+      if (!activeOrder || activeOrderRecordKey !== nextActiveOrderKey) {
+        setActiveOrder(nextActiveOrder);
+      }
+      if (activeOrderKey !== nextActiveOrderKey) {
+        setActiveOrderKey(nextActiveOrderKey);
+      }
+      if (!focusedOrderKey || !rowMap.has(focusedOrderKey)) {
+        setFocusedOrderKey(nextActiveOrderKey);
+      }
+      return;
+    }
+
+    if (activeOrder) {
+      setActiveOrder(null);
+    }
+    if (activeOrderKey) {
+      setActiveOrderKey(null);
+    }
+
+    if (!hasInitializedActiveOrderRef.current) {
+      hasInitializedActiveOrderRef.current = true;
+      if (rows[0]) {
         setActiveOrder(rows[0]);
-        if (!focusedOrderKey) {
+        setActiveOrderKey(firstKey);
+        if (!focusedOrderKey || !rowMap.has(focusedOrderKey)) {
           setFocusedOrderKey(firstKey);
         }
-        return;
-      }
-      if (focusedOrderKey) {
-        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-        if (!focusExists) {
-          setFocusedOrderKey(null);
-        }
       }
       return;
     }
 
-    const activeKey = resolveOrderRowKey(activeOrder);
-    const activeExists = Boolean(activeKey) && rows.some((row) => resolveOrderRowKey(row) === activeKey);
-    if (!activeExists) {
-      setActiveOrder(null);
-      if (focusedOrderKey) {
-        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-        if (!focusExists) {
-          setFocusedOrderKey(null);
-        }
-      }
+    if (focusedOrderKey && !rowMap.has(focusedOrderKey)) {
+      setFocusedOrderKey(firstKey);
       return;
     }
 
-    if (focusedOrderKey) {
-      const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-      if (!focusExists) {
-        setFocusedOrderKey(activeKey || null);
-      }
-      return;
-    }
-
-    if (activeKey) {
-      setFocusedOrderKey(activeKey);
-      return;
-    }
-
-    if (firstKey && !focusedOrderKey) {
+    if (!focusedOrderKey && firstKey) {
       setFocusedOrderKey(firstKey);
     }
-  }, [activeOrder, focusedOrderKey, rows]);
+  }, [activeOrder, activeOrderKey, focusedOrderKey, isFetching, rows]);
 
   useEffect(() => {
     if (!selectionAnchorKey) return;
@@ -862,6 +1073,16 @@ export const OrderReviewPage = () => {
   }, [rows, selectionAnchorKey]);
 
   const activeDetailOrderId = useMemo(() => (activeOrder ? resolveOrderActionId(activeOrder) : ''), [activeOrder]);
+
+  useEffect(() => {
+    if (!rows.length) {
+      return;
+    }
+    const nextActiveOrderKey = resolveOrderRowKey(activeOrder);
+    if (nextActiveOrderKey && nextActiveOrderKey !== activeOrderKey) {
+      setActiveOrderKey(nextActiveOrderKey);
+    }
+  }, [activeOrder, activeOrderKey, rows]);
 
   const detailQuery = useQuery({
     queryKey: ['orders-review-native', tenantId, 'detail', activeDetailOrderId],
@@ -1371,10 +1592,22 @@ export const OrderReviewPage = () => {
     ],
   );
 
+  const handleLeftFiltersChange = useCallback<Dispatch<SetStateAction<ColumnFilters>>>(
+    (action) => {
+      setColumnFilters((previous) => (typeof action === 'function' ? action(previous) : action));
+      resetPagination();
+    },
+    [resetPagination],
+  );
+
+  const handleBeforeLeftLeafFilterApply = useCallback(() => {
+    setColumnFilters((previous) => clearOrderReviewMainGridColumnFilters(previous));
+  }, []);
+
   useLeftFilterModule<OrderSummary, ColumnFilters>({
     rows: leftStatsSourceRows,
     filters: columnFilters,
-    onFiltersChange: setColumnFilters,
+    onFiltersChange: handleLeftFiltersChange,
     initialExpandedKeys: ['order-time-group'],
     emptyRowLabel: '无匹配项',
     hasManualFilter: hasOrderReviewLeftManualFilter,
@@ -1383,12 +1616,13 @@ export const OrderReviewPage = () => {
     buildLeftNodes: () => leftNodes,
     reduceFiltersByNode: reduceOrderReviewFiltersByNode,
     renderPanel: renderOrderReviewLeftPanel,
+    onBeforeLeafFilterApply: handleBeforeLeftLeafFilterApply,
   });
 
   const handleMainGridColumnFiltersChange = useCallback((nextFilters: ColumnFilters) => {
     setColumnFilters(nextFilters);
     resetPagination();
-  }, []);
+  }, [resetPagination]);
 
   const handleExportGrid = useCallback(() => {
     const api = mainGridApiRef.current;
@@ -1453,6 +1687,7 @@ export const OrderReviewPage = () => {
 
   const handleMainRowActive = useCallback((record: OrderSummary) => {
     setActiveOrder(record);
+    setActiveOrderKey(resolveOrderRowKey(record) || null);
   }, []);
 
   const handleMainFocus = useCallback((record: OrderSummary) => {
@@ -1475,6 +1710,7 @@ export const OrderReviewPage = () => {
     (record: OrderSummary, event: MouseEvent) => {
       const key = resolveOrderRowKey(record) || null;
       setActiveOrder(record);
+      setActiveOrderKey(key);
       setFocusedOrderKey(key);
       if (key && !selectedRowKeys.some((item) => String(item) === String(key))) {
         setSelectedRowKeys([key]);
@@ -1626,7 +1862,7 @@ export const OrderReviewPage = () => {
         <span>
           总数 {total} 条，本页 {rows.length} 条，已选 {selectedRowKeys.length} 条，已选金额 ¥{moneyValue(selectedAmountCent / 100)}
         </span>
-        <span data-testid="order-review-load-timing" style={{ marginInlineStart: 8 }}>
+        <span className="order-workbench-load-timing" data-testid="order-review-load-timing">
           {isFetching ? '加载中...' : lastFetchDurationMs == null ? '加载耗时 --' : `加载耗时 ${lastFetchDurationMs}ms`}
         </span>
         <span data-testid="order-review-load-cycle" style={{ display: 'none' }}>
@@ -1660,6 +1896,7 @@ export const OrderReviewPage = () => {
           const rowKey = resolveOrderRowKey(current) || null;
           setFocusedOrderKey(rowKey);
           setActiveOrder(current);
+          setActiveOrderKey(rowKey);
         }
         if (key === 'clear-selection') {
           setSelectedRowKeys([]);
@@ -1884,8 +2121,10 @@ export const OrderReviewPage = () => {
       tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <div className="order-review-grid-main">
-          <OrderReviewMainGrid
+          <OrderWorkbenchMainGridEntry
+            variant="review"
             rows={rows}
+            filterOptionRows={sourceRowsForFilter}
             quickFilterExpanded={quickFilterExpanded}
             columnFilters={columnFilters}
             shopOptions={shopOptions}
@@ -1912,7 +2151,7 @@ export const OrderReviewPage = () => {
       total={total}
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
-      showFooterScrollbarRow
+      showFooterScrollbarRow={true}
     />
   );
 

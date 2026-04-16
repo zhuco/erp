@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ColumnFilters } from './types';
 import {
   buildOrderReviewLeftCheckedKeys,
+  clearOrderReviewMainGridColumnFilters,
   hasOrderReviewLeftManualFilter,
   reduceOrderReviewFiltersByNode,
   type OrderReviewLeftFilterNode,
@@ -74,5 +75,29 @@ describe('orderReviewLeftInteractions', () => {
     expect(afterToday.logisticsCompany).toBeUndefined();
     expect(afterToday.remarkState).toBeUndefined();
     expect(afterToday.tagState).toBeUndefined();
+  });
+
+  it('clears main-grid-only column filters before applying a left filter', () => {
+    const previous: ColumnFilters = {
+      platform: ['TAOBAO'],
+      status: ['exception'],
+      orderIdKeyword: 'SO-1001',
+      platformOrderIdKeyword: 'P-2002',
+      receiverNameKeyword: '张三',
+      receiverPhoneKeyword: '13800000000',
+      createdAtFrom: '2026-04-01',
+      createdAtTo: '2026-04-15',
+    };
+
+    expect(clearOrderReviewMainGridColumnFilters(previous)).toEqual({
+      platform: ['TAOBAO'],
+      status: ['exception'],
+      orderIdKeyword: undefined,
+      platformOrderIdKeyword: undefined,
+      receiverNameKeyword: undefined,
+      receiverPhoneKeyword: undefined,
+      createdAtFrom: undefined,
+      createdAtTo: undefined,
+    });
   });
 });

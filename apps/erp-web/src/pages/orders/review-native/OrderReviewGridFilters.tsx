@@ -1,6 +1,6 @@
 ﻿import { DatePicker } from 'antd';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DateFilterModel, FilterModel } from 'ag-grid-community';
 import type { CustomFloatingFilterProps } from 'ag-grid-react';
 
@@ -279,7 +279,17 @@ export const OrderReviewTextFloatingFilter = ({
   placeholder,
   testId,
 }: TextFloatingFilterProps) => {
-  const value = readTextValue(model);
+  const committedValue = readTextValue(model);
+  const [draftValue, setDraftValue] = useState(committedValue);
+
+  useEffect(() => {
+    setDraftValue(committedValue);
+  }, [committedValue]);
+
+  const applyDraftValue = (rawValue: string) => {
+    const normalizedValue = normalizeKeyword(rawValue);
+    onModelChange(normalizeTextModel(normalizedValue));
+  };
 
   return (
     <div
@@ -291,10 +301,36 @@ export const OrderReviewTextFloatingFilter = ({
         className="order-review-floating-filter-text-input"
         data-testid={testId}
         type="text"
-        value={value}
+        aria-label={testId}
+        value={draftValue}
         placeholder={placeholder}
         onChange={(event) => {
-          onModelChange(normalizeTextModel(String(event.target.value ?? '').trim()));
+          setDraftValue(String(event.target.value ?? ''));
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          applyDraftValue((event.currentTarget as HTMLInputElement).value);
+        }}
+        onPaste={(event) => {
+          const pastedText = event.clipboardData?.getData('text') ?? '';
+          if (!pastedText) {
+            const input = event.currentTarget;
+            window.setTimeout(() => {
+              applyDraftValue(input.value);
+              setDraftValue(input.value);
+            }, 0);
+            return;
+          }
+          const input = event.currentTarget;
+          const selectionStart = input.selectionStart ?? input.value.length;
+          const selectionEnd = input.selectionEnd ?? selectionStart;
+          const nextValue = `${input.value.slice(0, selectionStart)}${pastedText}${input.value.slice(selectionEnd)}`;
+          setDraftValue(nextValue);
+          applyDraftValue(nextValue);
         }}
       />
     </div>
@@ -343,6 +379,7 @@ export const OrderReviewDateRangeFloatingFilter = ({
         type="button"
         className="order-review-floating-filter-date-trigger"
         data-testid={triggerTestId}
+        aria-label={triggerTitle}
         title={triggerTitle}
         onClick={(event) => {
           event.preventDefault();

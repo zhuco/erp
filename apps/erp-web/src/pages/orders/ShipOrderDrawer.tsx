@@ -364,6 +364,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
                     <Button
                       type="text"
                       icon={<CopyOutlined />}
+                      aria-label="Copy idempotency key"
                       onClick={handleCopyKey}
                       data-testid="ship-idempotency-copy"
                     />

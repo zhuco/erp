@@ -45,6 +45,13 @@ export const createUiModule08StrategyScreenFilterState = (): UiModule08StrategyS
   includeSkuKeyword: '',
 });
 
+const STRATEGY_SCREEN_ICON_ARIA_LABELS = {
+  settings: 'Filter settings',
+  sync: 'Sync filter settings',
+  regionPicker: 'Select region',
+  skuPicker: 'Select product',
+} as const;
+
 export type UiModule08StrategyScreenFilterChangeHandler = <
   K extends keyof UiModule08StrategyScreenFilterState,
 >(
@@ -72,8 +79,18 @@ export const UiModule08StrategyScreenFilterForm = ({
       <div className="strategy-left-filter-tools">
         <span className="strategy-left-filter-title">筛选条件</span>
         <Space size={2}>
-          <Button type="text" size="small" icon={<SettingOutlined />} />
-          <Button type="text" size="small" icon={<SyncOutlined />} />
+          <Button
+            type="text"
+            size="small"
+            icon={<SettingOutlined />}
+            aria-label={STRATEGY_SCREEN_ICON_ARIA_LABELS.settings}
+          />
+          <Button
+            type="text"
+            size="small"
+            icon={<SyncOutlined />}
+            aria-label={STRATEGY_SCREEN_ICON_ARIA_LABELS.sync}
+          />
         </Space>
       </div>
     ) : null}
@@ -224,7 +241,11 @@ export const UiModule08StrategyScreenFilterForm = ({
           value={value.regionKeyword}
           onChange={(event) => onFieldChange('regionKeyword', event.target.value)}
         />
-        <Button size="small" icon={<EllipsisOutlined />} />
+        <Button
+          size="small"
+          icon={<EllipsisOutlined />}
+          aria-label={STRATEGY_SCREEN_ICON_ARIA_LABELS.regionPicker}
+        />
       </div>
     </div>
     <div className="strategy-filter-field">
@@ -260,7 +281,11 @@ export const UiModule08StrategyScreenFilterForm = ({
           value={value.includeSkuKeyword}
           onChange={(event) => onFieldChange('includeSkuKeyword', event.target.value)}
         />
-        <Button size="small" icon={<EllipsisOutlined />} />
+        <Button
+          size="small"
+          icon={<EllipsisOutlined />}
+          aria-label={STRATEGY_SCREEN_ICON_ARIA_LABELS.skuPicker}
+        />
       </div>
     </div>
     <div className="strategy-left-filter-actions">

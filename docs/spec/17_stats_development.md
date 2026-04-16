@@ -21,6 +21,19 @@
 | `best-sellers` | 畅销分析 | `getBestSellerStats` | 畅销 SKU 指标 |
 | `sales-cycle` | 销售周期 | `getSalesCycleStats` | 履约周期与达成率 |
 
+### 2.3 与洞察域 canonical 功能映射
+| stats_type | 当前页面名 | 重构后功能名 | canonical route |
+| --- | --- | --- | --- |
+| `sales` | 销售统计 | 交易总览 | `/insights/revenue/overview` |
+| `sales-daily` | 销售日报表 | 营运日报 | `/insights/revenue/daily-brief` |
+| `sales-trends` | 销售趋势分析 | 增长雷达 | `/insights/revenue/trend-radar` |
+| `shipping` | 发货统计 | 履约时效 | `/insights/fulfillment/lead-time` |
+| `slow-moving` | 滞销分析 | 长尾沉积 | `/insights/catalog/slow-sku` |
+| `best-sellers` | 畅销分析 | 爆品热度 | `/insights/catalog/hot-sku` |
+| `sales-cycle` | 销售周期 | 订单履约周期 | `/insights/fulfillment/order-cycle` |
+
+> 更完整的功能细化规格见：`F:/erp/docs/spec/18_insights_function_details.md`
+
 ## 3. 请求参数
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

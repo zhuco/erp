@@ -197,7 +197,7 @@ export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsPr
         }}
         tabBarExtraContent={
           <Dropdown menu={{ items: tabActions, onClick: handleTabActionClick }}>
-            <Button size="small" icon={<MoreOutlined />} />
+            <Button size="small" icon={<MoreOutlined />} aria-label="Tab actions" />
           </Dropdown>
         }
       />

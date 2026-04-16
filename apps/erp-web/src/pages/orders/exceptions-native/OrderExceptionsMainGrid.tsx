@@ -5,6 +5,8 @@ import type {
   CellContextMenuEvent,
   ColDef,
   ColumnHeaderContextMenuEvent,
+  FilterChangedEvent,
+  FilterModel,
   GetMainMenuItemsParams,
   GetRowIdParams,
   GridApi,
@@ -26,6 +28,10 @@ import {
   readPersistedAgGridColumnState,
   resolveAgGridMainMenuItems,
 } from '@/components/agGridColumnState';
+import {
+  fulfillmentStatusLabels,
+  reserveStatusLabels,
+} from '@/features/oms-wms-main-chain/statuses';
 import { useSessionStore } from '@/features/sessionStore';
 import { resolveOrderExceptionRowKey } from '@/pages/orders/exceptions-native/orderExceptionsRowKey';
 import {
@@ -40,6 +46,16 @@ import {
   ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS,
 } from '@/pages/orders/shared/agGridWorkbenchStructuralColumns';
 import { useAgGridWorkbenchSelection } from '@/pages/orders/shared/useAgGridWorkbenchSelection';
+import { resolveSelectionDiagnosticsEnabled } from '@/pages/orders/shared/selectionDiagnostics';
+import {
+  buildOrderExceptionsMainGridFilterModel,
+  extractOrderExceptionsMainGridColumnFilters,
+  hasSameOrderExceptionsMainGridColumnFilters,
+  mergeOrderExceptionsFilterOptionsWithCurrentValue,
+  resolveOrderExceptionSlaStatus,
+  resolveOrderExceptionSlaStatusLabel,
+  type OrderExceptionsColumnFilters,
+} from './OrderExceptionsGridFilters';
 
 ModuleRegistry.registerModules([...ORDER_WORKBENCH_ENTERPRISE_MODULES]);
 
@@ -48,11 +64,6 @@ const mainGridStructuralColumnIds = ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS;
 type FilterOption = {
   label: string;
   value: string;
-};
-
-type OrderExceptionSummaryWithSla = OrderExceptionSummary & {
-  sla_status?: string | null;
-  sla_remaining_minutes?: number | null;
 };
 
 type BuildOrderExceptionsMainGridColDefsOptions = {
@@ -68,12 +79,15 @@ type BuildOrderExceptionsMainGridColDefsOptions = {
   resolveExceptionLabel: (status?: string | null) => string;
 };
 
-type OrderExceptionsMainGridProps = {
+export type OrderExceptionsMainGridProps = {
   rows: OrderExceptionSummary[];
+  filterOptionRows: OrderExceptionSummary[];
   quickFilterExpanded: boolean;
+  columnFilters: OrderExceptionsColumnFilters;
   selectedRowKeys: Key[];
   focusedOrderKey: string | null;
   onGridApiChange?: (api: GridApi<OrderExceptionSummary> | null) => void;
+  onColumnFiltersChange: (filters: OrderExceptionsColumnFilters) => void;
   onSelectionChange: (keys: Key[]) => void;
   onRowActive: (record: OrderExceptionSummary) => void;
   onRowDoubleClick: (record: OrderExceptionSummary) => void;
@@ -97,32 +111,32 @@ type SelectionColumnSnapshot = {
   renderedSelectionCellCount: number;
 };
 
-const selectionColumnDiagnosticsEnabled = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const selectionColumnDiagnosticsEnabled = resolveSelectionDiagnosticsEnabled();
 
-const resolveOrderExceptionSlaStatus = (record: OrderExceptionSummary): string => {
-  const raw = String((record as OrderExceptionSummaryWithSla).sla_status ?? '')
-    .trim()
-    .toUpperCase();
-  if (raw === 'OVERDUE') return 'OVERDUE';
-  if (raw === 'DUE_SOON') return 'DUE_SOON';
-  if (raw === 'NORMAL') return 'NORMAL';
-  return 'NORMAL';
+type OrderExceptionSummaryWithOperationalFields = OrderExceptionSummary & {
+  latest_action?: string | null;
+  sla_deadline_at?: string | null;
+  sla_remaining_minutes?: number | null;
 };
 
-const resolveOrderExceptionSlaStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'OVERDUE':
-      return '已超时';
-    case 'DUE_SOON':
-      return '即将超时';
-    case 'NORMAL':
-    default:
-      return '正常';
+const resolveFulfillmentStatusLabel = (status?: string | null) => {
+  const normalized = String(status ?? '').trim().toUpperCase();
+  if (!normalized) {
+    return '-';
   }
+  return fulfillmentStatusLabels[normalized as keyof typeof fulfillmentStatusLabels] ?? normalized;
+};
+
+const resolveReserveStatusLabel = (status?: string | null) => {
+  const normalized = String(status ?? '').trim().toUpperCase();
+  if (!normalized) {
+    return '未预占';
+  }
+  return reserveStatusLabels[normalized as keyof typeof reserveStatusLabels] ?? normalized;
 };
 
 const formatOrderExceptionSlaRemainingMinutes = (record: OrderExceptionSummary): string => {
-  const raw = (record as OrderExceptionSummaryWithSla).sla_remaining_minutes;
+  const raw = (record as OrderExceptionSummaryWithOperationalFields).sla_remaining_minutes;
   if (!Number.isFinite(raw)) {
     return '-';
   }
@@ -135,10 +149,13 @@ const formatOrderExceptionSlaRemainingMinutes = (record: OrderExceptionSummary):
 
 export const OrderExceptionsMainGrid = ({
   rows,
+  filterOptionRows,
   quickFilterExpanded,
+  columnFilters,
   selectedRowKeys,
   focusedOrderKey,
   onGridApiChange,
+  onColumnFiltersChange,
   onSelectionChange,
   onRowActive,
   onRowDoubleClick,
@@ -157,6 +174,7 @@ export const OrderExceptionsMainGrid = ({
   const previousFocusedRowKeyRef = useRef<string | null>(null);
   const [gridApi, setGridApi] = useState<GridApi<OrderExceptionSummary> | null>(null);
   const [selectionColumnSnapshot, setSelectionColumnSnapshot] = useState<SelectionColumnSnapshot | null>(null);
+  const syncingFilterModelRef = useRef(false);
   const syncingSelectionRef = useRef(false);
   const columnStatePersistTimerRef = useRef<number | null>(null);
   const applyingPersistedColumnStateRef = useRef(false);
@@ -181,7 +199,6 @@ export const OrderExceptionsMainGrid = ({
       return;
     }
 
-    targetApi.refreshHeader();
     targetApi.refreshCells({
       force: true,
       columns: ['__erpSelection'],
@@ -349,6 +366,23 @@ export const OrderExceptionsMainGrid = ({
   }, [resetViewportToTop, rows]);
 
   useEffect(() => {
+    if (!gridApi) {
+      return;
+    }
+    const nextFilterModel = buildOrderExceptionsMainGridFilterModel(columnFilters);
+    const currentFilterModel = gridApi.getFilterModel();
+    if (JSON.stringify(currentFilterModel) === JSON.stringify(nextFilterModel)) {
+      return;
+    }
+
+    syncingFilterModelRef.current = true;
+    gridApi.setFilterModel(nextFilterModel);
+    queueMicrotask(() => {
+      syncingFilterModelRef.current = false;
+    });
+  }, [columnFilters, gridApi]);
+
+  useEffect(() => {
     onGridApiChange?.(gridApi);
     return () => {
       onGridApiChange?.(null);
@@ -369,32 +403,68 @@ export const OrderExceptionsMainGrid = ({
   }, []);
 
   const platformOptions = useMemo(
-    () => buildUniqueOptions(rows.map((record) => record.platform), (value) => platformLabel(value)),
-    [buildUniqueOptions, rows],
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.platform), (value) => platformLabel(value)),
+        columnFilters.platform?.[0],
+        (value) => platformLabel(value),
+      ),
+    [buildUniqueOptions, columnFilters.platform, filterOptionRows],
   );
-  const shopOptions = useMemo(() => buildUniqueOptions(rows.map((record) => record.shop_id)), [buildUniqueOptions, rows]);
+  const shopOptions = useMemo(
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.shop_id)),
+        columnFilters.shopId?.[0],
+      ),
+    [buildUniqueOptions, columnFilters.shopId, filterOptionRows],
+  );
   const warehouseOptions = useMemo(
-    () => buildUniqueOptions(rows.map((record) => record.target_warehouse_id), (value) => value || '未指定仓库'),
-    [buildUniqueOptions, rows],
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.target_warehouse_id), (value) => value || '未指定仓库'),
+        columnFilters.warehouseId?.[0],
+        (value) => value || '未指定仓库',
+      ),
+    [buildUniqueOptions, columnFilters.warehouseId, filterOptionRows],
   );
   const auditStatusOptions = useMemo(
-    () => buildUniqueOptions(rows.map((record) => record.audit_status), (value) => resolveAuditLabel(value)),
-    [buildUniqueOptions, resolveAuditLabel, rows],
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.audit_status), (value) => resolveAuditLabel(value)),
+        columnFilters.auditStatus?.[0],
+        (value) => resolveAuditLabel(value),
+      ),
+    [buildUniqueOptions, columnFilters.auditStatus, filterOptionRows, resolveAuditLabel],
   );
   const exceptionStatusOptions = useMemo(
-    () => buildUniqueOptions(rows.map((record) => record.exception_status), (value) => resolveExceptionLabel(value)),
-    [buildUniqueOptions, resolveExceptionLabel, rows],
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.exception_status), (value) => resolveExceptionLabel(value)),
+        columnFilters.exceptionStatus?.[0],
+        (value) => resolveExceptionLabel(value),
+      ),
+    [buildUniqueOptions, columnFilters.exceptionStatus, filterOptionRows, resolveExceptionLabel],
   );
   const slaStatusOptions = useMemo(
     () =>
-      buildUniqueOptions(rows.map((record) => resolveOrderExceptionSlaStatus(record)), (value) =>
-        resolveOrderExceptionSlaStatusLabel(value),
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => resolveOrderExceptionSlaStatus(record)), (value) =>
+          resolveOrderExceptionSlaStatusLabel(value),
+        ),
+        columnFilters.slaStatus?.[0],
+        (value) => resolveOrderExceptionSlaStatusLabel(value),
       ),
-    [buildUniqueOptions, rows],
+    [buildUniqueOptions, columnFilters.slaStatus, filterOptionRows],
   );
   const assigneeOptions = useMemo(
-    () => buildUniqueOptions(rows.map((record) => record.assignee_name), (value) => value || '未分派'),
-    [buildUniqueOptions, rows],
+    () =>
+      mergeOrderExceptionsFilterOptionsWithCurrentValue(
+        buildUniqueOptions(filterOptionRows.map((record) => record.assignee_name), (value) => value || '未分派'),
+        columnFilters.assigneeName?.[0],
+        (value) => value || '未分派',
+      ),
+    [buildUniqueOptions, columnFilters.assigneeName, filterOptionRows],
   );
 
   const emitSelectionKeys = useCallback(
@@ -579,6 +649,30 @@ export const OrderExceptionsMainGrid = ({
     [registerGridApiForTesting],
   );
 
+  const handleFilterChanged = useCallback(
+    (event: FilterChangedEvent<OrderExceptionSummary>) => {
+      event.api.refreshHeader();
+      schedulePersistColumnState(event.api);
+      onDisplayedRowsChange?.(event.api.getDisplayedRowCount());
+      if (syncingFilterModelRef.current) {
+        return;
+      }
+
+      const nextManagedFilters = extractOrderExceptionsMainGridColumnFilters(
+        event.api.getFilterModel() as FilterModel,
+      );
+      const nextFilters = {
+        ...columnFilters,
+        ...nextManagedFilters,
+      };
+      if (hasSameOrderExceptionsMainGridColumnFilters(columnFilters, nextFilters)) {
+        return;
+      }
+      onColumnFiltersChange(nextFilters);
+    },
+    [columnFilters, onColumnFiltersChange, onDisplayedRowsChange, schedulePersistColumnState],
+  );
+
   const handleSelectionChanged = useCallback(
     (event: SelectionChangedEvent<OrderExceptionSummary>) => {
       if (syncingSelectionRef.current) return;
@@ -724,6 +818,7 @@ export const OrderExceptionsMainGrid = ({
           enableCellTextSelection={false}
           preventDefaultOnContextMenu
           rowBuffer={10}
+          enableFilterHandlers
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
@@ -749,10 +844,7 @@ export const OrderExceptionsMainGrid = ({
           onColumnVisible={handleColumnStateChanged}
           onColumnPinned={handleColumnStateChanged}
           onColumnResized={handleColumnStateChanged}
-          onFilterChanged={(event) => {
-            schedulePersistColumnState(event.api);
-            onDisplayedRowsChange?.(event.api.getDisplayedRowCount());
-          }}
+          onFilterChanged={handleFilterChanged}
           onSelectionChanged={handleSelectionChanged}
           onCellClicked={handleCellClicked}
           onCellFocused={handleCellFocused}
@@ -823,10 +915,13 @@ export const buildOrderExceptionsMainGridColDefs = ({
   onToggleAllSelection,
   resolveAuditLabel,
   resolveExceptionLabel,
-}: BuildOrderExceptionsMainGridColDefsOptions): ColDef<OrderExceptionSummary>[] => [
-  ...buildAgGridWorkbenchStructuralColDefs<OrderExceptionSummary>({
-    onToggleAllSelection,
-  }),
+}: BuildOrderExceptionsMainGridColDefsOptions): ColDef<OrderExceptionSummary>[] => {
+  void slaStatusOptions;
+  return [
+    ...buildAgGridWorkbenchStructuralColDefs<OrderExceptionSummary>({
+      onToggleAllSelection,
+      pinLeft: true,
+    }),
   {
     colId: 'order_no',
     headerName: '订单号',
@@ -952,23 +1047,34 @@ export const buildOrderExceptionsMainGridColDefs = ({
     valueFormatter: (params) => resolveExceptionLabel(String(params.value ?? '')),
   },
   {
+    colId: 'fulfillment_status',
+    headerName: '履约状态',
+    field: 'fulfillment_status',
+    width: 126,
+    minWidth: 78,
+    sortable: true,
+    filter: false,
+    valueFormatter: (params) => resolveFulfillmentStatusLabel(String(params.value ?? '')),
+  },
+  {
+    colId: 'reserve_status',
+    headerName: '库存占用',
+    field: 'reserve_status',
+    width: 118,
+    minWidth: 78,
+    sortable: true,
+    filter: false,
+    valueFormatter: (params) => resolveReserveStatusLabel(params.value as string | null | undefined),
+  },
+  {
     colId: 'sla_status',
     headerName: 'SLA 状态',
     width: 112,
     minWidth: 72,
     sortable: true,
-    filter: 'agSetColumnFilter',
+    filter: false,
     filterValueGetter: (params) =>
       params.data ? resolveOrderExceptionSlaStatus(params.data) : 'NORMAL',
-    filterParams: {
-      values: slaStatusOptions.map((option) => option.value),
-    },
-    floatingFilterComponent: OrderReviewSetFloatingFilter,
-    floatingFilterComponentParams: {
-      testId: 'order-exceptions-floating-filter-sla-status',
-      emptyLabel: '全部 SLA 状态',
-      options: slaStatusOptions,
-    },
     valueGetter: (params) =>
       params.data ? resolveOrderExceptionSlaStatus(params.data) : 'NORMAL',
     valueFormatter: (params) => resolveOrderExceptionSlaStatusLabel(String(params.value ?? 'NORMAL')),
@@ -981,6 +1087,20 @@ export const buildOrderExceptionsMainGridColDefs = ({
     sortable: true,
     filter: false,
     valueGetter: (params) => (params.data ? formatOrderExceptionSlaRemainingMinutes(params.data) : '-'),
+  },
+  {
+    colId: 'sla_deadline_at',
+    headerName: 'SLA 截止',
+    width: 156,
+    minWidth: 84,
+    sortable: true,
+    filter: false,
+    valueGetter: (params) =>
+      params.data
+        ? formatDateTime(
+            (params.data as OrderExceptionSummaryWithOperationalFields).sla_deadline_at ?? null,
+          )
+        : '-',
   },
   {
     colId: 'target_warehouse_id',
@@ -1021,6 +1141,19 @@ export const buildOrderExceptionsMainGridColDefs = ({
     valueFormatter: (params) => String(params.value ?? '未分派'),
   },
   {
+    colId: 'latest_action',
+    headerName: '最近处理动作',
+    field: 'latest_action',
+    width: 168,
+    minWidth: 96,
+    sortable: true,
+    filter: false,
+    valueGetter: (params) =>
+      String(
+        (params.data as OrderExceptionSummaryWithOperationalFields | undefined)?.latest_action ?? '-',
+      ),
+  },
+  {
     colId: 'latest_action_at',
     headerName: '最近处理时间',
     field: 'latest_action_at',
@@ -1030,23 +1163,24 @@ export const buildOrderExceptionsMainGridColDefs = ({
     filter: false,
     valueFormatter: (params) => formatDateTime(params.value as string | null | undefined),
   },
-  {
-    colId: 'blocking_reason',
-    headerName: '阻断原因',
-    field: 'blocking_reason',
-    width: 260,
-    minWidth: 100,
-    sortable: true,
-    filter: 'agTextColumnFilter',
-    filterParams: {
-      filterOptions: ['contains'],
-      defaultOption: 'contains',
-      maxNumConditions: 1,
+    {
+      colId: 'blocking_reason',
+      headerName: '阻断原因',
+      field: 'blocking_reason',
+      width: 260,
+      minWidth: 100,
+      sortable: true,
+      filter: 'agTextColumnFilter',
+      filterParams: {
+        filterOptions: ['contains'],
+        defaultOption: 'contains',
+        maxNumConditions: 1,
+      },
+      floatingFilterComponent: OrderReviewTextFloatingFilter,
+      floatingFilterComponentParams: {
+        testId: 'order-exceptions-floating-filter-blocking-reason',
+        placeholder: '筛阻断原因',
+      },
     },
-    floatingFilterComponent: OrderReviewTextFloatingFilter,
-    floatingFilterComponentParams: {
-      testId: 'order-exceptions-floating-filter-blocking-reason',
-      placeholder: '筛阻断原因',
-    },
-  },
-];
+  ];
+};

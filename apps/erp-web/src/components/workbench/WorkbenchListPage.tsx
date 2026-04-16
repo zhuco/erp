@@ -1,10 +1,10 @@
-import { Collapse, Empty, Tabs, Typography } from 'antd';
+﻿import { Collapse, Empty, Tabs, Typography } from 'antd';
 import type { CollapseProps } from 'antd';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo } from 'react';
 
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
 
 import './workbenchListPage.css';
 
@@ -64,28 +64,28 @@ export const WorkbenchListPage = ({
     return [
       {
         key: 'tags',
-        label: '标记',
+        label: '鏍囪',
         children: (
           <div className="workbench-detail-block">
-            <Empty description="暂无标记" />
+            <Empty description="鏆傛棤鏍囪" />
           </div>
         )
       },
       {
         key: 'common',
-        label: '常用功能',
+        label: '甯哥敤鍔熻兘',
         children: (
           <div className="workbench-detail-block">
-            <Empty description="暂无快捷功能" />
+            <Empty description="鏆傛棤蹇嵎鍔熻兘" />
           </div>
         )
       },
       {
         key: 'detail',
-        label: '详情',
+        label: '璇︽儏',
         children: (
           <div className="workbench-detail-block">
-            {detail ?? <Empty description="暂无详情内容" />}
+            {detail ?? <Empty description="鏆傛棤璇︽儏鍐呭" />}
           </div>
         )
       }
@@ -96,13 +96,13 @@ export const WorkbenchListPage = ({
     const filterContent =
       filter ?? left ?? (
         <div className="workbench-left-placeholder">
-          <Typography.Text type="secondary">暂无默认过滤</Typography.Text>
+          <Typography.Text type="secondary">鏆傛棤榛樿杩囨护</Typography.Text>
         </div>
       );
     const queryContent =
       query ?? (
         <div className="workbench-left-placeholder">
-          <Typography.Text type="secondary">暂无表格查询条件</Typography.Text>
+          <Typography.Text type="secondary">鏆傛棤琛ㄦ牸鏌ヨ鏉′欢</Typography.Text>
         </div>
       );
     return (
@@ -110,8 +110,8 @@ export const WorkbenchListPage = ({
         size="small"
         className="workbench-left-tabs"
         items={[
-          { key: 'filters', label: '默认过滤', children: filterContent },
-          { key: 'query', label: '表格查询', children: queryContent }
+          { key: 'filters', label: '榛樿杩囨护', children: filterContent },
+          { key: 'query', label: '琛ㄦ牸鏌ヨ', children: queryContent }
         ]}
       />
     );
@@ -124,7 +124,7 @@ export const WorkbenchListPage = ({
     }
     return (
       <div className="workbench-bottom-placeholder">
-        <Typography.Text type="secondary">请配置底部子表 Tabs</Typography.Text>
+        <Typography.Text type="secondary">璇烽厤缃簳閮ㄥ瓙琛?Tabs</Typography.Text>
       </div>
     );
   }, [bottomTabs, tabs]);
@@ -162,7 +162,7 @@ export const WorkbenchListPage = ({
   ]);
 
   return (
-    <UiModule02WorkbenchTemplate
+    <WorkbenchMainTableTemplate
       className={`workbench-list-page ${className ?? ''}`}
       toolbarLeft={toolbarLeft || toolbarRight ? toolbarLeft : toolbar}
       toolbarRight={toolbarLeft || toolbarRight ? toolbarRight : undefined}
@@ -171,3 +171,4 @@ export const WorkbenchListPage = ({
     />
   );
 };
+

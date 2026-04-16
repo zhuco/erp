@@ -16,7 +16,7 @@ describe('appMenuItems', () => {
       '客户',
       '财务',
       '营销',
-      '分析',
+      '洞察',
       '集成',
       '系统',
     ]);
@@ -85,6 +85,53 @@ describe('appMenuItems', () => {
         '/integrations/print-mappings',
         '/print-jobs',
         '/print-templates',
+      ]),
+    );
+  });
+
+  it('organizes the insights module around business questions instead of raw report lists', () => {
+    const insightsModule = appMenuItems.find((item) => item.name === '洞察');
+    expect(insightsModule).toBeDefined();
+
+    const insightGroups = insightsModule?.children ?? [];
+    expect(insightGroups.map((item) => item.name)).toEqual(
+      expect.arrayContaining([
+        '总览快报',
+        '收入与订单质量',
+        '履约与仓配效率',
+        '商品结构与生命周期',
+        '库存健康与调拨',
+        '售后与补偿治理',
+        '报表与导出工坊',
+      ]),
+    );
+
+    const insightLeafPaths = flattenMenuItems(insightGroups).map((item) => item.path);
+    expect(insightLeafPaths).toEqual(
+      expect.arrayContaining([
+        '/insights/revenue/overview',
+        '/insights/revenue/daily-brief',
+        '/insights/revenue/trend-radar',
+        '/insights/fulfillment/lead-time',
+        '/insights/fulfillment/order-cycle',
+        '/insights/catalog/hot-sku',
+        '/insights/catalog/slow-sku',
+        '/insights/workbench/report-center',
+        '/insights/workbench/export-queue',
+      ]),
+    );
+
+    expect(insightLeafPaths).not.toEqual(
+      expect.arrayContaining([
+        '/stats/sales',
+        '/stats/sales-daily',
+        '/stats/sales-trends',
+        '/stats/shipping',
+        '/stats/slow-moving',
+        '/stats/best-sellers',
+        '/stats/sales-cycle',
+        '/reports',
+        '/exports',
       ]),
     );
   });

@@ -1,11 +1,28 @@
 ﻿import { expect, test, loginAndSelectTenant } from './fixtures';
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 const rowLocator = (grid: Locator) =>
   grid.locator('.erp-data-grid-next__row, .erp-data-grid-row');
 
 const orderRowLocator = (grid: Locator, orderNo: string) =>
   rowLocator(grid).filter({ hasText: orderNo }).first();
+
+const prepareOrdersList = async (page: Page) => {
+  await page.goto('/orders');
+  await loginAndSelectTenant(page);
+  await expect(page.getByTestId('orders-keyword-input')).toBeVisible();
+
+  await page.getByTestId('orders-keyword-input').fill('PLAT-TEST-');
+  const searchButton = page.getByTestId('orders-search-submit');
+  await searchButton.scrollIntoViewIfNeeded();
+  await searchButton.click({ trial: true });
+  await searchButton.click();
+
+  const grid = page.getByTestId('orders-grid');
+  await expect(grid).toBeVisible();
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MANY-ITEMS')).toBeVisible();
+  return grid;
+};
 
 test('orders list filter', async ({ page }) => {
   await page.goto('/orders');
@@ -23,6 +40,75 @@ test('orders list filter', async ({ page }) => {
   const grid = page.getByTestId('orders-grid');
   await expect(grid).toBeVisible();
   await expect(orderRowLocator(grid, 'TEST-ORDER-MANY-ITEMS')).toBeVisible();
+});
+
+test('orders column filter only applies on Enter while typing keeps focus', async ({ page }) => {
+  const grid = await prepareOrdersList(page);
+
+  const platformOrderInput = grid.getByPlaceholder('网店订单号').first();
+  await expect(platformOrderInput).toBeVisible();
+  await expect(orderRowLocator(grid, 'TEST-ORDER-NO-LOGISTICS')).toBeVisible();
+
+  await platformOrderInput.click();
+  await platformOrderInput.fill('M');
+  await page.waitForTimeout(700);
+
+  await expect(platformOrderInput).toBeFocused();
+  await expect(orderRowLocator(grid, 'TEST-ORDER-NO-LOGISTICS')).toBeVisible();
+
+  await platformOrderInput.press('Enter');
+  await expect(orderRowLocator(grid, 'TEST-ORDER-NO-LOGISTICS')).toHaveCount(0);
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MISSING-SKU')).toBeVisible();
+});
+
+test('orders column filter paste auto applies without Enter', async ({ page }) => {
+  const grid = await prepareOrdersList(page);
+
+  const platformOrderInput = grid.getByPlaceholder('网店订单号').first();
+  await expect(platformOrderInput).toBeVisible();
+
+  await platformOrderInput.evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.focus();
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', value);
+    input.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, clipboardData }));
+  }, 'PLAT-TEST-MISSING-SKU');
+
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MANY-ITEMS')).toHaveCount(0);
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MISSING-SKU')).toBeVisible();
+});
+
+test('orders column filter state persists after tab switching', async ({ page }) => {
+  const grid = await prepareOrdersList(page);
+
+  const platformOrderInput = grid.getByPlaceholder('网店订单号').first();
+  await expect(platformOrderInput).toBeVisible();
+  await platformOrderInput.fill('PLAT-TEST-MISSING-SKU');
+  await platformOrderInput.press('Enter');
+
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MANY-ITEMS')).toHaveCount(0);
+  await expect(orderRowLocator(grid, 'TEST-ORDER-MISSING-SKU')).toBeVisible();
+
+  await page.goto('/orders/review');
+  await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
+  await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
+
+  const ordersTab = page.locator('.workbench-tabs [role="tab"]').filter({ hasText: '订单查询' }).first();
+  if ((await ordersTab.count()) > 0) {
+    await ordersTab.click();
+  } else {
+    await page.goto('/orders');
+  }
+
+  await expect(page).toHaveURL(/\/orders(\?.*)?$/);
+  const revisitGrid = page.getByTestId('orders-grid');
+  await expect(revisitGrid).toBeVisible();
+
+  const revisitPlatformOrderInput = revisitGrid.getByPlaceholder('网店订单号').first();
+  await expect(revisitPlatformOrderInput).toHaveValue('PLAT-TEST-MISSING-SKU');
+  await expect(orderRowLocator(revisitGrid, 'TEST-ORDER-MANY-ITEMS')).toHaveCount(0);
+  await expect(orderRowLocator(revisitGrid, 'TEST-ORDER-MISSING-SKU')).toBeVisible();
 });
 
 test('orders left stats stay on full query scope when switching left filters', async ({ page }) => {

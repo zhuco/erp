@@ -605,6 +605,7 @@ export const ErpDataGrid = <T extends object>({
   data,
   columns,
   rowKey,
+  headerFilters,
   columnSettingsKey,
   sortState,
   onSortChange,
@@ -838,6 +839,8 @@ export const ErpDataGrid = <T extends object>({
       defs.push({
         colId: '__erpSelection',
         headerName: '',
+        headerClass: 'erp-data-grid-selection-col-header',
+        cellClass: 'erp-data-grid-selection-col-cell',
         width: selectionColumnWidth,
         minWidth: selectionColumnWidth,
         maxWidth: Math.max(selectionColumnWidth, 52),
@@ -1454,6 +1457,35 @@ export const ErpDataGrid = <T extends object>({
     .filter(Boolean)
     .join(' ');
 
+  const normalizedHeaderFilters = useMemo(() => headerFilters ?? {}, [headerFilters]);
+  const hasHeaderFilters = useMemo(
+    () => Object.keys(normalizedHeaderFilters).length > 0,
+    [normalizedHeaderFilters],
+  );
+
+  const headerFilterCells = useMemo(
+    () =>
+      flatColumns.map((entry) => {
+        const path = resolveColumnPath(entry.source, entry.key);
+        const cellNode =
+          normalizedHeaderFilters[path] ??
+          normalizedHeaderFilters[entry.key] ??
+          normalizedHeaderFilters[String(entry.source.field ?? '')];
+        const width = typeof entry.source.width === 'number' ? entry.source.width : undefined;
+        const minWidth =
+          typeof entry.source.minWidth === 'number' && entry.source.minWidth > 0
+            ? entry.source.minWidth
+            : 100;
+        return {
+          key: entry.key,
+          width,
+          minWidth,
+          node: cellNode,
+        };
+      }),
+    [flatColumns, normalizedHeaderFilters],
+  );
+
   const hasRows = filteredRows.length > 0;
 
   const summaryValues = useMemo(() => {
@@ -1510,6 +1542,23 @@ export const ErpDataGrid = <T extends object>({
 
       {!error ? (
         <div className={`erp-data-grid-table${variant === 'next' ? ' erp-data-grid-next__table' : ''}`}>
+          {hasHeaderFilters ? (
+            <div className="erp-data-grid-header-filter-row" role="group" aria-label="列筛选">
+              {headerFilterCells.map((cell) => (
+                <div
+                  key={cell.key}
+                  className="erp-data-grid-header-filter-cell workbench-table-query"
+                  style={{
+                    minWidth: cell.minWidth,
+                    width: cell.width,
+                    flex: cell.width ? `0 0 ${cell.width}px` : `1 1 ${cell.minWidth}px`,
+                  }}
+                >
+                  {cell.node ?? <span className="workbench-table-query-placeholder">&nbsp;</span>}
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="ag-theme-quartz erp-data-grid-shell">
             <AgGridReact<T>
               theme="legacy"

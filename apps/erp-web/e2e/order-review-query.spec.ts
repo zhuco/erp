@@ -20,6 +20,7 @@ test('order review filters quickly by order id', async ({ page }) => {
   const orderInput = grid.getByTestId('order-review-floating-filter-id');
   await expect(orderInput).toBeVisible();
   await orderInput.fill(orderId);
+  await orderInput.press('Enter');
   await expect(orderInput).toHaveValue(orderId);
 
   const visibleOrderIds = grid.locator(
@@ -64,6 +65,7 @@ test('order review clears active target after filtering active row out of view',
   const orderInput = grid.getByTestId('order-review-floating-filter-id');
   await expect(orderInput).toBeVisible();
   await orderInput.fill(secondRowOrderId);
+  await orderInput.press('Enter');
   await expect(orderInput).toHaveValue(secondRowOrderId);
 
   const visibleOrderIds = grid.locator(

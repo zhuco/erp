@@ -10,6 +10,7 @@ import type {
 } from 'ag-grid-community';
 
 import { applyShiftRangeSelection } from './agGridSelectionHelpers';
+import { resolveSelectionDiagnosticsEnabled } from './selectionDiagnostics';
 
 type UseAgGridWorkbenchSelectionOptions<TRow> = {
   apiRef: MutableRefObject<GridApi<TRow> | null>;
@@ -23,7 +24,7 @@ type UseAgGridWorkbenchSelectionOptions<TRow> = {
 };
 
 const isValidRowIndex = (rowIndex: number | null | undefined): rowIndex is number => rowIndex != null && rowIndex >= 0;
-const enableSelectionDiagnostics = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const enableSelectionDiagnostics = resolveSelectionDiagnosticsEnabled();
 
 export type AgGridSelectionDiagnostic = {
   action: 'activate-row' | 'ignore' | 'range-selection' | 'skip' | 'toggle-selection';

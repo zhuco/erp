@@ -15,6 +15,7 @@ export type ErpDataGridNextColumn<T> = {
   key: string;
   header: ReactNode;
   width?: number;
+  minWidth?: number;
   render: (row: T, rowIndex: number) => ReactNode;
   sortValue?: (row: T) => string | number | null | undefined;
 };
@@ -27,6 +28,7 @@ export type ErpDataGridNextProps<T> = {
   height?: number | string;
   dataTestId?: string;
   testIdPrefix?: string;
+  selectionColumnWidth?: number;
   showStatusBar?: boolean;
   enableRowModifierSelection?: boolean;
   emptyText?: string;
@@ -50,6 +52,7 @@ export const ErpDataGridNext = <T,>({
   rowKey,
   columnSettingsKey,
   dataTestId,
+  selectionColumnWidth,
   showStatusBar,
   enableRowModifierSelection = false,
   emptyText,
@@ -77,6 +80,7 @@ export const ErpDataGridNext = <T,>({
         field: column.key,
         title: column.header,
         width: column.width,
+        minWidth: column.minWidth ?? column.width,
         renderCell: (_value, record, rowIndex) => column.render(record, rowIndex),
         headerSort: true,
         sorter:
@@ -110,6 +114,7 @@ export const ErpDataGridNext = <T,>({
       rowKey: (record) => rowKey(record),
       columnSettingsKey,
       dataTestId,
+      selectionColumnWidth,
       showSelectionColumn: enableRowModifierSelection,
       selectionMode: enableRowModifierSelection ? 'multi' : 'single',
       headerFilters,
@@ -158,6 +163,7 @@ export const ErpDataGridNext = <T,>({
       rowKey,
       rows,
       selectedRowKeys,
+      selectionColumnWidth,
       showStatusBar,
       columnSettingsKey,
     ],

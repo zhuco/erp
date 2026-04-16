@@ -41,12 +41,14 @@ import {
   WorkbenchPanelsProvider,
   type WorkbenchPanelsContextValue,
 } from '@/app/layout/workbenchPanels';
-import type {
-  FunctionSearchOption,
-  ModuleGroupItem,
-  ModuleLinkItem,
-} from '@/app/layout/ModuleHeader';
+import type { FunctionSearchOption } from '@/app/layout/ModuleHeader';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
+import {
+  buildHeaderModules,
+  type HeaderModuleGroupItem as ModuleGroupItem,
+  type HeaderModuleLinkItem as ModuleLinkItem,
+  resolveActiveHeaderModuleKey,
+} from '@/app/layout/headerMenuModel';
 import { useRouteLoadingSnapshot } from '@/app/navigation/routeLoadingDiagnostics';
 import { RouteDiagnosticsReporter } from '@/app/navigation/RouteDiagnosticsReporter';
 import { scheduleRoutePrefetchPaths } from '@/app/navigation/routePrefetch';
@@ -362,7 +364,7 @@ export const WorkbenchLayout = () => {
   const [functionSearch, setFunctionSearch] = useState('');
   const [recentFunctionPaths, setRecentFunctionPaths] = useState<string[]>([]);
 
-  const moduleItems = useMemo(() => {
+  const legacyModuleItems = useMemo(() => {
     return headerModules.map((item, index) => {
       const nestedLeafPaths = collectLeafPaths(item);
       const defaultPath = item.path ?? nestedLeafPaths[0];
@@ -383,13 +385,22 @@ export const WorkbenchLayout = () => {
     });
   }, [headerModules]);
 
-  const activeModuleKey = useMemo(() => {
+  const moduleItems = useMemo(() => buildHeaderModules(menuRoutes), [menuRoutes]);
+
+  const legacyActiveModuleKey = useMemo(() => {
     const current = location.pathname;
     const match = moduleItems.find((module) =>
       module.leafPaths.some((path) => isPathActive(current, path)),
     );
     return match?.key;
   }, [location.pathname, moduleItems]);
+  void legacyModuleItems;
+  void legacyActiveModuleKey;
+
+  const activeModuleKey = useMemo(
+    () => resolveActiveHeaderModuleKey(moduleItems, location.pathname),
+    [location.pathname, moduleItems],
+  );
   const moduleIntentPrefetchCleanupRef = useRef<() => void>(() => undefined);
   const currentRouteKey = location.pathname;
   const currentRouteSnapshot = useRouteLoadingSnapshot(currentRouteKey);
@@ -1135,6 +1146,7 @@ export const WorkbenchLayout = () => {
                   type="text"
                   className="workbench-resizer-toggle"
                   icon={leftCollapsed ? <CaretRightOutlined /> : <CaretLeftOutlined />}
+                  aria-label={leftCollapsed ? '展开左侧面板' : '收起左侧面板'}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => setLeftCollapsed((prev) => !prev)}
                 />
@@ -1191,6 +1203,7 @@ export const WorkbenchLayout = () => {
                         type="text"
                         className="workbench-resizer-horizontal-toggle"
                         icon={bottomCollapsed ? <CaretUpOutlined /> : <CaretDownOutlined />}
+                        aria-label={bottomCollapsed ? '展开底部子表' : '收起底部子表'}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -1219,6 +1232,7 @@ export const WorkbenchLayout = () => {
                   type="text"
                   className="workbench-resizer-toggle"
                   icon={rightCollapsed ? <CaretLeftOutlined /> : <CaretRightOutlined />}
+                  aria-label={rightCollapsed ? '展开详情面板' : '收起详情面板'}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => setRightCollapsed((prev) => !prev)}
                 />

@@ -47,6 +47,7 @@ type UseLeftFilterModuleOptions<TRow, TFilters> = {
   buildLeftNodes: (rows: TRow[]) => OrderReviewAgLeftNode[];
   reduceFiltersByNode: (previous: TFilters, node: LeftFilterNode) => TFilters;
   renderPanel: (props: LeftFilterPanelProps) => ReactNode;
+  onBeforeLeafFilterApply?: () => void;
 };
 
 type UseLeftFilterModuleResult<TRow, TFilters> = {
@@ -108,6 +109,7 @@ export const useLeftFilterModule = <TRow, TFilters>({
   buildLeftNodes,
   reduceFiltersByNode,
   renderPanel,
+  onBeforeLeafFilterApply,
 }: UseLeftFilterModuleOptions<TRow, TFilters>): UseLeftFilterModuleResult<TRow, TFilters> => {
   const { setLeftPanel, setLeftPanelVisible, setLeftPanelWidth, setLeftPanelCollapsed } =
     useWorkbenchPanels();
@@ -156,11 +158,12 @@ export const useLeftFilterModule = <TRow, TFilters>({
         return;
       }
 
+      onBeforeLeafFilterApply?.();
       setFilters((prev) =>
         reduceFiltersByNode(prev, { key: row.key, nodeType: row.nodeType as LeafNodeType }),
       );
     },
-    [reduceFiltersByNode, setFilters],
+    [onBeforeLeafFilterApply, reduceFiltersByNode, setFilters],
   );
 
   const leftPanel = useMemo(

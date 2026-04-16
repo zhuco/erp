@@ -327,6 +327,7 @@ export const UiModule03OrderItemEditorModal = ({
                   </Form.Item>
                   <Button
                     icon={<EllipsisOutlined />}
+                    aria-label="Open SKU selector"
                     onClick={() => setSkuSelectorOpen(true)}
                   />
                 </Space.Compact>

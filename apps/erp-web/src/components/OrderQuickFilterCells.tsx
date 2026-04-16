@@ -14,6 +14,7 @@ export type OrderQuickFilterField = {
   value?: unknown;
   onChange?: (value: unknown) => void;
   onSearch?: (value: string) => void;
+  onPaste?: (value: string) => void;
   options?: OrderQuickFilterOption[];
   testId?: string;
   placeholder?: string;
@@ -135,6 +136,23 @@ export const buildOrderQuickFilterCells = (fields: OrderQuickFilterField[]) => {
         value={(value as string) ?? ''}
         onChange={(event) => field.onChange?.(event.target.value)}
         onPressEnter={(event) => field.onSearch?.((event.target as HTMLInputElement).value)}
+        onPaste={(event) => {
+          if (!field.onPaste) {
+            return;
+          }
+          const input = event.currentTarget;
+          const pastedText = event.clipboardData?.getData('text') ?? '';
+          if (!pastedText) {
+            window.setTimeout(() => {
+              field.onPaste?.(input.value);
+            }, 0);
+            return;
+          }
+          const selectionStart = input.selectionStart ?? input.value.length;
+          const selectionEnd = input.selectionEnd ?? selectionStart;
+          const nextValue = `${input.value.slice(0, selectionStart)}${pastedText}${input.value.slice(selectionEnd)}`;
+          field.onPaste(nextValue);
+        }}
         disabled={disabled}
         style={{ width: '100%' }}
       />

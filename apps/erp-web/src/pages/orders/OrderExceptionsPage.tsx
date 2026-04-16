@@ -7,7 +7,7 @@ import { Button, Descriptions, Empty, List, Spin, Tag, Typography, message } fro
 import type { MenuProps, SelectProps } from 'antd';
 import type { GridApi, Key } from 'ag-grid-community';
 import dayjs from 'dayjs';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { listCouriers } from '@/api/couriers';
@@ -27,6 +27,7 @@ import { listWarehouses } from '@/api/warehouses';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
   WorkbenchMainTableTemplate,
+  useWorkbenchSavedViewState,
   WorkbenchToolbarTemplate,
   useWorkbenchTablePagination,
 } from '@/components/workbench/templates';
@@ -35,8 +36,8 @@ import { auditStatusLabels, exceptionStatusLabels } from '@/features/oms-wms-mai
 import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
 import { buildCourierOptionLabel, resolveCourierOptionValue } from './shared/courierDisplay';
+import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';
 
-import { OrderExceptionsMainGrid } from './exceptions-native/OrderExceptionsMainGrid';
 import { toOrderExceptionsGridRows } from './exceptions-native/orderExceptionsGridRows';
 import {
   filterOrderExceptionSelectionKeys,
@@ -44,6 +45,15 @@ import {
   resolveNextOrderExceptionActiveKey,
   resolveOrderExceptionRowKey,
 } from './exceptions-native/orderExceptionsRowKey';
+import {
+  clearOrderExceptionsMainGridColumnFilters,
+  filterOrderExceptionsByColumnFilters,
+  hasOrderExceptionsMainGridColumnFilters,
+  hasSameOrderExceptionsMainGridColumnFilters,
+  resolveSingleOrderExceptionsColumnFilters,
+  type OrderExceptionsColumnFilters,
+} from './exceptions-native/OrderExceptionsGridFilters';
+import type { OrderExceptionsLeftFilters } from './exceptions-native/orderExceptionsLeftInteractions';
 import { useOrderExceptionsLeftModule } from './exceptions-native/useOrderExceptionsLeftModule';
 import { OrderReviewBottomPanel } from './review-native/OrderReviewBottomPanel';
 import { defaultPageSize, pageSizeOptions } from './review-native/helpers';
@@ -94,6 +104,10 @@ const toGoodsRows = (rows: Record<string, unknown>[]) =>
 const formatCurrency = (value?: number | null) => (value == null ? '-' : `¥${(value / 100).toFixed(2)}`);
 
 const formatDateTime = (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-');
+const now = () =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
 
 const resolveAuditLabel = (status?: string | null) => {
   const normalized = String(status ?? '').trim().toUpperCase();
@@ -235,6 +249,70 @@ const renderDetailContent = (activeRow: OrderExceptionSummary | null, detail: Or
   );
 };
 
+type OrderExceptionsSavedViewState = {
+  keywordInput?: string;
+  searchKeyword?: string;
+  quickFilterExpanded?: boolean;
+  columnFilters?: OrderExceptionsColumnFilters;
+  leftFilters?: OrderExceptionsLeftFilters;
+  selectedRowKeys?: string[];
+  focusedOrderKey?: string | null;
+  activeOrderId?: string | null;
+};
+
+const normalizePersistedString = (value: unknown) => String(value ?? '').trim();
+const normalizePersistedNullableString = (value: unknown) => normalizePersistedString(value) || null;
+
+const normalizePersistedStringArray = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = Array.from(
+    new Set(
+      value
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean),
+    ),
+  );
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const normalizePersistedOrderExceptionsColumnFilters = (
+  value: unknown,
+): OrderExceptionsColumnFilters => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const source = value as Record<string, unknown>;
+  return {
+    orderNoKeyword: normalizePersistedString(source.orderNoKeyword) || undefined,
+    platform: normalizePersistedStringArray(source.platform),
+    shopId: normalizePersistedStringArray(source.shopId),
+    receiverNameKeyword: normalizePersistedString(source.receiverNameKeyword) || undefined,
+    auditStatus: normalizePersistedStringArray(source.auditStatus),
+    exceptionStatus: normalizePersistedStringArray(source.exceptionStatus),
+    slaStatus: normalizePersistedStringArray(source.slaStatus),
+    warehouseId: normalizePersistedStringArray(source.warehouseId),
+    assigneeName: normalizePersistedStringArray(source.assigneeName),
+    blockingReasonKeyword: normalizePersistedString(source.blockingReasonKeyword) || undefined,
+  };
+};
+
+const normalizePersistedOrderExceptionsLeftFilters = (
+  value: unknown,
+): OrderExceptionsLeftFilters => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const source = value as Record<string, unknown>;
+  return {
+    status: normalizePersistedStringArray(source.status),
+    assignee: normalizePersistedStringArray(source.assignee),
+    sla: normalizePersistedStringArray(source.sla) as OrderExceptionsLeftFilters['sla'],
+    warehouseId: normalizePersistedStringArray(source.warehouseId),
+  };
+};
+
 export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps = {}) => {
   const tenantId = useTenantId();
   const navigate = useNavigate();
@@ -247,6 +325,8 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   const [searchKeyword, setSearchKeyword] = useState('');
   const deferredKeyword = useDeferredValue(searchKeyword.trim());
   const [quickFilterExpanded, setQuickFilterExpanded] = useState(true);
+  const [columnFilters, setColumnFilters] = useState<OrderExceptionsColumnFilters>({});
+  const [leftFilters, setLeftFilters] = useState<OrderExceptionsLeftFilters>({});
   const { pagination, setPagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
     defaultPageSize,
     pageSizeOptions,
@@ -254,13 +334,69 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
+  const fetchStartedAtRef = useRef<number | null>(null);
+  const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
   const [mainContextMenu, setMainContextMenu] = useState<ContextMenuState<OrderExceptionSummary>>({
     open: false,
     position: null,
     row: null,
   });
+  const exceptionsSavedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.exceptions.savedView.v1.${mode}.${tenantId}.${normalizedUserId}`;
+  }, [mode, tenantId, userId]);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderExceptionSummary> | null>(null);
+
+  const hydrateExceptionsSavedView = useCallback((parsed: OrderExceptionsSavedViewState) => {
+    if (typeof parsed.keywordInput === 'string') {
+      setKeywordInput(parsed.keywordInput);
+    }
+    if (typeof parsed.searchKeyword === 'string') {
+      setSearchKeyword(parsed.searchKeyword);
+    }
+    if (typeof parsed.quickFilterExpanded === 'boolean') {
+      setQuickFilterExpanded(parsed.quickFilterExpanded);
+    }
+    if (parsed.columnFilters) {
+      setColumnFilters(normalizePersistedOrderExceptionsColumnFilters(parsed.columnFilters));
+    }
+    if (parsed.leftFilters) {
+      setLeftFilters(normalizePersistedOrderExceptionsLeftFilters(parsed.leftFilters));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'selectedRowKeys')) {
+      setSelectedRowKeys(normalizePersistedStringArray(parsed.selectedRowKeys) ?? []);
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'focusedOrderKey')) {
+      setFocusedOrderKey(normalizePersistedNullableString(parsed.focusedOrderKey));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'activeOrderId')) {
+      setActiveOrderId(normalizePersistedNullableString(parsed.activeOrderId));
+    }
+  }, []);
+
+  const serializeExceptionsSavedView = useCallback(
+    (): OrderExceptionsSavedViewState => ({
+      keywordInput,
+      searchKeyword,
+      quickFilterExpanded,
+      columnFilters,
+      leftFilters,
+      selectedRowKeys: selectedRowKeys.map((item) => String(item)),
+      focusedOrderKey,
+      activeOrderId,
+    }),
+    [activeOrderId, columnFilters, focusedOrderKey, keywordInput, leftFilters, quickFilterExpanded, searchKeyword, selectedRowKeys],
+  );
+
+  useWorkbenchSavedViewState<OrderExceptionsSavedViewState>({
+    storageKey: exceptionsSavedViewKey,
+    hydrate: hydrateExceptionsSavedView,
+    serialize: serializeExceptionsSavedView,
+  });
 
   const exceptionQuery = useQuery({
     queryKey: ['order-exceptions', tenantId, deferredKeyword],
@@ -274,14 +410,53 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
 
   const rows = useMemo(() => toOrderExceptionsGridRows(exceptionQuery.data?.items ?? []), [exceptionQuery.data?.items]);
   const mainGridLoading = exceptionQuery.isLoading || (exceptionQuery.isFetching && rows.length === 0);
-  const { filteredRows } = useOrderExceptionsLeftModule({
+  useEffect(() => {
+    if (exceptionQuery.isFetching) {
+      if (fetchStartedAtRef.current == null) {
+        fetchStartedAtRef.current = now();
+      }
+      return;
+    }
+    if (fetchStartedAtRef.current == null) {
+      return;
+    }
+    const elapsed = Math.max(0, Math.round(now() - fetchStartedAtRef.current));
+    fetchStartedAtRef.current = null;
+    setLastFetchDurationMs(elapsed);
+  }, [exceptionQuery.isFetching]);
+  const handleLeftFiltersChange = useCallback<Dispatch<SetStateAction<OrderExceptionsLeftFilters>>>(
+    (action) => {
+      const nextFilters = typeof action === 'function' ? action(leftFilters) : action;
+      if (JSON.stringify(leftFilters) === JSON.stringify(nextFilters)) {
+        return;
+      }
+
+      setLeftFilters(nextFilters);
+      resetPagination();
+    },
+    [leftFilters, resetPagination],
+  );
+  const handleBeforeLeftLeafFilterApply = useCallback(() => {
+    if (!hasOrderExceptionsMainGridColumnFilters(columnFilters)) {
+      return;
+    }
+    setColumnFilters((previous) => clearOrderExceptionsMainGridColumnFilters(previous));
+  }, [columnFilters]);
+  const { filteredRows: leftFilteredRows } = useOrderExceptionsLeftModule({
     rows,
     currentUserId: userId,
     isFetching: exceptionQuery.isFetching,
     overdueThresholdMinutes,
     resolveExceptionLabel,
     isOverdue,
+    filters: leftFilters,
+    onFiltersChange: handleLeftFiltersChange,
+    onBeforeLeafFilterApply: handleBeforeLeftLeafFilterApply,
   });
+  const filteredRows = useMemo(
+    () => filterOrderExceptionsByColumnFilters(leftFilteredRows, columnFilters),
+    [columnFilters, leftFilteredRows],
+  );
 
   const sortedRows = useMemo(
     () =>
@@ -332,6 +507,9 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
 
   useEffect(() => {
     if (displayRows.length === 0) {
+      if (mainGridLoading) {
+        return;
+      }
       setSelectedRowKeys([]);
       setActiveOrderId(null);
       setFocusedOrderKey(null);
@@ -347,7 +525,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     setFocusedOrderKey((current) => {
       return resolveNextOrderExceptionActiveKey(pagedRows, current);
     });
-  }, [displayRows, pagedRows]);
+  }, [displayRows, mainGridLoading, pagedRows]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -763,6 +941,20 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     mainGridApiRef.current = api;
   }, []);
 
+  const handleMainGridColumnFiltersChange = useCallback(
+    (nextFilters: OrderExceptionsColumnFilters) => {
+      setColumnFilters((previous) => {
+        const resolvedNextFilters = resolveSingleOrderExceptionsColumnFilters(previous, nextFilters);
+        if (hasSameOrderExceptionsMainGridColumnFilters(previous, resolvedNextFilters)) {
+          return previous;
+        }
+        return resolvedNextFilters;
+      });
+      resetPagination();
+    },
+    [resetPagination],
+  );
+
   const handleMainContextMenu = useCallback(
     (record: OrderExceptionSummary, event: MouseEvent) => {
       const rowKey = String(record.order_id ?? '').trim() || null;
@@ -954,7 +1146,18 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     />
   );
 
-  const footerSummary = `总数 ${displayRows.length} 条，本页 ${pagedRows.length} 条，已选 ${selectedRowKeys.length} 条`;
+  const footerSummary = (
+    <>
+      <span>{`总数 ${displayRows.length} 条，本页 ${pagedRows.length} 条，已选 ${selectedRowKeys.length} 条`}</span>
+      <span className="order-workbench-load-timing" data-testid="order-exceptions-load-timing">
+        {exceptionQuery.isFetching
+          ? '加载中...'
+          : lastFetchDurationMs == null
+            ? '加载耗时 --'
+            : `加载耗时 ${lastFetchDurationMs}ms`}
+      </span>
+    </>
+  );
 
   const mainContent = (
     <WorkbenchMainTableTemplate
@@ -965,12 +1168,16 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       tableContent={
         <div className="order-exceptions-main-stack">
           <div className="order-exceptions-grid-main order-review-grid-main">
-            <OrderExceptionsMainGrid
+            <OrderWorkbenchMainGridEntry
+              variant="recheck"
               rows={pagedRows}
+              filterOptionRows={leftFilteredRows}
               quickFilterExpanded={quickFilterExpanded}
+              columnFilters={columnFilters}
               selectedRowKeys={selectedRowKeys}
               focusedOrderKey={focusedOrderKey}
               onGridApiChange={handleMainGridApiChange}
+              onColumnFiltersChange={handleMainGridColumnFiltersChange}
               onSelectionChange={setSelectedRowKeys}
               onRowActive={(record) => {
                 setActiveOrderId(resolveOrderExceptionRowKey(record) || null);

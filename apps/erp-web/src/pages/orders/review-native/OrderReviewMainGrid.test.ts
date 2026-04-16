@@ -23,6 +23,11 @@ describe('OrderReviewMainGrid column config', () => {
     expect(colDefMap.get('receiver_phone')?.minWidth).toBeLessThanOrEqual(60);
     expect(colDefMap.get('logistics_company')?.minWidth).toBeLessThanOrEqual(60);
     expect(colDefMap.get('total_amount_cent')?.minWidth).toBeLessThanOrEqual(60);
+    expect(colDefMap.get('goods_qty')).toBeDefined();
+    expect(colDefMap.get('ship_warehouse_name')).toBeDefined();
+    expect(colDefMap.get('review_status')).toBeDefined();
+    expect(colDefMap.get('tracking_no')).toBeDefined();
+    expect(colDefMap.get('exception_badges')).toBeDefined();
   });
 
   it('keeps business columns sortable while structural columns stay unsorted', () => {

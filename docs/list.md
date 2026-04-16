@@ -82,6 +82,12 @@
 - 售后与逆向：`docs/spec/aftersales_case_schema.md`
 - 安全与审计：`docs/spec/security_and_audit.md`
 
+### 3.5 看前端 UI 开发规范
+
+读：
+
+- `docs/web/UI_DEVELOPMENT_STANDARD.md`
+
 ## 4. 当前拆分文档的定位
 
 以下文档仍然保留，但不再单独承担“项目总目标”职责：

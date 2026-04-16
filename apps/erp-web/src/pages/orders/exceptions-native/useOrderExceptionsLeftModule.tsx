@@ -1,4 +1,4 @@
-﻿import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 
 import type { OrderExceptionSummary } from '@/api/orders';
 import type { UiModule08OrderReviewLeftStatsItem } from '@/components/ui-modules';
@@ -22,6 +22,9 @@ type UseOrderExceptionsLeftModuleOptions = {
   overdueThresholdMinutes: number;
   resolveExceptionLabel: (status?: string | null) => string;
   isOverdue: (item: OrderExceptionSummary) => boolean;
+  filters?: OrderExceptionsLeftFilters;
+  onFiltersChange?: Dispatch<SetStateAction<OrderExceptionsLeftFilters>>;
+  onBeforeLeafFilterApply?: () => void;
 };
 
 type UseOrderExceptionsLeftModuleResult = {
@@ -36,6 +39,9 @@ export const useOrderExceptionsLeftModule = ({
   overdueThresholdMinutes,
   resolveExceptionLabel,
   isOverdue,
+  filters,
+  onFiltersChange,
+  onBeforeLeafFilterApply,
 }: UseOrderExceptionsLeftModuleOptions): UseOrderExceptionsLeftModuleResult => {
   const nowTs = Date.now();
 
@@ -203,11 +209,13 @@ export const useOrderExceptionsLeftModule = ({
   const { filteredRows, hasManualFilterActive } = useLeftFilterModule<OrderExceptionSummary, OrderExceptionsLeftFilters>({
     rows,
     defaultFilters: {},
+    filters,
+    onFiltersChange,
     initialExpandedKeys: ['exception-status-group'],
     emptyRowLabel: '无匹配项',
     hasManualFilter: hasOrderExceptionsLeftManualFilter,
-    filterRows: (sourceRows, filters) =>
-      filterOrderExceptionsRows(sourceRows, filters, {
+    filterRows: (sourceRows, nextFilters) =>
+      filterOrderExceptionsRows(sourceRows, nextFilters, {
         currentUserId,
         overdueThresholdMinutes,
       }),
@@ -215,6 +223,7 @@ export const useOrderExceptionsLeftModule = ({
     buildLeftNodes,
     reduceFiltersByNode: reduceOrderExceptionsFiltersByNode,
     renderPanel: renderExceptionsLeftPanel,
+    onBeforeLeafFilterApply,
   });
 
   return {

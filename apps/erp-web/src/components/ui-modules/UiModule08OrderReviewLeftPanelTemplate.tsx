@@ -15,12 +15,13 @@ import {
 } from '@ant-design/icons';
 import type { CellClickedEvent, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Typography } from 'antd';
+import { Tabs, Typography } from 'antd';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 
-import { UiModule08LeftPanelTemplate, type UiModule08LeftPanelTabKey } from './UiModule08LeftPanelTemplate';
 import './UiModule08OrderReviewLeftPanelTemplate.css';
+
+export type UiModule08LeftPanelTabKey = 'filter' | 'screen';
 
 export type UiModule08OrderReviewLeftNodeType =
   | 'group'
@@ -154,72 +155,84 @@ export const UiModule08OrderReviewLeftPanelTemplate = ({
   );
 
   return (
-    <UiModule08LeftPanelTemplate
-      className={joinClassNames('order-review-left-ag-panel', className)}
-      dataTestId={dataTestId}
-      activeKey={leftTab}
-      onChange={onLeftTabChange}
-      filterContent={
-        <div className="order-review-left-ag-filter-tab">
-          <div className="ag-theme-quartz order-review-left-ag-grid-shell order-review-left-ag-filter-grid-area">
-            <AgGridReact<UiModule08OrderReviewLeftRenderRow>
-              rowData={leftRowsForRender}
-              columnDefs={leftColDefs}
-              defaultColDef={{
-                sortable: false,
-                filter: false,
-                editable: false,
-                resizable: false,
-              }}
-              getRowId={(params) => params.data.key}
-              rowHeight={30}
-              headerHeight={0}
-              sideBar={false}
-              cellSelection={false}
-              enableCellTextSelection={false}
-              animateRows={false}
-              rowBuffer={8}
-              onCellClicked={onLeftRowClick}
-              rowClassRules={{
-                'order-review-left-ag-row-checked': (params) => Boolean(params.data?.checked),
-              }}
-            />
-          </div>
+    <div className={joinClassNames('order-review-left-ag-panel', className)} data-testid={dataTestId}>
+      <Tabs
+        size="small"
+        activeKey={leftTab}
+        onChange={(key) => onLeftTabChange(key as UiModule08LeftPanelTabKey)}
+        items={[
+          {
+            key: 'filter',
+            label: '过滤',
+            children: (
+              <div className="order-review-left-ag-filter-tab">
+                <div className="ag-theme-quartz order-review-left-ag-grid-shell order-review-left-ag-filter-grid-area">
+                  <AgGridReact<UiModule08OrderReviewLeftRenderRow>
+                    theme="legacy"
+                    rowData={leftRowsForRender}
+                    columnDefs={leftColDefs}
+                    defaultColDef={{
+                      sortable: false,
+                      filter: false,
+                      editable: false,
+                      resizable: false,
+                    }}
+                    getRowId={(params) => params.data.key}
+                    rowHeight={30}
+                    headerHeight={0}
+                    sideBar={false}
+                    cellSelection={false}
+                    enableCellTextSelection={false}
+                    animateRows={false}
+                    rowBuffer={8}
+                    onCellClicked={onLeftRowClick}
+                    rowClassRules={{
+                      'order-review-left-ag-row-checked': (params) => Boolean(params.data?.checked),
+                    }}
+                  />
+                </div>
 
-          <div className="order-review-left-ag-stats" data-testid="order-review-left-stats">
-            <div className="order-review-left-ag-stats-header">
-              <Typography.Text strong>{LEFT_FILTER_PANEL_COPY.statsTitle}</Typography.Text>
-              <Typography.Text type="secondary" data-testid="order-review-left-stats-total">
-                {LEFT_FILTER_PANEL_COPY.totalOrders} {globalOrderTotal}
-              </Typography.Text>
-            </div>
-            <Typography.Text type="secondary">{statsScopeText}</Typography.Text>
-            <div className="order-review-left-ag-stats-body">
-              <div className="order-review-left-ag-stats-pie-wrap">
-                <div
-                  className="order-review-left-ag-stats-pie"
-                  style={{ backgroundImage: leftStatsPieBackground }}
-                  data-testid="order-review-left-stats-pie"
-                >
-                  <span className="order-review-left-ag-stats-pie-center">
-                    <PieChartOutlined />
-                  </span>
+                <div className="order-review-left-ag-stats" data-testid="order-review-left-stats">
+                  <div className="order-review-left-ag-stats-header">
+                    <Typography.Text strong>{LEFT_FILTER_PANEL_COPY.statsTitle}</Typography.Text>
+                    <Typography.Text type="secondary" data-testid="order-review-left-stats-total">
+                      {LEFT_FILTER_PANEL_COPY.totalOrders} {globalOrderTotal}
+                    </Typography.Text>
+                  </div>
+                  <Typography.Text type="secondary">{statsScopeText}</Typography.Text>
+                  <div className="order-review-left-ag-stats-body">
+                    <div className="order-review-left-ag-stats-pie-wrap">
+                      <div
+                        className="order-review-left-ag-stats-pie"
+                        style={{ backgroundImage: leftStatsPieBackground }}
+                        data-testid="order-review-left-stats-pie"
+                      >
+                        <span className="order-review-left-ag-stats-pie-center">
+                          <PieChartOutlined />
+                        </span>
+                      </div>
+                    </div>
+                    <div className="order-review-left-ag-stats-legend">
+                      {leftStatsItems.map((item) => (
+                        <div className="order-review-left-ag-stats-legend-row" key={item.key}>
+                          <span className="order-review-left-ag-stats-dot" style={{ backgroundColor: item.color }} />
+                          <span className="order-review-left-ag-stats-label">{item.label}</span>
+                          <span className="order-review-left-ag-stats-value">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="order-review-left-ag-stats-legend">
-                {leftStatsItems.map((item) => (
-                  <div className="order-review-left-ag-stats-legend-row" key={item.key}>
-                    <span className="order-review-left-ag-stats-dot" style={{ backgroundColor: item.color }} />
-                    <span className="order-review-left-ag-stats-label">{item.label}</span>
-                    <span className="order-review-left-ag-stats-value">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-      screenContent={<div className="order-review-left-ag-screen-tab">{screenContent}</div>}
-    />
+            ),
+          },
+          {
+            key: 'screen',
+            label: '筛选',
+            children: <div className="order-review-left-ag-screen-tab">{screenContent}</div>,
+          },
+        ]}
+      />
+    </div>
   );
 };

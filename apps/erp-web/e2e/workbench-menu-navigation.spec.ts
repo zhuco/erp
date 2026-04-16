@@ -1,6 +1,8 @@
 import { expect, loginAndSelectTenant, test } from './fixtures';
 
 const SALES_MODULE_NAME = '\u9500\u552e';
+const INSIGHTS_MODULE_NAME = '\u6d1e\u5bdf';
+const SYSTEM_MODULE_NAME = '\u7cfb\u7edf';
 const ORDER_CENTER_LABEL = '\u8ba2\u5355\u4e2d\u5fc3';
 const SEARCH_PLACEHOLDER = '\u641c\u529f\u80fd';
 const ORDER_REVIEW_KEYWORD = '\u5355\u5ba1';
@@ -10,6 +12,12 @@ const NO_MATCH_KEYWORD = '\u4e0d\u5b58\u5728\u7684\u529f\u80fd\u5165\u53e3';
 const openModulePanel = async (page: import('@playwright/test').Page, moduleName: string) => {
   await page.getByRole('button', { name: moduleName, exact: true }).click();
   await expect(page.getByTestId('workbench-module-panel')).toBeVisible();
+};
+
+const readSharedPanelBox = async (page: import('@playwright/test').Page) => {
+  const box = await page.getByTestId('workbench-module-panel').boundingBox();
+  expect(box).not.toBeNull();
+  return box as { x: number; y: number; width: number; height: number };
 };
 
 test.describe('workbench menu navigation', () => {
@@ -71,6 +79,21 @@ test.describe('workbench menu navigation', () => {
 
     await expect(page).toHaveURL(/\/sales\/shop-order-download(\?.*)?$/);
     await expect(page.locator('.shop-order-query-page')).toBeVisible();
+  });
+
+  test('can navigate to report center from the insights module panel', async ({ page }) => {
+    await page.goto('/dashboard');
+    await loginAndSelectTenant(page);
+    await expect(page.locator('.workbench-shell')).toBeVisible();
+
+    await openModulePanel(page, INSIGHTS_MODULE_NAME);
+    await page
+      .getByTestId('workbench-module-panel')
+      .getByTestId('module-link-insights-workbench-report-center')
+      .click();
+
+    await expect(page).toHaveURL(/\/insights\/workbench\/report-center(\?.*)?$/);
+    await expect(page.getByTestId('insights-workbench-report-center-page')).toBeVisible();
   });
 
   test('can navigate to order review page from function search', async ({ page }) => {
@@ -143,42 +166,65 @@ test.describe('workbench menu navigation', () => {
     await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
   });
 
-  test('uses a borderless dark shell and highlights the active function in the module panel', async ({
+  test('uses a header-aligned shared panel background and highlights the active function in the module panel', async ({
     page,
   }) => {
-    await page.goto('/orders/review');
+    await page.goto('/dashboard');
     await loginAndSelectTenant(page);
-    await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
+    await expect(page.locator('.workbench-shell')).toBeVisible();
 
     await openModulePanel(page, SALES_MODULE_NAME);
 
     const panelStyle = await page.getByTestId('workbench-module-panel').evaluate((element) => {
-      const container = element.parentElement?.parentElement as HTMLElement | null;
-      if (!container) {
+      const container = element as HTMLElement | null;
+      const header = document.querySelector('.workbench-header') as HTMLElement | null;
+      if (!container || !header) {
         return {
-          borderTopWidth: 'missing',
           boxShadow: 'missing',
-          padding: 'missing',
+          borderRadius: 'missing',
           backgroundColor: 'missing',
+          headerBackgroundColor: 'missing',
         };
       }
 
       const style = window.getComputedStyle(container);
+      const headerStyle = window.getComputedStyle(header);
       return {
-        borderTopWidth: style.borderTopWidth,
         boxShadow: style.boxShadow,
-        padding: style.padding,
+        borderRadius: style.borderRadius,
         backgroundColor: style.backgroundColor,
+        headerBackgroundColor: headerStyle.backgroundColor,
       };
     });
 
-    expect(panelStyle.borderTopWidth).toBe('0px');
-    expect(panelStyle.boxShadow).toBe('none');
-    expect(panelStyle.padding).toBe('0px');
-    expect(panelStyle.backgroundColor).toBe('rgb(31, 38, 48)');
+    expect(panelStyle.boxShadow).not.toBe('none');
+    expect(panelStyle.borderRadius).toBe('12px');
+    expect(panelStyle.backgroundColor).toBe(panelStyle.headerBackgroundColor);
     await expect(
-      page.getByTestId('workbench-module-panel').getByTestId('module-link-orders-review'),
-    ).toHaveAttribute('aria-current', 'page');
+      page.getByTestId('workbench-module-panel').getByText(ORDER_CENTER_LABEL),
+    ).toBeVisible();
+  });
+
+  test('shared submenu panel keeps fixed horizontal boundaries while only height changes', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+    await loginAndSelectTenant(page);
+    await expect(page.locator('.workbench-shell')).toBeVisible();
+
+    await openModulePanel(page, SALES_MODULE_NAME);
+    const salesPanelBox = await readSharedPanelBox(page);
+
+    await page.getByRole('button', { name: SYSTEM_MODULE_NAME, exact: true }).click();
+    await expect(page.getByTestId('workbench-module-panel')).toBeVisible();
+    const systemPanelBox = await readSharedPanelBox(page);
+
+    expect(Math.round(salesPanelBox.x)).toBe(Math.round(systemPanelBox.x));
+    expect(Math.round(salesPanelBox.y)).toBe(Math.round(systemPanelBox.y));
+    expect(Math.round(salesPanelBox.x + salesPanelBox.width)).toBe(
+      Math.round(systemPanelBox.x + systemPanelBox.width),
+    );
+    expect(Math.round(salesPanelBox.height)).not.toBe(Math.round(systemPanelBox.height));
   });
 
   test('closes the module panel when pressing Escape', async ({ page }) => {

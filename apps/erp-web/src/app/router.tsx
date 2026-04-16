@@ -131,8 +131,14 @@ const LogisticsInstallationsPage = lazyNamedPage(() => import('@/pages/logistics
 const LogisticsSettlementsPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsSettlementsPage'), 'LogisticsSettlementsPage');
 const WarehouseOptimizationPage = lazyNamedPage(() => import('@/pages/logistics/WarehouseOptimizationPage'), 'WarehouseOptimizationPage');
 const WarehousesPage = lazyNamedPage(() => import('@/pages/warehouses/WarehousesPage'), 'WarehousesPage');
-const ReportsPage = lazyNamedPage(() => import('@/pages/reports/ReportsPage'), 'ReportsPage');
-const ExportJobsPage = lazyNamedPage(() => import('@/pages/exports/ExportJobsPage'), 'ExportJobsPage');
+const ReportCenterPage = lazyNamedPage(
+  () => import('@/pages/insights/workbench/ReportCenterPage'),
+  'ReportCenterPage'
+);
+const ExportQueuePage = lazyNamedPage(
+  () => import('@/pages/insights/workbench/ExportQueuePage'),
+  'ExportQueuePage'
+);
 const KitEditorPage = lazyNamedPage(() => import('@/pages/kits/KitEditorPage'), 'KitEditorPage');
 const KitsPage = lazyNamedPage(() => import('@/pages/kits/KitsPage'), 'KitsPage');
 const ShipmentsPage = lazyNamedPage(() => import('@/pages/shipments/ShipmentsPage'), 'ShipmentsPage');
@@ -140,7 +146,7 @@ const OmsShipmentsPage = lazyNamedPage(() => import('@/pages/shipments/OmsShipme
 const LogisticsTrackingPage = lazyNamedPage(() => import('@/pages/logistics/LogisticsTrackingPage'), 'LogisticsTrackingPage');
 const ShipmentPushFailuresPage = lazyNamedPage(() => import('@/pages/shipments/ShipmentPushFailuresPage'), 'ShipmentPushFailuresPage');
 const OrderDetailPage = lazyNamedPage(() => import('@/pages/orders/OrderDetailPage'), 'OrderDetailPage');
-const OrdersPage = lazyNamedPage(() => import('@/pages/orders/OrdersPage'), 'OrdersPage');
+const OrderQueryPage = lazyNamedPage(() => import('@/pages/orders/OrderQueryPage'), 'OrderQueryPage');
 const OrderExceptionsPage = lazyNamedPage(() => import('@/pages/orders/OrderExceptionsPage'), 'OrderExceptionsPage');
 const OrderReconciliationsPage = lazyNamedPage(() => import('@/pages/orders/OrderReconciliationsPage'), 'OrderReconciliationsPage');
 const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
@@ -320,28 +326,51 @@ const MarketingPromotionsPage = lazyNamedPage(
   'MarketingPromotionsPage'
 );
 
-const ShippingStatsPage = lazyNamedPage(
-  () => import('@/pages/stats/ShippingStatsPage'),
-  'ShippingStatsPage'
+const RevenueOverviewPage = lazyNamedPage(
+  () => import('@/pages/insights/revenue/RevenueOverviewPage'),
+  'RevenueOverviewPage'
 );
-const SalesStatsPage = lazyNamedPage(() => import('@/pages/stats/SalesStatsPage'), 'SalesStatsPage');
-const SalesDailyReportPage = lazyNamedPage(
-  () => import('@/pages/stats/SalesDailyReportPage'),
-  'SalesDailyReportPage'
+const DailyBriefPage = lazyNamedPage(
+  () => import('@/pages/insights/revenue/DailyBriefPage'),
+  'DailyBriefPage'
 );
-const SalesTrendAnalysisPage = lazyNamedPage(
-  () => import('@/pages/stats/SalesTrendAnalysisPage'),
-  'SalesTrendAnalysisPage'
+const TrendRadarPage = lazyNamedPage(
+  () => import('@/pages/insights/revenue/TrendRadarPage'),
+  'TrendRadarPage'
 );
-const SlowMovingAnalysisPage = lazyNamedPage(
-  () => import('@/pages/stats/SlowMovingAnalysisPage'),
-  'SlowMovingAnalysisPage'
+const OrderMixPage = lazyNamedPage(
+  () => import('@/pages/insights/revenue/OrderMixPage'),
+  'OrderMixPage'
 );
-const BestSellerAnalysisPage = lazyNamedPage(
-  () => import('@/pages/stats/BestSellerAnalysisPage'),
-  'BestSellerAnalysisPage'
+const DiscountInsightPage = lazyNamedPage(
+  () => import('@/pages/insights/revenue/DiscountInsightPage'),
+  'DiscountInsightPage'
 );
-const SalesCyclePage = lazyNamedPage(() => import('@/pages/stats/SalesCyclePage'), 'SalesCyclePage');
+const LeadTimePage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/LeadTimePage'),
+  'LeadTimePage'
+);
+const OrderCyclePage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/OrderCyclePage'),
+  'OrderCyclePage'
+);
+const OperationLedgerPage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/OperationLedgerPage'),
+  'OperationLedgerPage'
+);
+const HotSkuPage = lazyNamedPage(() => import('@/pages/insights/catalog/HotSkuPage'), 'HotSkuPage');
+const SlowSkuPage = lazyNamedPage(
+  () => import('@/pages/insights/catalog/SlowSkuPage'),
+  'SlowSkuPage'
+);
+const StockBalancePage = lazyNamedPage(
+  () => import('@/pages/insights/inventory/StockBalancePage'),
+  'StockBalancePage'
+);
+const CompensationPage = lazyNamedPage(
+  () => import('@/pages/insights/service/CompensationPage'),
+  'CompensationPage'
+);
 
 const ApDocsPage = lazyNamedPage(() => import('@/pages/finance/ApDocsPage'), 'ApDocsPage');
 const ApManagementPage = lazyNamedPage(
@@ -440,7 +469,7 @@ const routeConfig = [
                 path: 'orders',
                 element: (
                   <PermissionGuard permission="orders.read">
-                    <OrdersPage />
+                    <OrderQueryPage />
                   </PermissionGuard>
                 )
               },
@@ -709,58 +738,118 @@ const routeConfig = [
                 )
               },
               {
-                path: 'stats/shipping',
+                path: 'insights',
+                element: <Navigate to="/insights/revenue/overview" replace />
+              },
+              {
+                path: 'insights/revenue/overview',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <ShippingStatsPage />
+                    <RevenueOverviewPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/sales',
+                path: 'insights/revenue/daily-brief',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <SalesStatsPage />
+                    <DailyBriefPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/sales-daily',
+                path: 'insights/revenue/trend-radar',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <SalesDailyReportPage />
+                    <TrendRadarPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/sales-trends',
+                path: 'insights/revenue/order-mix',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <SalesTrendAnalysisPage />
+                    <OrderMixPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/slow-moving',
+                path: 'insights/revenue/discount-insight',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <SlowMovingAnalysisPage />
+                    <DiscountInsightPage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/best-sellers',
+                path: 'insights/fulfillment/lead-time',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <BestSellerAnalysisPage />
+                    <LeadTimePage />
                   </PermissionGuard>
                 )
               },
               {
-                path: 'stats/sales-cycle',
+                path: 'insights/fulfillment/order-cycle',
                 element: (
                   <PermissionGuard permission="stats.read">
-                    <SalesCyclePage />
+                    <OrderCyclePage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/fulfillment/operation-ledger',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <OperationLedgerPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/catalog/hot-sku',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <HotSkuPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/catalog/slow-sku',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <SlowSkuPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/inventory/stock-balance',
+                element: (
+                  <PermissionGuard permission="reports.read">
+                    <StockBalancePage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/service/compensation',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <CompensationPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/workbench/report-center',
+                element: (
+                  <PermissionGuard permission="reports.read">
+                    <ReportCenterPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/workbench/export-queue',
+                element: (
+                  <PermissionGuard permission="exports.read">
+                    <ExportQueuePage />
                   </PermissionGuard>
                 )
               },
@@ -1057,22 +1146,6 @@ const routeConfig = [
                 element: (
                   <PermissionGuard permission="inventory.read">
                     <InventoryCostsPage />
-                  </PermissionGuard>
-                )
-              },
-              {
-                path: 'reports',
-                element: (
-                  <PermissionGuard permission="reports.read">
-                    <ReportsPage />
-                  </PermissionGuard>
-                )
-              },
-              {
-                path: 'exports',
-                element: (
-                  <PermissionGuard permission="exports.read">
-                    <ExportJobsPage />
                   </PermissionGuard>
                 )
               },

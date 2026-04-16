@@ -33,6 +33,16 @@ const clearAllLeftFilterFields = (previous: ColumnFilters): ColumnFilters => ({
   tagState: undefined,
 });
 
+export const clearOrderReviewMainGridColumnFilters = (previous: ColumnFilters): ColumnFilters => ({
+  ...previous,
+  orderIdKeyword: undefined,
+  platformOrderIdKeyword: undefined,
+  receiverNameKeyword: undefined,
+  receiverPhoneKeyword: undefined,
+  createdAtFrom: undefined,
+  createdAtTo: undefined,
+});
+
 const singleSelectValue = <T extends string>(current: readonly T[] | undefined, value: string): T[] | undefined => {
   const normalized = normalizeMulti(current as string[]);
   if (normalized.length === 1 && normalized[0] === value) {

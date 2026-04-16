@@ -612,11 +612,13 @@ export const ServerTable = <T extends { id?: string }>({
                 <Button
                   type="primary"
                   icon={<RightOutlined />}
+                  aria-label="Add column"
                   disabled={!activeAvailableKey}
                   onClick={handleAddColumn}
                 />
                 <Button
                   icon={<LeftOutlined />}
+                  aria-label="Remove column"
                   disabled={!activeVisibleKey || visibleColumnKeys.length <= 1}
                   onClick={handleRemoveColumn}
                 />

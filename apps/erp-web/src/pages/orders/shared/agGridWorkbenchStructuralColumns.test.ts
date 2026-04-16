@@ -19,6 +19,8 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(colDefs[0]?.lockPinned).toBeUndefined();
     expect(colDefs[0]?.lockPosition).toBeUndefined();
     expect(colDefs[0]?.suppressMovable).toBeUndefined();
+    expect(String(colDefs[0]?.cellClass ?? '')).toContain('order-workbench-selection-cell-centered');
+    expect(String(colDefs[0]?.headerClass ?? '')).toContain('order-workbench-selection-header-centered');
 
     expect(colDefs[1]?.colId).toBe('__erpRowIndex');
     expect(colDefs[1]?.pinned).toBeUndefined();
@@ -38,6 +40,7 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(colDefs[0]?.lockPinned).toBe(true);
     expect(colDefs[0]?.lockPosition).toBe('left');
     expect(colDefs[0]?.suppressMovable).toBe(true);
+    expect(String(colDefs[0]?.cellClass ?? '')).toContain('order-workbench-selection-cell-centered');
 
     expect(colDefs[1]?.colId).toBe('__erpRowIndex');
     expect(colDefs[1]?.pinned).toBe('left');

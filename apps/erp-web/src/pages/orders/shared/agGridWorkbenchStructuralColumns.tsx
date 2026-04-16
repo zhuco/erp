@@ -45,8 +45,9 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
           suppressMovable: true,
         }
       : {}),
-    headerClass: 'order-review-main-header-center order-review-main-selection-header-cell',
-    cellClass: 'order-review-main-selection-cell',
+    headerClass:
+      'order-review-main-header-center order-review-main-selection-header-cell order-workbench-selection-header-centered',
+    cellClass: 'order-review-main-selection-cell order-workbench-selection-cell-centered',
     cellRenderer: renderSelectionCheckbox,
     headerComponent: AgGridSelectionHeaderCheckbox,
     headerComponentParams: {

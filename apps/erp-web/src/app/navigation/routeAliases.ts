@@ -4,6 +4,7 @@ export type RouteAlias = {
 };
 
 export const routeAliases: RouteAlias[] = [
+  { legacyPath: '/mappings', canonicalPath: '/channels/mappings' },
   { legacyPath: '/sales/shops', canonicalPath: '/channels/shops' },
   { legacyPath: '/sales/product-match', canonicalPath: '/channels/product-match' },
   { legacyPath: '/sales/shop-orders', canonicalPath: '/channels/shop-orders' },
@@ -14,7 +15,16 @@ export const routeAliases: RouteAlias[] = [
   { legacyPath: '/system/print-mappings', canonicalPath: '/integrations/print-mappings' },
   { legacyPath: '/suppliers', canonicalPath: '/procurement/suppliers' },
   { legacyPath: '/warehouses', canonicalPath: '/wms/warehouses' },
-  { legacyPath: '/couriers', canonicalPath: '/logistics/couriers' }
+  { legacyPath: '/couriers', canonicalPath: '/logistics/couriers' },
+  { legacyPath: '/stats/sales', canonicalPath: '/insights/revenue/overview' },
+  { legacyPath: '/stats/sales-daily', canonicalPath: '/insights/revenue/daily-brief' },
+  { legacyPath: '/stats/sales-trends', canonicalPath: '/insights/revenue/trend-radar' },
+  { legacyPath: '/stats/shipping', canonicalPath: '/insights/fulfillment/lead-time' },
+  { legacyPath: '/stats/sales-cycle', canonicalPath: '/insights/fulfillment/order-cycle' },
+  { legacyPath: '/stats/best-sellers', canonicalPath: '/insights/catalog/hot-sku' },
+  { legacyPath: '/stats/slow-moving', canonicalPath: '/insights/catalog/slow-sku' },
+  { legacyPath: '/reports', canonicalPath: '/insights/workbench/report-center' },
+  { legacyPath: '/exports', canonicalPath: '/insights/workbench/export-queue' },
 ];
 
 const routeAliasMap = new Map(routeAliases.map((item) => [item.legacyPath, item.canonicalPath]));

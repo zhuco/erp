@@ -72,7 +72,7 @@ export const buildOrderManagementColumns = ({
     {
       title: '',
       key: 'row_index',
-      width: 40,
+      width: 48,
       render: (_, __, index) => rowOffset + index + 1
     },
     includeTags
