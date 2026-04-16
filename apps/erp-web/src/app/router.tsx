@@ -358,18 +358,66 @@ const OperationLedgerPage = lazyNamedPage(
   () => import('@/pages/insights/fulfillment/OperationLedgerPage'),
   'OperationLedgerPage'
 );
+const PackagingUsagePage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/PackagingUsagePage'),
+  'PackagingUsagePage'
+);
+const StocktakeVariancePage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/StocktakeVariancePage'),
+  'StocktakeVariancePage'
+);
+const OperationAccuracyPage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/OperationAccuracyPage'),
+  'OperationAccuracyPage'
+);
+const WarehouseNetworkEfficiencyPage = lazyNamedPage(
+  () => import('@/pages/insights/fulfillment/WarehouseNetworkEfficiencyPage'),
+  'WarehouseNetworkEfficiencyPage'
+);
 const HotSkuPage = lazyNamedPage(() => import('@/pages/insights/catalog/HotSkuPage'), 'HotSkuPage');
 const SlowSkuPage = lazyNamedPage(
   () => import('@/pages/insights/catalog/SlowSkuPage'),
   'SlowSkuPage'
 );
+const BundleComboPage = lazyNamedPage(
+  () => import('@/pages/insights/catalog/BundleComboPage'),
+  'BundleComboPage'
+);
 const StockBalancePage = lazyNamedPage(
   () => import('@/pages/insights/inventory/StockBalancePage'),
   'StockBalancePage'
 );
+const StockAgingPage = lazyNamedPage(
+  () => import('@/pages/insights/inventory/StockAgingPage'),
+  'StockAgingPage'
+);
+const TurnoverVelocityPage = lazyNamedPage(
+  () => import('@/pages/insights/inventory/TurnoverVelocityPage'),
+  'TurnoverVelocityPage'
+);
+const TransferBenefitPage = lazyNamedPage(
+  () => import('@/pages/insights/inventory/TransferBenefitPage'),
+  'TransferBenefitPage'
+);
+const NegativeStockAlertPage = lazyNamedPage(
+  () => import('@/pages/insights/inventory/NegativeStockAlertPage'),
+  'NegativeStockAlertPage'
+);
+const ReturnLoopPage = lazyNamedPage(
+  () => import('@/pages/insights/service/ReturnLoopPage'),
+  'ReturnLoopPage'
+);
 const CompensationPage = lazyNamedPage(
   () => import('@/pages/insights/service/CompensationPage'),
   'CompensationPage'
+);
+const ReshipQualityPage = lazyNamedPage(
+  () => import('@/pages/insights/service/ReshipQualityPage'),
+  'ReshipQualityPage'
+);
+const TicketEfficiencyPage = lazyNamedPage(
+  () => import('@/pages/insights/service/TicketEfficiencyPage'),
+  'TicketEfficiencyPage'
 );
 
 const ApDocsPage = lazyNamedPage(() => import('@/pages/finance/ApDocsPage'), 'ApDocsPage');
@@ -806,6 +854,38 @@ const routeConfig = [
                 )
               },
               {
+                path: 'insights/fulfillment/packaging-usage',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <PackagingUsagePage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/fulfillment/stocktake-variance',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <StocktakeVariancePage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/fulfillment/operation-accuracy',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <OperationAccuracyPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/fulfillment/warehouse-network-efficiency',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <WarehouseNetworkEfficiencyPage />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'insights/catalog/hot-sku',
                 element: (
                   <PermissionGuard permission="stats.read">
@@ -822,6 +902,14 @@ const routeConfig = [
                 )
               },
               {
+                path: 'insights/catalog/bundle-combo',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <BundleComboPage />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'insights/inventory/stock-balance',
                 element: (
                   <PermissionGuard permission="reports.read">
@@ -830,10 +918,66 @@ const routeConfig = [
                 )
               },
               {
+                path: 'insights/inventory/stock-aging',
+                element: (
+                  <PermissionGuard permission="reports.read">
+                    <StockAgingPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/inventory/turnover-velocity',
+                element: (
+                  <PermissionGuard permission="reports.read">
+                    <TurnoverVelocityPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/inventory/transfer-benefit',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <TransferBenefitPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/inventory/negative-stock-alert',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <NegativeStockAlertPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/service/return-loop',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <ReturnLoopPage />
+                  </PermissionGuard>
+                )
+              },
+              {
                 path: 'insights/service/compensation',
                 element: (
                   <PermissionGuard permission="stats.read">
                     <CompensationPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/service/reship-quality',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <ReshipQualityPage />
+                  </PermissionGuard>
+                )
+              },
+              {
+                path: 'insights/service/ticket-efficiency',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <TicketEfficiencyPage />
                   </PermissionGuard>
                 )
               },

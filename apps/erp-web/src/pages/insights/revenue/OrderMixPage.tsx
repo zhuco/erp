@@ -1,41 +1,19 @@
-import { Card, Descriptions, Space, Tag, Typography } from 'antd';
-
-const dimensions = ['平台', '店铺', '品类', '品牌', 'SKU'];
-const metrics = ['订单量', '售出件数', 'GMV', 'TOP5 贡献率', '长尾占比'];
-const dependencies = ['订单明细', 'SKU/品类/品牌主数据'];
-
-const renderTags = (items: string[]) => (
-  <Space size={[8, 8]} wrap>
-    {items.map((item) => (
-      <Tag key={item}>{item}</Tag>
-    ))}
-  </Space>
-);
+import { InsightPlaceholderPage } from '@/pages/insights/shared/InsightPlaceholderPage';
 
 export const OrderMixPage = () => (
-  <div data-testid="insights-revenue-order-mix-page">
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        订单结构
-      </Typography.Title>
-      <Card>
-        <Typography.Paragraph style={{ marginBottom: 0 }}>
-          用于观察收入结构是否过度集中，帮助运营识别平台、店铺、品类和商品结构失衡。
-        </Typography.Paragraph>
-      </Card>
-      <Card title="接入状态">
-        <Descriptions column={1} size="small" bordered>
-          <Descriptions.Item label="阶段">
-            <Tag color="volcano">Phase 2 合同待补齐</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="建议维度">{renderTags(dimensions)}</Descriptions.Item>
-          <Descriptions.Item label="核心指标">{renderTags(metrics)}</Descriptions.Item>
-          <Descriptions.Item label="依赖数据源">{renderTags(dependencies)}</Descriptions.Item>
-          <Descriptions.Item label="当前说明">
-            当前先提供业务定义与统计口径，待结构分析主题接口完成后开放正式分析能力。
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
-    </Space>
-  </div>
+  <InsightPlaceholderPage
+    data-testid="insights-revenue-order-mix-page"
+    title="订单结构"
+    goal="用于观察收入构成是否过度集中，识别平台、店铺、品类和品牌结构失衡。"
+    phase="phase-2"
+    dimensions={['平台', '店铺', '品类', '品牌', 'SKU', '订单来源']}
+    metrics={['订单量', '售出件数', 'GMV', 'TOP5 贡献率', '长尾占比']}
+    dependencies={['订单明细', 'SKU 主数据', '品类主数据', '品牌主数据']}
+    caliberNotes={[
+      '结构占比 = 当前维度 GMV / 总 GMV',
+      'TOP5 贡献率用于观察收入头部集中度',
+      '长尾占比可按排名后 80% SKU 对应 GMV 占比计算',
+    ]}
+    currentNote="当前页面先承载结构分析定义，待结构分析主题合同落地后接入图表与明细分页。"
+  />
 );

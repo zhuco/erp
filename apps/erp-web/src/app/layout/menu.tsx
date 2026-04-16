@@ -430,16 +430,32 @@ export const appMenuItems: AppMenuItem[] = [
         leaf('/insights/fulfillment/operation-ledger', '收发作业流水', {
           permission: 'stats.read',
         }),
+        leaf('/insights/fulfillment/packaging-usage', '包装耗用', { permission: 'stats.read' }),
+        leaf('/insights/fulfillment/stocktake-variance', '盘点偏差', { permission: 'stats.read' }),
+        leaf('/insights/fulfillment/operation-accuracy', '作业准确度', { permission: 'stats.read' }),
+        leaf('/insights/fulfillment/warehouse-network-efficiency', '仓网效能', {
+          permission: 'stats.read',
+        }),
       ]),
       group('商品结构与生命周期', [
         leaf('/insights/catalog/hot-sku', '爆品热度', { permission: 'stats.read' }),
         leaf('/insights/catalog/slow-sku', '长尾沉积', { permission: 'stats.read' }),
+        leaf('/insights/catalog/bundle-combo', '连带组合', { permission: 'stats.read' }),
       ]),
       group('库存健康与调拨', [
         leaf('/insights/inventory/stock-balance', '收发存总览', { permission: 'reports.read' }),
+        leaf('/insights/inventory/stock-aging', '库龄健康', { permission: 'reports.read' }),
+        leaf('/insights/inventory/turnover-velocity', '周转流速', { permission: 'reports.read' }),
+        leaf('/insights/inventory/transfer-benefit', '调拨效益', { permission: 'stats.read' }),
+        leaf('/insights/inventory/negative-stock-alert', '负库存预警', {
+          permission: 'stats.read',
+        }),
       ]),
       group('售后与补偿治理', [
+        leaf('/insights/service/return-loop', '退回闭环', { permission: 'stats.read' }),
         leaf('/insights/service/compensation', '补偿看板', { permission: 'stats.read' }),
+        leaf('/insights/service/reship-quality', '补发质量', { permission: 'stats.read' }),
+        leaf('/insights/service/ticket-efficiency', '工单效率', { permission: 'stats.read' }),
       ]),
       group('报表与导出工坊', [
         leaf('/insights/workbench/report-center', '报表中心', { permission: 'reports.read' }),

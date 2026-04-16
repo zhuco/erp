@@ -44,6 +44,26 @@ const insightEntries = [
     pageTestId: 'insights-fulfillment-operation-ledger-page',
   },
   {
+    linkTestId: 'module-link-insights-fulfillment-packaging-usage',
+    path: '/insights/fulfillment/packaging-usage',
+    pageTestId: 'insights-fulfillment-packaging-usage-page',
+  },
+  {
+    linkTestId: 'module-link-insights-fulfillment-stocktake-variance',
+    path: '/insights/fulfillment/stocktake-variance',
+    pageTestId: 'insights-fulfillment-stocktake-variance-page',
+  },
+  {
+    linkTestId: 'module-link-insights-fulfillment-operation-accuracy',
+    path: '/insights/fulfillment/operation-accuracy',
+    pageTestId: 'insights-fulfillment-operation-accuracy-page',
+  },
+  {
+    linkTestId: 'module-link-insights-fulfillment-warehouse-network-efficiency',
+    path: '/insights/fulfillment/warehouse-network-efficiency',
+    pageTestId: 'insights-fulfillment-warehouse-network-efficiency-page',
+  },
+  {
     linkTestId: 'module-link-insights-catalog-hot-sku',
     path: '/insights/catalog/hot-sku',
     pageTestId: 'insights-catalog-hot-sku-page',
@@ -54,14 +74,54 @@ const insightEntries = [
     pageTestId: 'insights-catalog-slow-sku-page',
   },
   {
+    linkTestId: 'module-link-insights-catalog-bundle-combo',
+    path: '/insights/catalog/bundle-combo',
+    pageTestId: 'insights-catalog-bundle-combo-page',
+  },
+  {
     linkTestId: 'module-link-insights-inventory-stock-balance',
     path: '/insights/inventory/stock-balance',
     pageTestId: 'insights-inventory-stock-balance-page',
   },
   {
+    linkTestId: 'module-link-insights-inventory-stock-aging',
+    path: '/insights/inventory/stock-aging',
+    pageTestId: 'insights-inventory-stock-aging-page',
+  },
+  {
+    linkTestId: 'module-link-insights-inventory-turnover-velocity',
+    path: '/insights/inventory/turnover-velocity',
+    pageTestId: 'insights-inventory-turnover-velocity-page',
+  },
+  {
+    linkTestId: 'module-link-insights-inventory-transfer-benefit',
+    path: '/insights/inventory/transfer-benefit',
+    pageTestId: 'insights-inventory-transfer-benefit-page',
+  },
+  {
+    linkTestId: 'module-link-insights-inventory-negative-stock-alert',
+    path: '/insights/inventory/negative-stock-alert',
+    pageTestId: 'insights-inventory-negative-stock-alert-page',
+  },
+  {
+    linkTestId: 'module-link-insights-service-return-loop',
+    path: '/insights/service/return-loop',
+    pageTestId: 'insights-service-return-loop-page',
+  },
+  {
     linkTestId: 'module-link-insights-service-compensation',
     path: '/insights/service/compensation',
     pageTestId: 'insights-service-compensation-page',
+  },
+  {
+    linkTestId: 'module-link-insights-service-reship-quality',
+    path: '/insights/service/reship-quality',
+    pageTestId: 'insights-service-reship-quality-page',
+  },
+  {
+    linkTestId: 'module-link-insights-service-ticket-efficiency',
+    path: '/insights/service/ticket-efficiency',
+    pageTestId: 'insights-service-ticket-efficiency-page',
   },
   {
     linkTestId: 'module-link-insights-workbench-report-center',

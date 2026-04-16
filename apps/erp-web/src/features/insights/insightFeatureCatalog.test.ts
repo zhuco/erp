@@ -6,6 +6,35 @@ import {
   insightPhaseOneRoutes,
 } from './insightFeatureCatalog';
 
+const fullInsightRoutes = [
+  '/insights/revenue/overview',
+  '/insights/revenue/daily-brief',
+  '/insights/revenue/trend-radar',
+  '/insights/revenue/order-mix',
+  '/insights/revenue/discount-insight',
+  '/insights/fulfillment/lead-time',
+  '/insights/fulfillment/order-cycle',
+  '/insights/fulfillment/operation-ledger',
+  '/insights/fulfillment/packaging-usage',
+  '/insights/fulfillment/stocktake-variance',
+  '/insights/fulfillment/operation-accuracy',
+  '/insights/fulfillment/warehouse-network-efficiency',
+  '/insights/catalog/hot-sku',
+  '/insights/catalog/slow-sku',
+  '/insights/catalog/bundle-combo',
+  '/insights/inventory/stock-balance',
+  '/insights/inventory/stock-aging',
+  '/insights/inventory/turnover-velocity',
+  '/insights/inventory/transfer-benefit',
+  '/insights/inventory/negative-stock-alert',
+  '/insights/service/return-loop',
+  '/insights/service/compensation',
+  '/insights/service/reship-quality',
+  '/insights/service/ticket-efficiency',
+  '/insights/workbench/report-center',
+  '/insights/workbench/export-queue',
+] as const;
+
 describe('insightFeatureCatalog', () => {
   it('defines the phase one canonical routes needed for the first delivery slice', () => {
     expect(insightPhaseOneRoutes).toEqual(
@@ -21,6 +50,24 @@ describe('insightFeatureCatalog', () => {
         '/insights/workbench/export-queue',
       ]),
     );
+  });
+
+  it('covers the complete insights menu scope from the design spec', () => {
+    const canonicalPaths = insightFeatureCatalog.map((feature) => feature.canonicalPath).sort();
+    expect(canonicalPaths).toEqual([...fullInsightRoutes].sort());
+  });
+
+  it('keeps the expected rollout split by delivery phase', () => {
+    const phaseCounts = insightFeatureCatalog.reduce<Record<string, number>>((accumulator, feature) => {
+      accumulator[feature.availabilityPhase] = (accumulator[feature.availabilityPhase] ?? 0) + 1;
+      return accumulator;
+    }, {});
+
+    expect(phaseCounts).toEqual({
+      'phase-1': 9,
+      'phase-1.5': 3,
+      'phase-2': 14,
+    });
   });
 
   it('tracks business-question ownership and rollout phase for insight capabilities', () => {
@@ -47,6 +94,18 @@ describe('insightFeatureCatalog', () => {
         expect.objectContaining({
           key: 'service-compensation',
           canonicalPath: '/insights/service/compensation',
+          availabilityPhase: 'phase-2',
+          ownerDomain: 'service',
+        }),
+        expect.objectContaining({
+          key: 'inventory-turnover-velocity',
+          canonicalPath: '/insights/inventory/turnover-velocity',
+          availabilityPhase: 'phase-1.5',
+          ownerDomain: 'inventory',
+        }),
+        expect.objectContaining({
+          key: 'service-ticket-efficiency',
+          canonicalPath: '/insights/service/ticket-efficiency',
           availabilityPhase: 'phase-2',
           ownerDomain: 'service',
         }),
