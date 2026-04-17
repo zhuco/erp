@@ -124,6 +124,33 @@ const toGoodsRows = (rows: Record<string, unknown>[]) =>
   });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ORDER_REVIEW_FILTER_SNAPSHOT_VERSION = 1;
+const WORKBENCH_ANNOUNCE_EVENT = 'erp:workbench-announce';
+
+type OrderReviewFilterSnapshot = {
+  version: number;
+  savedAt: number;
+  searchInput: string;
+  searchKeyword: string;
+  quickFilterExpanded: boolean;
+  columnFilters: ColumnFilters;
+  leftScreenFiltersDraft: UiModule08StrategyScreenFilterState;
+  leftScreenFiltersApplied: UiModule08StrategyScreenFilterState;
+};
+
+const isEditableKeyboardTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tagName = target.tagName;
+  return (
+    target.isContentEditable ||
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    tagName === 'SELECT' ||
+    Boolean(target.closest('.ant-select-dropdown, .ant-picker-dropdown'))
+  );
+};
 
 const readStringField = (record: OrderSummary, keys: string[]) => {
   const rawRecord = record as Record<string, unknown>;
@@ -497,6 +524,13 @@ export const OrderReviewPage = () => {
     }
     const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
     return `orders.review.savedView.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const filterSnapshotStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.filterSnapshot.v1.${tenantId}.${normalizedUserId}`;
   }, [tenantId, userId]);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderSummary> | null>(null);
@@ -1846,6 +1880,189 @@ export const OrderReviewPage = () => {
     toolbarActionDeps,
   ]);
 
+  const announceWorkbench = useCallback((text: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent(WORKBENCH_ANNOUNCE_EVENT, {
+        detail: { message: text },
+      }),
+    );
+  }, []);
+
+  const persistFilterSnapshot = useCallback(
+    (slot: number) => {
+      if (!filterSnapshotStorageKey) {
+        message.warning('当前租户上下文未就绪，无法保存筛选快照');
+        return;
+      }
+      const snapshot: OrderReviewFilterSnapshot = {
+        version: ORDER_REVIEW_FILTER_SNAPSHOT_VERSION,
+        savedAt: Date.now(),
+        searchInput,
+        searchKeyword,
+        quickFilterExpanded,
+        columnFilters,
+        leftScreenFiltersDraft,
+        leftScreenFiltersApplied,
+      };
+
+      let currentMap: Record<string, OrderReviewFilterSnapshot> = {};
+      try {
+        const raw = localStorage.getItem(filterSnapshotStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, OrderReviewFilterSnapshot> | null;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            currentMap = parsed;
+          }
+        }
+      } catch {
+        currentMap = {};
+      }
+
+      currentMap[String(slot)] = snapshot;
+      localStorage.setItem(filterSnapshotStorageKey, JSON.stringify(currentMap));
+      message.success(`已保存筛选快照 ${slot}`);
+      announceWorkbench(`已保存筛选快照 ${slot}`);
+    },
+    [
+      announceWorkbench,
+      columnFilters,
+      filterSnapshotStorageKey,
+      leftScreenFiltersApplied,
+      leftScreenFiltersDraft,
+      quickFilterExpanded,
+      searchInput,
+      searchKeyword,
+    ],
+  );
+
+  const replayFilterSnapshot = useCallback(
+    (slot: number) => {
+      if (!filterSnapshotStorageKey) {
+        message.warning('当前租户上下文未就绪，无法回放筛选快照');
+        return;
+      }
+
+      try {
+        const raw = localStorage.getItem(filterSnapshotStorageKey);
+        if (!raw) {
+          message.warning(`筛选快照 ${slot} 尚未保存`);
+          return;
+        }
+        const parsed = JSON.parse(raw) as Record<string, OrderReviewFilterSnapshot> | null;
+        const snapshot = parsed?.[String(slot)];
+        if (!snapshot) {
+          message.warning(`筛选快照 ${slot} 尚未保存`);
+          return;
+        }
+        setSearchInput(String(snapshot.searchInput ?? ''));
+        setSearchKeyword(String(snapshot.searchKeyword ?? ''));
+        setQuickFilterExpanded(Boolean(snapshot.quickFilterExpanded));
+        setColumnFilters(normalizePersistedOrderReviewColumnFilters(snapshot.columnFilters));
+        setLeftScreenFiltersDraft(
+          normalizePersistedOrderReviewScreenFilters(snapshot.leftScreenFiltersDraft),
+        );
+        setLeftScreenFiltersApplied(
+          normalizePersistedOrderReviewScreenFilters(snapshot.leftScreenFiltersApplied),
+        );
+        resetPagination();
+        message.success(`已应用筛选快照 ${slot}`);
+        announceWorkbench(`已应用筛选快照 ${slot}`);
+      } catch {
+        message.error('筛选快照读取失败，请重新保存后再试');
+      }
+    },
+    [announceWorkbench, filterSnapshotStorageKey, resetPagination],
+  );
+
+  useEffect(() => {
+    const handlePageHotkeys = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      const digitMatch = event.code.match(/^Digit([1-9])$/);
+      if (
+        digitMatch &&
+        event.altKey &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        event.preventDefault();
+        replayFilterSnapshot(Number(digitMatch[1]));
+        return;
+      }
+
+      if (
+        digitMatch &&
+        event.altKey &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        event.ctrlKey
+      ) {
+        event.preventDefault();
+        persistFilterSnapshot(Number(digitMatch[1]));
+        return;
+      }
+
+      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === 'a') {
+        event.preventDefault();
+        if (!hasReviewActionTarget || actionLoading.review) {
+          return;
+        }
+        void handleApproveOrders();
+        return;
+      }
+      if (key === 'm') {
+        event.preventDefault();
+        if (actionOrderIds.length < 2 || actionLoading.merge) {
+          return;
+        }
+        void handleMergeOrders();
+        return;
+      }
+      if (key === 's') {
+        event.preventDefault();
+        if (!hasReviewActionTarget || actionLoading.split) {
+          return;
+        }
+        openSplitModal();
+        return;
+      }
+      if (key === 'c') {
+        event.preventDefault();
+        setSelectedRowKeys([]);
+        setSelectionAnchorKey(null);
+        announceWorkbench('已清空勾选');
+      }
+    };
+
+    window.addEventListener('keydown', handlePageHotkeys);
+    return () => {
+      window.removeEventListener('keydown', handlePageHotkeys);
+    };
+  }, [
+    actionLoading.merge,
+    actionLoading.review,
+    actionLoading.split,
+    actionOrderIds.length,
+    announceWorkbench,
+    handleApproveOrders,
+    handleMergeOrders,
+    hasReviewActionTarget,
+    openSplitModal,
+    persistFilterSnapshot,
+    replayFilterSnapshot,
+  ]);
+
   const selectedAmountCent = useMemo(() => {
     if (!selectedOrderIds.length) return 0;
     const selected = new Set(selectedOrderIds);
@@ -2062,6 +2279,7 @@ export const OrderReviewPage = () => {
             data-testid="order-review-approve"
             size="small"
             type="primary"
+            aria-keyshortcuts="Alt+Shift+A"
             loading={actionLoading.review}
             disabled={!hasReviewActionTarget || actionLoading.review}
             onClick={() => {
@@ -2073,6 +2291,7 @@ export const OrderReviewPage = () => {
           <Button
             data-testid="order-review-split"
             size="small"
+            aria-keyshortcuts="Alt+Shift+S"
             loading={actionLoading.split}
             disabled={!hasReviewActionTarget || actionLoading.split}
             onClick={openSplitModal}
@@ -2082,6 +2301,7 @@ export const OrderReviewPage = () => {
           <Button
             data-testid="order-review-merge"
             size="small"
+            aria-keyshortcuts="Alt+Shift+M"
             loading={actionLoading.merge}
             disabled={actionOrderIds.length < 2 || actionLoading.merge}
             onClick={() => {
@@ -2093,6 +2313,9 @@ export const OrderReviewPage = () => {
           <Button size="small" onClick={() => setQuickFilterExpanded((prev) => !prev)}>
             {quickFilterExpanded ? '收起列筛选' : '展开列筛选'}
           </Button>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            快照：Alt+1..9 回放，Ctrl+Alt+1..9 保存
+          </Typography.Text>
         </>
       }
       searchValue={searchInput}

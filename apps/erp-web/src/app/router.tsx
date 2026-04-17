@@ -166,8 +166,8 @@ const SalesProductMatchPage = lazyNamedPage(
   'SalesProductMatchPage'
 );
 const ShopInventorySyncPage = lazyNamedPage(
-  () => import('@/pages/sales/SalesEcommercePlaceholderPages'),
-  'ShopInventorySyncPage'
+  () => import('@/pages/inventory/InventorySyncJobsPage'),
+  'InventorySyncJobsPage'
 );
 const PrintJobsPage = lazyNamedPage(() => import('@/pages/printJobs/PrintJobsPage'), 'PrintJobsPage');
 const PrintTemplatesPage = lazyNamedPage(() => import('@/pages/printTemplates/PrintTemplatesPage'), 'PrintTemplatesPage');

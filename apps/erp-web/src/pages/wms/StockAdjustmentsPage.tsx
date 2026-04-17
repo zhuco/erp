@@ -222,7 +222,7 @@ export const StockAdjustmentsPage = () => {
         onCancel={() => setCreateOpen(false)}
         onOk={() => createMutation.mutate()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ items: [{ sku_id: '', qty: 1 }] }}>
           <Form.Item
@@ -272,7 +272,7 @@ export const StockAdjustmentsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailQuery.isLoading ? (
           <Card loading />

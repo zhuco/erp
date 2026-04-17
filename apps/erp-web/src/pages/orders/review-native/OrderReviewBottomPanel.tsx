@@ -459,7 +459,7 @@ export const OrderReviewBottomPanel = ({
           void submitGoodsEditor();
         }}
         confirmLoading={goodsSaving}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={goodsForm} layout="vertical">
           <Form.Item label="平台SKU" name="platform_sku_id">

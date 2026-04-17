@@ -1267,7 +1267,7 @@ export const SalesShopConfigPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -1342,7 +1342,7 @@ export const SalesShopConfigPage = () => {
         }
         open={manualDownloadOpen}
         onCancel={() => setManualDownloadOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         width={760}
         okText="提交下载"
         cancelText="取消"

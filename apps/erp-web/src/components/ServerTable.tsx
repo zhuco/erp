@@ -337,7 +337,7 @@ export const ServerTable = <T extends { id?: string }>({
   }, []);
 
   const columnMenuItems = useMemo<MenuProps['items']>(
-    () => [{ key: 'column-settings', label: '设置列' }],
+    () => [{ key: 'column-settings', label: 'Column Settings' }],
     []
   );
 
@@ -553,8 +553,8 @@ export const ServerTable = <T extends { id?: string }>({
             trigger={[]}
             placement="bottomLeft"
             getPopupContainer={() => document.body}
-            overlayStyle={
-              columnMenu
+            styles={{
+              root: columnMenu
                 ? {
                     position: 'fixed',
                     left: columnMenu.x,
@@ -562,8 +562,8 @@ export const ServerTable = <T extends { id?: string }>({
                     zIndex: 2000
                   }
                 : undefined
-            }
-            dropdownRender={(menu) => (
+            }}
+            popupRender={(menu) => (
               <div className="server-table-column-settings">{menu}</div>
             )}
           >
@@ -578,7 +578,7 @@ export const ServerTable = <T extends { id?: string }>({
             />
           </Dropdown>
           <Modal
-            title="设置列"
+            title="Column Settings"
             open={columnSettingsOpen}
             onCancel={() => setColumnSettingsOpen(false)}
             footer={null}

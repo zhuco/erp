@@ -134,7 +134,7 @@ export const UiModule03SkuSelectorModal = ({
       width={1080}
       className="order-review-sku-selector-modal"
       okButtonProps={{ disabled: !selectedSku }}
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs
         activeKey={activeKind}

@@ -246,7 +246,7 @@ export const CustomerTagsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

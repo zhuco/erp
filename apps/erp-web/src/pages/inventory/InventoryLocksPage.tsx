@@ -767,7 +767,7 @@ export const InventoryLocksPage = () => {
         onCancel={() => setRecalcOpen(false)}
         onOk={handleRecalcSubmit}
         okButtonProps={{ loading: recalcMutation.isPending, disabled: !canWrite }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={recalcForm} layout="vertical" initialValues={{ scope: 'GLOBAL' }}>
           <Form.Item name="scope" label="范围">
@@ -793,7 +793,7 @@ export const InventoryLocksPage = () => {
         onCancel={() => setPolicyOpen(false)}
         onOk={handlePolicySubmit}
         okButtonProps={{ loading: policyMutation.isPending, disabled: !canWrite }}
-        destroyOnClose
+        destroyOnHidden
         width={720}
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>

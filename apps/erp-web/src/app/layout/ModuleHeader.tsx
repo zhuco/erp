@@ -9,7 +9,11 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from 'react';
 
 import type { HeaderModuleGroupItem, HeaderModuleItem } from '@/app/layout/headerMenuModel';
 import {
@@ -42,6 +46,7 @@ type ModuleHeaderProps = {
   onSearchChange: (value: string) => void;
   onSearchSelect: (path: string) => void;
   onSearchEnter?: () => void;
+  disableCtrlKSearchHotkey?: boolean;
 };
 
 const PANEL_VIEWPORT_GAP = 24;
@@ -85,6 +90,9 @@ const readAnchorRect = (element: HTMLElement | null): SharedAnchorRect | null =>
   });
 };
 
+const isModifiedPointerClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+  event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0;
+
 const ModulePanel = ({
   contentRef,
   currentPath,
@@ -112,16 +120,22 @@ const ModulePanel = ({
             {group.items.map((item) => {
               const isActive = isModulePathActive(currentPath, item.path);
               return (
-                <button
+                <a
                   key={item.key}
-                  type="button"
+                  href={item.path}
                   className={`workbench-module-link ${isActive ? 'is-active' : ''}`}
-                  onClick={() => onSelect(item.path)}
+                  onClick={(event) => {
+                    if (event.defaultPrevented || isModifiedPointerClick(event)) {
+                      return;
+                    }
+                    event.preventDefault();
+                    onSelect(item.path);
+                  }}
                   data-testid={item.testId}
                   aria-current={isActive ? 'page' : undefined}
                 >
                   {item.label}
-                </button>
+                </a>
               );
             })}
           </div>
@@ -149,6 +163,7 @@ export const ModuleHeader = ({
   onSearchChange,
   onSearchSelect,
   onSearchEnter,
+  disableCtrlKSearchHotkey,
 }: ModuleHeaderProps) => {
   const resolvedModules = modules.length ? modules : fallbackModules;
   const [openModuleKey, setOpenModuleKey] = useState<string | null>(null);
@@ -319,6 +334,7 @@ export const ModuleHeader = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
+        !disableCtrlKSearchHotkey &&
         !event.altKey &&
         !event.shiftKey &&
         (event.ctrlKey || event.metaKey) &&
@@ -344,14 +360,32 @@ export const ModuleHeader = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeSearchDropdown, focusSearchInput, openModuleKey, searchFocused, searchOpen]);
+  }, [
+    closeSearchDropdown,
+    disableCtrlKSearchHotkey,
+    focusSearchInput,
+    openModuleKey,
+    searchFocused,
+    searchOpen,
+  ]);
+
+  useEffect(() => {
+    const handleFocusSearchEvent = () => {
+      focusSearchInput();
+    };
+
+    window.addEventListener('erp:focus-function-search', handleFocusSearchEvent);
+    return () => {
+      window.removeEventListener('erp:focus-function-search', handleFocusSearchEvent);
+    };
+  }, [focusSearchInput]);
 
   const searchInput = useMemo(
     () => (
       <Input
         ref={searchInputRef}
-        aria-label="Function search input"
-        placeholder="搜功能"
+        aria-label="功能搜索输入"
+        placeholder="搜索功能（模块名 / 路由关键词）"
         size="small"
         value={searchValue}
         onFocus={() => {
@@ -388,26 +422,64 @@ export const ModuleHeader = ({
               activeModuleKey === module.key || isOpen ? 'active' : ''
             }`;
 
+            const handleModuleActivation = () => {
+              const nextState = resolveSharedPanelToggle(openModuleKey, module);
+              setOpenModuleKey(nextState.nextOpenModuleKey);
+
+              if (nextState.nextOpenModuleKey && module.leafPaths.length > 0) {
+                onModuleIntent?.(module.leafPaths, 'open');
+              }
+
+              if (nextState.navigateTo) {
+                onModuleClick(nextState.navigateTo);
+              }
+            };
+
+            if (!hasGroups) {
+              return (
+                <a
+                  key={module.key}
+                  href={module.defaultPath ?? undefined}
+                  className={buttonClassName}
+                  data-testid={`module-trigger-${module.key}`}
+                  aria-current={activeModuleKey === module.key ? 'page' : undefined}
+                  aria-disabled={!module.defaultPath}
+                  onClick={(event) => {
+                    if (event.defaultPrevented || !module.defaultPath) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (isModifiedPointerClick(event)) {
+                      return;
+                    }
+                    event.preventDefault();
+                    handleModuleActivation();
+                  }}
+                  onMouseEnter={() => {
+                    if (module.leafPaths.length > 0) {
+                      onModuleIntent?.(module.leafPaths, 'hover');
+                    }
+                  }}
+                  onFocus={() => {
+                    if (module.leafPaths.length > 0) {
+                      onModuleIntent?.(module.leafPaths, 'hover');
+                    }
+                  }}
+                >
+                  {module.label}
+                </a>
+              );
+            }
+
             return (
               <button
                 key={module.key}
                 type="button"
                 className={buttonClassName}
                 data-testid={`module-trigger-${module.key}`}
-                aria-expanded={hasGroups ? isOpen : undefined}
-                aria-controls={hasGroups ? 'workbench-shared-module-panel' : undefined}
-                onClick={() => {
-                  const nextState = resolveSharedPanelToggle(openModuleKey, module);
-                  setOpenModuleKey(nextState.nextOpenModuleKey);
-
-                  if (nextState.nextOpenModuleKey && module.leafPaths.length > 0) {
-                    onModuleIntent?.(module.leafPaths, 'open');
-                  }
-
-                  if (nextState.navigateTo) {
-                    onModuleClick(nextState.navigateTo);
-                  }
-                }}
+                aria-expanded={isOpen}
+                aria-controls="workbench-shared-module-panel"
+                onClick={handleModuleActivation}
                 onMouseEnter={() => {
                   if (module.leafPaths.length > 0) {
                     onModuleIntent?.(module.leafPaths, 'hover');
@@ -418,7 +490,6 @@ export const ModuleHeader = ({
                     onModuleIntent?.(module.leafPaths, 'hover');
                   }
                 }}
-                disabled={!hasGroups && !module.defaultPath}
               >
                 {module.label}
               </button>
@@ -476,13 +547,13 @@ export const ModuleHeader = ({
               closeSearchDropdown();
               onSearchSelect(String(path));
             }}
-            popupClassName="workbench-function-search-dropdown"
+            classNames={{ popup: { root: 'workbench-function-search-dropdown' } }}
             className="workbench-function-search-auto"
             defaultActiveFirstOption
             transitionName=""
             notFoundContent={
               <div className="workbench-function-search-empty" data-testid="function-search-empty">
-                未找到匹配功能，请尝试模块名、分组名或路由关键词
+                未找到匹配功能。支持模块名、分组名、页面名称或路由关键词。
               </div>
             }
             open={searchOpen && (searchOptions.length > 0 || Boolean(searchValue.trim()))}
@@ -494,7 +565,7 @@ export const ModuleHeader = ({
               size="small"
               type="default"
               icon={<SearchOutlined />}
-              aria-label="Function search"
+              aria-label="功能搜索"
               className="workbench-function-search-button"
               data-testid="workbench-function-search-button"
               onClick={() => {
@@ -516,7 +587,7 @@ export const ModuleHeader = ({
                 size="small"
                 type="text"
                 icon={<ColumnHeightOutlined />}
-                aria-label={denseMode ? 'Disable compact mode' : 'Enable compact mode'}
+                aria-label={denseMode ? '关闭紧凑模式' : '开启紧凑模式'}
                 onClick={onToggleDense}
                 className={`dense-toggle ${denseMode ? 'active' : ''}`}
                 aria-pressed={denseMode}
@@ -524,17 +595,17 @@ export const ModuleHeader = ({
             </Tooltip>
           ) : null}
           <Tooltip title="通知">
-            <Button size="small" type="text" icon={<BellOutlined />} aria-label="Notifications" />
+            <Button size="small" type="text" icon={<BellOutlined />} aria-label="通知" />
           </Tooltip>
           <Tooltip title="设置">
-            <Button size="small" type="text" icon={<SettingOutlined />} aria-label="Settings" />
+            <Button size="small" type="text" icon={<SettingOutlined />} aria-label="设置" />
           </Tooltip>
           <Tooltip title="退出登录">
-            <Button size="small" type="text" icon={<LogoutOutlined />} onClick={onLogout} aria-label="Sign out" />
+            <Button size="small" type="text" icon={<LogoutOutlined />} onClick={onLogout} aria-label="退出登录" />
           </Tooltip>
         </Space>
         <Dropdown menu={{ items: userMenuItems, onClick: onUserMenuClick }}>
-          <Button type="text" className="workbench-user-trigger" aria-label={`User menu: ${userName}`}>
+          <Button type="text" className="workbench-user-trigger" aria-label={`用户菜单：${userName}`}>
             <Space size={6}>
               <Avatar size={24}>{userName.slice(0, 1).toUpperCase()}</Avatar>
               <span>{userName}</span>

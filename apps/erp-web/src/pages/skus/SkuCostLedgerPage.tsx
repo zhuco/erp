@@ -281,7 +281,7 @@ export const SkuCostLedgerPage = () => {
         onCancel={() => setAdjustOpen(false)}
         onOk={handleSubmitAdjust}
         okText="提交"
-        destroyOnClose
+        destroyOnHidden
         okButtonProps={{ disabled: !canWrite || !costFeature.enabled }}
       >
         <Form form={adjustForm} layout="vertical" initialValues={{ new_cost: 0 }}>

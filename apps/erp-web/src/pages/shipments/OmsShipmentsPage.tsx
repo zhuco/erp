@@ -423,7 +423,7 @@ export const OmsShipmentsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
       >
         {shipmentDetail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -531,7 +531,7 @@ export const OmsShipmentsPage = () => {
         confirmLoading={cancelSubmitting}
         okText="提交"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Input.TextArea
           value={cancelReason}

@@ -312,7 +312,7 @@ export const LogisticsInstallationsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         {activeTask ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>

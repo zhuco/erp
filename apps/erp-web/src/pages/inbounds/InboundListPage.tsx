@@ -458,7 +458,7 @@ export const InboundListPage = () => {
         onOk={handleCreate}
         confirmLoading={createMutation.isPending}
         okText="创建"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={createForm}

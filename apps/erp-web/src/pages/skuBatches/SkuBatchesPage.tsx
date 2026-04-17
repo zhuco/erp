@@ -349,7 +349,7 @@ const SkuBatchStrategiesPanel = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -963,7 +963,7 @@ export const SkuBatchesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

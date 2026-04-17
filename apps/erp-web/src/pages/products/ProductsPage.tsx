@@ -2258,7 +2258,7 @@ export const ProductsPage = () => {
           header: { padding: '2px 12px', minHeight: 24, margin: 0 },
           body: { padding: '12px 16px' },
         }}
-        destroyOnClose
+        destroyOnHidden
         data-testid="products-modal"
         footer={
           <Space>
@@ -2294,7 +2294,7 @@ export const ProductsPage = () => {
                         <Select
                           allowClear
                           options={categoryOptions}
-                          dropdownRender={(menu) =>
+                          popupRender={(menu) =>
                             renderCreateDropdown(
                               menu,
                               createCategory,
@@ -2330,7 +2330,7 @@ export const ProductsPage = () => {
                         <Select
                           allowClear
                           options={unitOptions}
-                          dropdownRender={(menu) =>
+                          popupRender={(menu) =>
                             renderCreateDropdown(
                               menu,
                               createUnit,
@@ -2352,7 +2352,7 @@ export const ProductsPage = () => {
                         <Select
                           allowClear
                           options={brandOptions}
-                          dropdownRender={(menu) =>
+                          popupRender={(menu) =>
                             renderCreateDropdown(
                               menu,
                               createBrand,
@@ -2818,4 +2818,3 @@ export const ProductsPage = () => {
     </>
   );
 };
-

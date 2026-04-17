@@ -208,7 +208,7 @@ export const InventoryFreezesPage = () => {
         onCancel={() => setCreateOpen(false)}
         onOk={() => createMutation.mutate()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

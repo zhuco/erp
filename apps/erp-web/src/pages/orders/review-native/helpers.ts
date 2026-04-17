@@ -43,7 +43,10 @@ export const platformLabelToCodeMap: Record<string, string> = {
   抖音: 'douyin',
 };
 
-export const resolveOrderRowKey = (record: OrderSummary) => {
+export const resolveOrderRowKey = (record: OrderSummary | null | undefined) => {
+  if (!record) {
+    return '';
+  }
   const id = String(record.id ?? '').trim();
   if (id) {
     return id;
@@ -62,7 +65,10 @@ export const resolveOrderRowKey = (record: OrderSummary) => {
   return fallback ? `fallback:${fallback}` : '';
 };
 
-export const resolveOrderActionId = (record: OrderSummary) => {
+export const resolveOrderActionId = (record: OrderSummary | null | undefined) => {
+  if (!record) {
+    return '';
+  }
   const id = String(record.id ?? '').trim();
   if (id) {
     return id;

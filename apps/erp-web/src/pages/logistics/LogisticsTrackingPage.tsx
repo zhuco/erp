@@ -174,7 +174,7 @@ export const LogisticsTrackingPage = () => {
           setActiveShipment(null);
         }}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         {trackingLoading || trackingFetching ? (
           <LoadingState

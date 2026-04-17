@@ -1011,7 +1011,7 @@ export const OrderDetailPage = () => {
         confirmLoading={resendSubmitting}
         onOk={handleResend}
         onCancel={() => setResendOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Input

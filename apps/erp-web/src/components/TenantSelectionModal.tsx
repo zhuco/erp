@@ -44,7 +44,7 @@ export const TenantSelectionModal = ({
       closable={false}
       maskClosable={false}
       keyboard={false}
-      destroyOnClose
+      destroyOnHidden
     >
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Typography.Text type="secondary">进入系统前请选择商家。</Typography.Text>

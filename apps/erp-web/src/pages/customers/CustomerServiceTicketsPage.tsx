@@ -474,7 +474,7 @@ export const CustomerServiceTicketsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

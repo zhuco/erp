@@ -351,7 +351,7 @@ export const LogisticsPricesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

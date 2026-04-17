@@ -49,4 +49,12 @@ describe('WorkbenchMainTableTemplate', () => {
     expect(source).toContain("hasOwn.call(props, 'bottomPanel')");
     expect(source).toContain('if (!workbenchPanels || !shouldSyncBottomPanel)');
   });
+
+  it('keeps horizontal scrolling available in footer mode table content', () => {
+    const cssSource = readFileSync(resolve(__dirname, 'WorkbenchMainTableTemplate.css'), 'utf8');
+
+    expect(cssSource).toContain('.order-workbench-table-with-footer .ant-table-content');
+    expect(cssSource).toContain('overflow-x: auto');
+    expect(cssSource).not.toContain('overflow-x: hidden !important');
+  });
 });

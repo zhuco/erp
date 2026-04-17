@@ -486,7 +486,7 @@ export const WmsWavesPage = () => {
           shipForm.resetFields();
         }}
         width={720}
-        destroyOnClose
+        destroyOnHidden
         data-testid="wms-wave-detail-drawer"
       >
         {detail ? (

@@ -412,7 +412,7 @@ export const MarketingPriceListsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -459,7 +459,7 @@ export const MarketingPriceListsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={900}
-        destroyOnClose
+        destroyOnHidden
       >
         {detail ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>

@@ -330,7 +330,7 @@ export const WmsOutboundsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={720}
-        destroyOnClose
+        destroyOnHidden
         data-testid="outbound-detail-drawer"
       >
         {detail ? (

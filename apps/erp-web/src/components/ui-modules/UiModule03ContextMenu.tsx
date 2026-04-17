@@ -49,7 +49,7 @@ export const UiModule03ContextMenu = ({
     <Dropdown
       open={open}
       menu={menu}
-      dropdownRender={(menuNode) => (
+      popupRender={(menuNode) => (
         <div className={['order-workbench-context-menu', className].filter(Boolean).join(' ')}>
           {menuNode}
         </div>
@@ -62,16 +62,17 @@ export const UiModule03ContextMenu = ({
       trigger={[]}
       placement="bottomLeft"
       getPopupContainer={() => document.body}
-      overlayStyle={
-        open && position
-          ? {
-              position: 'fixed',
-              left: position.x,
-              top: position.y,
-              zIndex: 2000
-            }
-          : undefined
-      }
+      styles={{
+        root:
+          open && position
+            ? {
+                position: 'fixed',
+                left: position.x,
+                top: position.y,
+                zIndex: 2000
+              }
+            : undefined
+      }}
     >
       <span
         style={{

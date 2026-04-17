@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -14,6 +14,7 @@
   Row,
   Select,
   Space,
+  Statistic,
   Tag,
   Typography,
   message
@@ -24,151 +25,86 @@ import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type {
-  ShopProductAutoMatchPayload,
-  ShopProductCreateSkuPayload,
-  ShopProductDownloadPayload,
-  ShopProductDeleteMatchPayload,
-  ShopProductMatchFailure,
-  ShopProductManualMatchPayload,
-  ShopProductSku,
-  ShopProductSkuListQuery,
-  ShopProductTask
-} from '@/api/shopProducts';
 import {
   autoMatchShopProducts,
   createShopProductSkus,
   deleteShopProductMatches,
   downloadShopProducts,
-  manualMatchShopProducts
+  manualMatchShopProducts,
+  type ShopProductAutoMatchPayload,
+  type ShopProductCreateSkuPayload,
+  type ShopProductDeleteMatchPayload,
+  type ShopProductDownloadPayload,
+  type ShopProductManualMatchPayload,
+  type ShopProductMatchFailure,
+  type ShopProductSku,
+  type ShopProductSkuListQuery,
+  type ShopProductTask
 } from '@/api/shopProducts';
-import { listMappingRules } from '@/api/mappingRules';
 import { useShopProductSkus, useShopProductTasks, useSkusList } from '@/api/hooks';
+import { listMappingRules } from '@/api/mappingRules';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
 import { PlatformTag } from '@/components/PlatformTag';
 import { ServerTable } from '@/components/ServerTable';
-import { WorkbenchListPage } from '@/components/workbench/WorkbenchListPage';
 import { UiModule02ToolbarRight } from '@/components/ui-modules';
-import { platformLabels } from '@/features/platform';
+import { WorkbenchListPage } from '@/components/workbench/WorkbenchListPage';
 import type { PlatformCode } from '@/features/platform';
+import { platformLabels } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
-type ShopProductStatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
+import './shopProductDownloadPage.css';
 
+type StatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 type FilterValues = {
   platform?: PlatformCode;
   shop_ids?: string[];
-  product_type?: string;
-  status?: ShopProductStatusFilter;
   keyword?: string;
+  status?: StatusFilter;
   match_status?: string;
   mapping_status?: string;
-  conflict_reason?: string;
-  match_source?: string;
   updated_range?: [dayjs.Dayjs, dayjs.Dayjs];
 };
-
-type DownloadFormValues = {
-  platform?: PlatformCode;
-  shop_ids?: string[];
-  product_type?: string;
-  status?: ShopProductStatusFilter;
-  keyword?: string;
-  updated_range?: [dayjs.Dayjs, dayjs.Dayjs];
-};
-
-type CreateFormValues = {
-  import_price?: boolean;
-  import_image?: boolean;
-  import_stock?: boolean;
-  warehouse_id?: string;
-};
-
-type ManualFormValues = {
-  sku_id?: string;
-};
-
-export type ShopProductDownloadPageProps = {
-  title?: string;
-};
-
-const formatCurrency = (value?: number | null) =>
-  value == null ? '-' : (value / 100).toFixed(2);
-
-const formatDateTime = (value?: string | null) =>
-  value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
 const statusOptions = [
   { label: '出售中', value: 'ACTIVE' },
   { label: '已下架', value: 'INACTIVE' },
   { label: '全部', value: 'ALL' }
 ];
-
 const matchStatusOptions = [
   { label: '已匹配', value: 'MATCHED' },
   { label: '未匹配', value: 'UNMATCHED' },
   { label: '自动匹配', value: 'AUTO' },
   { label: '手动匹配', value: 'MANUAL' }
 ];
-
 const mappingStatusOptions = [
   { label: '映射有效', value: 'ACTIVE' },
   { label: '匹配冲突', value: 'CONFLICT' },
   { label: '映射失效', value: 'INACTIVE' }
 ];
 
-const matchSourceOptions = [
-  { label: '自动', value: 'AUTO' },
-  { label: '手动', value: 'MANUAL' }
-];
-
-const conflictReasonOptions = [
-  { label: '无候选 SKU', value: 'NO_CANDIDATE' },
-  { label: '多候选 SKU', value: 'MULTI_CANDIDATE' },
-  { label: '候选 SKU 不可用', value: 'SKU_INACTIVE' }
-];
-
-const conflictReasonLabelMap: Record<string, string> = {
-  NO_CANDIDATE: '无候选 SKU',
-  MULTI_CANDIDATE: '多候选 SKU',
-  SKU_INACTIVE: '候选 SKU 不可用'
+const normalizeStatus = (s?: StatusFilter) => (!s || s === 'ALL' ? undefined : s);
+const toDate = (v?: string | null) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-');
+const toMoney = (v?: number | null) => (v == null ? '-' : (v / 100).toFixed(2));
+const matchTag = (row: ShopProductSku) => {
+  if (row.mapping_status === 'CONFLICT') return <Tag color="red">匹配冲突</Tag>;
+  if (!row.mapping_id) return <Tag>未匹配</Tag>;
+  if (row.match_source === 'MANUAL') return <Tag color="blue">手动匹配</Tag>;
+  if (row.match_source === 'AUTO') return <Tag color="green">自动匹配</Tag>;
+  return <Tag color="purple">已匹配</Tag>;
 };
 
-const normalizeStatus = (status?: ShopProductStatusFilter) => {
-  if (!status || status === 'ALL') {
-    return undefined;
-  }
-  return status;
-};
-
-const resolveMatchStatus = (record: ShopProductSku) => {
-  if (record.mapping_status === 'CONFLICT') {
-    return { label: '匹配冲突', color: 'red' };
-  }
-  if (!record.mapping_id) {
-    return { label: '未匹配', color: 'default' };
-  }
-  if (record.match_source === 'MANUAL') {
-    return { label: '手动匹配', color: 'blue' };
-  }
-  if (record.match_source === 'AUTO') {
-    return { label: '自动匹配', color: 'green' };
-  }
-  return { label: '已匹配', color: 'purple' };
-};
+export type ShopProductDownloadPageProps = { title?: string };
 
 export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps) => {
   const tenantId = useTenantId();
   const queryClient = useQueryClient();
   const canWrite = useCan('shop_products.write');
-  const pageTitle = title ?? '缃戝簵鍟嗗搧';
+  const pageTitle = title ?? '网店商品匹配';
+
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 20
-  });
+  const [pagination, setPagination] = useState<TablePaginationConfig>({ current: 1, pageSize: 20 });
   const [taskPagination, setTaskPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10
@@ -176,22 +112,23 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<ShopProductSku[]>([]);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadAutoMatch, setDownloadAutoMatch] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
-  const [downloadAutoMatch, setDownloadAutoMatch] = useState(false);
+  const [autoMatchFailures, setAutoMatchFailures] = useState<ShopProductMatchFailure[]>([]);
   const [createScope, setCreateScope] = useState<'selected' | 'filtered'>('selected');
+
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [autoMatchLoading, setAutoMatchLoading] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [autoMatchFailures, setAutoMatchFailures] = useState<ShopProductMatchFailure[]>([]);
 
   const [filterForm] = Form.useForm<FilterValues>();
-  const [downloadForm] = Form.useForm<DownloadFormValues>();
-  const [createForm] = Form.useForm<CreateFormValues>();
-  const [manualForm] = Form.useForm<ManualFormValues>();
+  const [downloadForm] = Form.useForm<FilterValues>();
+  const [createForm] = Form.useForm<{ import_price?: boolean; import_image?: boolean; import_stock?: boolean; warehouse_id?: string }>();
+  const [manualForm] = Form.useForm<{ sku_id?: string }>();
   const importStock = Form.useWatch('import_stock', createForm);
 
   const { data: shopData, isLoading: shopLoading } = useQuery({
@@ -200,880 +137,132 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
     enabled: Boolean(tenantId),
     staleTime: 60_000
   });
-
-  const platformOptions = useMemo(() => {
-    const platforms = Array.from(
-      new Set((shopData?.items ?? []).map((shop) => shop.platform))
-    );
-    return platforms.map((platform) => ({
-      label: platformLabels[platform] ?? platform,
-      value: platform
-    }));
-  }, [shopData?.items]);
-
-  const shopOptions = useMemo(
+  const platformOptions = useMemo(
     () =>
-      shopData?.items.map((shop) => ({
-        label: `${shop.name} (${shop.shop_id})`,
-        value: shop.shop_id
-      })) ?? [],
+      Array.from(new Set((shopData?.items ?? []).map((s) => s.platform))).map((p) => ({
+        value: p,
+        label: platformLabels[p] ?? p
+      })),
     [shopData?.items]
   );
-
+  const shopOptions = useMemo(
+    () =>
+      (shopData?.items ?? []).map((s) => ({
+        value: s.shop_id,
+        label: `${s.name} (${s.shop_id})`
+      })),
+    [shopData?.items]
+  );
   const shopMap = useMemo(() => {
-    const map = new Map<string, string>();
-    shopData?.items.forEach((shop) => {
-      map.set(shop.shop_id, shop.name);
-    });
-    return map;
+    const m = new Map<string, string>();
+    (shopData?.items ?? []).forEach((s) => m.set(s.shop_id, s.name));
+    return m;
   }, [shopData?.items]);
+
   const activeRulePlatform = filters.platform ?? shopData?.items?.[0]?.platform;
   const { data: mappingRuleData } = useQuery({
     queryKey: ['mapping-rules', tenantId, activeRulePlatform, 'shop-products'],
-    queryFn: () =>
-      listMappingRules(tenantId, {
-        platform: activeRulePlatform,
-        entity_type: 'SHOP_PRODUCT',
-        enabled: true,
-        limit: 20
-      }),
+    queryFn: () => listMappingRules(tenantId, { platform: activeRulePlatform, entity_type: 'SHOP_PRODUCT', enabled: true, limit: 20 }),
     enabled: Boolean(tenantId && activeRulePlatform)
   });
-  const apparelRuleSummary = useMemo(() => {
-    const targetRule = mappingRuleData?.items.find(
-      (rule) => rule.rule_json?.industry_profile === 'APPAREL'
-    );
-    if (!targetRule) {
-      return null;
-    }
-    const colorDict = (targetRule.rule_json?.color_dict as Record<string, string> | undefined) ?? {};
-    const sizeDict = (targetRule.rule_json?.size_dict as Record<string, string> | undefined) ?? {};
-    return {
-      templateName: String(targetRule.rule_json?.template_name ?? '闉嬫湇妯℃澘'),
-      colorCount: Object.keys(colorDict).length,
-      sizeCount: Object.keys(sizeDict).length
-    };
-  }, [mappingRuleData?.items]);
+  const apparelRule = useMemo(() => mappingRuleData?.items.find((r) => r.rule_json?.industry_profile === 'APPAREL'), [mappingRuleData?.items]);
+
+  const query = useMemo<ShopProductSkuListQuery>(
+    () => ({
+      platform: filters.platform,
+      shop_ids: filters.shop_ids,
+      keyword: filters.keyword?.trim() || undefined,
+      status: normalizeStatus(filters.status),
+      match_status: filters.match_status,
+      mapping_status: filters.mapping_status,
+      updated_from: filters.updated_range?.[0]?.toISOString(),
+      updated_to: filters.updated_range?.[1]?.toISOString(),
+      offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? 20),
+      limit: pagination.pageSize ?? 20
+    }),
+    [filters, pagination.current, pagination.pageSize]
+  );
+  const { data, isLoading, isFetching, error, refetch } = useShopProductSkus({ query, enabled: Boolean(tenantId) });
+
+  const { data: taskData, isFetching: taskFetching, error: taskError, refetch: refetchTasks } = useShopProductTasks({
+    query: {
+      offset: ((taskPagination.current ?? 1) - 1) * (taskPagination.pageSize ?? 10),
+      limit: taskPagination.pageSize ?? 10
+    },
+    enabled: taskDrawerOpen
+  });
 
   const { data: warehouseData, isLoading: warehouseLoading } = useQuery({
     queryKey: ['warehouses', tenantId, 'shop-product-create'],
     queryFn: () => listWarehouses(tenantId, { limit: 200 }),
     enabled: createOpen && Boolean(tenantId)
   });
-
   const warehouseOptions = useMemo(
-    () =>
-      (warehouseData?.items ?? []).map((warehouse) => ({
-        value: warehouse.warehouse_id,
-        label: `${warehouse.name} (${warehouse.code})`
-      })),
+    () => (warehouseData?.items ?? []).map((w) => ({ value: w.warehouse_id, label: `${w.name} (${w.code})` })),
     [warehouseData?.items]
   );
+  const { data: skuData, isLoading: skuLoading } = useSkusList({ pageSize: 200, enabled: manualOpen });
 
-  const { data: skuData, isLoading: skuLoading } = useSkusList({
-    pageSize: 200,
-    enabled: manualOpen
-  });
-  const skuOptions = useMemo(() => skuData?.data ?? [], [skuData?.data]);
+  const stats = useMemo(() => {
+    const rows = data?.items ?? [];
+    const matched = rows.filter((r) => r.mapping_id && r.mapping_status !== 'CONFLICT').length;
+    const conflict = rows.filter((r) => r.mapping_status === 'CONFLICT').length;
+    return { total: data?.total ?? 0, matched, conflict, unmatched: rows.length - matched - conflict, selected: selectedRowKeys.length };
+  }, [data?.items, data?.total, selectedRowKeys.length]);
 
-  const query = useMemo<ShopProductSkuListQuery>(() => {
-    return {
-      platform: filters.platform,
-      shop_ids: filters.shop_ids,
-      product_type: filters.product_type?.trim() || undefined,
-      status: normalizeStatus(filters.status),
-      keyword: filters.keyword?.trim() || undefined,
-      match_status: filters.match_status,
-      mapping_status: filters.mapping_status,
-      conflict_reason: filters.conflict_reason,
-      match_source: filters.match_source,
-      updated_from: filters.updated_range?.[0]?.toISOString(),
-      updated_to: filters.updated_range?.[1]?.toISOString(),
-      offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? 20),
-      limit: pagination.pageSize ?? 20
-    };
-  }, [filters, pagination.current, pagination.pageSize]);
-
-  const { data, isLoading, isFetching, error, refetch } = useShopProductSkus({
-    query,
-    enabled: Boolean(tenantId)
-  });
-
-  const taskQuery = useMemo(
-    () => ({
-      offset: ((taskPagination.current ?? 1) - 1) * (taskPagination.pageSize ?? 10),
-      limit: taskPagination.pageSize ?? 10
-    }),
-    [taskPagination.current, taskPagination.pageSize]
-  );
-  const {
-    data: taskData,
-    isFetching: taskFetching,
-    error: taskError,
-    refetch: refetchTasks
-  } = useShopProductTasks({ query: taskQuery, enabled: taskDrawerOpen });
+  const refreshData = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
+    await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
+  };
 
   const columns = useMemo<ColumnsType<ShopProductSku>>(
     () => [
-      {
-        title: '骞冲彴',
-        dataIndex: 'platform',
-        render: (_, record) => <PlatformTag platform={record.platform} />
-      },
-      {
-        title: '搴楅摵',
-        dataIndex: 'shop_id',
-        render: (value: string) => shopMap.get(value) ?? value
-      },
-      {
-        title: '鍟嗗搧鏍囬',
-        dataIndex: 'product_title'
-      },
-      {
-        title: '鍟嗗缂栫爜',
-        dataIndex: 'merchant_code',
-        render: (value: string | null | undefined) => value ?? '-'
-      },
-      {
-        title: '瑙勬牸缂栫爜',
-        dataIndex: 'merchant_sku_code',
-        render: (value: string | null | undefined, record) => value ?? record.platform_sku_id
-      },
-      {
-        title: '瑙勬牸淇℃伅',
-        dataIndex: 'spec_text',
-        render: (value: string | null | undefined, record) =>
-          value ?? record.sku_title ?? '-'
-      },
-      {
-        title: '浠锋牸',
-        dataIndex: 'price_cent',
-        render: (value: number | null | undefined) => formatCurrency(value)
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        render: (value: string) => <Tag>{value}</Tag>
-      },
-      {
-        title: '鏇存柊鏃堕棿',
-        dataIndex: 'platform_updated_at',
-        render: (value: string | null | undefined, record) =>
-          formatDateTime(value ?? record.updated_at)
-      },
-      {
-        title: '匹配状态',
-        dataIndex: 'match_source',
-        render: (_, record) => {
-          const status = resolveMatchStatus(record);
-          return <Tag color={status.color}>{status.label}</Tag>;
-        }
-      },
-      {
-        title: '映射状态',
-        dataIndex: 'mapping_status',
-        render: (value: string | null | undefined) => (value ? <Tag>{value}</Tag> : '-')
-      },
-      {
-        title: '鍐茬獊鍘熷洜',
-        dataIndex: 'conflict_reason',
-        render: (value: string | null | undefined) =>
-          value ? conflictReasonLabelMap[value] ?? value : '-'
-      },
-      {
-        title: '鍖归厤璐у搧',
-        dataIndex: 'mapped_sku_code',
-        render: (_, record) =>
-          record.mapped_sku_code
-            ? `${record.mapped_sku_code} ${record.mapped_sku_name ?? ''}`
-            : '-'
-      }
+      { title: '平台', dataIndex: 'platform', width: 90, render: (_, r) => <PlatformTag platform={r.platform} /> },
+      { title: '店铺', dataIndex: 'shop_id', width: 170, ellipsis: true, render: (v: string) => shopMap.get(v) ?? v },
+      { title: '平台SKU名称', dataIndex: 'spec_text', width: 220, ellipsis: true, render: (v: string | null | undefined, r) => v ?? r.sku_title ?? '-' },
+      { title: 'SKU商家编码', dataIndex: 'merchant_sku_code', width: 160, render: (v: string | null | undefined, r) => v ?? r.platform_sku_id },
+      { title: '匹配ERP编码', dataIndex: 'mapped_sku_code', width: 220, ellipsis: true, render: (_, r) => (r.mapped_sku_code ? `${r.mapped_sku_code} ${r.mapped_sku_name ?? ''}` : '-') },
+      { title: '匹配状态', dataIndex: 'match_source', width: 120, render: (_, r) => matchTag(r) },
+      { title: '价格(元)', dataIndex: 'price_cent', width: 100, align: 'right', render: (v: number | null | undefined) => toMoney(v) },
+      { title: '平台更新时间', dataIndex: 'platform_updated_at', width: 160, render: (v: string | null | undefined, r) => toDate(v ?? r.updated_at) }
     ],
     [shopMap]
   );
 
   const taskColumns = useMemo<ColumnsType<ShopProductTask>>(
     () => [
-      {
-        title: '浠诲姟绫诲瀷',
-        dataIndex: 'task_type'
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        render: (value: string) => <Tag>{value}</Tag>
-      },
-      {
-        title: '鎬绘暟',
-        dataIndex: 'total_count'
-      },
-      {
-        title: '鎴愬姛',
-        dataIndex: 'success_count'
-      },
-      {
-        title: '澶辫触',
-        dataIndex: 'failure_count'
-      },
-      {
-        title: '閿欒',
-        dataIndex: 'error',
-        render: (value: string) => value || '-'
-      },
-      {
-        title: '开始时间',
-        dataIndex: 'started_at',
-        render: (value: string) => formatDateTime(value)
-      },
-      {
-        title: '瀹屾垚鏃堕棿',
-        dataIndex: 'finished_at',
-        render: (value: string | null | undefined) => formatDateTime(value)
-      }
+      { title: '任务类型', dataIndex: 'task_type' },
+      { title: '状态', dataIndex: 'status', render: (v: string) => <Tag>{v}</Tag> },
+      { title: '总数', dataIndex: 'total_count' },
+      { title: '成功', dataIndex: 'success_count' },
+      { title: '失败', dataIndex: 'failure_count' },
+      { title: '开始时间', dataIndex: 'started_at', render: (v: string) => toDate(v) }
     ],
     []
   );
 
-  const handleSearch = (values: FilterValues) => {
-    setFilters(values);
-    setPagination((prev) => ({ ...prev, current: 1 }));
-  };
-
-  const handleReset = () => {
-    filterForm.resetFields();
-    setFilters({});
-    setPagination((prev) => ({ ...prev, current: 1 }));
-  };
-
-  const buildFilterPayload = (values: FilterValues): ShopProductSkuListQuery => ({
-    platform: values.platform,
-    shop_ids: values.shop_ids,
-    product_type: values.product_type?.trim() || undefined,
-    status: normalizeStatus(values.status),
-    keyword: values.keyword?.trim() || undefined,
-    match_status: values.match_status,
-    mapping_status: values.mapping_status,
-    conflict_reason: values.conflict_reason,
-    match_source: values.match_source,
-    updated_from: values.updated_range?.[0]?.toISOString(),
-    updated_to: values.updated_range?.[1]?.toISOString()
-  });
-
-  const openDownloadModal = (autoMatch: boolean) => {
-    const defaultStatus =
-      filters.status && filters.status !== 'ALL' ? filters.status : 'ACTIVE';
-    setDownloadAutoMatch(autoMatch);
-    setDownloadOpen(true);
-    downloadForm.setFieldsValue({
-      platform: filters.platform,
-      shop_ids: filters.shop_ids,
-      product_type: filters.product_type,
-      status: defaultStatus,
-      keyword: filters.keyword,
-      updated_range: filters.updated_range
-    });
-  };
-
-  const handleDownload = async () => {
-    try {
-      const values = await downloadForm.validateFields();
-      const payload: ShopProductDownloadPayload = {
-        platform: values.platform,
-        shop_ids: values.shop_ids,
-        product_type: values.product_type?.trim() || undefined,
-        status: normalizeStatus(values.status),
-        keyword: values.keyword?.trim() || undefined,
-        updated_from: values.updated_range?.[0]?.toISOString(),
-        updated_to: values.updated_range?.[1]?.toISOString(),
-        auto_match: downloadAutoMatch
-      };
-      setDownloadLoading(true);
-      const response = await downloadShopProducts(tenantId, payload);
-      message.success('下载任务已创建');
-      if (response.auto_match_failures?.length) {
-        Modal.warning({
-          title: '鑷姩鍖归厤澶辫触',
-          content: (
-            <div>
-              {response.auto_match_failures.slice(0, 6).map((item) => (
-                <div key={item.sku_record_id}>
-                  {`${item.platform_sku_id}: ${item.reason}`}
-                </div>
-              ))}
-            </div>
-          )
-        });
-      }
-      setDownloadOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
-      setTaskDrawerOpen(true);
-    } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message || '涓嬭浇澶辫触');
-      }
-    } finally {
-      setDownloadLoading(false);
-    }
-  };
-
-  const openCreateModal = (scope: 'selected' | 'filtered') => {
-    setCreateScope(scope);
-    setCreateOpen(true);
-    createForm.resetFields();
-    createForm.setFieldsValue({
-      import_price: true,
-      import_image: true,
-      import_stock: false
-    });
-  };
-
-  const handleCreateSkus = async () => {
-    try {
-      const values = await createForm.validateFields();
-      if (createScope === 'selected' && selectedRowKeys.length === 0) {
-        message.warning('璇峰厛閫夋嫨鍟嗗搧');
-        return;
-      }
-      const payload: ShopProductCreateSkuPayload = {
-        sku_record_ids: createScope === 'selected' ? selectedRowKeys : undefined,
-        filters: createScope === 'filtered' ? buildFilterPayload(filters) : undefined,
-        import_price: values.import_price,
-        import_image: values.import_image,
-        import_stock: values.import_stock,
-        warehouse_id: values.warehouse_id
-      };
-      setCreateLoading(true);
-      await createShopProductSkus(tenantId, payload);
-      message.success('货品档案创建任务已提交');
-      setCreateOpen(false);
-      setSelectedRowKeys([]);
-      setSelectedRows([]);
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      setTaskDrawerOpen(true);
-    } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message || '鍒涘缓澶辫触');
-      }
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
-  const handleAutoMatch = async (scope: 'selected' | 'filtered') => {
-    try {
-      if (scope === 'selected' && selectedRowKeys.length === 0) {
-        message.warning('璇峰厛閫夋嫨鍟嗗搧');
-        return;
-      }
-      const payload: ShopProductAutoMatchPayload = {
-        sku_record_ids: scope === 'selected' ? selectedRowKeys : undefined,
-        filters: scope === 'filtered' ? buildFilterPayload(filters) : undefined
-      };
-      setAutoMatchLoading(true);
-      const response = await autoMatchShopProducts(tenantId, payload);
-      message.success('自动匹配任务已提交');
-      if (response.failures?.length) {
-        setAutoMatchFailures(response.failures);
-      } else {
-        setAutoMatchFailures([]);
-      }
-      setSelectedRowKeys([]);
-      setSelectedRows([]);
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      setTaskDrawerOpen(!response.failures?.length);
-    } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message || '鑷姩鍖归厤澶辫触');
-      }
-    } finally {
-      setAutoMatchLoading(false);
-    }
-  };
-
-  const handleManualMatch = async () => {
-    try {
-      const values = await manualForm.validateFields();
-      if (!selectedRowKeys.length) {
-        message.warning('璇峰厛閫夋嫨鍟嗗搧');
-        return;
-      }
-      if (!values.sku_id) {
-        message.warning('璇烽€夋嫨璐у搧妗ｆ');
-        return;
-      }
-      const payload: ShopProductManualMatchPayload = {
-        sku_record_ids: selectedRowKeys,
-        sku_id: values.sku_id
-      };
-      setManualLoading(true);
-      await manualMatchShopProducts(tenantId, payload);
-      message.success('鎵嬪姩鍖归厤瀹屾垚');
-      setManualOpen(false);
-      setSelectedRowKeys([]);
-      setSelectedRows([]);
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      setTaskDrawerOpen(true);
-    } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message || '鎵嬪姩鍖归厤澶辫触');
-      }
-    } finally {
-      setManualLoading(false);
-    }
-  };
-
-  const handleDeleteMatch = async () => {
-    try {
-      if (!selectedRowKeys.length) {
-        message.warning('璇峰厛閫夋嫨鍟嗗搧');
-        return;
-      }
-      const payload: ShopProductDeleteMatchPayload = {
-        sku_record_ids: selectedRowKeys
-      };
-      setDeleteLoading(true);
-      await deleteShopProductMatches(tenantId, payload);
-      message.success('匹配已删除');
-      setSelectedRowKeys([]);
-      setSelectedRows([]);
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'tasks', tenantId] });
-      await queryClient.invalidateQueries({ queryKey: ['shop-products', 'skus', tenantId] });
-      setTaskDrawerOpen(true);
-    } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message || '鍒犻櫎鍖归厤澶辫触');
-      }
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+  const toFilterPayload = (v: FilterValues): ShopProductSkuListQuery => ({ platform: v.platform, shop_ids: v.shop_ids, keyword: v.keyword?.trim() || undefined, status: normalizeStatus(v.status), match_status: v.match_status, mapping_status: v.mapping_status, updated_from: v.updated_range?.[0]?.toISOString(), updated_to: v.updated_range?.[1]?.toISOString() });
 
   return (
     <>
       <WorkbenchListPage
-        query={
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            {apparelRuleSummary ? (
-              <Alert
-                type="info"
-                showIcon
-                data-testid="shop-products-apparel-rule-summary"
-                message="鞋服模板字典已启用"
-                description={`当前平台已启用 ${apparelRuleSummary.templateName}，颜色字典 ${apparelRuleSummary.colorCount} 项，尺码字典 ${apparelRuleSummary.sizeCount} 项，自动匹配会按规格文本联动治理。`}
-              />
-            ) : null}
-            <Card size="small">
-              <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-                <Row gutter={16}>
-                <Col xs={24}>
-                  <Form.Item name="platform" label="骞冲彴">
-                    <Select
-                      allowClear
-                      options={platformOptions}
-                      placeholder="閫夋嫨骞冲彴"
-                      loading={shopLoading}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="shop_ids" label="搴楅摵">
-                    <Select
-                      mode="multiple"
-                      allowClear
-                      options={shopOptions}
-                      placeholder="閫夋嫨搴楅摵"
-                      loading={shopLoading}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="product_type" label="鍟嗗搧绫诲瀷">
-                    <Input allowClear placeholder="杈撳叆鍟嗗搧绫诲瀷" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="status" label="商品状态">
-                    <Select
-                      allowClear
-                      options={statusOptions}
-                      placeholder="选择商品状态"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="match_status" label="匹配状态">
-                    <Select
-                      data-testid="shop-products-filter-match-status"
-                      allowClear
-                      options={matchStatusOptions}
-                      placeholder="选择匹配状态"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="mapping_status" label="映射状态">
-                    <Select
-                      data-testid="shop-products-filter-mapping-status"
-                      allowClear
-                      options={mappingStatusOptions}
-                      placeholder="选择映射状态"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="match_source" label="鍖归厤鏉ユ簮">
-                    <Select
-                      data-testid="shop-products-filter-match-source"
-                      allowClear
-                      options={matchSourceOptions}
-                      placeholder="閫夋嫨鍖归厤鏉ユ簮"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="conflict_reason" label="鍐茬獊鍘熷洜">
-                    <Select
-                      data-testid="shop-products-filter-conflict-reason"
-                      allowClear
-                      options={conflictReasonOptions}
-                      placeholder="閫夋嫨鍐茬獊鍘熷洜"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="keyword" label="关键词">
-                    <Input
-                      data-testid="shop-products-filter-keyword"
-                      allowClear
-                      placeholder="鏍囬/鍟嗗缂栫爜/瑙勬牸缂栫爜"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Form.Item name="updated_range" label="鏇存柊鏃堕棿">
-                    <DatePicker.RangePicker style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col xs={24}>
-                  <Space>
-                    <Button
-                      data-testid="shop-products-filter-submit"
-                      type="primary"
-                      htmlType="submit"
-                      size="small"
-                    >
-                      鏌ヨ
-                    </Button>
-                    <Button data-testid="shop-products-filter-reset" onClick={handleReset} size="small">
-                      閲嶇疆
-                    </Button>
-                  </Space>
-                </Col>
-                </Row>
-              </Form>
-            </Card>
-          </Space>
-        }
-        toolbarLeft={
-          <Space size={8} wrap={false} align="center">
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              {pageTitle}
-            </Typography.Title>
-            <Dropdown.Button
-              type="primary"
-              disabled={!canWrite}
-              onClick={() => openDownloadModal(false)}
-              menu={{
-                items: [{ key: 'auto', label: '下载并匹配' }],
-                onClick: () => openDownloadModal(true)
-              }}
-            >
-              涓嬭浇鍟嗗搧
-            </Dropdown.Button>
-            <Dropdown
-              menu={{
-                items: [
-                  { key: 'selected', label: '按勾选创建' },
-                  { key: 'filtered', label: '按筛选创建' }
-                ],
-                onClick: ({ key }) => openCreateModal(key as 'selected' | 'filtered')
-              }}
-            >
-              <Button disabled={!canWrite}>鍒涘缓璐у搧妗ｆ</Button>
-            </Dropdown>
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'selected',
-                    label: <span data-testid="shop-products-auto-match-selected">按勾选匹配</span>
-                  },
-                  {
-                    key: 'filtered',
-                    label: <span data-testid="shop-products-auto-match-filtered">按筛选匹配</span>
-                  }
-                ],
-                onClick: ({ key }) => handleAutoMatch(key as 'selected' | 'filtered')
-              }}
-            >
-              <Button
-                data-testid="shop-products-auto-match-button"
-                loading={autoMatchLoading}
-                disabled={!canWrite}
-              >
-                鑷姩鍖归厤
-              </Button>
-            </Dropdown>
-            <Button
-              data-testid="shop-products-manual-match-button"
-              disabled={!canWrite}
-              onClick={() => {
-                manualForm.resetFields();
-                setManualOpen(true);
-              }}
-            >
-              鎵嬪姩鍖归厤
-            </Button>
-            <Popconfirm
-              title="纭畾鍒犻櫎鍖归厤鍚楋紵"
-              onConfirm={handleDeleteMatch}
-              okButtonProps={{ loading: deleteLoading }}
-            >
-              <Button disabled={!canWrite}>鍒犻櫎鍖归厤</Button>
-            </Popconfirm>
-          </Space>
-        }
-        toolbarRight={
-          <UiModule02ToolbarRight
-            onExport={() => message.info('导出功能待接入')}
-            onPrint={() => message.info('打印功能待接入')}
-            onHelp={() => message.info('帮助功能待接入')}
-          />
-        }
-        detailGroups={[
-          {
-            key: 'tasks',
-            label: '浠诲姟涓績',
-            children: (
-              <Space direction="vertical" size={8}>
-                <Typography.Text type="secondary">
-                  涓嬭浇/鍒涘缓/鍖归厤浠诲姟浼氳褰曞湪浠诲姟鍒楄〃銆?
-                </Typography.Text>
-                <Button size="small" onClick={() => setTaskDrawerOpen(true)}>
-                  鏌ョ湅浠诲姟
-                </Button>
-              </Space>
-            )
-          },
-          {
-            key: 'match',
-            label: '匹配状态',
-            children: (
-              <Space direction="vertical" size={4}>
-                <Typography.Text>鏈尮閰嶏細鏈叧鑱擡RP璐у搧</Typography.Text>
-                <Typography.Text>自动匹配：系统按规则匹配 ERP 货品</Typography.Text>
-                <Typography.Text>鎵嬪姩鍖归厤锛氫汉宸ユ寚瀹欵RP璐у搧</Typography.Text>
-              </Space>
-            )
-          }
-        ]}
-        table={
-          <ServerTable<ShopProductSku>
-            rowKey="sku_record_id"
-            columns={columns}
-            data={data?.items ?? []}
-            loading={isLoading || isFetching}
-            error={error}
-            onRetry={() => refetch()}
-            errorTitle={`${pageTitle}鍔犺浇澶辫触`}
-            emptyText={`鏆傛棤${pageTitle}`}
-            total={data?.total ?? 0}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys, rows) => {
-                setSelectedRowKeys(keys as string[]);
-                setSelectedRows(rows as ShopProductSku[]);
-              }
-            }}
-            columnSettingsKey="shop-products.table.columns"
-          />
-        }
+        className="shop-product-match-page"
+        query={<Space direction="vertical" size={16} style={{ width: '100%' }}><Card size="small" className="shop-product-match-overview-card"><Row gutter={[12, 12]}><Col xs={12} md={8} xl={4}><Statistic title="查询总量" value={stats.total} /></Col><Col xs={12} md={8} xl={4}><Statistic title="已匹配" value={stats.matched} valueStyle={{ color: '#1677ff' }} /></Col><Col xs={12} md={8} xl={4}><Statistic title="未匹配" value={stats.unmatched} valueStyle={{ color: '#fa8c16' }} /></Col><Col xs={12} md={8} xl={4}><Statistic title="冲突" value={stats.conflict} valueStyle={{ color: '#cf1322' }} /></Col><Col xs={12} md={8} xl={4}><Statistic title="已勾选" value={stats.selected} valueStyle={{ color: '#13a8a8' }} /></Col></Row><Typography.Text type="secondary" className="shop-product-match-overview-hint">使用平台 SKU 名称与 SKU 商家编码，匹配 ERP 商品/组合装编码。</Typography.Text></Card><Card size="small" title="查询条件" className="shop-product-match-filter-card"><Form form={filterForm} layout="vertical" onFinish={(v) => { setFilters(v); setPagination((p) => ({ ...p, current: 1 })); }}><Row gutter={[12, 0]}><Col xs={24} md={12}><Form.Item name="platform" label="平台"><Select allowClear options={platformOptions} placeholder="选择平台" loading={shopLoading} /></Form.Item></Col><Col xs={24} md={12}><Form.Item name="shop_ids" label="店铺"><Select mode="multiple" allowClear options={shopOptions} placeholder="选择店铺" loading={shopLoading} /></Form.Item></Col><Col xs={24}><Form.Item name="keyword" label="关键词"><Input data-testid="shop-products-filter-keyword" allowClear placeholder="平台SKU名称 / SKU商家编码" /></Form.Item></Col><Col xs={24} md={8}><Form.Item name="status" label="商品状态"><Select allowClear options={statusOptions} placeholder="选择商品状态" /></Form.Item></Col><Col xs={24} md={8}><Form.Item name="match_status" label="匹配状态"><Select data-testid="shop-products-filter-match-status" allowClear options={matchStatusOptions} placeholder="选择匹配状态" /></Form.Item></Col><Col xs={24} md={8}><Form.Item name="mapping_status" label="映射状态"><Select data-testid="shop-products-filter-mapping-status" allowClear options={mappingStatusOptions} placeholder="选择映射状态" /></Form.Item></Col><Col xs={24}><Form.Item name="updated_range" label="平台更新时间"><DatePicker.RangePicker style={{ width: '100%' }} /></Form.Item></Col><Col xs={24}><Space><Button data-testid="shop-products-filter-submit" type="primary" htmlType="submit">查询</Button><Button data-testid="shop-products-filter-reset" onClick={() => { filterForm.resetFields(); setFilters({}); setPagination((p) => ({ ...p, current: 1 })); }}>重置</Button></Space></Col></Row></Form></Card>{apparelRule ? <Alert type="info" showIcon data-testid="shop-products-apparel-rule-summary" message="鞋服模板字典已启用" description={`模板：${String(apparelRule.rule_json?.template_name ?? '鞋服模板')}`} /> : null}</Space>}
+        toolbarLeft={<Space size={8} wrap className="shop-product-match-toolbar-left"><Typography.Title level={4} style={{ margin: 0 }}>{pageTitle}</Typography.Title><Tag color="processing">已选择 {selectedRowKeys.length} 条</Tag><Dropdown.Button type="primary" disabled={!canWrite} onClick={() => { setDownloadAutoMatch(false); setDownloadOpen(true); downloadForm.setFieldsValue(filters); }} menu={{ items: [{ key: 'auto', label: '下载并自动匹配' }], onClick: () => { setDownloadAutoMatch(true); setDownloadOpen(true); downloadForm.setFieldsValue(filters); } }}>下载平台SKU</Dropdown.Button><Dropdown menu={{ items: [{ key: 'selected', label: '按勾选创建ERP档案' }, { key: 'filtered', label: '按筛选创建ERP档案' }], onClick: ({ key }) => { setCreateScope(key as 'selected' | 'filtered'); setCreateOpen(true); createForm.setFieldsValue({ import_image: true, import_price: true, import_stock: false }); } }}><Button disabled={!canWrite}>创建ERP档案</Button></Dropdown><Dropdown menu={{ items: [{ key: 'selected', label: <span data-testid="shop-products-auto-match-selected">按勾选自动匹配</span> }, { key: 'filtered', label: <span data-testid="shop-products-auto-match-filtered">按筛选自动匹配</span> }], onClick: async ({ key }) => { try { if (key === 'selected' && !selectedRowKeys.length) { message.warning('请先选择需要处理的平台 SKU'); return; } setAutoMatchLoading(true); const payload: ShopProductAutoMatchPayload = { sku_record_ids: key === 'selected' ? selectedRowKeys : undefined, filters: key === 'filtered' ? toFilterPayload(filters) : undefined }; const res = await autoMatchShopProducts(tenantId, payload); setAutoMatchFailures(res.failures ?? []); setSelectedRowKeys([]); setSelectedRows([]); await refreshData(); setTaskDrawerOpen(!(res.failures?.length ?? 0)); message.success('自动匹配任务已提交'); } catch (e) { if (e instanceof Error) message.error(e.message || '自动匹配失败'); } finally { setAutoMatchLoading(false); } } }}><Button data-testid="shop-products-auto-match-button" loading={autoMatchLoading} disabled={!canWrite}>自动匹配</Button></Dropdown><Button data-testid="shop-products-manual-match-button" disabled={!canWrite} onClick={() => { manualForm.resetFields(); setManualOpen(true); }}>手动匹配</Button><Popconfirm title="确认删除所选匹配关系吗？" onConfirm={async () => { try { if (!selectedRowKeys.length) { message.warning('请先选择需要处理的平台 SKU'); return; } setDeleteLoading(true); const payload: ShopProductDeleteMatchPayload = { sku_record_ids: selectedRowKeys }; await deleteShopProductMatches(tenantId, payload); setSelectedRowKeys([]); setSelectedRows([]); await refreshData(); setTaskDrawerOpen(true); message.success('匹配关系已删除'); } catch (e) { if (e instanceof Error) message.error(e.message || '删除匹配失败'); } finally { setDeleteLoading(false); } }} okButtonProps={{ loading: deleteLoading }}><Button disabled={!canWrite}>删除匹配</Button></Popconfirm></Space>}
+        toolbarRight={<UiModule02ToolbarRight onExport={() => message.info('导出功能待接入')} onPrint={() => message.info('打印功能待接入')} onHelp={() => message.info('帮助功能待接入')} />}
+        detailGroups={[{ key: 'workflow', label: '处理流程', children: <Space direction="vertical" size={4}><Typography.Text>1. 下载平台SKU</Typography.Text><Typography.Text>2. 自动匹配批量记录</Typography.Text><Typography.Text>3. 手动处理冲突与未匹配</Typography.Text></Space> }, { key: 'tasks', label: '任务中心', children: <Button size="small" onClick={() => setTaskDrawerOpen(true)}>查看任务</Button> }]}
+        table={<ServerTable<ShopProductSku> rowKey="sku_record_id" columns={columns} data={data?.items ?? []} loading={isLoading || isFetching} error={error} onRetry={() => refetch()} errorTitle={`${pageTitle}加载失败`} emptyText={`暂无${pageTitle}`} total={data?.total ?? 0} pagination={pagination} onPaginationChange={setPagination} rowSelection={{ selectedRowKeys, onChange: (keys, rows) => { setSelectedRowKeys(keys as string[]); setSelectedRows(rows as ShopProductSku[]); } }} columnSettingsKey="shop-products.table.columns" />}
       />
-      <Modal
-        title="自动匹配失败"
-        open={autoMatchFailures.length > 0}
-        onCancel={() => setAutoMatchFailures([])}
-        onOk={() => setAutoMatchFailures([])}
-        okText="知道了"
-        cancelButtonProps={{ style: { display: 'none' } }}
-      >
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          {autoMatchFailures.slice(0, 6).map((item) => (
-            <Typography.Text key={item.sku_record_id}>{`${item.platform_sku_id}: ${item.reason}`}</Typography.Text>
-          ))}
-        </Space>
-      </Modal>
-      <Modal
-        title={downloadAutoMatch ? '下载商品并匹配' : '下载商品'}
-        open={downloadOpen}
-        onCancel={() => setDownloadOpen(false)}
-        onOk={handleDownload}
-        confirmLoading={downloadLoading}
-        okText="开始下载"
-      >
-        <Form form={downloadForm} layout="vertical">
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item name="platform" label="骞冲彴">
-                <Select
-                  allowClear
-                  options={platformOptions}
-                  placeholder="閫夋嫨骞冲彴"
-                  loading={shopLoading}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="shop_ids"
-                label="搴楅摵"
-                rules={[{ required: true, message: '璇烽€夋嫨搴楅摵' }]}
-              >
-                <Select
-                  mode="multiple"
-                  allowClear
-                  options={shopOptions}
-                  placeholder="閫夋嫨搴楅摵"
-                  loading={shopLoading}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item name="product_type" label="鍟嗗搧绫诲瀷">
-                <Input allowClear placeholder="杈撳叆鍟嗗搧绫诲瀷" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item name="status" label="商品状态">
-                <Select
-                  allowClear
-                  options={statusOptions}
-                  placeholder="选择商品状态"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
-              <Form.Item name="keyword" label="关键词">
-                <Input allowClear placeholder="鏍囬/鍟嗗缂栫爜/瑙勬牸缂栫爜" />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
-              <Form.Item name="updated_range" label="鏇存柊鏃堕棿">
-                <DatePicker.RangePicker style={{ width: '100%' }} showTime />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-      <Modal
-        title={createScope === 'selected' ? '鍒涘缓璐у搧妗ｆ锛堝嬀閫夛級' : '鍒涘缓璐у搧妗ｆ锛堢瓫閫夛級'}
-        open={createOpen}
-        onCancel={() => setCreateOpen(false)}
-        onOk={handleCreateSkus}
-        okText="鎻愪氦鍒涘缓"
-        confirmLoading={createLoading}
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item name="import_price" valuePropName="checked">
-            <Checkbox>瀵煎叆缃戝簵浠锋牸</Checkbox>
-          </Form.Item>
-          <Form.Item name="import_image" valuePropName="checked">
-            <Checkbox>瀵煎叆鍟嗗搧鍥剧墖</Checkbox>
-          </Form.Item>
-          <Form.Item name="import_stock" valuePropName="checked">
-            <Checkbox>瀵煎叆缃戝簵搴撳瓨</Checkbox>
-          </Form.Item>
-          {importStock ? (
-            <>
-              <Alert
-                type="warning"
-                message="库存关系建立后可能难以解除，请谨慎选择仓库。"
-                style={{ marginBottom: 12 }}
-              />
-              <Form.Item
-                name="warehouse_id"
-                label="瀛樻斁浠撳簱"
-                rules={[{ required: true, message: '璇烽€夋嫨浠撳簱' }]}
-              >
-                <Select
-                  allowClear
-                  placeholder="閫夋嫨浠撳簱"
-                  options={warehouseOptions}
-                  loading={warehouseLoading}
-                />
-              </Form.Item>
-            </>
-          ) : null}
-        </Form>
-      </Modal>
-      <Modal
-        title="鎵嬪姩鍖归厤"
-        open={manualOpen}
-        onCancel={() => setManualOpen(false)}
-        onOk={handleManualMatch}
-        okText="鎻愪氦鍖归厤"
-        confirmLoading={manualLoading}
-      >
-        <Form form={manualForm} layout="vertical">
-          <Form.Item
-            name="sku_id"
-            label="閫夋嫨璐у搧妗ｆ"
-            rules={[{ required: true, message: '璇烽€夋嫨璐у搧妗ｆ' }]}
-          >
-            <Select
-              data-testid="shop-products-manual-match-sku-select"
-              showSearch
-              loading={skuLoading}
-              optionFilterProp="label"
-              placeholder="閫夋嫨ERP璐у搧"
-              options={skuOptions.map((sku) => ({
-                value: sku.sku_id,
-                label: `${sku.sku_code} ${sku.name ?? ''}`
-              }))}
-            />
-          </Form.Item>
-          <Typography.Text type="secondary">
-            宸插嬀閫?{selectedRows.length} 涓綉搴楄鏍硷紝灏嗘槧灏勫埌鍚屼竴璐у搧銆?
-          </Typography.Text>
-        </Form>
-      </Modal>
-      <Drawer
-        title="鍟嗗搧涓嬭浇浠诲姟"
-        open={taskDrawerOpen}
-        onClose={() => setTaskDrawerOpen(false)}
-        width={720}
-      >
-        <ServerTable<ShopProductTask>
-          rowKey="task_id"
-          columns={taskColumns}
-          data={taskData?.items ?? []}
-          loading={taskFetching}
-          error={taskError}
-          onRetry={() => refetchTasks()}
-          errorTitle="浠诲姟鍔犺浇澶辫触"
-          emptyText="鏆傛棤浠诲姟"
-          total={taskData?.total ?? 0}
-          pagination={taskPagination}
-          onPaginationChange={setTaskPagination}
-          columnSettingsKey="shop-products.task.columns"
-        />
-      </Drawer>
+
+      <Modal title="自动匹配失败" open={autoMatchFailures.length > 0} onCancel={() => setAutoMatchFailures([])} onOk={() => setAutoMatchFailures([])} okText="知道了" cancelButtonProps={{ style: { display: 'none' } }}><Space direction="vertical" size={8} style={{ width: '100%' }}>{autoMatchFailures.slice(0, 6).map((x) => <Typography.Text key={x.sku_record_id}>{`${x.platform_sku_id}: ${x.reason}`}</Typography.Text>)}</Space></Modal>
+
+      <Modal title={downloadAutoMatch ? '下载平台SKU并自动匹配' : '下载平台SKU'} open={downloadOpen} onCancel={() => setDownloadOpen(false)} onOk={async () => { try { const values = await downloadForm.validateFields(); setDownloadLoading(true); const payload: ShopProductDownloadPayload = { platform: values.platform, shop_ids: values.shop_ids, keyword: values.keyword?.trim() || undefined, status: normalizeStatus(values.status), updated_from: values.updated_range?.[0]?.toISOString(), updated_to: values.updated_range?.[1]?.toISOString(), auto_match: downloadAutoMatch }; const res = await downloadShopProducts(tenantId, payload); setDownloadOpen(false); await refreshData(); setTaskDrawerOpen(true); message.success('下载任务已创建'); if (res.auto_match_failures?.length) { Modal.warning({ title: '自动匹配失败', content: <div>{res.auto_match_failures.slice(0, 6).map((item) => <div key={item.sku_record_id}>{`${item.platform_sku_id}: ${item.reason}`}</div>)}</div> }); } } catch (e) { if (e instanceof Error) message.error(e.message || '下载失败'); } finally { setDownloadLoading(false); } }} confirmLoading={downloadLoading} okText="开始下载"><Form form={downloadForm} layout="vertical"><Row gutter={16}><Col xs={24} md={12}><Form.Item name="platform" label="平台"><Select allowClear options={platformOptions} placeholder="选择平台" loading={shopLoading} /></Form.Item></Col><Col xs={24} md={12}><Form.Item name="shop_ids" label="店铺" rules={[{ required: true, message: '请选择店铺' }]}><Select mode="multiple" allowClear options={shopOptions} placeholder="选择店铺" loading={shopLoading} /></Form.Item></Col><Col xs={24}><Form.Item name="keyword" label="关键词"><Input allowClear placeholder="平台SKU名称 / SKU商家编码" /></Form.Item></Col><Col xs={24} md={12}><Form.Item name="status" label="商品状态"><Select allowClear options={statusOptions} placeholder="选择商品状态" /></Form.Item></Col><Col xs={24} md={12}><Form.Item name="updated_range" label="平台更新时间"><DatePicker.RangePicker style={{ width: '100%' }} showTime /></Form.Item></Col></Row></Form></Modal>
+
+      <Modal title={createScope === 'selected' ? '创建ERP档案（按勾选）' : '创建ERP档案（按筛选）'} open={createOpen} onCancel={() => setCreateOpen(false)} onOk={async () => { try { const values = await createForm.validateFields(); if (createScope === 'selected' && !selectedRowKeys.length) { message.warning('请先选择需要处理的平台 SKU'); return; } setCreateLoading(true); const payload: ShopProductCreateSkuPayload = { sku_record_ids: createScope === 'selected' ? selectedRowKeys : undefined, filters: createScope === 'filtered' ? toFilterPayload(filters) : undefined, import_price: values.import_price, import_image: values.import_image, import_stock: values.import_stock, warehouse_id: values.warehouse_id }; await createShopProductSkus(tenantId, payload); setCreateOpen(false); setSelectedRowKeys([]); setSelectedRows([]); await refreshData(); setTaskDrawerOpen(true); message.success('ERP档案创建任务已提交'); } catch (e) { if (e instanceof Error) message.error(e.message || '创建失败'); } finally { setCreateLoading(false); } }} confirmLoading={createLoading} okText="提交创建"><Form form={createForm} layout="vertical"><Form.Item name="import_price" valuePropName="checked"><Checkbox>导入网店价格</Checkbox></Form.Item><Form.Item name="import_image" valuePropName="checked"><Checkbox>导入商品图片</Checkbox></Form.Item><Form.Item name="import_stock" valuePropName="checked"><Checkbox>导入网店库存</Checkbox></Form.Item>{importStock ? <Form.Item name="warehouse_id" label="存放仓库" rules={[{ required: true, message: '请选择仓库' }]}><Select allowClear options={warehouseOptions} placeholder="选择仓库" loading={warehouseLoading} /></Form.Item> : null}</Form></Modal>
+
+      <Modal title="手动匹配" open={manualOpen} onCancel={() => setManualOpen(false)} onOk={async () => { try { const values = await manualForm.validateFields(); if (!selectedRowKeys.length) { message.warning('请先选择需要处理的平台 SKU'); return; } if (!values.sku_id) { message.warning('请选择ERP商品编码'); return; } setManualLoading(true); const payload: ShopProductManualMatchPayload = { sku_record_ids: selectedRowKeys, sku_id: values.sku_id }; await manualMatchShopProducts(tenantId, payload); setManualOpen(false); setSelectedRowKeys([]); setSelectedRows([]); await refreshData(); setTaskDrawerOpen(true); message.success('手动匹配完成'); } catch (e) { if (e instanceof Error) message.error(e.message || '手动匹配失败'); } finally { setManualLoading(false); } }} confirmLoading={manualLoading} okText="提交匹配"><Form form={manualForm} layout="vertical"><Form.Item name="sku_id" label="选择ERP商品编码" rules={[{ required: true, message: '请选择ERP商品编码' }]}><Select data-testid="shop-products-manual-match-sku-select" showSearch loading={skuLoading} optionFilterProp="label" placeholder="选择ERP商品" options={(skuData?.data ?? []).map((s) => ({ value: s.sku_id, label: `${s.sku_code} ${s.name ?? ''}` }))} /></Form.Item><Typography.Text type="secondary">当前已勾选 {selectedRows.length} 条平台SKU。</Typography.Text></Form></Modal>
+
+      <Drawer title="商品处理任务" open={taskDrawerOpen} onClose={() => setTaskDrawerOpen(false)} width={720}><ServerTable<ShopProductTask> rowKey="task_id" columns={taskColumns} data={taskData?.items ?? []} loading={taskFetching} error={taskError} onRetry={() => refetchTasks()} errorTitle="任务加载失败" emptyText="暂无任务" total={taskData?.total ?? 0} pagination={taskPagination} onPaginationChange={setTaskPagination} columnSettingsKey="shop-products.task.columns" /></Drawer>
     </>
   );
 };

@@ -349,7 +349,7 @@ export const PurchaseReturnsPage = () => {
         onOk={handleCreate}
         confirmLoading={createMutation.isPending}
         okText="Create"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ items: [{ sku_id: '', qty: 1 }] }}>
           <Form.Item

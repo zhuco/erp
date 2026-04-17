@@ -448,7 +448,7 @@ export const PurchaseOrdersPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={640}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>

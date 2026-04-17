@@ -301,7 +301,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
       open={open}
       onClose={onClose}
       width={520}
-      destroyOnClose
+      destroyOnHidden
       data-testid="ship-drawer"
     >
       {order ? (

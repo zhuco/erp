@@ -1,5 +1,6 @@
 import { MenuOutlined } from '@ant-design/icons';
 import {
+  Alert,
   Button,
   Card,
   Col,
@@ -11,17 +12,20 @@ import {
   Tag,
   Tree,
   Typography,
-  message
+  message,
 } from 'antd';
 import type { TreeDataNode, TreeProps } from 'antd/es/tree';
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Key } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { UserShortcut } from '@/api/shortcuts';
 import { getUserShortcuts, updateUserShortcuts } from '@/api/shortcuts';
 import type { AppMenuItem, AppMenuLeaf } from '@/app/layout/menu';
 import { flattenMenuItems } from '@/app/layout/menu';
+import { useFocusReturn } from '@/app/layout/useFocusReturn';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
 type ShortcutToolbarProps = {
@@ -30,7 +34,7 @@ type ShortcutToolbarProps = {
 
 const buildShortcut = (item: AppMenuLeaf): UserShortcut => ({
   path: item.path,
-  name: item.name
+  name: item.name,
 });
 
 const getMenuKey = (item: AppMenuItem, parentKey: string, index: number) => {
@@ -69,7 +73,7 @@ const filterMenuItems = (items: AppMenuItem[], keyword: string): AppMenuItem[] =
       }
       return {
         ...item,
-        children: children.length ? children : undefined
+        children: children.length ? children : undefined,
       } as AppMenuItem;
     })
     .filter((item): item is AppMenuItem => Boolean(item));
@@ -92,7 +96,7 @@ const buildTreeData = (items: AppMenuItem[], parentKey = 'menu'): TreeDataNode[]
       children: hasChildren ? buildTreeData(children, key) : undefined,
       selectable: false,
       disableCheckbox: !item.path,
-      isLeaf: !hasChildren
+      isLeaf: !hasChildren,
     };
   });
 };
@@ -114,7 +118,12 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [draftPaths, setDraftPaths] = useState<string[]>([]);
+  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
+  const [clearUndoSnapshot, setClearUndoSnapshot] = useState<string[] | null>(null);
   const dragIndexRef = useRef<number | null>(null);
+  const clearUndoTimerRef = useRef<number | null>(null);
+
+  useFocusReturn(modalOpen);
 
   const availableItems = useMemo(() => flattenMenuItems(menuItems), [menuItems]);
 
@@ -126,7 +135,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
     queryKey: ['shortcuts', tenantId],
     queryFn: () => getUserShortcuts(tenantId),
     enabled: tenantReady,
-    retry: false
+    retry: false,
   });
 
   const resolvedShortcuts = useMemo(() => {
@@ -140,16 +149,27 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
     return resolvedShortcuts.map((item) => item.path);
   }, [resolvedShortcuts]);
 
+  const clearPendingUndo = useCallback(() => {
+    if (clearUndoTimerRef.current != null) {
+      window.clearTimeout(clearUndoTimerRef.current);
+      clearUndoTimerRef.current = null;
+    }
+    setClearUndoSnapshot(null);
+  }, []);
+
+  useEffect(() => () => clearPendingUndo(), [clearPendingUndo]);
+
   const updateMutation = useMutation({
     mutationFn: (shortcuts: UserShortcut[]) => updateUserShortcuts(tenantId, shortcuts),
     onSuccess: (data) => {
       queryClient.setQueryData(['shortcuts', tenantId], data);
+      clearPendingUndo();
       setModalOpen(false);
       message.success('快捷入口已更新');
     },
     onError: (err) => {
       message.error(err instanceof Error ? err.message : '更新快捷入口失败');
-    }
+    },
   });
 
   const openModal = () => {
@@ -157,7 +177,9 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
       message.error('请先选择商家');
       return;
     }
+    clearPendingUndo();
     setDraftPaths(currentPaths);
+    setActiveDraftIndex(0);
     setSearchText('');
     setModalOpen(true);
   };
@@ -166,13 +188,13 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
 
   const filteredMenuItems = useMemo(
     () => filterMenuItems(menuItems, normalizedKeyword),
-    [menuItems, normalizedKeyword]
+    [menuItems, normalizedKeyword],
   );
 
   const treeData = useMemo(() => buildTreeData(filteredMenuItems), [filteredMenuItems]);
 
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
-  const expandedKeysRef = useRef<React.Key[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
+  const expandedKeysRef = useRef<Key[]>([]);
 
   useEffect(() => {
     if (normalizedKeyword) {
@@ -182,12 +204,21 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
     setExpandedKeys(expandedKeysRef.current);
   }, [normalizedKeyword, treeData]);
 
+  useEffect(() => {
+    setActiveDraftIndex((current) => {
+      if (draftPaths.length === 0) {
+        return 0;
+      }
+      return Math.max(0, Math.min(current, draftPaths.length - 1));
+    });
+  }, [draftPaths.length]);
+
   const handleTreeCheck: TreeProps['onCheck'] = (checkedKeysValue) => {
     const keys = Array.isArray(checkedKeysValue)
       ? checkedKeysValue
       : checkedKeysValue.checked;
     const nextKeys = keys.filter(
-      (key): key is string => typeof key === 'string' && menuMap.has(key)
+      (key): key is string => typeof key === 'string' && menuMap.has(key),
     );
     setDraftPaths((prev) => {
       const next = prev.filter((path) => nextKeys.includes(path));
@@ -200,7 +231,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
     });
   };
 
-  const handleTreeExpand = (keys: React.Key[]) => {
+  const handleTreeExpand = (keys: Key[]) => {
     expandedKeysRef.current = keys;
     setExpandedKeys(keys);
   };
@@ -221,18 +252,107 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
       next.splice(index, 0, moved);
       return next;
     });
+    setActiveDraftIndex(index);
     dragIndexRef.current = null;
   };
 
+  const removeDraftPathAt = useCallback((index: number) => {
+    setDraftPaths((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    setActiveDraftIndex((current) => Math.max(0, current > index ? current - 1 : current));
+  }, []);
+
   const handleRemove = (path: string) => {
-    setDraftPaths((prev) => prev.filter((item) => item !== path));
+    const index = draftPaths.findIndex((item) => item === path);
+    if (index < 0) {
+      return;
+    }
+    removeDraftPathAt(index);
   };
 
+  const moveDraftPath = useCallback(
+    (direction: -1 | 1) => {
+      setDraftPaths((prev) => {
+        if (prev.length <= 1) {
+          return prev;
+        }
+        const fromIndex = Math.max(0, Math.min(activeDraftIndex, prev.length - 1));
+        const toIndex = fromIndex + direction;
+        if (toIndex < 0 || toIndex >= prev.length) {
+          return prev;
+        }
+        const next = [...prev];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        setActiveDraftIndex(toIndex);
+        return next;
+      });
+    },
+    [activeDraftIndex],
+  );
+
+  const handleDraftListKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (draftPaths.length === 0) {
+        return;
+      }
+      if (event.altKey && !event.ctrlKey && !event.metaKey) {
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          moveDraftPath(-1);
+          return;
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          moveDraftPath(1);
+          return;
+        }
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveDraftIndex((current) => Math.max(0, current - 1));
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveDraftIndex((current) => Math.min(draftPaths.length - 1, current + 1));
+        return;
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        removeDraftPathAt(activeDraftIndex);
+      }
+    },
+    [activeDraftIndex, draftPaths.length, moveDraftPath, removeDraftPathAt],
+  );
+
   const handleClear = () => {
+    if (!draftPaths.length) {
+      return;
+    }
+    setClearUndoSnapshot(draftPaths);
     setDraftPaths([]);
+    setActiveDraftIndex(0);
+    if (clearUndoTimerRef.current != null) {
+      window.clearTimeout(clearUndoTimerRef.current);
+    }
+    clearUndoTimerRef.current = window.setTimeout(() => {
+      clearUndoTimerRef.current = null;
+      setClearUndoSnapshot(null);
+    }, 8000);
+  };
+
+  const handleUndoClear = () => {
+    if (!clearUndoSnapshot) {
+      return;
+    }
+    setDraftPaths(clearUndoSnapshot);
+    setActiveDraftIndex(0);
+    clearPendingUndo();
   };
 
   const handleSave = () => {
+    clearPendingUndo();
     const shortcuts = draftPaths
       .map((path) => {
         const item = menuMap.get(path);
@@ -244,7 +364,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
 
   const toolbarItems = resolvedShortcuts.map((item) => ({
     path: item.path,
-    name: 'name' in item && item.name ? item.name : item.path
+    name: 'name' in item && item.name ? item.name : item.path,
   }));
 
   return (
@@ -256,7 +376,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
           gap: 8,
           padding: '4px 12px',
           background: '#fff',
-          borderBottom: '1px solid #f0f0f0'
+          borderBottom: '1px solid #f0f0f0',
         }}
       >
         <Typography.Text strong>快捷工具栏</Typography.Text>
@@ -291,11 +411,23 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
         okText="保存"
         cancelText="取消"
         confirmLoading={updateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {clearUndoSnapshot ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="已清空快捷入口，可在 8 秒内撤销"
+              action={
+                <Button type="link" size="small" onClick={handleUndoClear}>
+                  撤销
+                </Button>
+              }
+            />
+          ) : null}
           <Typography.Text type="secondary">
-            左侧按顶部菜单顺序展示，可折叠展开；右侧支持拖动排序与移除。
+            左侧按菜单顺序展示，右侧支持拖拽排序、键盘重排（Alt+↑/↓）和快速移除（Delete）。
           </Typography.Text>
           <Row gutter={16}>
             <Col span={12}>
@@ -304,7 +436,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                 title={
                   <Space size={6}>
                     <span>菜单列表</span>
-                    <Typography.Text type="secondary">（选中菜单，可快速设置）</Typography.Text>
+                    <Typography.Text type="secondary">（勾选菜单，可快速设置）</Typography.Text>
                   </Space>
                 }
                 extra={<Typography.Text type="secondary">共 {availableItems.length} 项</Typography.Text>}
@@ -343,7 +475,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                 title={
                   <Space size={6}>
                     <span>已选工具栏菜单</span>
-                    <Typography.Text type="secondary">（可拖动排序）</Typography.Text>
+                    <Typography.Text type="secondary">（支持拖拽或键盘重排）</Typography.Text>
                   </Space>
                 }
                 extra={
@@ -357,15 +489,27 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                   </Space>
                 }
               >
-                <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}>
+                <div
+                  style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}
+                  role="listbox"
+                  tabIndex={0}
+                  aria-label="已选快捷入口列表"
+                  onKeyDown={handleDraftListKeyDown}
+                >
                   <Space direction="vertical" style={{ width: '100%' }} size={8}>
                     {draftPaths.map((path, index) => {
                       const item = menuMap.get(path);
                       const label = item?.name ?? path;
+                      const active = index === activeDraftIndex;
                       return (
                         <div
                           key={path}
+                          role="option"
+                          aria-selected={active}
+                          tabIndex={0}
                           draggable
+                          onFocus={() => setActiveDraftIndex(index)}
+                          onClick={() => setActiveDraftIndex(index)}
                           onDragStart={() => handleDragStart(index)}
                           onDragOver={(event) => event.preventDefault()}
                           onDrop={() => handleDrop(index)}
@@ -374,9 +518,9 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                             alignItems: 'center',
                             gap: 12,
                             padding: '8px 12px',
-                            border: '1px solid #f0f0f0',
+                            border: active ? '1px solid #1677ff' : '1px solid #f0f0f0',
                             borderRadius: 6,
-                            background: '#fafafa'
+                            background: active ? '#e6f4ff' : '#fafafa',
                           }}
                         >
                           <MenuOutlined style={{ color: '#999' }} />

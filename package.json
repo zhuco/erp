@@ -29,7 +29,8 @@
     "release:gate": "pnpm run repo:verify && cargo test -p erp-api --test stats_clickhouse_sso_smoke -- --nocapture && pnpm --dir apps/erp-web run generate:api && pnpm --dir apps/erp-web build && pnpm run test:e2e:release-gate",
     "release:gate:full": "pnpm run repo:verify && pnpm run test:backend:release-gate && pnpm --dir apps/erp-web run generate:api && pnpm --dir apps/erp-web build && pnpm run test:e2e:release-gate",
     "repo:verify:openapi": "pnpm run openapi:bundle && node scripts/verify_openapi_gate_v2.mjs",
-    "repo:verify": "node scripts/verify_repo_baseline.mjs && pnpm run repo:verify:openapi"
+    "repo:verify": "node scripts/verify_repo_baseline.mjs && pnpm run repo:verify:openapi",
+    "assess:industrial-progress": "node scripts/assess_industrial_progress.mjs"
   },
   "devDependencies": {
     "yaml": "^2.8.3"

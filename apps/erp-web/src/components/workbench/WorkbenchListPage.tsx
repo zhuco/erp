@@ -64,28 +64,28 @@ export const WorkbenchListPage = ({
     return [
       {
         key: 'tags',
-        label: '鏍囪',
+        label: '标记',
         children: (
           <div className="workbench-detail-block">
-            <Empty description="鏆傛棤鏍囪" />
+            <Empty description="暂无标记" />
           </div>
         )
       },
       {
         key: 'common',
-        label: '甯哥敤鍔熻兘',
+        label: '常用功能',
         children: (
           <div className="workbench-detail-block">
-            <Empty description="鏆傛棤蹇嵎鍔熻兘" />
+            <Empty description="暂无快捷功能" />
           </div>
         )
       },
       {
         key: 'detail',
-        label: '璇︽儏',
+        label: '详情',
         children: (
           <div className="workbench-detail-block">
-            {detail ?? <Empty description="鏆傛棤璇︽儏鍐呭" />}
+            {detail ?? <Empty description="暂无详情内容" />}
           </div>
         )
       }
@@ -96,13 +96,13 @@ export const WorkbenchListPage = ({
     const filterContent =
       filter ?? left ?? (
         <div className="workbench-left-placeholder">
-          <Typography.Text type="secondary">鏆傛棤榛樿杩囨护</Typography.Text>
+          <Typography.Text type="secondary">暂无默认过滤</Typography.Text>
         </div>
       );
     const queryContent =
       query ?? (
         <div className="workbench-left-placeholder">
-          <Typography.Text type="secondary">鏆傛棤琛ㄦ牸鏌ヨ鏉′欢</Typography.Text>
+          <Typography.Text type="secondary">暂无表格查询条件</Typography.Text>
         </div>
       );
     return (
@@ -110,8 +110,8 @@ export const WorkbenchListPage = ({
         size="small"
         className="workbench-left-tabs"
         items={[
-          { key: 'filters', label: '榛樿杩囨护', children: filterContent },
-          { key: 'query', label: '琛ㄦ牸鏌ヨ', children: queryContent }
+          { key: 'filters', label: '默认过滤', children: filterContent },
+          { key: 'query', label: '表格查询', children: queryContent }
         ]}
       />
     );
@@ -124,7 +124,7 @@ export const WorkbenchListPage = ({
     }
     return (
       <div className="workbench-bottom-placeholder">
-        <Typography.Text type="secondary">璇烽厤缃簳閮ㄥ瓙琛?Tabs</Typography.Text>
+        <Typography.Text type="secondary">请配置底部子表 Tabs</Typography.Text>
       </div>
     );
   }, [bottomTabs, tabs]);

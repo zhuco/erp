@@ -593,7 +593,7 @@ export const AfterSalesSettingsPage = () => {
         open={reasonDrawerOpen}
         onClose={() => setReasonDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setReasonDrawerOpen(false)}>取消</Button>
@@ -634,7 +634,7 @@ export const AfterSalesSettingsPage = () => {
         open={ruleDrawerOpen}
         onClose={() => setRuleDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setRuleDrawerOpen(false)}>取消</Button>

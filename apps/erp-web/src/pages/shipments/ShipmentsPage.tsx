@@ -404,7 +404,7 @@ export const ShipmentsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         {activeShipment ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>

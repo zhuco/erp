@@ -143,7 +143,7 @@ const SkuDetailDrawer = ({
       open={open}
       width={520}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       data-testid="sku-detail-drawer"
       extra={
         <Button
@@ -476,7 +476,7 @@ export const SkuPage = () => {
         onOk={handleQuickCreate}
         okText="创建"
         okButtonProps={{ loading: creating, disabled: !canWriteSkus }}
-        destroyOnClose
+        destroyOnHidden
         data-testid="sku-quick-create-modal"
       >
         <Form form={createForm} layout="vertical">

@@ -375,7 +375,7 @@ const SkuSerialRulesPanel = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -911,7 +911,7 @@ export const SkuSerialsPage = () => {
         open={generateOpen}
         onClose={() => setGenerateOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setGenerateOpen(false)}>取消</Button>

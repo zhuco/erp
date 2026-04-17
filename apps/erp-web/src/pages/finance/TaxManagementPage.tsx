@@ -411,7 +411,7 @@ export const TaxManagementPage = () => {
         open={taxDrawerOpen}
         onClose={() => setTaxDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setTaxDrawerOpen(false)}>取消</Button>
@@ -444,7 +444,7 @@ export const TaxManagementPage = () => {
         open={adjustDrawerOpen}
         onClose={() => setAdjustDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setAdjustDrawerOpen(false)}>取消</Button>

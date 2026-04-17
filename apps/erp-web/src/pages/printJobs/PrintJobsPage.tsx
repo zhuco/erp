@@ -339,7 +339,7 @@ export const PrintJobsPage = () => {
           setActiveJobId(null);
         }}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailBusy && !detail ? (
           <LoadingState loading={detailBusy} onRetry={() => detailRefetch()} />

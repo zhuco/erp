@@ -471,7 +471,7 @@ export const StockCountsPage = () => {
         onCancel={() => setCreateOpen(false)}
         onOk={() => createMutation.mutate()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={createForm}
@@ -557,7 +557,7 @@ export const StockCountsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailQuery.isLoading ? (
           <Card loading />
