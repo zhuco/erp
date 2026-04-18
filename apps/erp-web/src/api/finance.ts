@@ -363,7 +363,7 @@ export const runPaymentReconcile = async (
       },
       body: JSON.stringify(payload)
     },
-    '鏀粯瀵硅处鎵ц澶辫触'
+    '执行支付对账失败'
   );
 
 export const listPaymentReconcileJobs = async (
@@ -386,7 +386,7 @@ export const listPaymentReconcileJobs = async (
   return requestJson<PaymentReconcileJobListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/fin/payment-reconcile/jobs?${params.toString()}`,
     { headers: buildAuthHeaders() },
-    '鑾峰彇鏀粯瀵硅处浠诲姟澶辫触'
+    '获取支付对账任务失败'
   );
 };
 
@@ -408,7 +408,7 @@ export const listPaymentReconcileItems = async (
   return requestJson<PaymentReconcileItemListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/fin/payment-reconcile/items?${params.toString()}`,
     { headers: buildAuthHeaders() },
-    '鑾峰彇鏀粯瀵硅处宸紓澶辫触'
+    '获取支付对账明细失败'
   );
 };
 
@@ -477,7 +477,7 @@ export const listApDocs = async (
     {
       headers: buildAuthHeaders()
     },
-    '鑾峰彇搴旀敮鍒楄〃澶辫触'
+    '获取应付单列表失败'
   );
 };
 
@@ -487,7 +487,7 @@ export const getApDoc = async (tenantId: string, apId: string): Promise<ApDoc> =
     {
       headers: buildAuthHeaders()
     },
-    '鑾峰彇搴旀敮鏄庣粏澶辫触'
+    '获取应付单详情失败'
   );
 
 export const markApDocPaid = async (tenantId: string, apId: string): Promise<ApDoc> =>
@@ -497,7 +497,7 @@ export const markApDocPaid = async (tenantId: string, apId: string): Promise<ApD
       method: 'POST',
       headers: buildAuthHeaders()
     },
-    '鏍囥��搴旀敮宸茬粨澶辫触'
+    '标记应付单已付失败'
   );
 
 export const closeApDoc = async (tenantId: string, apId: string): Promise<ApDoc> =>
@@ -507,7 +507,7 @@ export const closeApDoc = async (tenantId: string, apId: string): Promise<ApDoc>
       method: 'POST',
       headers: buildAuthHeaders()
     },
-    '鍏抽棴搴斾粯鍗曟嵁澶辫触'
+    '关闭应付单失败'
   );
 
 export const listProfitSnapshots = async (
