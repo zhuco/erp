@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -431,7 +431,7 @@ export const SkuBatchesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sku-batches', tenantId, query],
     queryFn: () => listSkuBatches(tenantId, query),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: Boolean(tenantId)
   });
 

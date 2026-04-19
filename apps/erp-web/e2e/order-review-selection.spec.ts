@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 const getCenterRows = (grid: any) => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
 const getSelectionCell = (grid: any, rowId: string) =>
@@ -362,7 +362,7 @@ test('order review first selection-column click toggles without prior row activa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-review-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = getCenterRows(grid);
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
@@ -386,7 +386,7 @@ test('order review exposes selection diagnostics for single-click selection-colu
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-review-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = getCenterRows(grid);
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(2);

@@ -28,7 +28,7 @@ import {
   listSkuTagDefinitions,
   updateSkuTagDefinition
 } from '@/api/skuTagDefinitions';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -46,8 +46,8 @@ type FormValues = {
 };
 
 const statusOptions = [
-  { label: '启用', value: 'ACTIVE' },
-  { label: '停用', value: 'DISABLED' }
+  { label: '鍚敤', value: 'ACTIVE' },
+  { label: '鍋滅敤', value: 'DISABLED' }
 ];
 
 const formatDateTime = (value?: string | null) =>
@@ -88,14 +88,14 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
     queryKey: ['sku-tag-definitions', tenantId, query],
     queryFn: () => listSkuTagDefinitions(tenantId, query),
     enabled: featureFlag.enabled,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
     mutationFn: (tagId: string) => deleteSkuTagDefinition(tenantId, tagId),
     onMutate: (tagId) => setDeletingId(tagId),
     onSuccess: () => {
-      message.success('货品标记已删除');
+      message.success('SKU tag deleted');
       queryClient.invalidateQueries({ queryKey: ['sku-tag-definitions', tenantId] });
     },
     onError: (err) => {
@@ -107,11 +107,11 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
   const columns = useMemo<ColumnsType<SkuTagDefinition>>(
     () => [
       {
-        title: '标记名称',
+        title: '标记鍚嶇О',
         dataIndex: 'name'
       },
       {
-        title: '颜色',
+        title: '棰滆壊',
         dataIndex: 'color',
         render: (value) =>
           value ? (
@@ -123,13 +123,13 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
           )
       },
       {
-        title: '优先级',
+        title: 'Priority',
         dataIndex: 'priority'
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
-        render: (value) => (value === 'DISABLED' ? <Tag color="red">停用</Tag> : '启用')
+        render: (value) => (value === 'DISABLED' ? <Tag color="red">鍋滅敤</Tag> : '鍚敤')
       },
       {
         title: '更新时间',
@@ -137,7 +137,7 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -158,7 +158,7 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
               编辑
             </Button>
             <Popconfirm
-              title="确认删除该标记？"
+              title="确认删除璇ユ爣璁帮紵"
               okText="删除"
               cancelText="取消"
               onConfirm={() => deleteMutation.mutate(record.tag_id)}
@@ -210,10 +210,10 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
       setSaving(true);
       if (editingTag) {
         await updateSkuTagDefinition(tenantId, editingTag.tag_id, payload);
-        message.success('货品标记已更新');
+        message.success('SKU tag updated');
       } else {
         await createSkuTagDefinition(tenantId, payload);
-        message.success('货品标记已创建');
+        message.success('SKU tag created');
       }
       setDrawerOpen(false);
       setEditingTag(null);
@@ -230,8 +230,8 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
   if (!featureFlag.enabled) {
     return (
       <Alert
-        message="标记系统已关闭"
-        description={featureFlag.reason || '请在系统设置中启用标记系统'}
+        message='Tag system is disabled'
+        description={featureFlag.reason || 'Please enable tag system in settings'}
         type="warning"
         showIcon
       />
@@ -249,34 +249,34 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
           <span />
         )}
         <Button type="primary" disabled={!canWrite} onClick={openCreateDrawer}>
-          新建标记
+          鏂板缓标记
         </Button>
       </Space>
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="标记名称" />
+              <Form.Item name="keyword" label="Keyword">
+                <Input allowClear placeholder="标记鍚嶇О" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="全部状态" />
+              <Form.Item name="status" label="Status">
+                <Select allowClear options={statusOptions} placeholder="All status" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<SkuTagDefinition>
+      <UiModule03MainTableSection<SkuTagDefinition>
         rowKey="tag_id"
         columns={columns}
         data={data?.items ?? []}
@@ -291,7 +291,7 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
         columnSettingsKey="sku-tags.table.columns"
       />
       <Drawer
-        title={editingTag ? '编辑货品标记' : '新建货品标记'}
+        title={editingTag ? '编辑货品标记' : '鏂板缓货品标记'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
@@ -308,18 +308,18 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
         <Form form={drawerForm} layout="vertical">
           <Form.Item
             name="name"
-            label="标记名称"
-            rules={[{ required: true, message: '请输入标记名称' }]}
+            label="标记鍚嶇О"
+            rules={[{ required: true, message: 'Please enter tag name' }]}
           >
-            <Input placeholder="例如：易碎品" />
+            <Input placeholder="渚嬪锛氭槗纰庡搧" />
           </Form.Item>
-          <Form.Item name="color" label="颜色">
-            <Input placeholder="例如：#13c2c2" />
+          <Form.Item name="color" label="棰滆壊">
+            <Input placeholder="渚嬪锛?13c2c2" />
           </Form.Item>
-          <Form.Item name="priority" label="优先级">
+          <Form.Item name="priority" label="Priority">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="ACTIVE">
+          <Form.Item name="status" label="Status" initialValue="ACTIVE">
             <Select options={statusOptions} />
           </Form.Item>
         </Form>
@@ -327,3 +327,4 @@ export const SkuTagDefinitionsPage = ({ showTitle = true }: SkuTagDefinitionsPag
     </Space>
   );
 };
+

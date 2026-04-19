@@ -1,4 +1,4 @@
-﻿import {
+import {
   Affix,
   Button,
   Card,
@@ -22,7 +22,7 @@ import { createProduct } from '@/api/products';
 import type { Sku } from '@/api/skus';
 import { createSku, listSkus, updateSku } from '@/api/skus';
 import { EmptyState } from '@/components/EmptyState';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { OrderReviewWorkbenchTemplate } from '@/components/workbench/templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -398,7 +398,7 @@ export const SkuPage = () => {
 
   return (
     <>
-      <WorkbenchMainTableTemplate
+      <OrderReviewWorkbenchTemplate
         header={<Typography.Title level={3}>商品 SKU</Typography.Title>}
         tableContent={
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -498,4 +498,3 @@ export const SkuPage = () => {
     </>
   );
 };
-

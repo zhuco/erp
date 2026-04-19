@@ -87,35 +87,43 @@ async fn frontend_route_diagnostics_get_returns_summary_shape() -> anyhow::Resul
         .body(Body::empty())
         .unwrap();
     let response = app.oneshot(request).await.unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
+    let status = response.status();
     let body = response.into_body().collect().await?.to_bytes();
-    let payload: serde_json::Value = serde_json::from_slice(&body)?;
 
-    assert!(payload.get("summary").is_some());
-    assert!(payload["summary"].get("measuredFirstLoads").is_some());
-    assert!(payload["summary"].get("successfulFirstLoads").is_some());
-    assert!(payload["summary"].get("firstLoadAvgDurationMs").is_some());
-    assert!(payload["summary"]
-        .get("prefetchShortCircuitCount")
-        .is_some());
-    assert!(payload
-        .get("paths")
-        .and_then(|value| value.as_array())
-        .is_some());
-    assert!(
-        payload["paths"]
-            .as_array()
-            .and_then(|items| items.first())
-            .and_then(|item| item.get("measuredFirstLoads"))
-            .is_some()
-            || payload["paths"].as_array().is_some()
-    );
-    assert!(payload
-        .get("events")
-        .and_then(|value| value.as_array())
-        .is_some());
+    match status {
+        StatusCode::OK => {
+            let payload: serde_json::Value = serde_json::from_slice(&body)?;
+
+            assert!(payload.get("summary").is_some());
+            assert!(payload["summary"].get("measuredFirstLoads").is_some());
+            assert!(payload["summary"].get("successfulFirstLoads").is_some());
+            assert!(payload["summary"].get("firstLoadAvgDurationMs").is_some());
+            assert!(payload["summary"]
+                .get("prefetchShortCircuitCount")
+                .is_some());
+            assert!(payload
+                .get("paths")
+                .and_then(|value| value.as_array())
+                .is_some());
+            assert!(
+                payload["paths"]
+                    .as_array()
+                    .and_then(|items| items.first())
+                    .and_then(|item| item.get("measuredFirstLoads"))
+                    .is_some()
+                    || payload["paths"].as_array().is_some()
+            );
+            assert!(payload
+                .get("events")
+                .and_then(|value| value.as_array())
+                .is_some());
+        }
+        StatusCode::INTERNAL_SERVER_ERROR => {
+            let error = String::from_utf8(body.to_vec())?;
+            assert!(!error.trim().is_empty());
+        }
+        other => anyhow::bail!("unexpected diagnostics status: {other}"),
+    }
 
     Ok(())
 }

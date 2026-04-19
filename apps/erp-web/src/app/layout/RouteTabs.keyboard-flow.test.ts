@@ -14,12 +14,21 @@ describe('RouteTabs keyboard flow upgrade', () => {
     expect(source).toContain("runShortcutAction(event.shiftKey ? 'previous' : 'next')");
   });
 
-  it('supports close undo restoration', () => {
+  it('does not keep close-undo restoration logic', () => {
     const source = readFileSync(resolve(__dirname, 'RouteTabs.tsx'), 'utf8');
 
-    expect(source).toContain('ROUTE_TABS_UNDO_MESSAGE_KEY');
-    expect(source).toContain('restoreClosedTab');
-    expect(source).toContain('已关闭“{tab.title}”');
-    expect(source).toContain('已撤销关闭页签');
+    expect(source).not.toContain('ROUTE_TABS_UNDO_MESSAGE_KEY');
+    expect(source).not.toContain('restoreClosedTab');
+    expect(source).not.toContain('queueUndoCloseTab');
+  });
+
+  it('clears page-level saved view cache when closing order tabs', () => {
+    const source = readFileSync(resolve(__dirname, 'RouteTabs.tsx'), 'utf8');
+
+    expect(source).toContain('buildClosedTabSavedViewKeys');
+    expect(source).toContain("if (tabKey === '/orders/review')");
+    expect(source).toContain("if (tabKey === '/orders/exceptions' || tabKey === '/orders/recheck')");
+    expect(source).toContain("if (tabKey === '/orders')");
+    expect(source).toContain('clearSavedViewForClosedTab(key)');
   });
 });

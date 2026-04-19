@@ -1,4 +1,4 @@
-﻿import { Button, Card, Input, InputNumber, Space, Table, Typography, message } from 'antd';
+import { Button, Card, Input, InputNumber, Space, Table, Tabs, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -7,8 +7,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { InboundDocItem } from '@/api/inbounds';
 import { createOperationId, getInboundDetail, putawayInbound } from '@/api/inbounds';
 import { listSettings } from '@/api/system';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -22,6 +23,9 @@ export const InboundPutawayPage = () => {
   const inventoryFeature = useFeatureFlag('inventory.enabled');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [locations, setLocations] = useState<Record<string, string>>({});
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const detailQuery = useQuery({
     queryKey: ['inbound-putaway', tenantId, doc_id],
@@ -94,6 +98,8 @@ export const InboundPutawayPage = () => {
     setQuantities(nextQty);
   }, [detailQuery.data]);
 
+  const detail = detailQuery.data;
+
   const columns = useMemo<ColumnsType<InboundDocItem>>(
     () => [
       { title: 'SKU ID', dataIndex: 'sku_id' },
@@ -131,6 +137,95 @@ export const InboundPutawayPage = () => {
     [canWrite, locations, quantities]
   );
 
+  const filteredItems = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return detail?.items ?? [];
+    }
+    return (detail?.items ?? []).filter((item) => {
+      return (
+        item.sku_id.toLowerCase().includes(keyword) ||
+        String(item.sku_code ?? '').toLowerCase().includes(keyword) ||
+        String(locations[item.sku_id] ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [detail?.items, locations, toolbarSearchKeyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="上架说明">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            本页用于把“已收货未上架”的数量分配到目标库位。
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            若系统开启库位必填，提交前必须填写每条明细的目标库位。
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="当前进度">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            单据状态：{detail?.doc.status ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            可见明细：{filteredItems.length} 行
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [detail?.doc.status, filteredItems.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Card size="small" title="上架摘要">
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          入库明细：{detail?.items.length ?? 0}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          可见明细：{filteredItems.length}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          库位必填：{requireLocation ? '是' : '否'}
+        </Typography.Paragraph>
+      </Card>
+    ),
+    [detail?.items.length, filteredItems.length, requireLocation]
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'putaway-preview',
+            label: `上架明细 (${filteredItems.length})`,
+            children: (
+              <Table<InboundDocItem>
+                size="small"
+                rowKey={(record) => record.sku_id}
+                columns={columns}
+                dataSource={filteredItems}
+                pagination={false}
+              />
+            )
+          }
+        ]}
+      />
+    ),
+    [columns, filteredItems]
+  );
+
   if (detailQuery.error) {
     return (
       <ErrorState
@@ -141,7 +236,6 @@ export const InboundPutawayPage = () => {
     );
   }
 
-  const detail = detailQuery.data;
   if (!detail || !doc_id) {
     return null;
   }
@@ -181,6 +275,19 @@ export const InboundPutawayPage = () => {
     </Space>
   );
 
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={toolbarLeft}
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="按 SKU / 库位筛选明细"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('可使用顶部搜索快速筛选上架明细')}
+    />
+  );
+
   const tableContent = (
     <Card>
       {requireLocation ? (
@@ -190,12 +297,18 @@ export const InboundPutawayPage = () => {
         data-testid="inbound-putaway-table"
         rowKey={(record) => record.sku_id}
         columns={columns}
-        dataSource={detail.items}
+        dataSource={filteredItems}
         pagination={false}
       />
     </Card>
   );
 
-  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
+      tableContent={tableContent}
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
+    />
+  );
 };
-

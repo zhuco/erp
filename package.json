@@ -5,6 +5,11 @@
   "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "pnpm --filter erp-web dev",
+    "prepare": "pnpm run hooks:install",
+    "hooks:install": "node scripts/install_git_hooks.mjs",
+    "check:utf8": "node scripts/verify_utf8_encoding.mjs",
+    "fix:utf8": "python scripts/normalize_utf8_encoding.py",
+    "fix:utf8:staged": "python scripts/normalize_utf8_encoding.py --staged",
     "build:clean": "node scripts/clean_build_outputs.mjs",
     "build": "pnpm --filter erp-web build",
     "build:rebuild": "pnpm run build:clean && pnpm run build",

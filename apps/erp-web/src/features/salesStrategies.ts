@@ -58,6 +58,7 @@ export type SalesStrategy = {
 };
 
 export const salesStrategyStorageKey = 'sales.strategy.settings';
+export const salesStrategyUpdatedEventName = 'sales-strategy-settings-updated';
 
 export const loadSalesStrategies = (): SalesStrategy[] => {
   if (typeof localStorage === 'undefined') {
@@ -80,4 +81,7 @@ export const saveSalesStrategies = (strategies: SalesStrategy[]) => {
     return;
   }
   localStorage.setItem(salesStrategyStorageKey, JSON.stringify(strategies));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(salesStrategyUpdatedEventName));
+  }
 };

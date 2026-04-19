@@ -49,7 +49,9 @@ export const AgGridSelectionHeaderCheckbox = <TRow,>({
         return;
       }
       const nextState = buildSelectionState(api);
-      setSelectionState((previous) => (hasSameSelectionState(previous, nextState) ? previous : nextState));
+      setSelectionState((previous) =>
+        hasSameSelectionState(previous, nextState) ? previous : nextState,
+      );
     };
 
     refreshSelectionState();

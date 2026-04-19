@@ -1,13 +1,14 @@
-﻿import { Button, Card, Form, Input, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Form, Input, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { InboundDocStatus, InboundDocSummary, InboundDocType } from '@/api/inbounds';
 import { listInbounds } from '@/api/inbounds';
 import { listWarehouses } from '@/api/warehouses';
 import { useFeatureFlag } from '@/features/featureFlags';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useQuery } from '@tanstack/react-query';
 
@@ -37,6 +38,9 @@ export const InboundQuickReceivePage = () => {
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<InboundDocSummary[]>([]);
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const warehouseQuery = useQuery({
     queryKey: ['warehouses', tenantId, 'inbound-quick'],
@@ -83,6 +87,98 @@ export const InboundQuickReceivePage = () => {
     [navigate, warehouseMap]
   );
 
+  const filteredResults = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return results;
+    }
+    return results.filter((item) => {
+      const warehouseName = warehouseMap.get(item.warehouse_id) ?? item.warehouse_id;
+      return (
+        item.doc_no.toLowerCase().includes(keyword) ||
+        item.doc_type.toLowerCase().includes(keyword) ||
+        item.status.toLowerCase().includes(keyword) ||
+        String(warehouseName).toLowerCase().includes(keyword)
+      );
+    });
+  }, [results, toolbarSearchKeyword, warehouseMap]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="快速流程">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            1. 输入 PO 或到货单号并查询。
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            2. 匹配到目标单据后点击“进入收货”。
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="查询状态">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            查询结果：{results.length} 条
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            可见结果：{filteredResults.length} 条
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [filteredResults.length, results.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Card size="small" title="命中概览">
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          总命中：{results.length}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          当前筛选：{filteredResults.length}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          仓库配置加载：{warehouseQuery.isSuccess ? '已加载' : '未就绪'}
+        </Typography.Paragraph>
+      </Card>
+    ),
+    [filteredResults.length, results.length, warehouseQuery.isSuccess]
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'result-list',
+            label: `匹配结果 (${filteredResults.length})`,
+            children: (
+              <Table<InboundDocSummary>
+                size="small"
+                rowKey={(record) => record.doc_id}
+                columns={columns}
+                dataSource={filteredResults}
+                pagination={false}
+                locale={{ emptyText: '暂无匹配结果' }}
+              />
+            )
+          }
+        ]}
+      />
+    ),
+    [columns, filteredResults]
+  );
+
   const handleSearch = async () => {
     const values = await form.validateFields();
     const keyword = values.keyword?.trim();
@@ -111,9 +207,25 @@ export const InboundQuickReceivePage = () => {
   };
 
   const toolbarLeft = (
-    <Typography.Title level={3} style={{ margin: 0 }}>
-      收货登记
-    </Typography.Title>
+    <Space align="center" size={10} wrap>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        收货登记
+      </Typography.Title>
+      <Typography.Text type="secondary">支持按单号快速跳转到收货页</Typography.Text>
+    </Space>
+  );
+
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={toolbarLeft}
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="筛选结果：单号 / 类型 / 状态 / 仓库"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('先通过表单查询，再用上方搜索框二次筛选')}
+    />
   );
 
   const tableContent = (
@@ -134,7 +246,7 @@ export const InboundQuickReceivePage = () => {
         <Table<InboundDocSummary>
           rowKey={(record) => record.doc_id}
           columns={columns}
-          dataSource={results}
+          dataSource={filteredResults}
           pagination={false}
           loading={loading}
           locale={{ emptyText: '暂无结果' }}
@@ -143,6 +255,12 @@ export const InboundQuickReceivePage = () => {
     </Space>
   );
 
-  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
+      tableContent={tableContent}
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
+    />
+  );
 };
-

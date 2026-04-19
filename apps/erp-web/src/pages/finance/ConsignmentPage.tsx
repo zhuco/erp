@@ -73,7 +73,7 @@ export const ConsignmentPage = () => {
     queryKey: ['consignments', tenantId, query],
     queryFn: () => listConsignmentSettlements(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -1,4 +1,4 @@
-﻿import { Button, Card, Input, Space, Typography, message } from 'antd';
+import { Button, Card, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
 
 import { buildApparelSpecs, type ProductSpecForm } from '@/pages/products/productIndustry';

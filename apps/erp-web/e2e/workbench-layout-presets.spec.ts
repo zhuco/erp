@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 const openWorkbenchRoute = async (
   page: import('@playwright/test').Page,

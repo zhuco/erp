@@ -1,4 +1,4 @@
-﻿import type { CellClickedEvent } from 'ag-grid-community';
+import type { CellClickedEvent } from 'ag-grid-community';
 import {
   useCallback,
   useEffect,

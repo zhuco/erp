@@ -142,7 +142,7 @@ export const MarketingPriceListsPage = () => {
     queryKey: ['marketing-price-lists', tenantId, query],
     queryFn: () => listMarketingPriceLists(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({

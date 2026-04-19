@@ -1,13 +1,14 @@
-﻿import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
+import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Tabs, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { InboundDocItem } from '@/api/inbounds';
 import { createOperationId, getInboundDetail, inspectInbound } from '@/api/inbounds';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -37,6 +38,9 @@ export const InboundInspectPage = () => {
   const inventoryFeature = useFeatureFlag('inventory.enabled');
   const [inspectForm] = Form.useForm<InspectLine>();
   const [inspectLines, setInspectLines] = useState<InspectLine[]>([]);
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const detailQuery = useQuery({
     queryKey: ['inbound-inspect', tenantId, doc_id],
@@ -62,7 +66,7 @@ export const InboundInspectPage = () => {
       navigate(`/wms/inbounds/${doc_id}`);
     },
     onError: (err) => {
-      message.error(err instanceof Error ? err.message : '璐ㄦ鎻愪氦澶辫触');
+      message.error(err instanceof Error ? err.message : '质检提交失败');
     }
   });
 
@@ -117,10 +121,99 @@ export const InboundInspectPage = () => {
     [canWrite]
   );
 
+  const filteredItems = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return detail?.items ?? [];
+    }
+    return (detail?.items ?? []).filter((item) => {
+      return (
+        item.sku_id.toLowerCase().includes(keyword) ||
+        String(item.sku_code ?? '').toLowerCase().includes(keyword) ||
+        String(item.barcode ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [detail?.items, toolbarSearchKeyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="质检流程">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            1. 选择 SKU、数量和质检结果。
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            2. 提交后自动回到入库详情页。
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="当前进度">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            单据状态：{detail?.doc.status ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            待提交质检：{inspectLines.length} 行
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [detail?.doc.status, inspectLines.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Card size="small" title="质检摘要">
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          入库明细：{detail?.items.length ?? 0} 行
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          可见明细：{filteredItems.length} 行
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          待提交质检：{inspectLines.length} 行
+        </Typography.Paragraph>
+      </Card>
+    ),
+    [detail?.items.length, filteredItems.length, inspectLines.length]
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'inspect-lines',
+            label: `待提交质检 (${inspectLines.length})`,
+            children: (
+              <Table<InspectLine>
+                size="small"
+                rowKey={(record) => record.line_id}
+                columns={inspectLineColumns}
+                dataSource={inspectLines}
+                pagination={false}
+              />
+            )
+          }
+        ]}
+      />
+    ),
+    [inspectLineColumns, inspectLines]
+  );
+
   if (detailQuery.error) {
     return (
       <ErrorState
-        title="璐ㄦ鏁版嵁鍔犺浇澶辫触"
+        title="质检数据加载失败"
         error={detailQuery.error}
         onRetry={() => detailQuery.refetch()}
       />
@@ -138,7 +231,7 @@ export const InboundInspectPage = () => {
       return;
     }
     if (!detail.items.find((item) => item.sku_id === values.sku_id)) {
-      message.warning('SKU 涓嶅湪鍏ュ簱鍗曡寖鍥村唴');
+      message.warning('SKU 涓嶅湪入库鍗曡寖鍥村唴');
       return;
     }
     setInspectLines((prev) => [
@@ -156,11 +249,11 @@ export const InboundInspectPage = () => {
 
   const handleSubmitInspect = () => {
     if (!canWrite) {
-      message.error('鏆傛棤鍏ュ簱鎿嶄綔鏉冮檺');
+      message.error('暂无入库鎿嶄綔权限');
       return;
     }
     if (!inspectLines.length) {
-      message.warning('璇峰厛褰曞叆璐ㄦ鏄庣粏');
+      message.warning('璇峰厛褰曞叆质检明细');
       return;
     }
     inspectMutation.mutate({ docId: doc_id, items: inspectLines });
@@ -169,32 +262,45 @@ export const InboundInspectPage = () => {
   const toolbarLeft = (
     <Space align="center" size={12} wrap>
       <Typography.Title level={3} data-testid="inbound-inspect-title" style={{ margin: 0 }}>
-        鍏ュ簱璐ㄦ
+        入库质检
       </Typography.Title>
-      <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>杩斿洖璇︽儏</Button>
+      <Button onClick={() => navigate(`/wms/inbounds/${doc_id}`)}>返回详情</Button>
       <Button
         type="primary"
         disabled={!canWrite}
         onClick={handleSubmitInspect}
         loading={inspectMutation.isPending}
       >
-        鎻愪氦璐ㄦ
+        提交质检
       </Button>
     </Space>
   );
 
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={toolbarLeft}
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="按 SKU / 条码筛选入库明细"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('顶部搜索仅用于筛选展示，不会影响提交数据')}
+    />
+  );
+
   const tableContent = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="鍏ュ簱鏄庣粏">
+      <Card title="入库明细">
         <Table<InboundDocItem>
           data-testid="inbound-inspect-items"
           rowKey={(record) => record.sku_id}
           columns={inboundItemColumns}
-          dataSource={detail.items}
+          dataSource={filteredItems}
           pagination={false}
         />
       </Card>
-      <Card title="璐ㄦ鐧昏">
+      <Card title="质检鐧昏">
         <Form form={inspectForm} layout="inline" style={{ marginBottom: 12 }}>
           <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
             <Select
@@ -230,12 +336,18 @@ export const InboundInspectPage = () => {
           columns={inspectLineColumns}
           dataSource={inspectLines}
           pagination={false}
-          locale={{ emptyText: '鏆傛棤璐ㄦ鏄庣粏' }}
+          locale={{ emptyText: '暂无质检明细' }}
         />
       </Card>
     </Space>
   );
 
-  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
+      tableContent={tableContent}
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
+    />
+  );
 };
-

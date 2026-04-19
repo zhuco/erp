@@ -110,7 +110,7 @@ export const MarketingGiftPoliciesPage = () => {
     queryKey: ['marketing-gifts', tenantId, query],
     queryFn: () => listMarketingGiftPolicies(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -1,12 +1,10 @@
 import type { ComponentProps } from 'react';
 
-import {
-  UiModule01QuickFiltersPanel,
-  UiModule05OrderReviewRightPanelTemplate,
-} from '@/components/ui-modules';
+import { WorkbenchDetailPanelTemplate } from '@/components/page-templates';
+import { UiModule01QuickFiltersPanel } from '@/components/ui-modules';
 
 export type OrderReviewQuickFiltersPanelProps = ComponentProps<typeof UiModule01QuickFiltersPanel>;
-export type OrderReviewDetailPanelProps = ComponentProps<typeof UiModule05OrderReviewRightPanelTemplate>;
+export type OrderReviewDetailPanelProps = ComponentProps<typeof WorkbenchDetailPanelTemplate>;
 
 export const OrderReviewQuickFiltersPanel = UiModule01QuickFiltersPanel;
-export const OrderReviewDetailPanel = UiModule05OrderReviewRightPanelTemplate;
+export const OrderReviewDetailPanel = WorkbenchDetailPanelTemplate;

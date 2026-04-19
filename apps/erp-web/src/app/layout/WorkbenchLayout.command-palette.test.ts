@@ -10,7 +10,7 @@ describe('WorkbenchLayout command/help overlay upgrade', () => {
     expect(source).toContain('commandPaletteOpen');
     expect(source).toContain('shortcutHelpOpen');
     expect(source).toContain('title="Command Palette"');
-    expect(source).toContain('title="Shortcut Help"');
+    expect(source).toContain('title={workbenchI18n.shortcutHelpTitle}');
     expect(source).toContain('filteredWorkbenchCommands');
     expect(source).toContain('runWorkbenchCommand');
     expect(source).toContain('disableCtrlKSearchHotkey');

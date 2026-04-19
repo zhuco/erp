@@ -70,6 +70,8 @@ import {
 } from '@/app/layout/workbenchPanelSizing';
 import { useUiSettingsStore } from '@/features/uiSettings';
 import { useFocusReturn } from '@/app/layout/useFocusReturn';
+import { workbenchI18n } from '@/app/layout/workbenchI18n';
+import { NotFoundPage } from '@/pages/NotFound';
 
 import './workbenchLayout.css';
 
@@ -77,6 +79,16 @@ const collapsedWidth = 44;
 const collapsedBottomHeight = 0;
 const WORKBENCH_RESIZE_KEYBOARD_STEP = 16;
 const WORKBENCH_RESIZE_KEYBOARD_LARGE_STEP = 48;
+const reducedUiAllowedPaths = new Set([
+  '/',
+  '/dashboard',
+  '/channels',
+  '/orders/review',
+  '/orders/recheck',
+  '/sales/settings',
+]);
+
+export const isReducedUiPathAllowed = (pathname: string) => reducedUiAllowedPaths.has(pathname);
 const WORKBENCH_RESIZE_SNAP_THRESHOLD = 20;
 const LAYOUT_PRESET_QUERY_KEY = 'layoutPreset';
 const LAYOUT_LEFT_COLLAPSED_QUERY_KEY = 'leftCollapsed';
@@ -120,12 +132,12 @@ const isWorkbenchLayoutPreset = (value: unknown): value is WorkbenchLayoutPreset
 
 const resolveLayoutPresetLabel = (preset: WorkbenchLayoutPreset) => {
   if (preset === 'compact') {
-    return 'Compact Layout';
+    return workbenchI18n.layoutPreset.compact;
   }
   if (preset === 'analysis') {
-    return 'Analysis Layout';
+    return workbenchI18n.layoutPreset.analysis;
   }
-  return 'Default Layout';
+  return workbenchI18n.layoutPreset.default;
 };
 
 type WorkbenchInteractionName =
@@ -516,6 +528,10 @@ export const WorkbenchLayout = () => {
   const menuTitleMap = useMemo(() => {
     return new Map(menuLeafItems.map((item) => [item.path, item.name]));
   }, [menuLeafItems]);
+
+  if (!isReducedUiPathAllowed(location.pathname)) {
+    return <NotFoundPage />;
+  }
 
   const headerModules = useMemo(() => resolveHeaderModules(menuRoutes), [menuRoutes]);
   const [functionSearch, setFunctionSearch] = useState('');
@@ -1493,107 +1509,113 @@ export const WorkbenchLayout = () => {
     () => [
       {
         id: 'focus-search',
-        label: 'Focus Function Search',
-        description: 'Move focus to the global function search input.',
+        label: workbenchI18n.commandLabels.focusSearch,
+        description: workbenchI18n.commandDescriptions.focusSearch,
         shortcut: 'Ctrl+K -> Enter',
         scope: 'workbench',
-        keywords: ['search', 'focus', 'function'],
+        keywords: ['鎼滅储', '鑱氱劍', '鍔熻兘', 'search', 'focus'],
         run: () => focusFunctionSearchInput(),
       },
       {
         id: 'preset-compact',
-        label: 'Apply Compact Layout',
-        description: 'Collapse side and bottom panels for max canvas.',
+        label: workbenchI18n.commandLabels.applyCompactLayout,
+        description: workbenchI18n.commandDescriptions.applyCompactLayout,
         shortcut: 'Alt+Shift+1',
         scope: 'workbench',
-        keywords: ['layout', 'compact'],
+        keywords: ['甯冨眬', '绱у噾', 'layout', 'compact'],
         run: () => applyLayoutPreset('compact'),
       },
       {
         id: 'preset-default',
-        label: 'Apply Default Layout',
-        description: 'Restore default panel sizes and visibility.',
+        label: workbenchI18n.commandLabels.applyDefaultLayout,
+        description: workbenchI18n.commandDescriptions.applyDefaultLayout,
         shortcut: 'Alt+Shift+2',
         scope: 'workbench',
-        keywords: ['layout', 'default'],
+        keywords: ['甯冨眬', '鏍囧噯', 'layout', 'default'],
         run: () => applyLayoutPreset('default'),
       },
       {
         id: 'preset-analysis',
-        label: 'Apply Analysis Layout',
-        description: 'Expand right and bottom panels for analysis.',
+        label: workbenchI18n.commandLabels.applyAnalysisLayout,
+        description: workbenchI18n.commandDescriptions.applyAnalysisLayout,
         shortcut: 'Alt+Shift+3',
         scope: 'workbench',
-        keywords: ['layout', 'analysis'],
+        keywords: ['甯冨眬', '鍒嗘瀽', 'layout', 'analysis'],
         run: () => applyLayoutPreset('analysis'),
       },
       {
         id: 'toggle-left',
-        label: leftCollapsed ? 'Expand Left Panel' : 'Collapse Left Panel',
-        description: 'Toggle visibility of the left panel.',
+        label: leftCollapsed
+          ? workbenchI18n.commandLabels.expandLeftPanel
+          : workbenchI18n.commandLabels.collapseLeftPanel,
+        description: workbenchI18n.commandDescriptions.toggleLeftPanel,
         shortcut: 'Command',
         scope: 'workbench',
-        keywords: ['left', 'panel'],
+        keywords: ['宸︿晶', '闈㈡澘', 'left', 'panel'],
         run: () => setLeftCollapsed((prev) => !prev),
       },
       {
         id: 'toggle-right',
-        label: rightCollapsed ? 'Expand Right Panel' : 'Collapse Right Panel',
-        description: 'Toggle visibility of the right panel.',
+        label: rightCollapsed
+          ? workbenchI18n.commandLabels.expandRightPanel
+          : workbenchI18n.commandLabels.collapseRightPanel,
+        description: workbenchI18n.commandDescriptions.toggleRightPanel,
         shortcut: 'Command',
         scope: 'workbench',
-        keywords: ['right', 'panel'],
+        keywords: ['right', 'panel', 'toggle'],
         run: () => setRightCollapsed((prev) => !prev),
       },
       {
         id: 'toggle-bottom',
-        label: bottomCollapsed ? 'Expand Bottom Panel' : 'Collapse Bottom Panel',
-        description: 'Toggle visibility of the bottom panel.',
+        label: bottomCollapsed
+          ? workbenchI18n.commandLabels.expandBottomPanel
+          : workbenchI18n.commandLabels.collapseBottomPanel,
+        description: workbenchI18n.commandDescriptions.toggleBottomPanel,
         shortcut: 'Command',
         scope: 'workbench',
-        keywords: ['bottom', 'panel'],
+        keywords: ['bottom', 'panel', 'toggle'],
         run: () => setBottomCollapsed((prev) => !prev),
       },
       {
         id: 'route-refresh',
-        label: 'Refresh Current Tab',
-        description: 'Refreshes the current tab content.',
+        label: workbenchI18n.commandLabels.refreshCurrentTab,
+        description: workbenchI18n.commandDescriptions.refreshCurrentTab,
         shortcut: 'Ctrl+R',
         scope: 'route-tabs',
-        keywords: ['tab', 'refresh'],
+        keywords: ['tab', 'refresh', 'route'],
         run: () => runRouteTabsShortcut('refresh'),
       },
       {
         id: 'route-next',
-        label: 'Next Tab',
-        description: 'Switch to the next tab in order.',
+        label: workbenchI18n.commandLabels.nextTab,
+        description: workbenchI18n.commandDescriptions.nextTab,
         shortcut: 'Ctrl+Tab',
         scope: 'route-tabs',
-        keywords: ['tab', 'next'],
+        keywords: ['tab', 'next', 'route'],
         run: () => runRouteTabsShortcut('next'),
       },
       {
         id: 'route-prev',
-        label: 'Previous Tab',
-        description: 'Switch to the previous tab in order.',
+        label: workbenchI18n.commandLabels.previousTab,
+        description: workbenchI18n.commandDescriptions.previousTab,
         shortcut: 'Ctrl+Shift+Tab',
         scope: 'route-tabs',
-        keywords: ['tab', 'prev'],
+        keywords: ['tab', 'previous', 'route'],
         run: () => runRouteTabsShortcut('previous'),
       },
       {
         id: 'route-close',
-        label: 'Close Current Tab',
-        description: 'Closes current tab with undo support.',
+        label: workbenchI18n.commandLabels.closeCurrentTab,
+        description: workbenchI18n.commandDescriptions.closeCurrentTab,
         shortcut: 'Ctrl+W',
         scope: 'route-tabs',
-        keywords: ['tab', 'close'],
+        keywords: ['tab', 'close', 'route'],
         run: () => runRouteTabsShortcut('close'),
       },
       {
         id: 'open-help',
-        label: 'Open Shortcut Help',
-        description: 'View keyboard shortcuts and keyboard flow.',
+        label: workbenchI18n.commandLabels.openShortcutHelp,
+        description: workbenchI18n.commandDescriptions.openShortcutHelp,
         shortcut: '? / Ctrl+/',
         scope: 'workbench',
         keywords: ['help', 'shortcut', 'hotkey'],
@@ -1632,7 +1654,7 @@ export const WorkbenchLayout = () => {
       command.run();
       setCommandPaletteOpen(false);
       setCommandKeyword('');
-      announceForScreenReader(`Command executed: ${command.label}`);
+      announceForScreenReader(workbenchI18n.commandExecuted(command.label));
     },
     [announceForScreenReader],
   );
@@ -1869,7 +1891,7 @@ export const WorkbenchLayout = () => {
     if (layoutPresetHydratedRef.current !== currentRouteKey) {
       return;
     }
-    announceForScreenReader(`甯冨眬棰勮宸插垏鎹负${resolveLayoutPresetLabel(layoutPreset)}`);
+    announceForScreenReader(workbenchI18n.presetApplied(resolveLayoutPresetLabel(layoutPreset)));
   }, [announceForScreenReader, currentRouteKey, layoutPreset]);
 
   useEffect(() => {
@@ -1886,11 +1908,17 @@ export const WorkbenchLayout = () => {
 
     let announcement = '';
     if (previous.leftCollapsed !== leftCollapsed) {
-      announcement = leftCollapsed ? 'Left panel collapsed' : 'Left panel expanded';
+      announcement = leftCollapsed
+        ? workbenchI18n.leftPanelCollapsed
+        : workbenchI18n.leftPanelExpanded;
     } else if (previous.rightCollapsed !== rightCollapsed) {
-      announcement = rightCollapsed ? 'Right panel collapsed' : 'Right panel expanded';
+      announcement = rightCollapsed
+        ? workbenchI18n.rightPanelCollapsed
+        : workbenchI18n.rightPanelExpanded;
     } else if (previous.bottomCollapsed !== bottomCollapsed) {
-      announcement = bottomCollapsed ? 'Bottom panel collapsed' : 'Bottom panel expanded';
+      announcement = bottomCollapsed
+        ? workbenchI18n.bottomPanelCollapsed
+        : workbenchI18n.bottomPanelExpanded;
     }
 
     previousPanelCollapsedStateRef.current = {
@@ -1921,19 +1949,19 @@ export const WorkbenchLayout = () => {
 
     const routeLabel = menuTitleMap.get(currentRouteKey) ?? currentRouteKey;
     if (currentStatus === 'loading') {
-      announceForScreenReader(`Loading ${routeLabel}`);
+      announceForScreenReader(workbenchI18n.routeLoading(routeLabel));
       return;
     }
     if (currentStatus === 'ready') {
-      announceForScreenReader(`${routeLabel} loaded`);
+      announceForScreenReader(workbenchI18n.routeReady(routeLabel));
       return;
     }
     if (currentStatus === 'timeout') {
-      announceForScreenReader(`${routeLabel} load timed out`);
+      announceForScreenReader(workbenchI18n.routeTimeout(routeLabel));
       return;
     }
     if (currentStatus === 'error') {
-      announceForScreenReader(`${routeLabel} load failed`);
+      announceForScreenReader(workbenchI18n.routeFailed(routeLabel));
     }
   }, [announceForScreenReader, currentRouteKey, currentRouteSnapshot.status, menuTitleMap]);
 
@@ -2049,7 +2077,9 @@ export const WorkbenchLayout = () => {
   const resizeIndicatorLabel = resizeIndicator
     ? buildResizeIndicatorLabel(resizeIndicator.side, resizeIndicator.size)
     : '';
-  const layoutPresetStatusText = `Layout preset: ${resolveLayoutPresetLabel(layoutPreset)}`;
+  const layoutPresetStatusText = workbenchI18n.layoutPresetStatus(
+    resolveLayoutPresetLabel(layoutPreset),
+  );
   const activeRouteRefreshToken = refreshTokens[currentRouteKey] ?? 0;
   const validRouteKeys = useMemo(() => {
     const next = new Set<string>(tabs.map((tab) => tab.key));
@@ -2090,19 +2120,19 @@ export const WorkbenchLayout = () => {
       items={[
         {
           key: 'filters',
-          label: 'Filters',
+          label: workbenchI18n.panelPlaceholder.filtersTab,
           content: (
             <div className="workbench-left-placeholder">
-              <Empty description="Filters panel is not connected for this route yet." />
+              <Empty description={workbenchI18n.panelPlaceholder.filtersPanelNotReady} />
             </div>
           ),
         },
         {
           key: 'query',
-          label: 'Quick Query',
+          label: workbenchI18n.panelPlaceholder.quickQueryTab,
           content: (
             <div className="workbench-left-placeholder">
-              <Empty description="Quick query area is not connected for this route yet." />
+              <Empty description={workbenchI18n.panelPlaceholder.quickQueryNotReady} />
             </div>
           ),
         },
@@ -2123,28 +2153,28 @@ export const WorkbenchLayout = () => {
       items={[
         {
           key: 'tags',
-          label: 'Tags',
+          label: workbenchI18n.panelPlaceholder.tagsTab,
           content: (
             <div className="workbench-empty">
-              <Empty description="Tags panel is not connected for this route yet." />
+              <Empty description={workbenchI18n.panelPlaceholder.tagsPanelNotReady} />
             </div>
           ),
         },
         {
           key: 'common',
-          label: '\u5e38\u7528\u529f\u80fd',
+          label: workbenchI18n.panelPlaceholder.commonActionsTab,
           content: (
             <div className="workbench-empty">
-              <Empty description="Common actions panel is not connected for this route yet." />
+              <Empty description={workbenchI18n.panelPlaceholder.commonActionsNotReady} />
             </div>
           ),
         },
         {
           key: 'detail',
-          label: 'Details',
+          label: workbenchI18n.panelPlaceholder.detailsTab,
           content: (
             <div className="workbench-empty">
-              <Empty description="Details panel is not connected for this route yet." />
+              <Empty description={workbenchI18n.panelPlaceholder.detailsPanelNotReady} />
             </div>
           ),
         },
@@ -2157,8 +2187,16 @@ export const WorkbenchLayout = () => {
       activeKey={bottomPlaceholderTab}
       onChange={setBottomPlaceholderTab}
       items={[
-        { key: 'sub-1', label: 'Logs', content: <Empty description="Logs panel is not connected yet." /> },
-        { key: 'sub-2', label: 'Activities', content: <Empty description="Activities panel is not connected yet." /> },
+        {
+          key: 'sub-1',
+          label: workbenchI18n.panelPlaceholder.logsTab,
+          content: <Empty description={workbenchI18n.panelPlaceholder.logsPanelNotReady} />,
+        },
+        {
+          key: 'sub-2',
+          label: workbenchI18n.panelPlaceholder.activitiesTab,
+          content: <Empty description={workbenchI18n.panelPlaceholder.activitiesPanelNotReady} />,
+        },
       ]}
     />
   );
@@ -2194,20 +2232,6 @@ export const WorkbenchLayout = () => {
     [filteredWorkbenchCommands, runWorkbenchCommand],
   );
 
-  const shortcutHelpRows = [
-    ['Ctrl+K', 'Open command palette and focus the input.'],
-    ['? / Ctrl+/', 'Open shortcut help panel.'],
-    ['Alt+Shift+1/2/3', 'Apply compact / default / analysis layout preset.'],
-    ['Ctrl+Tab / Ctrl+Shift+Tab', 'Switch to next / previous tab in order.'],
-    ['Ctrl+W', 'Close current tab (with undo support).'],
-    ['Ctrl+R', 'Refresh current tab content.'],
-    ['Alt+ArrowUp / Alt+ArrowDown', 'Reorder focused shortcut item in toolbar.'],
-    ['Delete / Backspace', 'Delete focused shortcut item (with undo support).'],
-    ['Alt+Shift+A/M/S', 'Order review page: run bulk actions.'],
-    ['Alt+1..9', 'Order review page: replay filter snapshot.'],
-    ['Ctrl+Alt+1..9', 'Order review page: save filter snapshot.'],
-  ] as const;
-
   return (
     <div
       className="workbench-shell"
@@ -2220,7 +2244,7 @@ export const WorkbenchLayout = () => {
       data-workbench-bottom-height={Math.round(bottomHeight)}
     >
       <a className="workbench-skip-link" href="#workbench-main-content">
-        Skip navigation and jump to main content
+        {workbenchI18n.skipToMainContent}
       </a>
       <div
         className="workbench-sr-live-region"
@@ -2254,7 +2278,11 @@ export const WorkbenchLayout = () => {
         />
         <div className="workbench-main-toolbar">
           <ShortcutToolbar menuItems={menuRoutes} />
-          <div className="workbench-layout-presets" role="group" aria-label="Layout presets">
+          <div
+            className="workbench-layout-presets"
+            role="group"
+            aria-label={workbenchI18n.layoutPresetGroup}
+          >
             <Button
               size="small"
               type={layoutPreset === 'compact' ? 'primary' : 'default'}
@@ -2262,7 +2290,7 @@ export const WorkbenchLayout = () => {
               aria-keyshortcuts="Alt+Shift+1"
               onClick={() => applyLayoutPreset('compact')}
             >
-              Compact Layout
+              {workbenchI18n.layoutPreset.compact}
             </Button>
             <Button
               size="small"
@@ -2271,7 +2299,7 @@ export const WorkbenchLayout = () => {
               aria-keyshortcuts="Alt+Shift+2"
               onClick={() => applyLayoutPreset('default')}
             >
-              Default Layout
+              {workbenchI18n.layoutPreset.default}
             </Button>
             <Button
               size="small"
@@ -2280,7 +2308,7 @@ export const WorkbenchLayout = () => {
               aria-keyshortcuts="Alt+Shift+3"
               onClick={() => applyLayoutPreset('analysis')}
             >
-              Analysis Layout
+              {workbenchI18n.layoutPreset.analysis}
             </Button>
           </div>
           <div
@@ -2297,7 +2325,7 @@ export const WorkbenchLayout = () => {
             aria-keyshortcuts="Control+K"
             onClick={openCommandPalette}
           >
-            Command Palette (Ctrl+K)
+            {workbenchI18n.commandPaletteTrigger}
           </Button>
           <Button
             size="small"
@@ -2306,7 +2334,7 @@ export const WorkbenchLayout = () => {
             aria-keyshortcuts="Control+/"
             onClick={openShortcutHelp}
           >
-            Shortcut Help (?)
+            {workbenchI18n.shortcutHelpTrigger}
           </Button>
         </div>
         <div className="workbench-header-row workbench-tabs-row">
@@ -2535,18 +2563,18 @@ export const WorkbenchLayout = () => {
         </Modal>
         <Modal
           open={shortcutHelpOpen}
-          title="Shortcut Help"
+          title={workbenchI18n.shortcutHelpTitle}
           onCancel={() => setShortcutHelpOpen(false)}
           footer={
             <Button type="primary" onClick={() => setShortcutHelpOpen(false)}>
-              Got it
+              {workbenchI18n.shortcutHelpClose}
             </Button>
           }
           width={680}
           destroyOnHidden
         >
           <div className="workbench-shortcut-help-list">
-            {shortcutHelpRows.map(([shortcut, description]) => (
+            {workbenchI18n.shortcutHelpRows.map(([shortcut, description]) => (
               <div key={shortcut} className="workbench-shortcut-help-row">
                 <Typography.Text code>{shortcut}</Typography.Text>
                 <Typography.Text>{description}</Typography.Text>

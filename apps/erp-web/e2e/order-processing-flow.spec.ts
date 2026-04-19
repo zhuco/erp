@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 test.describe('Order Processing Flow', () => {
   test('review queue shows pending orders', async ({ page }) => {

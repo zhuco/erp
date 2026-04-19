@@ -47,5 +47,53 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(colDefs[1]?.lockPinned).toBe(true);
     expect(colDefs[1]?.lockPosition).toBe('left');
     expect(colDefs[1]?.suppressMovable).toBe(true);
+    expect(colDefs[1]?.sortable).toBe(false);
+  });
+
+  it('renders row selection checkbox inside a dedicated hitbox container', () => {
+    const colDefs = buildAgGridWorkbenchStructuralColDefs<{ id: string }>({
+      onToggleAllSelection: vi.fn(),
+    });
+
+    const renderer = colDefs[0]?.cellRenderer;
+    expect(typeof renderer).toBe('function');
+
+    const rendered = renderer?.({
+      node: {
+        data: { id: 'row-1' },
+        isSelected: () => false,
+      },
+    } as never) as { props?: { className?: string; children?: { props?: { className?: string } } } };
+
+    expect(rendered?.props?.className).toContain('ag-selection-checkbox-hitbox');
+    expect(rendered?.props?.children?.props?.className).toContain('ag-selection-checkbox');
+  });
+
+  it('uses source row index for the row-index value getter and comparator', () => {
+    const colDefs = buildAgGridWorkbenchStructuralColDefs<{ id: string }>({
+      onToggleAllSelection: vi.fn(),
+    });
+    const rowIndexColDef = colDefs[1];
+
+    expect(rowIndexColDef?.colId).toBe('__erpRowIndex');
+    expect(typeof rowIndexColDef?.valueGetter).toBe('function');
+    expect(typeof rowIndexColDef?.comparator).toBe('function');
+
+    const value = rowIndexColDef?.valueGetter?.({
+      node: {
+        rowIndex: 9,
+        sourceRowIndex: 2,
+      },
+    } as never);
+    expect(value).toBe(3);
+
+    const compareResult = rowIndexColDef?.comparator?.(
+      0,
+      0,
+      { rowIndex: 20, sourceRowIndex: 4 } as never,
+      { rowIndex: 1, sourceRowIndex: 7 } as never,
+      false,
+    );
+    expect(compareResult).toBeLessThan(0);
   });
 });

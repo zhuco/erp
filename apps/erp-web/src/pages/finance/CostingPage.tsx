@@ -85,7 +85,7 @@ export const CostingPage = () => {
     queryKey: ['costing-runs', tenantId, query],
     queryFn: () => listInventoryCostingRuns(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -41,7 +41,7 @@ export const PromoStockingPage = () => {
   const listQuery = useQuery({
     queryKey: ['planning', 'promo-stocking', tenantId],
     queryFn: () => listPlanningPromoStocking(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const generateMutation = useMutation({

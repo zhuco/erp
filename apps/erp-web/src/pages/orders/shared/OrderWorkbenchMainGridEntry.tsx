@@ -3,14 +3,17 @@ import { ErpDataGridNext, type ErpDataGridNextProps } from '@/components/ErpData
 import { OrderExceptionsMainGrid, type OrderExceptionsMainGridProps } from '@/pages/orders/exceptions-native/OrderExceptionsMainGrid';
 import { OrderReviewMainGrid, type OrderReviewMainGridProps } from '@/pages/orders/review-native/OrderReviewMainGrid';
 
-export type OrderQueryMainGridProps = ErpDataGridNextProps<OrderSummary>;
+export type OrderQueryMainGridProps<TRow = OrderSummary> = ErpDataGridNextProps<TRow>;
 
-export type OrderWorkbenchMainGridEntryProps =
+export type OrderWorkbenchMainGridEntryProps<TRow = OrderSummary> =
   | ({ variant: 'review' } & OrderReviewMainGridProps)
   | ({ variant: 'recheck' } & OrderExceptionsMainGridProps)
-  | ({ variant: 'query' } & OrderQueryMainGridProps);
+  | ({ variant: 'query' } & OrderQueryMainGridProps<TRow>);
 
-export const OrderWorkbenchMainGridEntry = (props: OrderWorkbenchMainGridEntryProps) => {
+export function OrderWorkbenchMainGridEntry(props: { variant: 'review' } & OrderReviewMainGridProps): JSX.Element;
+export function OrderWorkbenchMainGridEntry(props: { variant: 'recheck' } & OrderExceptionsMainGridProps): JSX.Element;
+export function OrderWorkbenchMainGridEntry<TRow>(props: { variant: 'query' } & OrderQueryMainGridProps<TRow>): JSX.Element;
+export function OrderWorkbenchMainGridEntry<TRow>(props: OrderWorkbenchMainGridEntryProps<TRow>) {
   if (props.variant === 'review') {
     return <OrderReviewMainGrid {...props} />;
   }
@@ -20,5 +23,5 @@ export const OrderWorkbenchMainGridEntry = (props: OrderWorkbenchMainGridEntryPr
   }
 
   const { selectionColumnWidth, ...queryProps } = props;
-  return <ErpDataGridNext<OrderSummary> {...queryProps} selectionColumnWidth={selectionColumnWidth ?? 36} />;
-};
+  return <ErpDataGridNext<TRow> {...queryProps} selectionColumnWidth={selectionColumnWidth ?? 36} />;
+}

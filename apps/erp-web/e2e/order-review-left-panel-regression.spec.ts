@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 test('order review left module shows icon tree, red counters, and bottom stats', async ({ page }) => {
   await page.goto('/orders/review');

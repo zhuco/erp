@@ -1,4 +1,4 @@
-﻿import './ErpDataGrid.css';
+import './ErpDataGrid.css';
 
 import { Alert, Empty, Spin, Typography } from 'antd';
 import type { MenuProps } from 'antd';

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Card,
   Checkbox,
@@ -368,7 +368,7 @@ export const ProductsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['products', tenantId, productQuery],
     queryFn: () => listProducts(tenantId, productQuery),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: Boolean(tenantId),
   });
   const listItems = data?.data ?? [];
@@ -1469,7 +1469,7 @@ export const ProductsPage = () => {
     queryKey: ['product-warehouses', tenantId, selectedProduct?.product_id, 'panel'],
     queryFn: () => listProductWarehouses(tenantId, selectedProduct?.product_id ?? ''),
     enabled: Boolean(tenantId && selectedProduct?.product_id),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const panelKitQuery = useQuery({
@@ -1477,7 +1477,7 @@ export const ProductsPage = () => {
     queryFn: () =>
       listProductKits(tenantId, selectedProduct?.product_id ?? '', { offset: 0, limit: 200 }),
     enabled: Boolean(tenantId && selectedProduct?.product_id),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const panelLogQuery = useQuery({
@@ -1489,7 +1489,7 @@ export const ProductsPage = () => {
         limit: 50,
       }),
     enabled: Boolean(tenantId && selectedProduct?.product_id),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const productWarehouses = warehouseQuery.data?.items ?? [];

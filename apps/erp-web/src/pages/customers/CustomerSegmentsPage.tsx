@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Card,
   Col,
@@ -90,7 +90,7 @@ export const CustomerSegmentsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-segments', tenantId, query],
     queryFn: () => listCustomerSegments(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -103,7 +103,7 @@ export const CustomerSegmentsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['customer-segments', tenantId] });
     },
     onError: (err) => {
-      message.error(err instanceof Error ? err.message : '鍒犻櫎瀹㈡埛鍒嗙兢澶辫触');
+      message.error(err instanceof Error ? err.message : '删除客户分群失败');
     },
     onSettled: () => {
       setDeletingId(null);
@@ -113,16 +113,16 @@ export const CustomerSegmentsPage = () => {
   const columns = useMemo<ColumnsType<CustomerSegment>>(
     () => [
       {
-        title: '鍒嗙兢鍚嶇О',
+        title: '分群鍚嶇О',
         dataIndex: 'name'
       },
       {
-        title: '鍒嗙兢绫诲瀷',
+        title: '分群绫诲瀷',
         dataIndex: 'segment_type',
         render: (value: string) => segmentTypeMap.get(value) ?? value
       },
       {
-        title: '瑙勫垯姒傝',
+        title: '规则姒傝',
         dataIndex: 'rule_summary',
         render: (value?: string | null) => value ?? '-'
       },
@@ -138,7 +138,7 @@ export const CustomerSegmentsPage = () => {
         )
       },
       {
-        title: '鏇存柊鏃堕棿',
+        title: '更新时间',
         dataIndex: 'updated_at',
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
@@ -161,12 +161,12 @@ export const CustomerSegmentsPage = () => {
                 });
               }}
             >
-              缂栬緫
+              编辑
             </Button>
             <Popconfirm
               title="确认删除客户分群？"
-              okText="鍒犻櫎"
-              cancelText="鍙栨秷"
+              okText="删除"
+              cancelText="取消"
               onConfirm={() => deleteMutation.mutate(record.segment_id)}
             >
               <Button
@@ -175,7 +175,7 @@ export const CustomerSegmentsPage = () => {
                 disabled={!canWrite}
                 loading={deleteMutation.isPending && deletingId === record.segment_id}
               >
-                鍒犻櫎
+                删除
               </Button>
             </Popconfirm>
           </Space>
@@ -235,7 +235,7 @@ export const CustomerSegmentsPage = () => {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Typography.Title level={3} style={{ margin: 0 }} data-testid="customer-segments-title">
-          瀹㈡埛鍒嗙兢
+          客户分群
         </Typography.Title>
         <Button
           type="primary"
@@ -243,7 +243,7 @@ export const CustomerSegmentsPage = () => {
           onClick={openCreateDrawer}
           data-testid="customer-segments-create"
         >
-          鏂板缓鍒嗙兢
+          新建分群
         </Button>
       </Space>
       <Card>
@@ -260,7 +260,7 @@ export const CustomerSegmentsPage = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="segment_type" label="鍒嗙兢绫诲瀷">
+              <Form.Item name="segment_type" label="分群绫诲瀷">
                 <Select allowClear options={segmentTypeOptions} placeholder="鍏ㄩ儴" />
               </Form.Item>
             </Col>
@@ -293,8 +293,8 @@ export const CustomerSegmentsPage = () => {
         loading={isLoading || isFetching}
         error={error}
         onRetry={() => refetch()}
-        errorTitle="鍔犺浇瀹㈡埛鍒嗙兢澶辫触"
-        emptyText="鏆傛棤瀹㈡埛鍒嗙兢"
+        errorTitle="加载客户分群失败"
+        emptyText="暂无客户分群"
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
@@ -303,16 +303,16 @@ export const CustomerSegmentsPage = () => {
         dataTestId="customer-segments-table"
       />
       <Drawer
-        title={editingSegment ? '缂栬緫瀹㈡埛鍒嗙兢' : '鏂板缓瀹㈡埛鍒嗙兢'}
+        title={editingSegment ? '编辑客户分群' : '鏂板缓客户分群'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
         destroyOnHidden
         footer={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>鍙栨秷</Button>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
             <Button type="primary" loading={saving} onClick={handleSave} data-testid="customer-segments-form-save">
-              淇濆瓨
+              保存
             </Button>
           </Space>
         }
@@ -320,19 +320,19 @@ export const CustomerSegmentsPage = () => {
         <Form form={drawerForm} layout="vertical">
           <Form.Item
             name="name"
-            label="鍒嗙兢鍚嶇О"
+            label="分群鍚嶇О"
             rules={[{ required: true, message: '请输入分群名称' }]}
           >
             <Input placeholder="分群名称" data-testid="customer-segments-form-name" />
           </Form.Item>
           <Form.Item
             name="segment_type"
-            label="鍒嗙兢绫诲瀷"
-            rules={[{ required: true, message: '璇烽€夋嫨鍒嗙兢绫诲瀷' }]}
+            label="分群绫诲瀷"
+            rules={[{ required: true, message: '璇烽€夋嫨分群绫诲瀷' }]}
           >
             <Select options={segmentTypeOptions} placeholder="选择分群类型" data-testid="customer-segments-form-type" />
           </Form.Item>
-          <Form.Item name="rule_summary" label="瑙勫垯姒傝">
+          <Form.Item name="rule_summary" label="规则姒傝">
             <Input.TextArea rows={3} placeholder="濡傦細杩?0澶╂秷璐归噾棰?5000" />
           </Form.Item>
           <Form.Item name="status" label="状态">

@@ -73,7 +73,7 @@ export const InventoryFreezesPage = () => {
     queryKey: ['inventory-freezes', tenantId, listQuery],
     queryFn: () => listInventoryFreezes(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const createMutation = useMutation({

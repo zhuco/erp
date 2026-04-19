@@ -70,7 +70,7 @@ export const OperationLogsPage = () => {
     queryKey: ['operation-logs', tenantId, query],
     queryFn: () => listOperationLogs(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   useEffect(() => {

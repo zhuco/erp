@@ -110,7 +110,7 @@ export const StockCountsPage = () => {
     queryKey: ['stock-counts', tenantId, listQuery],
     queryFn: () => listStockCounts(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({

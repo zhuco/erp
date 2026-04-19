@@ -62,7 +62,7 @@ export const RefundDocsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['refund-docs', tenantId, query],
     queryFn: () => listRefundDocs(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleRetry = async (record: RefundDoc) => {

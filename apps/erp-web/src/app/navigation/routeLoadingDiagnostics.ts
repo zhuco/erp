@@ -1,4 +1,4 @@
-﻿import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export const ROUTE_LOADING_TIMEOUT_MS = 8000;
 const ROUTE_DIAGNOSTIC_EVENT_LIMIT = 80;

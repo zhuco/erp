@@ -1,4 +1,4 @@
-﻿-- 0093: Hard guard for order/match/ship/wave persistence chains.
+-- 0093: Hard guard for order/match/ship/wave persistence chains.
 -- This migration is idempotent and keeps existing environments forward compatible.
 
 DO $$

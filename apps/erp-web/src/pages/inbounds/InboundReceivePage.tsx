@@ -1,6 +1,6 @@
-﻿import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Table, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Table, Tabs, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -8,8 +8,9 @@ import type { InboundDocItem } from '@/api/inbounds';
 import { createOperationId, getInboundDetail, receiveInbound } from '@/api/inbounds';
 import { createInboundRejects } from '@/api/inboundRejects';
 import { searchSkus, type SkuSearchItem } from '@/api/skus';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -48,6 +49,9 @@ export const InboundReceivePage = () => {
   const [rejectLines, setRejectLines] = useState<RejectLine[]>([]);
   const [skuOptions, setSkuOptions] = useState<SkuSearchItem[]>([]);
   const [skuLoading, setSkuLoading] = useState(false);
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const detailQuery = useQuery({
     queryKey: ['inbound-receive', tenantId, doc_id],
@@ -105,9 +109,11 @@ export const InboundReceivePage = () => {
     }
   };
 
+  const detail = detailQuery.data;
+
   const skuLabelMap = useMemo(() => {
     const map = new Map<string, string>();
-    detailQuery.data?.items.forEach((item) => {
+    (detail?.items ?? []).forEach((item) => {
       const name = item.sku_code ?? item.sku_id;
       const barcode = item.barcode ? ` (${item.barcode})` : '';
       map.set(item.sku_id, `${name}${barcode}`);
@@ -116,7 +122,7 @@ export const InboundReceivePage = () => {
       map.set(sku.sku_id, formatSkuLabel(sku));
     });
     return map;
-  }, [detailQuery.data?.items, skuOptions]);
+  }, [detail?.items, skuOptions]);
 
   const skuSelectOptions = useMemo(
     () =>
@@ -128,8 +134,8 @@ export const InboundReceivePage = () => {
   );
 
   const itemBySku = useMemo(
-    () => new Map((detail.items ?? []).map((item) => [item.sku_id, item])),
-    [detail.items]
+    () => new Map((detail?.items ?? []).map((item) => [item.sku_id, item])),
+    [detail?.items]
   );
 
   const pendingReceiveBySku = useMemo(() => {
@@ -148,6 +154,73 @@ export const InboundReceivePage = () => {
     return map;
   }, [rejectLines]);
 
+  const filteredInboundItems = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return detail?.items ?? [];
+    }
+    return (detail?.items ?? []).filter((item) => {
+      const label = (skuLabelMap.get(item.sku_id) ?? item.sku_id).toLowerCase();
+      return (
+        label.includes(keyword) ||
+        item.sku_id.toLowerCase().includes(keyword) ||
+        String(item.sku_code ?? '').toLowerCase().includes(keyword) ||
+        String(item.barcode ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [detail?.items, skuLabelMap, toolbarSearchKeyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="收货说明">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            1. 选择 SKU，并填写收货数量或拒收数量。</Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            2. 提交后系统会校验总量，超出待处理数量时请走补录入库流程。</Typography.Paragraph>
+        </Card>
+        <Card size="small" title="当前进度">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            单据状态：{detail?.doc.status ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            待提交收货：{receiveLines.length} 行</Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            待提交拒收：{rejectLines.length} 行</Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [detail?.doc.status, receiveLines.length, rejectLines.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="收货摘要">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            单据：{detail?.doc.doc_no ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            明细行数：{detail?.items.length ?? 0}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            可见行数：{filteredInboundItems.length}
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [detail?.doc.doc_no, detail?.items.length, filteredInboundItems.length]
+  );
   const getAvailableQty = (skuId: string) => {
     const item = itemBySku.get(skuId);
     if (!item) {
@@ -165,7 +238,7 @@ export const InboundReceivePage = () => {
     { title: '已收货', dataIndex: 'received_qty' },
     { title: '已上架', dataIndex: 'putaway_qty' },
     {
-      title: '待收数量',
+      title: '待处理数量',
       key: 'remaining_qty',
       render: (_, record) =>
         record.planned_qty > 0 ? Math.max(record.planned_qty - record.received_qty, 0) : '-'
@@ -189,7 +262,7 @@ export const InboundReceivePage = () => {
             setReceiveLines((prev) => prev.filter((line) => line.line_id !== record.line_id))
           }
         >
-          移除
+          删除
         </Button>
       )
     }
@@ -202,7 +275,7 @@ export const InboundReceivePage = () => {
       render: (value) => skuLabelMap.get(value) ?? value
     },
     { title: '数量', dataIndex: 'qty' },
-    { title: '原因', dataIndex: 'reason', render: (value) => value ?? '-' },
+    { title: '拒收原因', dataIndex: 'reason', render: (value) => value ?? '-' },
     {
       title: '操作',
       key: 'actions',
@@ -213,11 +286,50 @@ export const InboundReceivePage = () => {
             setRejectLines((prev) => prev.filter((line) => line.line_id !== record.line_id))
           }
         >
-          移除
+          删除
         </Button>
       )
     }
   ];
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'receive',
+            label: `待提交收货 (${receiveLines.length})`,
+            children: (
+              <Table<ReceiveLine>
+                size="small"
+                rowKey={(record) => record.line_id}
+                columns={receiveLineColumns}
+                dataSource={receiveLines}
+                pagination={false}
+                locale={{ emptyText: '暂无待提交收货行' }}
+              />
+            )
+          },
+          {
+            key: 'reject',
+            label: `待提交拒收 (${rejectLines.length})`,
+            children: (
+              <Table<RejectLine>
+                size="small"
+                rowKey={(record) => record.line_id}
+                columns={rejectLineColumns}
+                dataSource={rejectLines}
+                pagination={false}
+                locale={{ emptyText: '暂无待提交拒收行' }}
+              />
+            )
+          }
+        ]}
+      />
+    ),
+    [receiveLineColumns, receiveLines, rejectLineColumns, rejectLines]
+  );
 
   if (detailQuery.error) {
     return (
@@ -229,7 +341,6 @@ export const InboundReceivePage = () => {
     );
   }
 
-  const detail = detailQuery.data;
   if (!detail || !doc_id) {
     return null;
   }
@@ -240,7 +351,7 @@ export const InboundReceivePage = () => {
       return;
     }
     if (!detail.items.find((item) => item.sku_id === values.sku_id)) {
-      message.warning('SKU 不在入库单范围内');
+      message.warning('SKU 不在当前入库单明细中');
       return;
     }
     const qty = Number(values.qty ?? 0);
@@ -250,7 +361,7 @@ export const InboundReceivePage = () => {
     }
     const available = getAvailableQty(values.sku_id);
     if (qty > available) {
-      message.warning(`收货数量超出可处理范围，当前最多可收 ${available}`);
+      message.warning(`收货数量不能超过当前可处理数量：${available}`);
       return;
     }
     setReceiveLines((prev) => [
@@ -270,7 +381,7 @@ export const InboundReceivePage = () => {
       return;
     }
     if (!detail.items.find((item) => item.sku_id === values.sku_id)) {
-      message.warning('SKU 不在入库单范围内');
+      message.warning('SKU 不在当前入库单明细中');
       return;
     }
     const qty = Number(values.qty ?? 0);
@@ -280,7 +391,7 @@ export const InboundReceivePage = () => {
     }
     const available = getAvailableQty(values.sku_id);
     if (qty > available) {
-      message.warning(`拒收数量超出可处理范围，当前最多可拒 ${available}`);
+      message.warning(`拒收数量不能超过当前可处理数量：${available}`);
       return;
     }
     setRejectLines((prev) => [
@@ -305,7 +416,7 @@ export const InboundReceivePage = () => {
       return;
     }
     if (!receiveLines.length) {
-      message.warning('请先录入收货明细');
+      message.warning('请先添加收货明细');
       return;
     }
     receiveMutation.mutate({ docId: doc_id, items: receiveLines });
@@ -321,7 +432,7 @@ export const InboundReceivePage = () => {
       return;
     }
     if (!rejectLines.length) {
-      message.warning('请先录入拒收明细');
+      message.warning('请先添加拒收明细');
       return;
     }
     rejectMutation.mutate({ docId: doc_id, items: rejectLines });
@@ -337,9 +448,22 @@ export const InboundReceivePage = () => {
         提交收货
       </Button>
       <Button onClick={() => navigate('/wms/inbounds')}>
-        去补录入库
+        返回列表
       </Button>
     </Space>
+  );
+
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={toolbarLeft}
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="按 SKU / 条码筛选入库明细"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('可通过上方搜索框快速筛选入库明细')}
+    />
   );
 
   const tableContent = (
@@ -349,11 +473,11 @@ export const InboundReceivePage = () => {
           data-testid="inbound-receive-items"
           rowKey={(record) => record.sku_id}
           columns={inboundItemColumns}
-          dataSource={detail.items}
+          dataSource={filteredInboundItems}
           pagination={false}
         />
       </Card>
-      <Card title="收货登记（支持分批）">
+      <Card title="收货登记">
         <Alert
           type="info"
           showIcon
@@ -361,11 +485,11 @@ export const InboundReceivePage = () => {
           message="系统会校验“收货 + 拒收”总量不超过待处理数量，超量请走补录入库。"
         />
         <Form form={receiveForm} layout="inline" style={{ marginBottom: 12 }}>
-          <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
+          <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
             <Select
               showSearch
               allowClear
-              placeholder="扫码/输入 SKU"
+              placeholder="搜索/选择 SKU"
               options={skuSelectOptions}
               filterOption={false}
               onSearch={(value) => void loadSkuOptions(value)}
@@ -404,11 +528,11 @@ export const InboundReceivePage = () => {
           message="拒收记录会占用本单待处理数量，后续补货请通过“去补录入库”新建补录单。"
         />
         <Form form={rejectForm} layout="inline" style={{ marginBottom: 12 }}>
-          <Form.Item name="sku_id" rules={[{ required: true, message: '璇烽€夋嫨 SKU' }]}>
+          <Form.Item name="sku_id" rules={[{ required: true, message: '请选择 SKU' }]}>
             <Select
               showSearch
               allowClear
-              placeholder="扫码/输入 SKU"
+              placeholder="搜索/选择 SKU"
               options={skuSelectOptions}
               filterOption={false}
               onSearch={(value) => void loadSkuOptions(value)}
@@ -438,6 +562,13 @@ export const InboundReceivePage = () => {
     </Space>
   );
 
-  return <WorkbenchMainTableTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
+      tableContent={tableContent}
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
+    />
+  );
 };
 

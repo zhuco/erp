@@ -9,7 +9,7 @@ import {
   Select,
   Space,
   Tag,
-  Typography
+  Typography,
 } from 'antd';
 import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { SyncJobRun, SyncJobRunListQuery } from '@/api/syncJobRuns';
 import { listSyncJobRuns } from '@/api/syncJobRuns';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 type FilterValues = {
@@ -31,27 +31,26 @@ type FilterValues = {
 };
 
 const jobTypeOptions = [
-  { label: '订单同步', value: 'order_sync' },
-  { label: '商品同步', value: 'product_sync' },
-  { label: '售后同步', value: 'refund_sync' },
-  { label: '物流同步', value: 'shipping_sync' }
+  { label: 'Order sync', value: 'order_sync' },
+  { label: 'Product sync', value: 'product_sync' },
+  { label: 'Refund sync', value: 'refund_sync' },
+  { label: 'Shipping sync', value: 'shipping_sync' },
 ];
 
 const statusOptions = [
   { label: 'SUCCESS', value: 'SUCCESS' },
-  { label: 'FAILED', value: 'FAILED' }
+  { label: 'FAILED', value: 'FAILED' },
 ];
 
 const statusColors: Record<string, string> = {
   SUCCESS: 'green',
-  FAILED: 'red'
+  FAILED: 'red',
 };
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
-const formatDuration = (value?: number | null) =>
-  value == null ? '-' : `${(value / 1000).toFixed(2)}s`;
+const formatDuration = (value?: number | null) => (value == null ? '-' : `${(value / 1000).toFixed(2)}s`);
 
 export const SyncJobRunsPage = () => {
   const tenantId = useTenantId();
@@ -59,7 +58,7 @@ export const SyncJobRunsPage = () => {
   const [filters, setFilters] = useState<FilterValues>({});
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 20
+    pageSize: 20,
   });
 
   const query = useMemo<SyncJobRunListQuery>(() => {
@@ -71,14 +70,14 @@ export const SyncJobRunsPage = () => {
       started_from: range?.[0]?.toISOString(),
       started_to: range?.[1]?.toISOString(),
       offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? 20),
-      limit: pagination.pageSize ?? 20
+      limit: pagination.pageSize ?? 20,
     };
   }, [filters, pagination.current, pagination.pageSize]);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sync-job-runs', tenantId, query],
     queryFn: () => listSyncJobRuns(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData,
   });
 
   const handleSearch = (values: FilterValues) => {
@@ -95,108 +94,111 @@ export const SyncJobRunsPage = () => {
   const columns = useMemo<ColumnsType<SyncJobRun>>(
     () => [
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (_, record) => (
           <Tag color={statusColors[record.status] ?? 'default'}>{record.status}</Tag>
-        )
+        ),
       },
       {
-        title: '店铺ID',
-        dataIndex: 'shop_id'
+        title: 'Shop ID',
+        dataIndex: 'shop_id',
       },
       {
-        title: '任务类型',
+        title: 'Job Type',
         dataIndex: 'job_type',
         render: (_, record) =>
-          jobTypeOptions.find((option) => option.value === record.job_type)?.label ??
-          record.job_type
+          jobTypeOptions.find((option) => option.value === record.job_type)?.label ?? record.job_type,
       },
       {
-        title: '同步数量',
-        dataIndex: 'item_count'
+        title: 'Item Count',
+        dataIndex: 'item_count',
       },
       {
-        title: '耗时',
+        title: 'Duration',
         dataIndex: 'duration_ms',
-        render: (_, record) => formatDuration(record.duration_ms)
+        render: (_, record) => formatDuration(record.duration_ms),
       },
       {
-        title: '错误信息',
+        title: 'Error',
         dataIndex: 'error',
         ellipsis: true,
-        render: (_, record) => record.error || '-'
+        render: (_, record) => record.error || '-',
       },
       {
-        title: '开始时间',
+        title: 'Started At',
         dataIndex: 'started_at',
-        render: (_, record) => formatDateTime(record.started_at)
+        render: (_, record) => formatDateTime(record.started_at),
       },
       {
-        title: '结束时间',
+        title: 'Finished At',
         dataIndex: 'finished_at',
-        render: (_, record) => formatDateTime(record.finished_at)
-      }
+        render: (_, record) => formatDateTime(record.finished_at),
+      },
     ],
-    []
+    [],
   );
 
-  return (
+  const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3}>同步任务日志</Typography.Title>
+      <Typography.Title level={3}>Sync Job Runs</Typography.Title>
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
-              <Form.Item name="shop_id" label="店铺ID">
-                <Input allowClear placeholder="输入店铺ID" />
+              <Form.Item name="shop_id" label="Shop ID">
+                <Input allowClear placeholder="Input shop id" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="job_type" label="任务类型">
-                <Select allowClear options={jobTypeOptions} placeholder="选择任务类型" />
+              <Form.Item name="job_type" label="Job Type">
+                <Select allowClear options={jobTypeOptions} placeholder="Select job type" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
+              <Form.Item name="status" label="Status">
+                <Select allowClear options={statusOptions} placeholder="Select status" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="started_range" label="开始时间">
+              <Form.Item name="started_range" label="Started Range">
                 <DatePicker.RangePicker
                   allowClear
                   showTime
                   style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
+                  placeholder={['Start time', 'End time']}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  Search
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>Reset</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<SyncJobRun>
-        rowKey="run_id"
-        columns={columns}
-        data={data?.items ?? []}
-        loading={isLoading || isFetching}
-        error={error}
-        onRetry={() => refetch()}
-        errorTitle="同步运行日志加载失败"
-        emptyText="暂无运行记录"
-        total={data?.total ?? 0}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        columnSettingsKey="sales.sync.job.runs.columns"
-      />
     </Space>
+  );
+
+  return (
+    <UiModule03MainTableSection<SyncJobRun>
+      header={header}
+      rowKey="run_id"
+      columns={columns}
+      data={data?.items ?? []}
+      loading={isLoading || isFetching}
+      error={error}
+      onRetry={() => refetch()}
+      errorTitle="Failed to load sync job runs"
+      emptyText="No sync job runs"
+      total={data?.total ?? 0}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+      columnSettingsKey="sales.sync.job.runs.columns"
+    />
   );
 };

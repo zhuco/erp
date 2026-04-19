@@ -181,7 +181,7 @@ export const InventoryLocksPage = () => {
     queryKey: ['inventory-locks', tenantId, query],
     queryFn: () => listInventoryLockLogs(tenantId, query),
     enabled: tenantReady && inventoryFeature.enabled,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     retry: false
   });
 

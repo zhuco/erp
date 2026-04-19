@@ -80,14 +80,14 @@ export const ApDocsPage = () => {
     queryKey: ['apDocs', tenantId, query],
     queryFn: () => listApDocs(tenantId, query),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({
     queryKey: ['apDoc', tenantId, selectedApId],
     queryFn: () => getApDoc(tenantId, selectedApId ?? ''),
     enabled: Boolean(tenantId && selectedApId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleView = (doc: ApDoc) => {

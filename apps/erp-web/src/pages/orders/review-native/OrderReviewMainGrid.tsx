@@ -1,4 +1,4 @@
-﻿import { Alert, Button, Empty, Spin } from 'antd';
+import { Alert, Button, Empty, Spin } from 'antd';
 import type { Key } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
@@ -18,7 +18,10 @@ import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 
 import type { OrderSummary } from '@/api/orders';
+import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
+import { applyWorkbenchGridColumnPolicy, sanitizeWorkbenchColumnState } from '@/components/page-templates';
+import { resolveBuiltinOrderTag, resolveOrderBuiltinTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import {
   buildAgGridApplyColumnState,
@@ -175,13 +178,19 @@ const resolveOrderStatusLabel = (record: OrderSummary) => {
 
 const resolveOrderExceptionBadgesText = (record: OrderSummary) => {
   const tagValues = readOrderSummaryList(record, ['tags', 'tag_list', 'marks']);
-  const exceptionFlags = readOrderSummaryList(record, ['exception_flags']).map((value) => {
-    const normalizedValue = value.trim().toUpperCase();
-    return exceptionBadgeLabelMap[normalizedValue] ?? value;
-  });
-
-  const merged = Array.from(new Set([...tagValues, ...exceptionFlags].filter(Boolean)));
-  return merged.length > 0 ? merged.join(' / ') : '-';
+  const exceptionFlags = readOrderSummaryList(record, ['exception_flags']);
+  const builtinTags = resolveOrderBuiltinTags(record as Record<string, unknown>);
+  const fallbackTags = [
+    ...tagValues.filter((value) => !resolveBuiltinOrderTag(value)),
+    ...exceptionFlags
+      .filter((value) => !resolveBuiltinOrderTag(value))
+      .map((value) => {
+        const normalizedValue = value.trim().toUpperCase();
+        return exceptionBadgeLabelMap[normalizedValue] ?? value;
+      }),
+  ];
+  const merged = [...builtinTags, ...Array.from(new Set(fallbackTags.filter(Boolean)))];
+  return merged.length > 0 ? merged : ['-'];
 };
 
 export type OrderReviewMainGridProps = {
@@ -623,7 +632,7 @@ export const OrderReviewMainGrid = ({
 
       applyingPersistedColumnStateRef.current = true;
       api.applyColumnState({
-        state: buildAgGridApplyColumnState(persistedState),
+        state: sanitizeWorkbenchColumnState(buildAgGridApplyColumnState(persistedState)),
         applyOrder: true,
       });
       queueMicrotask(() => {
@@ -899,7 +908,7 @@ export const buildOrderReviewMainGridColDefs = ({
   platformFilterOptions,
   shopOptions,
 }: BuildOrderReviewMainGridColDefsOptions): ColDef<OrderSummary>[] =>
-  [
+  applyWorkbenchGridColumnPolicy([
       ...buildAgGridWorkbenchStructuralColDefs<OrderSummary>({
         onToggleAllSelection,
         pinLeft: true,
@@ -945,12 +954,14 @@ export const buildOrderReviewMainGridColDefs = ({
       {
         colId: 'exception_badges',
         headerName: '标记/异常',
-        width: 188,
-        minWidth: 80,
+        width: 228,
+        minWidth: 120,
         sortable: true,
-        filter: false,
-        valueGetter: (params) =>
-          params.data ? resolveOrderExceptionBadgesText(params.data) : '-',
+        valueGetter: (params) => (params.data ? resolveOrderExceptionBadgesText(params.data) : ['-']),
+        cellRenderer: (params) => {
+          const tags = Array.isArray(params.value) ? params.value : [];
+          return <OrderTagBadges tags={tags} emptyText="-" />;
+        },
       },
       {
         colId: 'platform',
@@ -1020,7 +1031,6 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 88,
         minWidth: 56,
         sortable: true,
-        filter: false,
         cellStyle: { textAlign: 'center' },
         valueGetter: (params) => {
           if (!params.data) {
@@ -1074,7 +1084,6 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 118,
         minWidth: 72,
         sortable: true,
-        filter: false,
         valueGetter: (params) =>
           params.data ? resolveOrderReviewStatusLabel(params.data) : '-',
       },
@@ -1084,7 +1093,6 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 118,
         minWidth: 72,
         sortable: true,
-        filter: false,
         valueGetter: (params) =>
           params.data ? resolveOrderStatusLabel(params.data) : '-',
       },
@@ -1094,7 +1102,6 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 136,
         minWidth: 72,
         sortable: true,
-        filter: false,
         valueGetter: (params) =>
           params.data
             ? readOrderSummaryText(params.data, ['ship_warehouse_name', 'ship_warehouse_id', 'target_warehouse_id']) ||
@@ -1125,7 +1132,6 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 156,
         minWidth: 76,
         sortable: true,
-        filter: false,
         valueGetter: (params) =>
           params.data ? readOrderSummaryText(params.data, ['tracking_no', 'waybill_no']) || '-' : '-',
       },
@@ -1136,11 +1142,10 @@ export const buildOrderReviewMainGridColDefs = ({
         width: 118,
         minWidth: 60,
         sortable: true,
-        filter: false,
         cellStyle: { textAlign: 'right' },
         valueFormatter: (params) => money((params.value as number | null | undefined) ?? null),
       },
-    ];
+    ]);
 
 export const buildOrderReviewMainGridDefaultColDef = (quickFilterExpanded: boolean): ColDef<OrderSummary> => ({
   filter: false,

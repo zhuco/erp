@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 const getSelectionCell = (grid: any, rowId: string) =>
   grid.locator(`.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"]`).first();
@@ -322,7 +322,7 @@ test('订单复核首击选择列即可勾选，无需先激活行', async ({ pa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-exceptions-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await page.waitForTimeout(800);
@@ -349,7 +349,7 @@ test('订单复核暴露单击选择列勾选的点击诊断信息', async ({ pa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-exceptions-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await page.waitForTimeout(800);

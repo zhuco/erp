@@ -22,7 +22,7 @@ describe('OrderReviewPage keyboard efficiency upgrade', () => {
     expect(source).toContain('filterSnapshotStorageKey');
     expect(source).toContain('persistFilterSnapshot');
     expect(source).toContain('replayFilterSnapshot');
-    expect(source).toContain('Alt+1..9 回放');
-    expect(source).toContain('Ctrl+Alt+1..9 保存');
+    expect(source).not.toContain('Alt+1..9 回放');
+    expect(source).not.toContain('Ctrl+Alt+1..9 保存');
   });
 });

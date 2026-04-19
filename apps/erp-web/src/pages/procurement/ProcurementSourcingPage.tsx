@@ -120,7 +120,7 @@ export const ProcurementSourcingPage = () => {
     queryKey: ['procurement-sourcing', tenantId, query],
     queryFn: () => listProcurementSourcing(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

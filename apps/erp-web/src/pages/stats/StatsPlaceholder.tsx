@@ -142,7 +142,7 @@ export const StatsPlaceholder = ({
     queryKey: ['stats', statsType, query],
     queryFn: () => getStatsReport(tenantId, statsType, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
   const infraQuery = useQuery({
     queryKey: ['stats-infra-health', tenantId],

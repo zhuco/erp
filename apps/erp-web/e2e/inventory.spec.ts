@@ -1,4 +1,4 @@
-﻿import type { Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, test, loginAndSelectTenant } from './fixtures';
 
 const readCellNumber = async (page: Page, skuCode: string, field: 'reserved' | 'available') => {

@@ -86,7 +86,7 @@ export const LogisticsProductsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['logistics-products', tenantId, query],
     queryFn: () => listLogisticsProducts(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const carriersQuery = useQuery({

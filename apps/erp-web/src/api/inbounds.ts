@@ -318,7 +318,7 @@ export const inspectInbound = async (
       },
       body: JSON.stringify(payload)
     },
-    '鎻愪氦璐ㄦ澶辫触'
+    '提交质检失败'
   );
 };
 

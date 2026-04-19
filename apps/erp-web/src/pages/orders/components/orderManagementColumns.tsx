@@ -1,9 +1,11 @@
-import { Button, Space, Tag } from 'antd';
+import { Button, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ReactNode } from 'react';
 
 import type { OrderSummary } from '@/api/orders';
+import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { PlatformTag } from '@/components/PlatformTag';
+import { resolveOrderBuiltinTags } from '@/features/orderTags';
 
 type OrderStatusMeta = Record<string, { label: string; color: string }>;
 
@@ -64,7 +66,7 @@ export const buildOrderManagementColumns = ({
   includeEstimatedProfit = true,
   includeTrackingNo = false,
   includeActions = false,
-  onViewDetail
+  onViewDetail,
 }: OrderManagementColumnOptions): ColumnsType<OrderSummary> => {
   const processingFormatter = formatDuration ?? formatDateTime;
 
@@ -73,21 +75,21 @@ export const buildOrderManagementColumns = ({
       title: '',
       key: 'row_index',
       width: 48,
-      render: (_, __, index) => rowOffset + index + 1
+      render: (_, __, index) => rowOffset + index + 1,
     },
     includeTags
       ? {
           title: '标记',
           key: 'tags',
           width: 120,
-          render: (_, record) => resolveTags(record)
+          render: (_, record) => resolveTags(record),
         }
       : null,
     {
       title: '订单编号',
       dataIndex: 'id',
       width: 170,
-      render: (_, record) => resolveOrderNo(record)
+      render: (_, record) => resolveOrderNo(record),
     },
     {
       title: '订单状态',
@@ -96,61 +98,30 @@ export const buildOrderManagementColumns = ({
       render: (_, record) => {
         const meta = orderStatusMeta[record.oms_status ?? ''] ?? {
           label: record.oms_status ?? '-',
-          color: 'default'
+          color: 'default',
         };
         return <Tag color={meta.color}>{meta.label}</Tag>;
-      }
+      },
     },
     includeExceptions
       ? {
           title: '异常',
           key: 'exceptions',
           width: 120,
-          render: (_, record) => {
-            const flags = record.exception_flags ?? [];
-            const tags: ReactNode[] = [];
-            if (record.mapping_missing) {
-              tags.push(
-                <Tag key="mapping" color="red">
-                  无效货品
-                </Tag>
-              );
-            }
-            if (flags.includes('ORDER_FROZEN')) {
-              tags.push(
-                <Tag key="frozen" color="volcano">
-                  冻结
-                </Tag>
-              );
-            }
-            if (flags.includes('ORDER_MERGED')) {
-              tags.push(
-                <Tag key="merged" color="blue">
-                  合并
-                </Tag>
-              );
-            }
-            return tags.length ? (
-              <Space size={[4, 4]} wrap>
-                {tags}
-              </Space>
-            ) : (
-              '-'
-            );
-          }
+          render: (_, record) => <OrderTagBadges tags={resolveOrderBuiltinTags(record)} emptyText="-" />,
         }
       : null,
     {
       title: '销售渠道',
       dataIndex: 'shop_id',
       width: 160,
-      render: (_, record) => resolveShopName(record)
+      render: (_, record) => resolveShopName(record),
     },
     {
       title: '销售平台',
       dataIndex: 'platform',
       width: 120,
-      render: (_, record) => <PlatformTag platform={record.platform} />
+      render: (_, record) => <PlatformTag platform={record.platform} />,
     },
     includeProcessingTime
       ? {
@@ -158,32 +129,32 @@ export const buildOrderManagementColumns = ({
           dataIndex: 'created_at',
           key: 'processing_time',
           width: 140,
-          render: (_, record) => processingFormatter(record.created_at)
+          render: (_, record) => processingFormatter(record.created_at),
         }
       : null,
     {
       title: '付款时间',
       dataIndex: 'created_at',
       width: 160,
-      render: (_, record) => formatDateTime(record.created_at)
+      render: (_, record) => formatDateTime(record.created_at),
     },
     {
       title: '发货仓库',
       dataIndex: 'warehouse_name',
       width: 140,
-      render: (_, record) => resolveWarehouseName(record)
+      render: (_, record) => resolveWarehouseName(record),
     },
     {
       title: '货品信息',
       dataIndex: 'items',
       width: 220,
-      render: (_, record) => resolveItemSummary(record)
+      render: (_, record) => resolveItemSummary(record),
     },
     {
       title: '应收合计',
       dataIndex: 'total_amount_cent',
       width: 120,
-      render: (value) => formatCurrency(value)
+      render: (value) => formatCurrency(value),
     },
     {
       title: '货品数量',
@@ -192,39 +163,39 @@ export const buildOrderManagementColumns = ({
       render: (_, record) => {
         const qty = resolveItemQuantity(record);
         return qty == null || qty === '' ? '-' : qty;
-      }
+      },
     },
     {
-      title: '客户帐号',
+      title: '客户账号',
       dataIndex: 'customer_name',
       key: 'customer_account',
       width: 140,
-      render: (_, record) => record.customer_name ?? record.customer_id ?? '-'
+      render: (_, record) => record.customer_name ?? record.customer_id ?? '-',
     },
     {
       title: '收货人',
       dataIndex: 'receiver_name',
       width: 120,
-      render: (value) => value ?? '-'
+      render: (value) => value ?? '-',
     },
     {
       title: '手机',
       dataIndex: 'receiver_phone',
       width: 140,
-      render: (value) => value ?? '-'
+      render: (value) => value ?? '-',
     },
     {
       title: '收货地址',
       dataIndex: 'receiver_address',
       width: 220,
-      render: (_, record) => resolveReceiverAddress(record)
+      render: (_, record) => resolveReceiverAddress(record),
     },
     includeRemark
       ? {
           title: '备注',
           dataIndex: 'remark',
           width: 160,
-          render: (_, record) => resolveRemark(record)
+          render: (_, record) => resolveRemark(record),
         }
       : null,
     includeOrderSource
@@ -232,21 +203,21 @@ export const buildOrderManagementColumns = ({
           title: '订单来源',
           dataIndex: 'order_source',
           width: 120,
-          render: (_, record) => resolveOrderSource(record)
+          render: (_, record) => resolveOrderSource(record),
         }
       : null,
     {
       title: '物流公司',
       dataIndex: 'logistics_company',
       width: 120,
-      render: (_, record) => resolveLogisticsCompany(record)
+      render: (_, record) => resolveLogisticsCompany(record),
     },
     includeTrackingNo
       ? {
           title: '物流单号',
           dataIndex: 'tracking_no',
           width: 140,
-          render: (value) => value ?? '-'
+          render: (value) => value ?? '-',
         }
       : null,
     includeEstimatedProfit
@@ -254,8 +225,7 @@ export const buildOrderManagementColumns = ({
           title: '预估邮费',
           key: 'estimated_postage',
           width: 120,
-          render: (_, record) =>
-            formatCurrency(resolveEstimatedPostage?.(record) ?? null)
+          render: (_, record) => formatCurrency(resolveEstimatedPostage?.(record) ?? null),
         }
       : null,
     includeEstimatedProfit
@@ -266,7 +236,7 @@ export const buildOrderManagementColumns = ({
           render: (_, record) => {
             const profit = resolveEstimatedProfit?.(record) ?? null;
             return profit == null ? '-' : formatCurrency(profit);
-          }
+          },
         }
       : null,
     includeEstimatedProfit
@@ -277,14 +247,14 @@ export const buildOrderManagementColumns = ({
           render: (_, record) => {
             const rate = resolveEstimatedProfitRate?.(record) ?? null;
             return rate == null ? '-' : `${(rate * 100).toFixed(2)}%`;
-          }
+          },
         }
       : null,
     {
       title: '网店订单号',
       dataIndex: 'platform_order_id',
       width: 180,
-      render: (value) => value ?? '-'
+      render: (value) => value ?? '-',
     },
     includeActions && onViewDetail
       ? {
@@ -303,12 +273,10 @@ export const buildOrderManagementColumns = ({
             >
               详情
             </Button>
-          )
+          ),
         }
-      : null
+      : null,
   ];
 
-  return columnList.filter((column): column is ColumnsType<OrderSummary>[number] =>
-    Boolean(column)
-  );
+  return columnList.filter((column): column is ColumnsType<OrderSummary>[number] => Boolean(column));
 };

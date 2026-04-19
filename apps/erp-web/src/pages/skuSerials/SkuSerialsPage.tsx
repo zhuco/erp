@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -471,7 +471,7 @@ export const SkuSerialsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sku-serials', tenantId, query],
     queryFn: () => listSkuSerials(tenantId, query),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: Boolean(tenantId)
   });
 

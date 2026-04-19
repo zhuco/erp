@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 type PerfSummary = {
   samples: number[];

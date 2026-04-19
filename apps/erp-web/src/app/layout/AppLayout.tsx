@@ -34,7 +34,7 @@ type CachedMenuItem = {
   children?: CachedMenuItem[];
 };
 
-const menuCacheKeyPrefix = 'erp.menu.cache';
+const menuCacheKeyPrefix = 'erp.menu.cache.v2';
 
 const encodeCacheKey = (value: string) => {
   if (typeof window === 'undefined') {
@@ -335,7 +335,7 @@ export const AppLayout = () => {
       key: tabKey,
       path: `${location.pathname}${location.search}`,
       title,
-      closable: tabKey !== '/orders'
+      closable: tabKey !== '/dashboard'
     });
   }, [addOrUpdateTab, location.pathname, location.search, menuTitleMap]);
 
@@ -364,7 +364,7 @@ export const AppLayout = () => {
       if (nextTab) {
         navigate(nextTab.path);
       } else {
-        navigate('/orders');
+        navigate('/dashboard');
       }
     }
   };
@@ -382,7 +382,7 @@ export const AppLayout = () => {
 
   const handleCloseAll = () => {
     closeAllTabs();
-    navigate('/orders');
+    navigate('/dashboard');
   };
 
   const tabActions: MenuProps['items'] = [

@@ -42,7 +42,7 @@ export const SalesForecastPage = () => {
   const listQuery = useQuery({
     queryKey: ['planning', 'forecasts', tenantId],
     queryFn: () => listPlanningDemandForecasts(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const upsertMutation = useMutation({

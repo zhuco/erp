@@ -69,7 +69,7 @@ export const CustomerTagsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-tags', tenantId, query],
     queryFn: () => listCustomerTags(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

@@ -43,14 +43,17 @@ describe('order workbench shared entry regression', () => {
     expect(ordersPage).not.toContain("import { ErpDataGridNext, type ErpDataGridNextColumn } from '@/components/ErpDataGridNext';");
   });
 
-  it('keeps review footer scrollbar visible and exports the native grid prop types for shared entry reuse', () => {
+  it('keeps review and exceptions footer scrollbars visible and exports the native grid prop types for shared entry reuse', () => {
     const reviewPage = readRepoFile('apps/erp-web/src/pages/orders/OrderReviewPage.tsx');
+    const exceptionsPage = readRepoFile('apps/erp-web/src/pages/orders/OrderExceptionsPage.tsx');
     const reviewGrid = readRepoFile('apps/erp-web/src/pages/orders/review-native/OrderReviewMainGrid.tsx');
     const exceptionsGrid = readRepoFile(
       'apps/erp-web/src/pages/orders/exceptions-native/OrderExceptionsMainGrid.tsx',
     );
 
     expect(reviewPage).toContain('showFooterScrollbarRow={true}');
+    expect(exceptionsPage).toContain('showFooterScrollbarRow={true}');
+    expect(exceptionsPage).toContain('order-review-table-external-scrollbar');
     expect(reviewGrid).toContain('export type OrderReviewMainGridProps = {');
     expect(exceptionsGrid).toContain('export type OrderExceptionsMainGridProps = {');
   });
@@ -85,5 +88,11 @@ describe('order workbench shared entry regression', () => {
     expect(exceptionsGrid).toContain("colId: 'reserve_status'");
     expect(exceptionsGrid).toContain("colId: 'latest_action'");
     expect(exceptionsGrid).toContain("colId: 'sla_deadline_at'");
+  });
+
+  it('hides the shared workbench selection diagnostic pill by default', () => {
+    const ordersCss = readRepoFile('apps/erp-web/src/pages/orders/orderReviewPage.css');
+
+    expect(ordersCss).toMatch(/\.order-review-selection-diagnostic\s*\{[^}]*display:\s*none;/s);
   });
 });

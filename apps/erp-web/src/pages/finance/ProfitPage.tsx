@@ -41,7 +41,7 @@ export const ProfitPage = () => {
     queryKey: ['profitSnapshots', tenantId, query],
     queryFn: () => listProfitSnapshots(tenantId, query),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<ProfitSnapshot>>(

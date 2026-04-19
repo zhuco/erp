@@ -1,4 +1,4 @@
-﻿# DB Guard: Order Match Ship Wave
+# DB Guard: Order Match Ship Wave
 
 ## Scope
 

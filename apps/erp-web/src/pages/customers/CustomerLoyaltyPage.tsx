@@ -13,7 +13,7 @@ import {
   listCustomerPointLedgers,
   listCustomerStoredValueLedgers
 } from '@/api/customerLoyalty';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
@@ -26,7 +26,7 @@ const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
 const formatCurrency = (value?: number | null) =>
-  value == null ? '-' : `¥${(value / 100).toFixed(2)}`;
+  value == null ? '-' : `楼${(value / 100).toFixed(2)}`;
 
 const formatDelta = (value?: number | null) => {
   if (value == null) {
@@ -58,7 +58,7 @@ const PointsLedgerPanel = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-point-ledgers', tenantId, query],
     queryFn: () => listCustomerPointLedgers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<CustomerPointLedger>>(
@@ -68,16 +68,16 @@ const PointsLedgerPanel = () => {
         dataIndex: 'customer_name'
       },
       {
-        title: '积分变动',
+        title: '绉垎鍙樺姩',
         dataIndex: 'change_points',
         render: (value) => formatDelta(value)
       },
       {
-        title: '积分余额',
+        title: '绉垎浣欓',
         dataIndex: 'balance_points'
       },
       {
-        title: '原因',
+        title: '鍘熷洜',
         dataIndex: 'reason'
       },
       {
@@ -86,7 +86,7 @@ const PointsLedgerPanel = () => {
         render: (value?: string | null) => value ?? '-'
       },
       {
-        title: '时间',
+        title: '鏃堕棿',
         dataIndex: 'created_at',
         render: (value: string) => formatDateTime(value)
       }
@@ -111,31 +111,31 @@ const PointsLedgerPanel = () => {
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="客户/手机号/ID" />
+              <Form.Item name='keyword' label='Keyword'>
+                <Input allowClear placeholder='Customer / phone / id' />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="created_range" label="时间范围">
+              <Form.Item name="created_range" label="鏃堕棿鑼冨洿">
                 <DatePicker.RangePicker
                   showTime
                   style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
+                  placeholder={['Start time', 'End time']}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<CustomerPointLedger>
+      <UiModule03MainTableSection<CustomerPointLedger>
         rowKey="ledger_id"
         columns={columns}
         data={data?.items ?? []}
@@ -176,7 +176,7 @@ const StoredValueLedgerPanel = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-stored-value-ledgers', tenantId, query],
     queryFn: () => listCustomerStoredValueLedgers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<CustomerStoredValueLedger>>(
@@ -186,17 +186,17 @@ const StoredValueLedgerPanel = () => {
         dataIndex: 'customer_name'
       },
       {
-        title: '金额变动',
+        title: '閲戦鍙樺姩',
         dataIndex: 'change_cent',
         render: (value) => formatCurrency(value)
       },
       {
-        title: '余额',
+        title: '浣欓',
         dataIndex: 'balance_cent',
         render: (value) => formatCurrency(value)
       },
       {
-        title: '原因',
+        title: '鍘熷洜',
         dataIndex: 'reason'
       },
       {
@@ -205,7 +205,7 @@ const StoredValueLedgerPanel = () => {
         render: (value?: string | null) => value ?? '-'
       },
       {
-        title: '时间',
+        title: '鏃堕棿',
         dataIndex: 'created_at',
         render: (value: string) => formatDateTime(value)
       }
@@ -230,39 +230,39 @@ const StoredValueLedgerPanel = () => {
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="客户/手机号/ID" />
+              <Form.Item name='keyword' label='Keyword'>
+                <Input allowClear placeholder='Customer / phone / id' />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="created_range" label="时间范围">
+              <Form.Item name="created_range" label="鏃堕棿鑼冨洿">
                 <DatePicker.RangePicker
                   showTime
                   style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
+                  placeholder={['Start time', 'End time']}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<CustomerStoredValueLedger>
+      <UiModule03MainTableSection<CustomerStoredValueLedger>
         rowKey="ledger_id"
         columns={columns}
         data={data?.items ?? []}
         loading={isLoading || isFetching}
         error={error}
         onRetry={() => refetch()}
-        errorTitle="加载储值流水失败"
-        emptyText="暂无储值流水"
+        errorTitle="Failed to load stored value ledgers"
+        emptyText="No stored value ledgers"
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
@@ -273,8 +273,8 @@ const StoredValueLedgerPanel = () => {
 };
 
 export const CustomerLoyaltyPage = () => (
-  <UiModule07SettingsLayout title="积分与储值">
-    <UiModule07SettingsSection title="账户流水">
+  <UiModule07SettingsLayout title="Points and Stored Value">
+    <UiModule07SettingsSection title="璐︽埛娴佹按">
       <Tabs
         items={[
           {
@@ -284,7 +284,7 @@ export const CustomerLoyaltyPage = () => (
           },
           {
             key: 'stored-value',
-            label: '储值流水',
+            label: 'Stored Value Ledger',
             children: <StoredValueLedgerPanel />
           }
         ]}
@@ -292,3 +292,4 @@ export const CustomerLoyaltyPage = () => (
     </UiModule07SettingsSection>
   </UiModule07SettingsLayout>
 );
+

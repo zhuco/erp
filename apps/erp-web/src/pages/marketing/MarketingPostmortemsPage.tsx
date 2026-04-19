@@ -136,7 +136,7 @@ export const MarketingPostmortemsPage = () => {
     queryKey: ['marketing-postmortems', tenantId, query],
     queryFn: () => listMarketingPostmortems(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

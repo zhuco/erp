@@ -65,7 +65,7 @@ export const ContainersPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['containers', tenantId, query],
     queryFn: () => listContainers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

@@ -1,4 +1,4 @@
-﻿-- 0094: Universal workflow engine (instances, todo center, callbacks, audit-friendly traces)
+-- 0094: Universal workflow engine (instances, todo center, callbacks, audit-friendly traces)
 
 create table if not exists workflow_instances (
   instance_id uuid primary key,

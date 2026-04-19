@@ -111,14 +111,14 @@ export const TaxManagementPage = () => {
     queryKey: ['tax-rules', tenantId, taxQuery],
     queryFn: () => listTaxRules(tenantId, taxQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const adjustQueryResult = useQuery({
     queryKey: ['invoice-adjustments', tenantId, adjustQuery],
     queryFn: () => listInvoiceAdjustments(tenantId, adjustQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveTaxMutation = useMutation({

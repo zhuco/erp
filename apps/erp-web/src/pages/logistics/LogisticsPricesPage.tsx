@@ -91,7 +91,7 @@ export const LogisticsPricesPage = () => {
     queryKey: ['logistics-prices', tenantId, query],
     queryFn: () => listLogisticsPrices(tenantId, query),
     enabled: featureFlag.enabled,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const carriersQuery = useQuery({

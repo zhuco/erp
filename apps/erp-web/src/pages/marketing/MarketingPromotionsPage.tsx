@@ -124,7 +124,7 @@ export const MarketingPromotionsPage = () => {
     queryKey: ['marketing-promotions', tenantId, query],
     queryFn: () => listMarketingPromotions(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

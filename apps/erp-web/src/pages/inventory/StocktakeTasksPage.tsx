@@ -205,7 +205,7 @@ export const StocktakeTasksPage = () => {
     queryKey: ['stocktake-tasks', tenantId, listQuery],
     queryFn: () => listStocktakeTasks(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery<StocktakeTaskDetail>({

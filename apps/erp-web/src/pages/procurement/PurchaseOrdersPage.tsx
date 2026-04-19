@@ -158,7 +158,7 @@ export const PurchaseOrdersPage = () => {
     queryKey: ['purchase-orders', tenantId, query],
     queryFn: () => listPurchaseOrders(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

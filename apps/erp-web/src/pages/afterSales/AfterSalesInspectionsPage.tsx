@@ -104,7 +104,7 @@ export const AfterSalesInspectionsPage = () => {
   const { data, isFetching, error, refetch } = useQuery({
     queryKey: ['after-sales-inspections', tenantId, query],
     queryFn: () => listAfterSalesInspections(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const { data: warehouses } = useQuery({

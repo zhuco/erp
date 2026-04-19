@@ -71,7 +71,7 @@ export const InvoicesPage = () => {
     queryKey: ['invoices', tenantId, query],
     queryFn: () => listInvoices(tenantId, query),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleApply = async (values: InvoiceFormValues) => {

@@ -11,6 +11,7 @@ type GridDiagnostics = {
   selectionColumnWidth: number;
   columnIds: string[];
   diagnosticsText: string | null;
+  diagnosticsVisible: boolean;
 };
 
 const collectGridDiagnostics = async (
@@ -43,6 +44,8 @@ const collectGridDiagnostics = async (
       const selectionDiagnostic = targetSelectionDiagnosticTestId
         ? document.querySelector<HTMLElement>(`[data-testid="${targetSelectionDiagnosticTestId}"]`)
         : null;
+      const selectionDiagnosticStyle = selectionDiagnostic ? window.getComputedStyle(selectionDiagnostic) : null;
+      const selectionDiagnosticRect = selectionDiagnostic?.getBoundingClientRect() ?? null;
 
       return {
         gridApiKeys: Object.keys(gridTestWindow.__ERP_GRID_TEST_APIS ?? {}),
@@ -56,6 +59,14 @@ const collectGridDiagnostics = async (
           String(column.colId ?? column.field ?? column.headerName ?? 'unknown'),
         ),
         diagnosticsText: selectionDiagnostic?.textContent?.trim() ?? null,
+        diagnosticsVisible: Boolean(
+          selectionDiagnostic &&
+            selectionDiagnosticStyle &&
+            selectionDiagnosticStyle.display !== 'none' &&
+            selectionDiagnosticStyle.visibility !== 'hidden' &&
+            (selectionDiagnosticRect?.width ?? 0) > 0 &&
+            (selectionDiagnosticRect?.height ?? 0) > 0,
+        ),
       };
     },
     {
@@ -129,6 +140,10 @@ const captureGridVisibleSnapshot = async (
   if (options.requireSelectionColumn) {
     await expect(diagnostics.selectionColumnExists, `${options.readyGridTestId} 选择列必须存在`).toBe(true);
     await expect(diagnostics.selectionColumnWidth, `${options.readyGridTestId} 选择列宽度必须大于 0`).toBeGreaterThan(0);
+  }
+
+  if (options.selectionDiagnosticTestId) {
+    await expect(diagnostics.diagnosticsVisible).toBe(false);
   }
 
   if (options.expectNoMaximumUpdateDepth) {

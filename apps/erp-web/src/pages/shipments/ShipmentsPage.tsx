@@ -188,7 +188,7 @@ export const ShipmentsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['shipments', tenantId, query],
     queryFn: () => listShipments(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const packagesQuery = useQuery({

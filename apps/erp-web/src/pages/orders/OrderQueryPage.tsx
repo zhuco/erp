@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -50,7 +50,6 @@ import type { MappingPayload } from '@/api/mappings';
 import { createMapping } from '@/api/mappings';
 import type { Sku } from '@/api/skus';
 import { listOrderTagDefinitions } from '@/api/orderTagDefinitions';
-import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
   UiModule04BottomTable,
   UiModule05DetailPanel,
@@ -61,14 +60,19 @@ import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { PlatformTag } from '@/components/PlatformTag';
 import { buildOrderQuickFilterCells } from '@/components/ErpDataGrid';
 import type { ErpDataGridNextColumn } from '@/components/ErpDataGridNext';
+import { resolveOrderDisplayTags } from '@/features/orderTags';
 import {
-  WorkbenchMainTableTemplate,
+  OrderReviewWorkbenchTemplate,
   useWorkbenchSavedViewState,
-  WorkbenchToolbarTemplate,
+  OrderReviewWorkbenchToolbarTemplate,
   useWorkbenchTablePagination,
 } from '@/components/workbench/templates';
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { fetchAllOrdersByScan } from '@/pages/orders/shared/fetchAllOrdersByScan';
+import {
+  toOrderWorkbenchGoodsRows,
+  type OrderWorkbenchGoodsRow,
+} from '@/pages/orders/shared/orderWorkbenchGoodsRows';
 import { useLeftFilterModule, type LeftFilterPanelProps } from '@/pages/orders/shared/useLeftFilterModule';
 import type { PlatformCode } from '@/features/platform';
 import { platformOptions } from '@/features/platform';
@@ -495,7 +499,6 @@ export const OrderQueryPage = ({
   const [form] = Form.useForm<FilterValues>();
   const [receiverForm] = Form.useForm<ReceiverFormValues>();
   const [packageForm] = Form.useForm<PackageFormValues>();
-  const { setRightPanel, setRightPanelVisible } = useWorkbenchPanels();
 
   const [filters, setFilters] = useState<FilterValues>(defaultFilterValues);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
@@ -812,6 +815,10 @@ export const OrderQueryPage = ({
 
   const detailData = detailQuery.data;
   const detailOrder = detailData?.order;
+  const detailGoodsRows = useMemo(
+    () => toOrderWorkbenchGoodsRows((detailData?.items ?? []) as Record<string, unknown>[]),
+    [detailData?.items],
+  );
   const receiverEditDisabled = !canWriteOrders || detailOrder?.review_status === 'PASSED';
   const receiverEditDisabledReason = !canWriteOrders
     ? '暂无权限'
@@ -821,6 +828,10 @@ export const OrderQueryPage = ({
   const invalidItems = useMemo(
     () => (detailData?.items ?? []).filter((item) => item.mapping_missing),
     [detailData?.items],
+  );
+  const invalidGoodsRows = useMemo(
+    () => detailGoodsRows.filter((item) => item.mappingMissing),
+    [detailGoodsRows],
   );
   const detailLoadedId = String(detailOrder?.id ?? activeOrder?.id ?? '');
 
@@ -866,14 +877,23 @@ export const OrderQueryPage = ({
     return Array.from(map.values());
   }, [courierQuery.data?.items, detailLogisticsCompany]);
 
-  const currentOrderTags = useMemo(
+  const explicitOrderTags = useMemo(
     () => (detailData?.tags ?? []).map((tag) => String(tag.tag ?? '').trim()).filter(Boolean),
     [detailData?.tags],
   );
 
   const normalizedOrderTags = useMemo(
-    () => Array.from(new Set(currentOrderTags.map((item) => item.trim()).filter(Boolean))),
-    [currentOrderTags],
+    () => Array.from(new Set(explicitOrderTags.map((item) => item.trim()).filter(Boolean))),
+    [explicitOrderTags],
+  );
+
+  const displayOrderTags = useMemo(
+    () =>
+      resolveOrderDisplayTags({
+        ...(detailOrder ?? {}),
+        tags: normalizedOrderTags,
+      }),
+    [detailOrder, normalizedOrderTags],
   );
 
   const tagMenuItems = useMemo<NonNullable<MenuProps['items']>>(
@@ -1019,6 +1039,14 @@ export const OrderQueryPage = ({
     const matched = invalidItems.find((item) => item.id === matchItemId);
     return matched ?? invalidItems[0];
   }, [invalidItems, matchItemId]);
+
+  const selectedMatchGoodsRow = useMemo(() => {
+    if (!invalidGoodsRows.length) {
+      return null;
+    }
+    const matched = invalidGoodsRows.find((item) => item.id === matchItemId);
+    return matched ?? invalidGoodsRows[0];
+  }, [invalidGoodsRows, matchItemId]);
 
   const handleKeywordChange = useCallback((value: string) => {
     setSearchValue(value);
@@ -1319,7 +1347,7 @@ export const OrderQueryPage = ({
   const resolveSkuInfo = (skuId?: string | null): Sku | undefined =>
     skuId ? skuOptions.find((sku) => sku.sku_id === skuId) : undefined;
 
-  const openMatchModal = (item?: OrderDetail['items'][number]) => {
+  const openMatchModal = (itemId?: string | null) => {
     if (!detailOrder) {
       message.warning('请先选择订单');
       return;
@@ -1334,7 +1362,7 @@ export const OrderQueryPage = ({
     setMatchTargetOrderIds(
       (targets.length ? targets : resolveTargetOrders()).map((order) => order.id),
     );
-    setMatchItemId(item?.id ?? invalidItems[0].id);
+    setMatchItemId(itemId ?? invalidItems[0].id);
     setMatchSkuId(null);
     setMatchApplyAll(true);
     setSkuKeyword('');
@@ -1607,9 +1635,10 @@ export const OrderQueryPage = ({
       return extra.logistics_company ?? detailMap.get(record.id)?.order.logistics_company ?? '-';
     };
     const resolveOrderTags = (record: OrderSummary) => {
+      const detail = detailMap.get(record.id);
       const extra = record as OrderSummary & OrderSummaryExtras & { tags?: string[] };
-      const tags = extra.tags ?? detailMap.get(record.id)?.tags?.map((tag) => tag.tag) ?? [];
-      return <OrderTagBadges tags={tags} />;
+      const tags = extra.tags ?? detail?.tags?.map((tag) => tag.tag) ?? [];
+      return <OrderTagBadges tags={resolveOrderDisplayTags({ ...(detail?.order ?? {}), ...record, tags })} />;
     };
 
     return buildOrderManagementColumns({
@@ -1870,7 +1899,7 @@ export const OrderQueryPage = ({
     [],
   );
 
-  const goodsColumns = useMemo<ColumnsType<OrderDetail['items'][number]>>(
+  const goodsColumns = useMemo<ColumnsType<OrderWorkbenchGoodsRow>>(
     () => [
       {
         title: '货品编号',
@@ -1879,13 +1908,13 @@ export const OrderQueryPage = ({
       },
       {
         title: '货品名称',
-        dataIndex: 'title',
-        render: (value) => value ?? '-',
+        dataIndex: 'shopProductName',
+        render: (value, record) => value ?? record.title ?? '-',
       },
       {
         title: '规格',
-        dataIndex: 'spec',
-        render: () => '-',
+        dataIndex: 'shopSpec',
+        render: (value) => value ?? '-',
       },
       {
         title: '数量',
@@ -1908,18 +1937,18 @@ export const OrderQueryPage = ({
       },
       {
         title: '状态',
-        dataIndex: 'mapping_missing',
+        dataIndex: 'mappingMissing',
         render: (_, record) => {
-          if (!record.mapping_missing) {
+          if (!record.mappingMissing) {
             return '-';
           }
           return (
             <Space size={4} className="order-query-invalid-cell">
-              <Tooltip title={resolveInvalidReason(record)}>
+              <Tooltip title="网店商品未完成货品匹配">
                 <Tag color="red">无效货品</Tag>
               </Tooltip>
               {canWriteOrders && canManageMappings ? (
-                <Button type="link" size="small" onClick={() => openMatchModal(record)}>
+                <Button type="link" size="small" onClick={() => openMatchModal(record.id)}>
                   去匹配
                 </Button>
               ) : null}
@@ -1928,7 +1957,7 @@ export const OrderQueryPage = ({
         },
       },
     ],
-    [canManageMappings, canWriteOrders, openMatchModal],
+    [canManageMappings, canWriteOrders],
   );
 
   const auditColumns = useMemo<ColumnsType<OrderDetail['audit_logs'][number]>>(
@@ -2110,7 +2139,7 @@ export const OrderQueryPage = ({
           <Space direction="vertical" size={8}>
             <div className="order-query-detail-tags">
               <OrderTagBadges
-                tags={(detailData?.tags ?? []).map((tag) => tag.tag)}
+                tags={displayOrderTags}
                 emptyText={<Typography.Text type="secondary">暂无标记</Typography.Text>}
               />
               <Tooltip title={canWriteOrders ? '新增标记' : '暂无权限'}>
@@ -2265,7 +2294,7 @@ export const OrderQueryPage = ({
           warehouseUpdating={detailUpdatingField === 'warehouse'}
           detailSelectDisabled={detailSelectDisabled}
           orderTagsApplying={orderTagsApplying}
-          markTags={normalizedOrderTags}
+          markTags={displayOrderTags}
           markMenuItems={tagMenuItems}
           onMarkSelect={handleMarkSelect}
           onLogisticsChange={handleDetailLogisticsChange}
@@ -2297,7 +2326,7 @@ export const OrderQueryPage = ({
       handleMarkSelect,
       mergedCourierOptions,
       mergedWarehouseOptions,
-      normalizedOrderTags,
+      displayOrderTags,
       orderTagsApplying,
       supplementalDetailPanels,
       tagMenuItems,
@@ -2353,19 +2382,19 @@ export const OrderQueryPage = ({
   const goodsTabContent = useMemo(
     () =>
       renderDetailContent(
-        <UiModule04BottomTable syncKey={`${activeBottomTab}-${detailData?.items?.length ?? 0}`}>
+        <UiModule04BottomTable syncKey={`${activeBottomTab}-${detailGoodsRows.length}`}>
           <Table
             size="small"
-            rowKey={(record) => record.id}
+            rowKey={(record) => record.__localKey}
             columns={goodsColumns}
-            dataSource={detailData?.items ?? []}
+            dataSource={detailGoodsRows}
             pagination={false}
             scroll={{ x: 'max-content' }}
             locale={{ emptyText: <Empty description="暂无货品明细" /> }}
           />
         </UiModule04BottomTable>,
       ),
-    [activeBottomTab, detailData?.items, goodsColumns, renderDetailContent],
+    [activeBottomTab, detailGoodsRows, goodsColumns, renderDetailContent],
   );
 
   const auditTabContent = useMemo(
@@ -2514,21 +2543,8 @@ export const OrderQueryPage = ({
     [activeBottomTab, auditTabContent, goodsTabContent, packageTabContent],
   );
 
-  useEffect(() => {
-    setRightPanelVisible(true);
-    return () => {
-      setRightPanel(undefined);
-      setRightPanelVisible(false);
-    };
-  }, [setRightPanel, setRightPanelVisible]);
-
-  useEffect(() => {
-    setRightPanel(rightPanel);
-    setRightPanelVisible(true);
-  }, [rightPanel, setRightPanel, setRightPanelVisible]);
-
   const queryToolbar = (
-    <WorkbenchToolbarTemplate
+    <OrderReviewWorkbenchToolbarTemplate
       leftContent={
         <OrderQueryToolbarLeft
           form={form}
@@ -2568,7 +2584,8 @@ export const OrderQueryPage = ({
 
   return (
     <>
-      <WorkbenchMainTableTemplate
+      <OrderReviewWorkbenchTemplate
+        pageTestId="order-query-page"
         className="order-query-page"
         tableClassName={queryTableClassName}
         tableContainerRef={tableContainerRef}
@@ -2606,6 +2623,7 @@ export const OrderQueryPage = ({
         pagination={pagination}
         onPaginationChange={handlePaginationChange}
         showFooterScrollbarRow={false}
+        rightPanel={rightPanel}
         bottomPanel={bottomTabs}
       />
       <Modal
@@ -2623,9 +2641,9 @@ export const OrderQueryPage = ({
             <Select
               value={selectedMatchItem?.id ?? undefined}
               onChange={(value) => setMatchItemId(value)}
-              options={invalidItems.map((item) => ({
+              options={invalidGoodsRows.map((item) => ({
                 value: item.id,
-                label: `${item.title ?? '未命名'} (${item.outer_sku_id ?? item.platform_sku_id ?? item.id})`,
+                label: `${item.shopProductName ?? item.title ?? '未命名'} / ${item.shopSpec ?? '默认规格'}`,
               }))}
               placeholder="请选择无效货品"
             />
@@ -2635,6 +2653,8 @@ export const OrderQueryPage = ({
               <Typography.Text type="secondary">
                 无效原因：{resolveInvalidReason(selectedMatchItem)}
               </Typography.Text>
+              <div>网店商品：{selectedMatchGoodsRow?.shopProductName ?? selectedMatchItem.title ?? '-'}</div>
+              <div>规格：{selectedMatchGoodsRow?.shopSpec ?? '-'}</div>
               <div>平台编码：{selectedMatchItem.platform_sku_id ?? '-'}</div>
               <div>商家编码：{selectedMatchItem.outer_sku_id ?? '-'}</div>
             </div>
@@ -2795,5 +2815,3 @@ export const OrderQueryPage = ({
     </>
   );
 };
-
-

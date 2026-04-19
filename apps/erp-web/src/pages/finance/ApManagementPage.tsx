@@ -112,14 +112,14 @@ export const ApManagementPage = () => {
     queryKey: ['ap-docs', tenantId, docQuery],
     queryFn: () => listApDocs(tenantId, docQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const plansQuery = useQuery({
     queryKey: ['ap-plans', tenantId, planQuery],
     queryFn: () => listApPaymentPlans(tenantId, planQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -90,7 +90,7 @@ export const ShipmentPushFailuresPage = () => {
   const attemptsQuery = useQuery({
     queryKey: ['shipment-push-attempts', tenantId, query],
     queryFn: () => listShipmentPushAttempts(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleSearch = (values: PushAttemptFilters) => {

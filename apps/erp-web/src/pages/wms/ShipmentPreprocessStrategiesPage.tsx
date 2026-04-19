@@ -123,7 +123,7 @@ export const ShipmentPreprocessStrategiesPage = () => {
     queryKey: ['shipment-preprocess-strategies', tenantId, listQuery],
     queryFn: () => listShipmentPreprocessStrategies(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const hitQuery = useMemo<ShipmentPreprocessHitListQuery>(
@@ -141,7 +141,7 @@ export const ShipmentPreprocessStrategiesPage = () => {
     queryKey: ['shipment-preprocess-hits', tenantId, hitQuery],
     queryFn: () => listShipmentPreprocessHits(tenantId, hitQuery),
     enabled: tenantReady && activeTab === 'hits',
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

@@ -1,4 +1,4 @@
-﻿import { apiBaseUrl, useMocks } from '@/utils/env';
+import { apiBaseUrl, useMocks } from '@/utils/env';
 import { fetchWithAuth } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
 

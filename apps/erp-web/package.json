@@ -1,13 +1,14 @@
 {
   "name": "erp-web",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "lint:page-templates": "node ./scripts/check-page-template-usage.mjs",
+    "lint": "pnpm run lint:page-templates && eslint . --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit --project tsconfig.node.json && tsc --noEmit --project e2e/tsconfig.json",
     "test:unit": "vitest --run",
     "test:e2e": "playwright test",

@@ -89,7 +89,7 @@ export const ExpenseAllocationPage = () => {
     queryKey: ['finance-expenses', tenantId, query],
     queryFn: () => listFinanceExpenses(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 test('order review filters quickly by order id', async ({ page }) => {
   await page.goto('/orders/review');

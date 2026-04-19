@@ -1,42 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
 import { appMenuItems } from './menu';
-import {
-  buildHeaderModules,
-  resolveActiveHeaderModuleKey,
-} from './headerMenuModel';
+import { buildHeaderModules, resolveActiveHeaderModuleKey } from './headerMenuModel';
 
 describe('headerMenuModel', () => {
-  it('builds grouped header modules from the app menu tree', () => {
+  it('builds only the surviving top-level modules from the reduced menu tree', () => {
     const modules = buildHeaderModules(appMenuItems);
-    const salesModule = modules.find((module) => module.key === 'sales');
+    const salesModule = modules.find((module) => module.defaultPath === '/orders/review');
 
-    expect(salesModule).toBeDefined();
-    expect(salesModule?.groups.map((group) => group.label)).toEqual(
-      expect.arrayContaining(['订单中心', '网店订单', '履约中心', '结算规则', '业务设置']),
-    );
-    expect(salesModule?.leafPaths).toEqual(
-      expect.arrayContaining(['/orders/review', '/orders', '/sales/settings']),
-    );
+    expect(modules.map((module) => module.defaultPath)).toEqual([
+      '/dashboard',
+      '/channels',
+      '/orders/review',
+    ]);
+    expect(salesModule?.leafPaths).toEqual([
+      '/orders/review',
+      '/orders/recheck',
+      '/sales/settings',
+    ]);
   });
 
-  it('treats direct-entry modules as navigation items without shared submenu groups', () => {
+  it('treats direct-entry modules as standalone navigation items', () => {
     const modules = buildHeaderModules(appMenuItems);
-    const homeModule = modules.find((module) => module.key === 'dashboard');
+    const homeModule = modules.find((module) => module.defaultPath === '/dashboard');
+    const channelModule = modules.find((module) => module.defaultPath === '/channels');
 
-    expect(homeModule).toBeDefined();
-    expect(homeModule?.defaultPath).toBe('/dashboard');
     expect(homeModule?.groups).toEqual([]);
+    expect(channelModule?.groups).toEqual([]);
   });
 
-  it('resolves the active top-level module from the current pathname', () => {
+  it('resolves active modules from the preserved routes only', () => {
     const modules = buildHeaderModules(appMenuItems);
+    const salesModule = modules.find((module) => module.defaultPath === '/orders/review');
 
-    expect(resolveActiveHeaderModuleKey(modules, '/orders/review')).toBe('sales');
-    expect(resolveActiveHeaderModuleKey(modules, '/integrations/print-devices')).toBe(
-      'integrations',
-    );
-    expect(resolveActiveHeaderModuleKey(modules, '/insights/revenue/overview')).toBe('insights');
+    expect(resolveActiveHeaderModuleKey(modules, '/orders/review')).toBe(salesModule?.key);
+    expect(resolveActiveHeaderModuleKey(modules, '/orders/recheck')).toBe(salesModule?.key);
+    expect(resolveActiveHeaderModuleKey(modules, '/sales/settings')).toBe(salesModule?.key);
+    expect(resolveActiveHeaderModuleKey(modules, '/channels')).toBe('channels');
     expect(resolveActiveHeaderModuleKey(modules, '/dashboard')).toBe('dashboard');
   });
 });

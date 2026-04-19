@@ -1,4 +1,4 @@
-﻿import './orderReviewPage.css';
+import './orderReviewPage.css';
 
 import { Button, InputNumber, Modal, Space, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
@@ -6,7 +6,6 @@ import type { GridApi } from 'ag-grid-community';
 import type { Dispatch, Key, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 
 import { listCouriers } from '@/api/couriers';
 import { useOrdersList } from '@/api/hooks';
@@ -18,19 +17,21 @@ import {
   reviewOrder,
   splitOrder,
   updateOrder,
+  type OrderDetail,
   type OrderListQuery,
   type OrderSummary,
 } from '@/api/orders';
 import { listOrderTagDefinitions } from '@/api/orderTagDefinitions';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
-import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
-  WorkbenchMainTableTemplate,
+  WorkbenchPageTemplate,
+  WorkbenchRecordEditorDialog,
   useWorkbenchSavedViewState,
-  WorkbenchToolbarTemplate,
+  useWorkbenchRecordEditor,
+  WorkbenchToolbar,
   useWorkbenchTablePagination,
-} from '@/components/workbench/templates';
+} from '@/components/page-templates';
 import {
   UiModule03ContextMenu,
   createUiModule08StrategyScreenFilterState,
@@ -70,6 +71,15 @@ import { hasMainGridColumnFilters } from './review-native/OrderReviewGridFilters
 import { OrderReviewLeftPanel } from './review-native/OrderReviewLeftPanel';
 import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';
 import {
+  buildWorkbenchOrderRecordDraft,
+  buildWorkbenchOrderUpdatePayload,
+  validateWorkbenchOrderRecordDraft,
+} from './shared/orderWorkbenchEditorAdapter';
+import {
+  toOrderWorkbenchGoodsRows,
+  type OrderWorkbenchGoodsRow,
+} from './shared/orderWorkbenchGoodsRows';
+import {
   resolveToolbarActionOrderIds,
   runMergeOrdersAction,
   runReviewOrdersAction,
@@ -96,32 +106,6 @@ type DetailOrderPayload = {
   ship_warehouse_id?: string;
   items?: Record<string, unknown>[];
 };
-
-type GoodsGridRow = {
-  __localKey: string;
-  id?: string;
-  platform_sku_id?: string | null;
-  outer_sku_id?: string | null;
-  title?: string | null;
-  quantity?: number | null;
-  price_cent?: number | null;
-};
-
-const toGoodsRows = (rows: Record<string, unknown>[]) =>
-  rows.map((row, index) => {
-    const id = row.id == null ? undefined : String(row.id);
-    const fallbackId = `${String(row.platform_sku_id ?? row.outer_sku_id ?? 'goods')}-${index}`;
-    const localKey = id ?? fallbackId;
-    return {
-      __localKey: localKey,
-      id,
-      platform_sku_id: row.platform_sku_id == null ? null : String(row.platform_sku_id),
-      outer_sku_id: row.outer_sku_id == null ? null : String(row.outer_sku_id),
-      title: row.title == null ? null : String(row.title),
-      quantity: row.quantity == null ? 1 : Number(row.quantity),
-      price_cent: row.price_cent == null ? 0 : Number(row.price_cent),
-    } as GoodsGridRow;
-  });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ORDER_REVIEW_FILTER_SNAPSHOT_VERSION = 1;
@@ -471,14 +455,7 @@ export const OrderReviewPage = () => {
   const tenantId = useTenantId();
   const userId = useSessionStore((state) => state.userId);
   const canWriteOrders = useCan('orders.write');
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const {
-    setRightPanel,
-    setRightPanelVisible,
-    setBottomPanel,
-    setBottomPanelVisible,
-  } = useWorkbenchPanels();
 
   const { pagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
     defaultPageSize,
@@ -1151,8 +1128,36 @@ export const OrderReviewPage = () => {
     });
   }, [activeDetailOrderId, queryClient, rows, tenantId]);
 
+  const workbenchRecordEditor = useWorkbenchRecordEditor<OrderSummary, OrderDetail, ReturnType<typeof buildWorkbenchOrderRecordDraft>>({
+    resolveRecordId: (record) => resolveOrderActionId(record),
+    loadRecord: async (orderId) => {
+      if (!tenantId) {
+        throw new Error('缺少租户上下文，请刷新页面后重试');
+      }
+      return getOrderDetail(tenantId, orderId);
+    },
+    buildDraft: (detail) => buildWorkbenchOrderRecordDraft(detail, String(detail.order?.id ?? '').trim()),
+    saveRecord: async (orderId, draft) => {
+      if (!tenantId) {
+        throw new Error('缺少租户上下文，请刷新页面后重试');
+      }
+      return updateOrder(tenantId, orderId, buildWorkbenchOrderUpdatePayload(draft));
+    },
+    onSaved: async () => {
+      await Promise.all([refetch(), detailQuery.refetch()]);
+    },
+  });
+  const workbenchEditorValidationMessages = useMemo(
+    () =>
+      workbenchRecordEditor.draft ? validateWorkbenchOrderRecordDraft(workbenchRecordEditor.draft) : [],
+    [workbenchRecordEditor.draft],
+  );
+
   const detailOrder = (detailQuery.data?.order ?? null) as DetailOrderPayload | null;
-  const goodsRows = useMemo(() => toGoodsRows((detailOrder?.items ?? []) as Record<string, unknown>[]), [detailOrder]);
+  const goodsRows = useMemo(
+    () => toOrderWorkbenchGoodsRows((detailOrder?.items ?? []) as Record<string, unknown>[]),
+    [detailOrder],
+  );
   const logRows = useMemo(() => (detailQuery.data?.audit_logs ?? []) as Record<string, unknown>[], [detailQuery.data]);
   const currentOrderTags = useMemo(
     () =>
@@ -1162,7 +1167,7 @@ export const OrderReviewPage = () => {
     [detailQuery.data],
   );
   const [orderTagsApplying, setOrderTagsApplying] = useState(false);
-  const [goodsRowsState, setGoodsRowsState] = useState<GoodsGridRow[]>([]);
+  const [goodsRowsState, setGoodsRowsState] = useState<OrderWorkbenchGoodsRow[]>([]);
   const [goodsSaving, setGoodsSaving] = useState(false);
 
   useEffect(() => {
@@ -1320,7 +1325,7 @@ export const OrderReviewPage = () => {
   );
 
   const persistGoodsRows = useCallback(
-    async (nextRows: GoodsGridRow[], successText: string) => {
+    async (nextRows: OrderWorkbenchGoodsRow[], successText: string) => {
       const previousRows = goodsRowsState;
       setGoodsRowsState(nextRows);
 
@@ -1735,9 +1740,15 @@ export const OrderReviewPage = () => {
         message.warning('订单ID为空，无法打开编辑页');
         return;
       }
-      navigate(`/orders/${encodeURIComponent(orderId)}`);
+      const rowKey = resolveOrderRowKey(record) || orderId;
+      setActiveOrder(record);
+      setActiveOrderKey(rowKey);
+      setFocusedOrderKey(rowKey);
+      void workbenchRecordEditor.openEditor(record).catch((error) => {
+        message.error(error instanceof Error ? error.message : '打开订单编辑窗口失败');
+      });
     },
-    [navigate],
+    [workbenchRecordEditor],
   );
 
   const handleMainContextMenu = useCallback(
@@ -2246,32 +2257,8 @@ export const OrderReviewPage = () => {
     [activeDetailOrderId, goodsRowsState, goodsSaving, logRows],
   );
 
-  useEffect(() => {
-    setRightPanelVisible(true);
-    return () => {
-      setRightPanel(undefined);
-      setRightPanelVisible(false);
-    };
-  }, [setRightPanel, setRightPanelVisible]);
-
-  useEffect(() => {
-    setRightPanel(rightPanel);
-  }, [rightPanelSyncKey, setRightPanel]);
-
-  useEffect(() => {
-    setBottomPanelVisible(true);
-    return () => {
-      setBottomPanel(undefined);
-      setBottomPanelVisible(false);
-    };
-  }, [setBottomPanel, setBottomPanelVisible]);
-
-  useEffect(() => {
-    setBottomPanel(bottomPanel);
-  }, [bottomPanelSyncKey, setBottomPanel]);
-
   const toolbar = (
-        <WorkbenchToolbarTemplate
+      <WorkbenchToolbar
       className="order-review-toolbar"
       leftContent={
         <>
@@ -2313,9 +2300,6 @@ export const OrderReviewPage = () => {
           <Button size="small" onClick={() => setQuickFilterExpanded((prev) => !prev)}>
             {quickFilterExpanded ? '收起列筛选' : '展开列筛选'}
           </Button>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            快照：Alt+1..9 回放，Ctrl+Alt+1..9 保存
-          </Typography.Text>
         </>
       }
       searchValue={searchInput}
@@ -2336,12 +2320,36 @@ export const OrderReviewPage = () => {
     />
   );
 
-  const mainContent = (
-    <WorkbenchMainTableTemplate
-      className="order-review-page"
+  const splitModal = (
+    <Modal
+      title="拆分订单"
+      open={splitModalOpen}
+      onCancel={() => setSplitModalOpen(false)}
+      onOk={() => {
+        void handleSplitOrders();
+      }}
+      confirmLoading={actionLoading.split}
+      okText="确认拆分"
+      cancelText="取消"
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Typography.Text type="secondary">将使用当前选中的第一单进行拆分，支持 2-10 份。</Typography.Text>
+        <InputNumber
+          min={2}
+          max={10}
+          precision={0}
+          value={splitCount}
+          onChange={(value) => setSplitCount(Number(value ?? 2))}
+          style={{ width: '100%' }}
+        />
+      </Space>
+    </Modal>
+  );
+
+  return (
+      <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContainerRef={tableRef}
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <div className="order-review-grid-main">
           <OrderWorkbenchMainGridEntry
@@ -2375,57 +2383,48 @@ export const OrderReviewPage = () => {
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
       showFooterScrollbarRow={true}
+      rightPanel={rightPanel}
+      rightPanelSyncKey={rightPanelSyncKey}
+      bottomPanel={bottomPanel}
+      bottomPanelSyncKey={bottomPanelSyncKey}
+      overlays={
+        <>
+          <WorkbenchRecordEditorDialog
+            open={workbenchRecordEditor.open}
+            title="订单编辑"
+            loading={workbenchRecordEditor.loading}
+            saving={workbenchRecordEditor.saving}
+            error={workbenchRecordEditor.error}
+            draft={workbenchRecordEditor.draft}
+            validationMessages={workbenchEditorValidationMessages}
+            warehouseOptions={mergedWarehouseOptions}
+            logisticsOptions={mergedCourierOptions}
+            onCancel={workbenchRecordEditor.closeEditor}
+            onSave={() => {
+              if (workbenchEditorValidationMessages.length > 0) {
+                message.warning(workbenchEditorValidationMessages[0] ?? '请先修正编辑问题后再保存');
+                return;
+              }
+              void workbenchRecordEditor.saveEditor().then(
+                () => {
+                  message.success('订单已保存');
+                },
+                (error) => {
+                  message.error(error instanceof Error ? error.message : '订单保存失败');
+                },
+              );
+            }}
+            onDraftChange={workbenchRecordEditor.setDraft}
+          />
+          {splitModal}
+          <UiModule03ContextMenu
+            open={mainContextMenu.open}
+            position={mainContextMenu.position}
+            menu={mainContextMenuConfig}
+            onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
+          />
+        </>
+      }
     />
   );
-
-  const splitModal = (
-    <Modal
-      title="拆分订单"
-      open={splitModalOpen}
-      onCancel={() => setSplitModalOpen(false)}
-      onOk={() => {
-        void handleSplitOrders();
-      }}
-      confirmLoading={actionLoading.split}
-      okText="确认拆分"
-      cancelText="取消"
-    >
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Typography.Text type="secondary">将使用当前选中的第一单进行拆分，支持 2-10 份。</Typography.Text>
-        <InputNumber
-          min={2}
-          max={10}
-          precision={0}
-          value={splitCount}
-          onChange={(value) => setSplitCount(Number(value ?? 2))}
-          style={{ width: '100%' }}
-        />
-      </Space>
-    </Modal>
-  );
-
-  return (
-    <div
-      data-testid="order-review-page"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-        width: '100%',
-        maxWidth: '100%',
-        height: '100%',
-      }}
-    >
-      {mainContent}
-      {splitModal}
-      <UiModule03ContextMenu
-        open={mainContextMenu.open}
-        position={mainContextMenu.position}
-        menu={mainContextMenuConfig}
-        onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
-      />
-    </div>
-  );
 };
-

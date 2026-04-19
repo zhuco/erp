@@ -1,4 +1,4 @@
-﻿export const auditStatuses = [
+export const auditStatuses = [
   'AUTO_PASSED',
   'REVIEW_REQUIRED',
   'UNDER_REVIEW',

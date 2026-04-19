@@ -279,21 +279,21 @@ export const SalesShopConfigPage = () => {
     queryKey: ['sales-shop-configs', tenantId],
     queryFn: () => listSalesShopConfigs(tenantId, { offset: 0, limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const shopsQuery = useQuery({
     queryKey: ['shops', tenantId, 'sales-download'],
     queryFn: () => listShops(tenantId, { limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const syncJobsQuery = useQuery({
     queryKey: ['sync-jobs', tenantId, 'order-sync'],
     queryFn: () => listSyncJobs(tenantId, { job_type: 'order_sync', offset: 0, limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const disabledFlows = useMemo(() => {

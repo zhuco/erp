@@ -78,7 +78,7 @@ export const CustomerCategoriesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-categories', tenantId, query],
     queryFn: () => listCustomerCategories(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

@@ -90,7 +90,7 @@ export const StockMovesPage = () => {
     queryKey: ['stock-moves', tenantId, listQuery],
     queryFn: () => listStockMoves(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({

@@ -74,7 +74,7 @@ export const ArManagementPage = () => {
     queryKey: ['ar-docs', tenantId, query],
     queryFn: () => listArDocs(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

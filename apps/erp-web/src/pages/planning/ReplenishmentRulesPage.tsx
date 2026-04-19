@@ -47,7 +47,7 @@ export const ReplenishmentRulesPage = () => {
   const listQuery = useQuery({
     queryKey: ['planning', 'replenishment-rules', tenantId],
     queryFn: () => listPlanningReplenishmentRules(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const upsertMutation = useMutation({

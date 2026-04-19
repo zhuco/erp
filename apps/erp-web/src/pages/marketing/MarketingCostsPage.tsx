@@ -130,7 +130,7 @@ export const MarketingCostsPage = () => {
     queryKey: ['marketing-costs', tenantId, query],
     queryFn: () => listMarketingCosts(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({

@@ -140,7 +140,7 @@ export const CustomerServiceTicketsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-service-tickets', tenantId, query],
     queryFn: () => listCustomerServiceTickets(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

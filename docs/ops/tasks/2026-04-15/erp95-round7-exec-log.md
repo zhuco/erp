@@ -1,4 +1,4 @@
-﻿# ERP95 Round 7 Exec Log
+# ERP95 Round 7 Exec Log
 
 日期：2026-04-15
 

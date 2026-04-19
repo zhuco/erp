@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 import type { Locator, Page } from '@playwright/test';
 
 const rowLocator = (grid: Locator) =>

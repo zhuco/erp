@@ -1,4 +1,4 @@
-﻿import { Alert, Button, Empty, Spin } from 'antd';
+import { Alert, Button, Empty, Spin } from 'antd';
 import type { Key } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
@@ -20,6 +20,8 @@ import { AgGridReact } from 'ag-grid-react';
 
 import type { OrderExceptionSummary } from '@/api/orders';
 import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
+import { OrderTagBadges } from '@/components/OrderTagBadges';
+import { applyWorkbenchGridColumnPolicy, sanitizeWorkbenchColumnState } from '@/components/page-templates';
 import {
   buildAgGridApplyColumnState,
   buildAgGridColumnStateStorageKey,
@@ -32,6 +34,7 @@ import {
   fulfillmentStatusLabels,
   reserveStatusLabels,
 } from '@/features/oms-wms-main-chain/statuses';
+import { resolveOrderDisplayTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import { resolveOrderExceptionRowKey } from '@/pages/orders/exceptions-native/orderExceptionsRowKey';
 import {
@@ -629,7 +632,7 @@ export const OrderExceptionsMainGrid = ({
 
       applyingPersistedColumnStateRef.current = true;
       api.applyColumnState({
-        state: buildAgGridApplyColumnState(persistedState),
+        state: sanitizeWorkbenchColumnState(buildAgGridApplyColumnState(persistedState)),
         applyOrder: true,
       });
       queueMicrotask(() => {
@@ -917,7 +920,7 @@ export const buildOrderExceptionsMainGridColDefs = ({
   resolveExceptionLabel,
 }: BuildOrderExceptionsMainGridColDefsOptions): ColDef<OrderExceptionSummary>[] => {
   void slaStatusOptions;
-  return [
+  return applyWorkbenchGridColumnPolicy([
     ...buildAgGridWorkbenchStructuralColDefs<OrderExceptionSummary>({
       onToggleAllSelection,
       pinLeft: true,
@@ -979,6 +982,15 @@ export const buildOrderExceptionsMainGridColDefs = ({
     },
   },
   {
+    colId: 'builtin_marks',
+    headerName: '记号',
+    width: 112,
+    minWidth: 88,
+    sortable: false,
+    cellRenderer: (params) =>
+      params.data ? <OrderTagBadges tags={resolveOrderDisplayTags(params.data)} emptyText="-" /> : '-',
+  },
+  {
     colId: 'receiver_name',
     headerName: '收件人',
     field: 'receiver_name',
@@ -1004,7 +1016,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 110,
     minWidth: 60,
     sortable: true,
-    filter: false,
     cellStyle: { textAlign: 'right' },
     valueFormatter: (params) => money((params.value as number | null | undefined) ?? null),
   },
@@ -1053,7 +1064,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 126,
     minWidth: 78,
     sortable: true,
-    filter: false,
     valueFormatter: (params) => resolveFulfillmentStatusLabel(String(params.value ?? '')),
   },
   {
@@ -1063,7 +1073,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 118,
     minWidth: 78,
     sortable: true,
-    filter: false,
     valueFormatter: (params) => resolveReserveStatusLabel(params.value as string | null | undefined),
   },
   {
@@ -1072,7 +1081,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 112,
     minWidth: 72,
     sortable: true,
-    filter: false,
     filterValueGetter: (params) =>
       params.data ? resolveOrderExceptionSlaStatus(params.data) : 'NORMAL',
     valueGetter: (params) =>
@@ -1085,7 +1093,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 116,
     minWidth: 76,
     sortable: true,
-    filter: false,
     valueGetter: (params) => (params.data ? formatOrderExceptionSlaRemainingMinutes(params.data) : '-'),
   },
   {
@@ -1094,7 +1101,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 156,
     minWidth: 84,
     sortable: true,
-    filter: false,
     valueGetter: (params) =>
       params.data
         ? formatDateTime(
@@ -1147,7 +1153,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 168,
     minWidth: 96,
     sortable: true,
-    filter: false,
     valueGetter: (params) =>
       String(
         (params.data as OrderExceptionSummaryWithOperationalFields | undefined)?.latest_action ?? '-',
@@ -1160,7 +1165,6 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 156,
     minWidth: 84,
     sortable: true,
-    filter: false,
     valueFormatter: (params) => formatDateTime(params.value as string | null | undefined),
   },
     {
@@ -1182,5 +1186,5 @@ export const buildOrderExceptionsMainGridColDefs = ({
         placeholder: '筛阻断原因',
       },
     },
-  ];
+  ]);
 };

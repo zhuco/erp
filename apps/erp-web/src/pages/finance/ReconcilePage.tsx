@@ -171,7 +171,7 @@ export const ReconcilePage = () => {
     queryKey: ['reconcileJobs', tenantId, jobQuery],
     queryFn: () => listReconcileJobs(tenantId, jobQuery),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const itemQuery = useMemo(() => {
@@ -188,7 +188,7 @@ export const ReconcilePage = () => {
     queryKey: ['reconcileItems', tenantId, itemQuery],
     queryFn: () => listReconcileItems(tenantId, itemQuery),
     enabled: Boolean(tenantId && selectedJobId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const paymentJobQuery = useMemo(() => {
@@ -210,7 +210,7 @@ export const ReconcilePage = () => {
     queryKey: ['paymentReconcileJobs', tenantId, paymentJobQuery],
     queryFn: () => listPaymentReconcileJobs(tenantId, paymentJobQuery),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const paymentItemQuery = useMemo(() => {
@@ -228,7 +228,7 @@ export const ReconcilePage = () => {
     queryKey: ['paymentReconcileItems', tenantId, paymentItemQuery],
     queryFn: () => listPaymentReconcileItems(tenantId, paymentItemQuery),
     enabled: Boolean(tenantId && selectedPaymentJobId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleImport = async (values: ImportFormValues) => {

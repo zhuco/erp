@@ -162,7 +162,7 @@ export const OrderReviewRulesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['order-review-rules', tenantId, query],
     queryFn: () => listOrderReviewRules(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const summary = useMemo(() => {

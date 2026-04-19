@@ -74,7 +74,7 @@ export const PurchaseReceiptsPage = () => {
     queryKey: ['purchase-receipts', tenantId, query],
     queryFn: () => listPurchaseReceipts(tenantId, query),
     enabled: tenantReady && canRead,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const supplierQuery = useQuery({

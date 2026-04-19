@@ -1,4 +1,4 @@
-﻿import { Alert, Button, Card, Descriptions, Space, Table, Typography, Upload, message } from 'antd';
+import { Alert, Button, Card, Descriptions, Space, Table, Typography, Upload, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useMemo, useState } from 'react';
@@ -14,7 +14,7 @@ import { createSkuImport, precheckSkuImport } from '@/api/skus';
 import type { components } from '@/api/generated/schema';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import { OrderReviewWorkbenchTemplate } from '@/components/workbench/templates';
 
 type ExportJob = components['schemas']['ExportJob'];
 
@@ -161,7 +161,7 @@ export const SkuImportPage = () => {
   const hasErrors = Boolean(precheck?.errors.length);
 
   return (
-    <WorkbenchMainTableTemplate
+    <OrderReviewWorkbenchTemplate
       header={
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -247,4 +247,3 @@ export const SkuImportPage = () => {
     />
   );
 };
-

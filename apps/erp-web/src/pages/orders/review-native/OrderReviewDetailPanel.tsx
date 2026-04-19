@@ -1,7 +1,7 @@
 import type { MenuProps, SelectProps } from 'antd';
 import { useMemo } from 'react';
 
-import { UiModule05OrderReviewRightPanelTemplate } from '@/components/ui-modules';
+import { WorkbenchDetailPanelTemplate } from '@/components/page-templates';
 
 import { money, platformLabel } from './helpers';
 
@@ -77,7 +77,7 @@ export const OrderReviewDetailPanel = ({
       if (items.length > 0) {
         return items;
       }
-      return [{ key: '__empty__', label: '暂无可选记号', disabled: true }];
+      return [{ key: '__empty__', label: '脭脻脦蘅脡选录呛脜', disabled: true }];
     },
     [orderTagOptions],
   );
@@ -91,7 +91,7 @@ export const OrderReviewDetailPanel = ({
   };
 
   return (
-    <UiModule05OrderReviewRightPanelTemplate
+    <WorkbenchDetailPanelTemplate
       detailError={error}
       detailLoadedId={detailLoadedId}
       orderId={detailOrder?.id}

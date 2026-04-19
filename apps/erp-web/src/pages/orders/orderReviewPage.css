@@ -229,6 +229,7 @@
 }
 
 .order-review-selection-diagnostic {
+  display: none;
   position: absolute;
   top: 6px;
   right: 8px;
@@ -345,25 +346,9 @@
   content: none;
 }
 
-.order-review-main-grid-shell .order-review-main-selection-header-cell,
-.order-review-main-grid-shell .order-review-main-selection-cell,
-.order-review-main-grid-shell .order-workbench-selection-header-centered,
-.order-review-main-grid-shell .order-workbench-selection-cell-centered {
-  border-right: 1px solid #e2e8f0;
-}
-
 .order-review-main-grid-shell .order-review-main-row-index-header,
 .order-review-main-grid-shell .order-review-main-row-index-cell {
   border-right: 1px solid #e2e8f0;
-}
-
-.order-review-main-grid-shell .order-review-main-selection-cell,
-.order-review-main-grid-shell .order-workbench-selection-cell-centered {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 !important;
-  cursor: pointer;
 }
 
 .erp-selection-checkbox-visual {
@@ -418,16 +403,6 @@
   border-radius: 999px;
   margin-top: 0;
   transform: none;
-}
-
-.order-review-main-grid-shell .ag-selection-checkbox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  min-height: 14px;
-  pointer-events: none;
 }
 
 .order-review-main-grid-shell .order-review-main-row-index-cell {

@@ -1,27 +1,27 @@
-# ¹²Ïí±í¸ñÁĞ¿ØÖÆÓë³Ö¾Ã»¯ÊµÏÖ¼Æ»®
+# Â¹Â²ÃÃ­Â±Ã­Â¸Ã±ÃĞ¿åˆ‚æœ´æ°¤Ö¾Ã»Â¯ÊµÃÖ¼Æ»Â®
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** ½« AG Grid Ô­ÉúÁĞ²Ëµ¥ÖĞÎÄ»¯¡¢±íÍ·ÓÒ¼üÁĞ¿ØÖÆ¡¢ÁĞ×´Ì¬³Ö¾Ã»¯ÏÂ³Áµ½¹²Ïí `ErpDataGrid`£¬²¢ÈÃ¶©µ¥²éÑ¯¡¢Íøµê¶©µ¥²éÑ¯¡¢ÎïÁ÷²éÑ¯¼°¶©µ¥ÉóºË¶ÔÆëÍ¬Ò»Ì×ÁĞ½»»¥Ğ­Òé¡£
+**Goal:** å°† AG Grid Ô­Ã‰ÃºÃĞ²Ëµãƒ–å½¢Ä»Â¯Â¡Â¢Â±Ã­Í·Ã“Ò¼îŒĞ¿åˆ‚Æ¡Â¢ÃÃ×´Ì¬Â³Ö¾Ã»îˆ„Â³ÃÂµÂ½Â¹Â²ÃÃ­ `ErpDataGrid`Â£Â¬Â²Â¢ÃˆÃ¶Â©ÂµÂ¥Â²Ã©Ñ¯Â¡Â¢ÃÃ¸Âµê¶©å•æŸ¥Ñ¯ã€ç‰©æµæŸ¥Ñ¯Â¼Â°Â¶Â©ÂµÂ¥Ã‰Ã³ÂºË¶Ã”Ã†Ã«Í¬Ò»ÃŒÃ—ÃĞ½Â»Â»Â¥Ğ­Ã’é¡£
 
-**Architecture:** ÒÔ `ErpDataGrid` ×÷Îª¹²ÏíÄÜÁ¦ÏÂ³Áµã£¬ĞÂÔö¶ÀÁ¢µÄÁĞ²Ëµ¥/ÁĞ×´Ì¬¹¤¾ßº¯Êı£¬Ò³ÃæÖ»Ìá¹© `columnSettingsKey` »òÒ³Ãæ¼¶ key¡£`ErpDataGridNext` Óë `UiModule03MainTableSection` ²»ÖØ¸´ÊµÏÖÄÜÁ¦£¬Ö»¸ºÔğÍ¸´«£¬¶©µ¥ÉóºËÍ¨¹ı¸´ÓÃ¹²Ïí¹¤¾ß±£³ÖĞĞÎªÒ»ÖÂ¡£
+**Architecture:** ä»¥ `ErpDataGrid` ä½œÎªÂ¹Â²ÃÃ­Ã„ÃœÃÂ¦ÃÂ³æ‹ã£¬ÃÃ‚Ã”Ã¶Â¶Ã€ÃÂ¢ÂµÃ„ÃĞ²ËµÂ¥/åˆ—×´Ì¬Â¹Â¤Â¾ßºÂ¯ÃŠÃ½Â£Â¬Ò³é¢Ö»ÃŒá¹© `columnSettingsKey` æˆ–Ò³Ãƒæ¼¶ keyã€‚`ErpDataGridNext` ä¸ `UiModule03MainTableSection` Â²Â»Ã–Ø¸Â´Êµç°èƒ½åŠ›ï¼ŒÖ»è´Ÿè´£Í¸ä¼ ï¼Œè®¢å•å®¡æ ¸Í¨Â¹Ã½Â¸Â´Ã“Ã¹èš•ç ‰ãß±Â£Â³Ã–ÃÃÎªÒ»Ã–Â¡Â£
 
 **Tech Stack:** React, TypeScript, AG Grid Enterprise, Vitest, Playwright
 
 ---
 
-### Task 1: Ëø×¡¹²Ïí±í¸ñĞĞÎª²âÊÔ
+### Task 1: é”×¡å…±äº«è¡¨æ ¼è¡ŒÎªæµ‹è¯•
 
 **Files:**
 - Create: `apps/erp-web/src/components/ErpDataGrid.columnState.test.tsx`
 - Modify: `apps/erp-web/e2e/orders.spec.ts`
 
-- [ ] **Step 1: Ğ´Ê§°Ü²âÊÔ£¬¸²¸ÇÖĞÎÄ²Ëµ¥Ó³ÉäÓëÁĞ×´Ì¬±£´æ/»Ö¸´**
-- [ ] **Step 2: ÔËĞĞ `pnpm vitest run src/components/ErpDataGrid.columnState.test.tsx`£¬È·ÈÏÒò¹¦ÄÜÈ±Ê§¶øÊ§°Ü**
-- [ ] **Step 3: ²¹Ò»Ìõ¹²ÏíÁ´Â· E2E£¬ÑéÖ¤ÁĞÏÔÒşË¢ĞÂºóÈÔ±£Áô**
-- [ ] **Step 4: ÔËĞĞ `pnpm playwright test e2e/orders.spec.ts`£¬È·ÈÏĞÂ¶ÏÑÔÏÈÊ§°Ü**
+- [ ] **Step 1: Ğ´Ê§Â°Ü²é¦Ô£îƒ“å“ºä¾µå½¢Ä²ËµÂ¥Ó³å°„ä¸åˆ—×´Ì¬ä¿å­˜/Â»Ö¸Â´**
+- [ ] **Step 2: è¿è¡Œ `pnpm vitest run src/components/ErpDataGrid.columnState.test.tsx`ï¼ŒÈ·è®¤å› åŠŸèƒ½È±Ê§è€ŒÊ§è´¥**
+- [ ] **Step 3: è¡¥Ò»æ¡å…±äº«é“¾Â· E2Eï¼ŒéªŒÖ¤åˆ—æ˜¾éšË¢ÃÂºç¬•Ô±Â£ÃÃ´**
+- [ ] **Step 4: è¿è¡Œ `pnpm playwright test e2e/orders.spec.ts`ï¼ŒÈ·ÃˆÃÃÂ¶ÃÃ‘Ã”ÃÃˆÊ§è´¥**
 
-### Task 2: ÔÚ¹²Ïí²ãÏÂ³ÁÔ­ÉúÁĞ¿ØÖÆ
+### Task 2: Ã”Ú¹èš•è¿é˜†Â³ÃÔ­Ã‰ÃºÃĞ¿Ã˜Ã–Ã†
 
 **Files:**
 - Create: `apps/erp-web/src/components/agGridColumnState.ts`
@@ -29,12 +29,12 @@
 - Modify: `apps/erp-web/src/components/ErpDataGridNext.tsx`
 - Modify: `apps/erp-web/src/components/ui-modules/UiModule03MainTableSection.tsx`
 
-- [ ] **Step 1: ³é³öÖĞÎÄ localeText¡¢²Ã¼ô²Ëµ¥Ïî¡¢´æ´¢¼ü¹¹ÔìÓë¶ÁĞ´¹¤¾ß**
-- [ ] **Step 2: ÔÚ `ErpDataGrid` ½ÓÈë±íÍ·ÓÒ¼üÔ­Éú²Ëµ¥ÓëÖĞÎÄ²Ëµ¥**
-- [ ] **Step 3: ÔÚ `ErpDataGrid` ½ÓÈëÁĞÏÔÒş/¹Ì¶¨ÁĞ/Ë³Ğò/¿í¶È/ÅÅĞò×´Ì¬³Ö¾Ã»¯**
-- [ ] **Step 4: ÈÃ `ErpDataGridNext`¡¢`UiModule03MainTableSection` Í¸´« `columnSettingsKey` ÒÔĞÎ³ÉÒ³Ãæ¼¶³Ö¾Ã»¯Èë¿Ú**
+- [ ] **Step 1: æŠ½å‡ºä¸­æ–‡ localeTextÂ¡Â¢Â²Ã¼èˆ¨Ëµãƒî¡¢Â´æ´¢é”®æ„é€ ä¸è¯»Ğ´å·¥å…·**
+- [ ] **Step 2: åœ¨ `ErpDataGrid` æ¥å…¥è¡¨Í·Ã“Ò¼Ã¼Ô­Ã‰ÃºÂ²Ëµãƒ“èƒ«å½¢Ä²ËµÂ¥**
+- [ ] **Step 3: åœ¨ `ErpDataGrid` æ¥å…¥åˆ—æ˜¾éš/Â¹Ì¶Â¨ÃÃ/Ë³åº/å®½åº¦/æ’åº×´Ì¬Â³Ö¾Ã»Â¯**
+- [ ] **Step 4: è®© `ErpDataGridNext`ã€`UiModule03MainTableSection` Í¸ä¼  `columnSettingsKey` Ã’Ã”ÃÎ³Ã‰Ò³Ãƒæ¼¶Â³Ö¾Ã»Â¯ÃˆÃ«Â¿Ãš**
 
-### Task 3: Ò³Ãæ½ÓÈëÓë¶©µ¥ÉóºË¶ÔÆë
+### Task 3: Ò³ÃƒÃ¦Â½Ã“ÃˆÃ«Ã“ë¶©ÂµÂ¥Ã‰Ã³ÂºË¶Ã”Ã†Ã«
 
 **Files:**
 - Modify: `apps/erp-web/src/pages/orders/OrdersPage.tsx`
@@ -42,16 +42,16 @@
 - Modify: `apps/erp-web/src/pages/logistics/LogisticsTrackingPage.tsx`
 - Modify: `apps/erp-web/src/pages/orders/review-native/OrderReviewMainGrid.tsx`
 
-- [ ] **Step 1: Îª¹²ÏíÁ´Â·Ò³Ãæ²¹ÎÈ¶¨µÄ `columnSettingsKey`**
-- [ ] **Step 2: ÈÃ¶©µ¥ÉóºËÖ÷±í¸´ÓÃ¹²ÏíÁĞ²Ëµ¥²Ã¼ôÓëÖĞÎÄÎÄ°¸£¬±ÜÃâË«·İÎ¬»¤**
-- [ ] **Step 3: ÈË¹¤¼ì²éÖ÷±í¿òÏß¡¢±íÍ·ÓÒ¼ü¡¢ÁĞÍÏ×§Óë³Ö¾Ã»¯ÊÇ·ñÈÔ·ûºÏ¹¤Òµ¼¶½»»¥**
+- [ ] **Step 1: Îªå…±äº«é“¾Â·Ò³Ãƒæ²¹ÃÈ¶Â¨ÂµÃ„ `columnSettingsKey`**
+- [ ] **Step 2: ÃˆÃ¶â”‘ãƒ‰è ›é…¥é…ç €ä»Ã¹èš•ç ¹Ğ²Ëµã‚²Ã¼ç²²èƒ«å½¢å¥ˆÄ°Â¸Â£Â¬Â±ÃœÃƒÃ¢Ë«ä»½Î¬æŠ¤**
+- [ ] **Step 3: ÃˆË¹ãœè§³æ©¹é…ç œè›³ß¡Â¢Â±Ã­Í·Ã“Ò¼Ã¼Â¡Â¢ÃÃÃÃ×§Ã“Ã«Â³Ö¾Ã»î‡¿Ç·è¢¢Ô·î§Ï¹Â¤Òµçº§äº¤äº’**
 
-### Task 4: ÍêÕûÑéÖ¤
+### Task 4: å®Œæ•´éªŒÖ¤
 
 **Files:**
 - Verify only
 
-- [ ] **Step 1: ÔËĞĞ `pnpm typecheck`**
-- [ ] **Step 2: ÔËĞĞ `pnpm vitest run src/components/ErpDataGrid.columnState.test.tsx src/pages/orders/review-native/OrderReviewMainGrid.test.ts`**
-- [ ] **Step 3: ÔËĞĞ `pnpm playwright test e2e/orders.spec.ts e2e/order-review-selection.spec.ts e2e/order-review-left-panel-regression.spec.ts`**
-- [ ] **Step 4: ¼ÇÂ¼½á¹ûÓëÊ£Óà·çÏÕ£¬È·±£Ä£°åÁ´Â·Ò³ÃæºóĞø¿É¸´ÓÃ**
+- [ ] **Step 1: è¿è¡Œ `pnpm typecheck`**
+- [ ] **Step 2: è¿è¡Œ `pnpm vitest run src/components/ErpDataGrid.columnState.test.tsx src/pages/orders/review-native/OrderReviewMainGrid.test.ts`**
+- [ ] **Step 3: è¿è¡Œ `pnpm playwright test e2e/orders.spec.ts e2e/order-review-selection.spec.ts e2e/order-review-left-panel-regression.spec.ts`**
+- [ ] **Step 4: è®°Â¼ç»“æœä¸Ê£Ã“Ã Â·Ã§ÃÕ£Â¬È·ä¿Ä£æ¿é“¾Â·Ò³ÃƒÃ¦ÂºÃ³ÃÃ¸Â¿É¸Â´Ã“Ãƒ**

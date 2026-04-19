@@ -163,7 +163,7 @@ export const OmsShipmentsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['oms-shipments', tenantId, query],
     queryFn: () => listOmsShipments(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({

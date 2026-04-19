@@ -89,7 +89,7 @@ export const CustomersPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customers', tenantId, query],
     queryFn: () => listCustomers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const { data: categoryData } = useQuery({

@@ -4,6 +4,10 @@ import type { FrontendRouteDiagnosticReport } from './frontendRouteDiagnostics';
 
 import { summarizeFrontendRouteDiagnostics } from './frontendRouteDiagnostics';
 
+const now = Date.now();
+const minutesAgo = (minutes: number) => now - minutes * 60 * 1000;
+const toIso = (timestamp: number) => new Date(timestamp).toISOString();
+
 const records: FrontendRouteDiagnosticReport[] = [
   {
     session_id: 'session-a',
@@ -15,10 +19,10 @@ const records: FrontendRouteDiagnosticReport[] = [
     prefetch_status: 'ready',
     prefetch_source: 'search',
     prefetch_duration_ms: 180,
-    event_at: Date.UTC(2026, 3, 13, 4, 0, 0),
-    created_at: '2026-04-13T04:00:00.000Z',
+    event_at: minutesAgo(20),
+    created_at: toIso(minutesAgo(20)),
     page_url: 'http://localhost:5173/orders/review',
-    build_version: '2026.04.13',
+    build_version: '2026.04.19',
     user_agent: 'Vitest',
   },
   {
@@ -28,10 +32,10 @@ const records: FrontendRouteDiagnosticReport[] = [
     event_type: 'prefetch-skipped',
     status: 'ready',
     detail: 'already-ready',
-    event_at: Date.UTC(2026, 3, 13, 4, 1, 0),
-    created_at: '2026-04-13T04:01:00.000Z',
+    event_at: minutesAgo(19),
+    created_at: toIso(minutesAgo(19)),
     page_url: 'http://localhost:5173/orders/review',
-    build_version: '2026.04.13',
+    build_version: '2026.04.19',
     user_agent: 'Vitest',
   },
   {
@@ -41,10 +45,10 @@ const records: FrontendRouteDiagnosticReport[] = [
     event_type: 'loading-timeout',
     status: 'timeout',
     duration_ms: 8200,
-    event_at: Date.UTC(2026, 3, 13, 4, 2, 8),
-    created_at: '2026-04-13T04:02:08.000Z',
+    event_at: minutesAgo(18),
+    created_at: toIso(minutesAgo(18)),
     page_url: 'http://localhost:5173/orders/exceptions',
-    build_version: '2026.04.13',
+    build_version: '2026.04.19',
     user_agent: 'Vitest',
   },
   {
@@ -54,10 +58,10 @@ const records: FrontendRouteDiagnosticReport[] = [
     event_type: 'loading-error',
     status: 'error',
     error_summary: 'chunk load failed',
-    event_at: Date.UTC(2026, 3, 13, 4, 4, 0),
-    created_at: '2026-04-13T04:04:00.000Z',
+    event_at: minutesAgo(16),
+    created_at: toIso(minutesAgo(16)),
     page_url: 'http://localhost:5173/system/observability',
-    build_version: '2026.04.13',
+    build_version: '2026.04.19',
     user_agent: 'Vitest',
   },
 ];
@@ -95,7 +99,7 @@ describe('frontendRouteDiagnostics', () => {
     expect(result.paths[0]).toMatchObject({
       path: '/system/observability',
       errorEvents: 1,
-      lastSeenAt: '2026-04-13T04:04:00.000Z',
+      lastSeenAt: toIso(minutesAgo(16)),
     });
     expect(result.paths[1]).toMatchObject({
       path: '/orders/exceptions',

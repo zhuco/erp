@@ -1,4 +1,4 @@
-﻿import { Card, Col, Form, InputNumber, Row, Select, Switch, Typography } from 'antd';
+import { Card, Col, Form, InputNumber, Row, Select, Switch, Typography } from 'antd';
 import type { ReactNode } from 'react';
 
 import {

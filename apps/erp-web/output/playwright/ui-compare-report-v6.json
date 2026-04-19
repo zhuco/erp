@@ -1,0 +1,14 @@
+{
+    "capturedAt":  "2026-04-18T10:49:02",
+    "base":  "F:/erp/apps/erp-web/output/playwright/orders-review-v6.png",
+    "target":  "F:/erp/apps/erp-web/output/playwright/channels-v6.png",
+    "compare":  "F:/erp/apps/erp-web/output/playwright/order-vs-channels-v6-compare.png",
+    "baseSize":  {
+                     "height":  1096,
+                     "width":  1920
+                 },
+    "targetSize":  {
+                       "height":  1096,
+                       "width":  1920
+                   }
+}

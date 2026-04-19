@@ -1,11 +1,10 @@
 import { MoreOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Tabs, message } from 'antd';
+import { Button, Dropdown, Tabs } from 'antd';
 import type { MenuProps } from 'antd';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useMatches, useNavigate } from 'react-router-dom';
 
 import { resolveRouteTitleInfo } from '@/app/layout/routeMeta';
-import type { AppTab } from '@/app/layout/tabsStore';
 import { useTabsStore } from '@/app/layout/tabsStore';
 import { useSessionStore } from '@/features/sessionStore';
 import { useTenant } from '@/features/tenant';
@@ -22,7 +21,6 @@ type RouteTabsProps = {
   defaultPath?: string;
 };
 
-const ROUTE_TABS_UNDO_MESSAGE_KEY = 'route-tabs-close-undo';
 const WORKBENCH_ANNOUNCE_EVENT = 'erp:workbench-announce';
 
 const announceWorkbench = (messageText: string) => {
@@ -31,6 +29,38 @@ const announceWorkbench = (messageText: string) => {
       detail: { message: messageText },
     }),
   );
+};
+
+const buildClosedTabSavedViewKeys = (
+  tabKey: string,
+  tenantId?: string | null,
+  userId?: string | null,
+) => {
+  const normalizedTenantId = String(tenantId ?? '').trim();
+  const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+  if (!normalizedTenantId) {
+    return [];
+  }
+
+  if (tabKey === '/orders/review') {
+    return [
+      `orders.review.savedView.v1.${normalizedTenantId}.${normalizedUserId}`,
+      `orders.review.filterSnapshot.v1.${normalizedTenantId}.${normalizedUserId}`,
+    ];
+  }
+
+  if (tabKey === '/orders/exceptions' || tabKey === '/orders/recheck') {
+    return [
+      `orders.exceptions.savedView.v1.pool.${normalizedTenantId}.${normalizedUserId}`,
+      `orders.exceptions.savedView.v1.sla.${normalizedTenantId}.${normalizedUserId}`,
+    ];
+  }
+
+  if (tabKey === '/orders') {
+    return ['orders.list.savedView'];
+  }
+
+  return [];
 };
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -47,26 +77,23 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
-export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsProps) => {
+export const RouteTabs = ({ menuTitleMap, defaultPath = '/dashboard' }: RouteTabsProps) => {
   const location = useLocation();
   const matches = useMatches();
   const navigate = useNavigate();
   const { tenantId } = useTenant();
   const userId = useSessionStore((state) => state.userId);
-  const { tabs, activeKey, addOrUpdateTab, closeTab, closeOtherTabs, closeAllTabs } =
-    useTabsStore();
+  const { tabs, activeKey, addOrUpdateTab, closeTab, closeOtherTabs, closeAllTabs } = useTabsStore();
   const setTabs = useTabsStore((state) => state.setTabs);
   const setActiveKey = useTabsStore((state) => state.setActiveKey);
   const refreshTab = useTabsStore((state) => state.refreshTab);
   const hydratedRef = useRef(false);
-  const undoCloseTimerRef = useRef<number | null>(null);
-  const undoCloseStateRef = useRef<{ tab: AppTab; index: number } | null>(null);
 
   const tabsStorageKey = useMemo(() => {
     if (!tenantId || !userId) {
       return '';
     }
-    return `erp.tabs.${tenantId}.${userId}`;
+    return `erp.tabs.v2.${tenantId}.${userId}`;
   }, [tenantId, userId]);
 
   useEffect(() => {
@@ -104,16 +131,18 @@ export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsPr
     );
   }, [activeKey, tabs, tabsStorageKey]);
 
-  const clearUndoCloseState = useCallback(() => {
-    if (undoCloseTimerRef.current !== null) {
-      window.clearTimeout(undoCloseTimerRef.current);
-      undoCloseTimerRef.current = null;
-    }
-    undoCloseStateRef.current = null;
-    message.destroy(ROUTE_TABS_UNDO_MESSAGE_KEY);
-  }, []);
-
-  useEffect(() => () => clearUndoCloseState(), [clearUndoCloseState]);
+  const clearSavedViewForClosedTab = useCallback(
+    (tabKey: string) => {
+      const keys = buildClosedTabSavedViewKeys(tabKey, tenantId, userId);
+      if (!keys.length) {
+        return;
+      }
+      keys.forEach((key) => {
+        localStorage.removeItem(key);
+      });
+    },
+    [tenantId, userId],
+  );
 
   const routeTitleFromMeta = useMemo(() => {
     for (let index = matches.length - 1; index >= 0; index -= 1) {
@@ -177,59 +206,15 @@ export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsPr
     [navigate, setActiveKey, tabs],
   );
 
-  const queueUndoCloseTab = useCallback(
-    (tab: AppTab, index: number) => {
-      clearUndoCloseState();
-      undoCloseStateRef.current = { tab, index };
-
-      const restoreClosedTab = () => {
-        const payload = undoCloseStateRef.current;
-        if (!payload) {
-          return;
-        }
-        const store = useTabsStore.getState();
-        if (!store.tabs.some((item) => item.key === payload.tab.key)) {
-          const nextTabs = [...store.tabs];
-          const insertIndex = Math.max(0, Math.min(payload.index, nextTabs.length));
-          nextTabs.splice(insertIndex, 0, payload.tab);
-          store.setTabs(nextTabs, payload.tab.key);
-        }
-        navigate(payload.tab.path);
-        announceWorkbench(`已撤销关闭页签：${payload.tab.title}`);
-        clearUndoCloseState();
-      };
-
-      message.open({
-        key: ROUTE_TABS_UNDO_MESSAGE_KEY,
-        type: 'info',
-        duration: 5,
-        content: (
-          <span>
-            已关闭“{tab.title}”
-            <Button size="small" type="link" onClick={restoreClosedTab}>
-              撤销
-            </Button>
-          </span>
-        ),
-      });
-
-      undoCloseTimerRef.current = window.setTimeout(() => {
-        clearUndoCloseState();
-      }, 5200);
-    },
-    [clearUndoCloseState, navigate],
-  );
-
   const handleCloseTab = useCallback(
     (key: string) => {
-      const closingIndex = tabs.findIndex((tab) => tab.key === key);
-      const closingTab = closingIndex >= 0 ? tabs[closingIndex] : null;
+      const closingTab = tabs.find((tab) => tab.key === key) ?? null;
       if (!closingTab || !closingTab.closable) {
         return;
       }
 
       const nextActiveKey = closeTab(key);
-      queueUndoCloseTab(closingTab, closingIndex);
+      clearSavedViewForClosedTab(key);
       announceWorkbench(`已关闭页签：${closingTab.title}`);
       if (activeKey === key) {
         const nextTab = tabs.find((tab) => tab.key === nextActiveKey);
@@ -240,27 +225,34 @@ export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsPr
         }
       }
     },
-    [activeKey, closeTab, defaultPath, navigate, queueUndoCloseTab, tabs],
+    [activeKey, clearSavedViewForClosedTab, closeTab, defaultPath, navigate, tabs],
   );
 
   const handleCloseOther = useCallback(() => {
     if (!activeKey) {
       return;
     }
+    tabs
+      .filter((tab) => tab.key !== activeKey)
+      .forEach((tab) => {
+        clearSavedViewForClosedTab(tab.key);
+      });
     closeOtherTabs(activeKey);
     const current = tabs.find((tab) => tab.key === activeKey);
     if (current) {
       navigate(current.path);
     }
     announceWorkbench('已关闭其他页签');
-  }, [activeKey, closeOtherTabs, navigate, tabs]);
+  }, [activeKey, clearSavedViewForClosedTab, closeOtherTabs, navigate, tabs]);
 
   const handleCloseAll = useCallback(() => {
-    clearUndoCloseState();
+    tabs.forEach((tab) => {
+      clearSavedViewForClosedTab(tab.key);
+    });
     closeAllTabs();
     navigate(defaultPath);
     announceWorkbench('已关闭全部页签');
-  }, [clearUndoCloseState, closeAllTabs, defaultPath, navigate]);
+  }, [clearSavedViewForClosedTab, closeAllTabs, defaultPath, navigate, tabs]);
 
   const cycleActiveTab = useCallback(
     (step: 1 | -1) => {
@@ -285,12 +277,12 @@ export const RouteTabs = ({ menuTitleMap, defaultPath = '/orders' }: RouteTabsPr
     (action: RouteTabsShortcutAction) => {
       if (action === 'next') {
         cycleActiveTab(1);
-        announceWorkbench('已切换到下一页签');
+        announceWorkbench('已切换到下一个页签');
         return;
       }
       if (action === 'previous') {
         cycleActiveTab(-1);
-        announceWorkbench('已切换到上一页签');
+        announceWorkbench('已切换到上一个页签');
         return;
       }
       const currentKey = activeKey ?? location.pathname;

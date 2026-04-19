@@ -81,7 +81,7 @@ export const MemberLevelsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['member-levels', tenantId, query],
     queryFn: () => listMemberLevels(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

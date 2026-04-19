@@ -1,0 +1,11 @@
+{
+  "order_review_image": "F:\\erp\\apps\\erp-web\\output\\playwright\\order-review-workbench-latest.png",
+  "shop_products_image": "F:\\erp\\apps\\erp-web\\output\\playwright\\shop-products-workbench.png",
+  "compare_image": "F:\\erp\\apps\\erp-web\\output\\playwright\\shop-products-vs-order-review-compare.png",
+  "cropped_width": 1440,
+  "cropped_height": 916,
+  "changed_pixels": 306953,
+  "total_pixels": 1319040,
+  "changed_ratio": 0.2327093947113052,
+  "changed_percent": 23.2709
+}

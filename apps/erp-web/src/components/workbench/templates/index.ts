@@ -1,5 +1,5 @@
-export { WorkbenchToolbarTemplate } from './WorkbenchToolbarTemplate';
-export { WorkbenchMainTableTemplate } from './WorkbenchMainTableTemplate';
+export { OrderReviewWorkbenchToolbarTemplate } from './OrderReviewWorkbenchToolbarTemplate';
+export { OrderReviewWorkbenchTemplate } from './OrderReviewWorkbenchTemplate';
 export { useWorkbenchTablePagination } from './useWorkbenchTablePagination';
 export { useWorkbenchSavedViewState } from './useWorkbenchSavedViewState';
 export {

@@ -105,7 +105,7 @@ export const PrintDevicesPage = () => {
   const devicesQuery = useQuery({
     queryKey: ['print-devices', tenantId, query],
     queryFn: () => listPrintDevices(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   useEffect(() => {

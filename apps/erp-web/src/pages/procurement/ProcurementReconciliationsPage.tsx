@@ -114,7 +114,7 @@ export const ProcurementReconciliationsPage = () => {
     queryKey: ['procurement-reconciliations', tenantId, query],
     queryFn: () => listProcurementReconciliations(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

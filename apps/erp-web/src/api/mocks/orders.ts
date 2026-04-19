@@ -1,4 +1,4 @@
-﻿import dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 import type {
   OrderDetail,
@@ -14,9 +14,17 @@ import {
   mockOmsMainChainSeeds,
   mockOrderReceiverAddresses,
   mockOrders,
+  specialMockOrderIds,
   mockTenantId,
   mockWarehouses
 } from './data';
+import {
+  calculateMockOrderGoodsAmountCent,
+  calculateMockOrderGoodsQty,
+  createMockOrderNoRegistry,
+  ensureMockOrderCanReview,
+  hasMockOrderGoods,
+} from './orderMockGovernance';
 
 type OrderReviewState = {
   oms_status: OrderSummary['oms_status'];
@@ -196,20 +204,10 @@ const defaultMockOrderSettlementRule: MockOrderSettlementRule = {
 let mockOrderSettlementRule: MockOrderSettlementRule = { ...defaultMockOrderSettlementRule };
 const mockOrderSettlementRecords = new Map<string, MockOrderSettlementRecord>();
 const mockOrderReconciliationRecords = new Map<string, MockOrderReconciliationRecord>();
-const specialOrderIds = {
-  noItems: 'TEST-ORDER-NO-ITEMS',
-  noLogistics: 'TEST-ORDER-NO-LOGISTICS',
-  missingSku: 'TEST-ORDER-MISSING-SKU',
-  shortage: 'TEST-ORDER-SHORTAGE',
-  frozen: 'TEST-ORDER-FROZEN',
-  addressInvalid: 'TEST-ORDER-ADDRESS-INVALID',
-  duplicate: 'TEST-ORDER-DUPLICATE',
-  blacklist: 'TEST-ORDER-BLACKLIST',
-  reviewFlagged: 'TEST-ORDER-REVIEW-FLAGGED',
-  merged: 'TEST-ORDER-MERGED',
-  split: 'TEST-ORDER-SPLIT',
-  manyItems: 'TEST-ORDER-MANY-ITEMS'
-};
+const specialOrderIds = specialMockOrderIds;
+const mockOrderNoRegistry = createMockOrderNoRegistry(mockOrders.map((order) => order.id));
+
+export const reserveMockOrderId = (dateValue?: string | dayjs.Dayjs) => mockOrderNoRegistry.reserve(dateValue);
 
 const buildDefaultNotes = (): OrderDetail['notes'] => [
   {
@@ -230,6 +228,10 @@ const buildDefaultTags = (): OrderDetail['tags'] => [
 
 const normalizeTagValues = (tags: string[]) =>
   Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+
+const resolveMockOrderItems = (order: OrderSummary) =>
+  mockOrderItems.get(order.id) ??
+  Array.from({ length: 3 }, (_, index) => buildOrderItem(order, index));
 
 const resolveAuditStatusFromReviewStatus = (reviewStatus?: string | null) => {
   if (reviewStatus === 'PASSED') {
@@ -269,7 +271,7 @@ const resolveOrderMainChainState = (orderId: string): MockOmsMainChainState => {
     reserve_status: null,
     reserve_precheck_passed: (order.exception_flags?.length ?? 0) === 0,
     reserve_precheck_reasons:
-      (order.exception_flags?.length ?? 0) === 0 ? [] : ['瀛樺湪鏈鐞嗗紓甯革紝涓嶈兘鎻愪氦鍙戣揣'],
+      (order.exception_flags?.length ?? 0) === 0 ? [] : ['瀛樺湪鏈理异常，不能提交发货'],
     target_warehouse_id: mockWarehouses[0]?.warehouse_id ?? null,
     blocking_reason:
       (order.exception_flags?.length ?? 0) === 0 ? '可直接提交发货' : '存在未处理异常，需先复核',
@@ -299,7 +301,7 @@ const syncOrderSummaryWithMainChain = (orderId: string, state: MockOmsMainChainS
             ...(current.exception_flags ?? []),
             state.blocking_reason === '鍟嗗搧鏄犲皠缂哄け'
               ? 'MAPPING_MISSING'
-              : state.blocking_reason === '搴撳瓨涓嶈冻'
+              : state.blocking_reason === '库存不足'
                 ? 'INVENTORY_SHORTAGE'
                 : 'REVIEW_FLAGGED'
           ])
@@ -329,7 +331,7 @@ const buildMockOrderExceptionSummary = (state: MockOmsMainChainState): MockOrder
   const latestAction = state.action_logs.at(-1) ?? null;
   return {
     order_id: state.order_id,
-    order_no: order.platform_order_id ?? order.id,
+    order_no: order.id,
     platform: order.platform,
     shop_id: order.shop_id,
     receiver_name: order.receiver_name ?? null,
@@ -354,6 +356,7 @@ mockOrderItems.set(specialOrderIds.missingSku, [
     platform_sku_id: null,
     outer_sku_id: null,
     title: '未匹配商品',
+    spec_text: '奶白 / M',
     quantity: 1,
     price_cent: 1299,
     mapping_missing: true
@@ -365,6 +368,7 @@ mockOrderItems.set(specialOrderIds.shortage, [
     platform_sku_id: 'PLAT-SKU-NEG-1',
     outer_sku_id: 'OUTER-NEG-1',
     title: '缂鸿揣鍟嗗搧A',
+    spec_text: '黑色 / L',
     quantity: 2,
     price_cent: 1599,
     mapping_missing: false
@@ -374,6 +378,7 @@ mockOrderItems.set(specialOrderIds.shortage, [
     platform_sku_id: 'PLAT-SKU-NEG-2',
     outer_sku_id: null,
     title: '缂鸿揣鍟嗗搧B',
+    spec_text: '白色 / XL',
     quantity: 1,
     price_cent: 899,
     mapping_missing: false
@@ -384,7 +389,7 @@ mockOrderItems.set(specialOrderIds.frozen, [
     id: `${specialOrderIds.frozen}-ITEM-1`,
     platform_sku_id: 'PLAT-SKU-FROZEN-1',
     outer_sku_id: null,
-    title: '鍐荤粨璁㈠崟鍟嗗搧',
+    title: '鍐荤粨订单鍟嗗搧',
     quantity: 1,
     price_cent: 1399,
     mapping_missing: false
@@ -407,7 +412,8 @@ mockOrderItems.set(specialOrderIds.merged, [
     id: `${specialOrderIds.merged}-ITEM-1`,
     platform_sku_id: 'PLAT-SKU-MERGE-1',
     outer_sku_id: 'OUTER-MERGE-1',
-    title: '鍚堝苟璁㈠崟鍟嗗搧A',
+    title: '鍚堝苟订单鍟嗗搧A',
+    spec_text: '卡其 / S',
     quantity: 1,
     price_cent: 1899,
     mapping_missing: false
@@ -416,7 +422,8 @@ mockOrderItems.set(specialOrderIds.merged, [
     id: `${specialOrderIds.merged}-ITEM-2`,
     platform_sku_id: 'PLAT-SKU-MERGE-2',
     outer_sku_id: 'OUTER-MERGE-2',
-    title: '鍚堝苟璁㈠崟鍟嗗搧B',
+    title: '鍚堝苟订单鍟嗗搧B',
+    spec_text: '灰色 / M',
     quantity: 2,
     price_cent: 999,
     mapping_missing: false
@@ -427,7 +434,8 @@ mockOrderItems.set(specialOrderIds.split, [
     id: `${specialOrderIds.split}-ITEM-1`,
     platform_sku_id: 'PLAT-SKU-SPLIT-1',
     outer_sku_id: 'OUTER-SPLIT-1',
-    title: '鎷嗗垎璁㈠崟鍟嗗搧A',
+    title: '鎷嗗垎订单鍟嗗搧A',
+    spec_text: '深蓝 / M',
     quantity: 1,
     price_cent: 1599,
     mapping_missing: false
@@ -436,7 +444,8 @@ mockOrderItems.set(specialOrderIds.split, [
     id: `${specialOrderIds.split}-ITEM-2`,
     platform_sku_id: 'PLAT-SKU-SPLIT-2',
     outer_sku_id: null,
-    title: '鎷嗗垎璁㈠崟鍟嗗搧B',
+    title: '鎷嗗垎订单鍟嗗搧B',
+    spec_text: '咖色 / L',
     quantity: 1,
     price_cent: 1299,
     mapping_missing: false
@@ -445,7 +454,8 @@ mockOrderItems.set(specialOrderIds.split, [
     id: `${specialOrderIds.split}-ITEM-3`,
     platform_sku_id: 'PLAT-SKU-SPLIT-3',
     outer_sku_id: 'OUTER-SPLIT-3',
-    title: '鎷嗗垎璁㈠崟鍟嗗搧C',
+    title: '鎷嗗垎订单鍟嗗搧C',
+    spec_text: '军绿 / XL',
     quantity: 2,
     price_cent: 899,
     mapping_missing: false
@@ -453,7 +463,7 @@ mockOrderItems.set(specialOrderIds.split, [
 ]);
 mockOrderReceiverAddresses.set(
   specialOrderIds.addressInvalid,
-  '鍦板潃寮傚父锛氱己灏戣閬撲笌妤煎眰淇℃伅'
+  '鍦板潃异常锛氱己灏戣閬撲笌妤煎眰淇℃伅'
 );
 mockOrderLogisticsCompany.set(specialOrderIds.noLogistics, '');
 mockOrderLogisticsCompany.set(specialOrderIds.merged, '京东物流');
@@ -470,7 +480,7 @@ mockOrderNotes.set(specialOrderIds.reviewFlagged, [
   },
   {
     note_id: `NOTE-${Date.now() + 2}`,
-    note: '寤鸿鑱旂郴瀹㈡埛纭鏀惰揣淇℃伅',
+    note: '寤鸿鑱旂郴客户确认鏀惰揣淇℃伅',
     created_by: null,
     created_at: dayjs().subtract(15, 'minute').toISOString()
   }
@@ -489,7 +499,7 @@ mockOrderTags.set(specialOrderIds.blacklist, [
 ]);
 mockOrderTags.set(specialOrderIds.duplicate, [
   {
-    tag: '閲嶅璁㈠崟',
+    tag: '閲嶅订单',
     created_by: null,
     created_at: dayjs().toISOString()
   },
@@ -503,13 +513,13 @@ mockOrderDetailOverrides.set(specialOrderIds.frozen, {
   freeze_reason: '高风险订单自动冻结',
 });
 mockOrderDetailOverrides.set(specialOrderIds.addressInvalid, {
-  exception_reason: '鍦板潃瀛楁涓嶅畬鏁达紝闇€瀹㈡埛琛ュ厖'
+  exception_reason: '鍦板潃瀛楁涓嶅畬鏁达紝闇€客户琛ュ厖'
 });
 mockOrderDetailOverrides.set(specialOrderIds.duplicate, {
-  exception_reason: '骞冲彴閲嶅鎷夊崟锛屽緟纭鏄惁鍚堝苟'
+  exception_reason: '平台閲嶅鎷夊崟锛屽緟确认鏄惁鍚堝苟'
 });
 mockOrderDetailOverrides.set(specialOrderIds.reviewFlagged, {
-  exception_reason: '楂樺鍗曢渶澶嶆牳'
+  exception_reason: '楂樺单需复核'
 });
 mockOrderDetailOverrides.set(specialOrderIds.merged, {
   extra_remark: '已合并同收件人订单',
@@ -519,27 +529,26 @@ mockOrderDetailOverrides.set(specialOrderIds.split, {
 });
 
 export const getMockOrderList = (query: OrderListQuery) => {
-  const resolvedOrders = mockOrders.map((order, orderIndex) => ({
-    ...order,
-    ship_warehouse_id:
-      mockOrderWarehouseId.get(order.id) ??
-      mockWarehouses[orderIndex % mockWarehouses.length]?.warehouse_id ??
-      null,
-    logistics_company: mockOrderLogisticsCompany.get(order.id) ?? '',
-  }));
+  const resolvedOrders = mockOrders.map((order, orderIndex) => {
+    const resolvedItems = resolveMockOrderItems(order);
+    return {
+      ...order,
+      ship_warehouse_id:
+        mockOrderWarehouseId.get(order.id) ??
+        mockWarehouses[orderIndex % mockWarehouses.length]?.warehouse_id ??
+        null,
+      logistics_company: mockOrderLogisticsCompany.get(order.id) ?? '',
+      goods_qty: calculateMockOrderGoodsQty(resolvedItems),
+    };
+  });
 
   const filtered = resolvedOrders.filter((order, orderIndex) => {
     const resolvedWarehouseId = order.ship_warehouse_id ?? null;
     const resolvedReceiverAddress =
       mockOrderReceiverAddresses.get(order.id) ?? '';
     const resolvedLogisticsCompany = order.logistics_company ?? '';
-    const resolvedItems =
-      mockOrderItems.get(order.id) ??
-      Array.from({ length: 3 }, (_, index) => buildOrderItem(order, index));
-    const resolvedGoodsQty = resolvedItems.reduce(
-      (total, item) => total + (item.quantity ?? 0),
-      0
-    );
+    const resolvedItems = resolveMockOrderItems(order);
+    const resolvedGoodsQty = calculateMockOrderGoodsQty(resolvedItems);
     const estimatedPostageCent = 300 + orderIndex * 5;
     const estimatedProfitCent = order.total_amount_cent - estimatedPostageCent;
     const estimatedProfitRate =
@@ -724,9 +733,7 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
   const order = mockOrders.find((item) => item.id === orderId) ?? buildOrder(0);
   const orderIndex = Math.max(mockOrders.findIndex((item) => item.id === order.id), 0);
   const customer = mockCustomers.find((item) => item.customer_id === order.customer_id);
-  const items =
-    mockOrderItems.get(order.id) ??
-    Array.from({ length: 3 }, (_, index) => buildOrderItem(order, index));
+  const items = resolveMockOrderItems(order);
   const receiverAddress =
     mockOrderReceiverAddresses.get(order.id) ?? '上海市浦东新区示例路 100 号';
   const logisticsCompany = mockOrderLogisticsCompany.get(order.id) ?? '';
@@ -749,7 +756,7 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
     review_status: order.review_status,
     exception_flags: [...(order.exception_flags ?? [])],
     total_amount_cent: order.total_amount_cent,
-    goods_amount_cent: 3999,
+    goods_amount_cent: calculateMockOrderGoodsAmountCent(items),
     postage_amount_cent: 500,
     discount_amount_cent: 300,
     receiver_name: order.receiver_name ?? null,
@@ -854,6 +861,16 @@ export const updateMockOrder = (orderId: string, payload: OrderEditRequest): Ord
   const now = dayjs().toISOString();
   const index = mockOrders.findIndex((item) => item.id === orderId);
   const base = index >= 0 ? mockOrders[index] : buildOrder(0);
+  const nextItems =
+    payload.items?.map((item, idx) => ({
+      id: item.line_id ?? `${orderId}-ITEM-${idx + 1}`,
+      platform_sku_id: item.sku_id ?? null,
+      outer_sku_id: null,
+      title: item.title ?? null,
+      quantity: item.qty,
+      price_cent: item.price_cent,
+      mapping_missing: false
+    })) ?? resolveMockOrderItems(base);
   const normalizedPhone = payload.receiver_phone?.trim() ?? base.receiver_phone ?? '';
   const updated: OrderSummary = {
     ...base,
@@ -866,6 +883,7 @@ export const updateMockOrder = (orderId: string, payload: OrderEditRequest): Ord
     sales_channel: payload.sales_channel ?? base.sales_channel ?? null,
     order_source: payload.order_source ?? base.order_source ?? null,
     salesperson: payload.salesperson ?? base.salesperson ?? null,
+    goods_qty: calculateMockOrderGoodsQty(nextItems),
     updated_at: now
   };
   if (index >= 0) {
@@ -939,18 +957,63 @@ export const updateMockOrder = (orderId: string, payload: OrderEditRequest): Ord
   };
   mockOrderDetailOverrides.set(orderId, { ...existingOverrides, ...nextOverrides });
   if (payload.items) {
-    const items = payload.items.map((item, idx) => ({
-      id: item.line_id ?? `${orderId}-ITEM-${idx + 1}`,
-      platform_sku_id: item.sku_id ?? null,
-      outer_sku_id: null,
-      title: item.title ?? null,
-      quantity: item.qty,
-      price_cent: item.price_cent,
-      mapping_missing: false
-    }));
-    mockOrderItems.set(orderId, items);
+    mockOrderItems.set(orderId, nextItems);
   }
   return getMockOrderDetail(orderId);
+};
+
+export const reviewMockOrder = (
+  orderId: string,
+  payload?: { action?: string | null; reason?: string | null }
+): OrderReviewState => {
+  const index = mockOrders.findIndex((item) => item.id === orderId);
+  const currentOrder = index >= 0 ? mockOrders[index] : null;
+  if (!currentOrder) {
+    throw new Error('未找到要审核的订单');
+  }
+
+  const normalizedAction = String(payload?.action ?? 'PASS').trim().toUpperCase();
+  if (normalizedAction === 'PASS') {
+    ensureMockOrderCanReview(resolveMockOrderItems(currentOrder), currentOrder.id);
+  }
+
+  const now = dayjs().toISOString();
+  const nextExceptionFlags =
+    normalizedAction === 'PASS'
+      ? (currentOrder.exception_flags ?? []).filter((flag) => flag !== 'REVIEW_REJECTED')
+      : Array.from(new Set([...(currentOrder.exception_flags ?? []), 'REVIEW_REJECTED']));
+
+  const nextReviewStatus = normalizedAction === 'PASS' ? 'PASSED' : 'REJECTED';
+  const nextOmsStatus = normalizedAction === 'PASS' ? 'PENDING_SHIPMENT' : 'REVIEW_PENDING';
+
+  mockOrders[index] = {
+    ...currentOrder,
+    review_status: nextReviewStatus,
+    oms_status: nextOmsStatus,
+    exception_flags: nextExceptionFlags,
+    updated_at: now
+  };
+
+  updateMockOmsState(orderId, (state) => {
+    state.audit_status = normalizedAction === 'PASS' ? 'REVIEW_PASSED' : 'REVIEW_REJECTED';
+    state.exception_status =
+      normalizedAction === 'PASS' && nextExceptionFlags.length === 0 ? 'NONE' : 'OPEN';
+    state.blocking_reason =
+      normalizedAction === 'PASS'
+        ? nextExceptionFlags.length === 0
+          ? '可直接提交发货'
+          : '仍存在待处理异常'
+        : payload?.reason?.trim() || '订单审核驳回';
+    state.reserve_precheck_passed = normalizedAction === 'PASS' && hasMockOrderGoods(resolveMockOrderItems(mockOrders[index]!));
+    state.reserve_precheck_reasons = state.reserve_precheck_passed ? [] : [state.blocking_reason];
+  });
+
+  return {
+    oms_status: nextOmsStatus,
+    review_status: nextReviewStatus,
+    exception_flags: nextExceptionFlags,
+    version: 1
+  };
 };
 
 export const cancelMockOrder = (
@@ -1147,13 +1210,17 @@ export const submitMockOrderFulfillment = (
   options?: { dryRun?: boolean }
 ): MockFulfillmentPrecheckResult => {
   const state = resolveOrderMainChainState(orderId);
+  const orderDetail = getMockOrderDetail(orderId);
   const reasons: string[] = [];
 
   if (state.audit_status !== 'REVIEW_PASSED') {
     reasons.push('审核未通过，不能提交发货');
   }
   if (!['NONE', 'RESOLVED', 'CLOSED'].includes(state.exception_status)) {
-    reasons.push('寮傚父鏈棴鐜紝涓嶈兘鎻愪氦鍙戣揣');
+    reasons.push('异常鏈棴鐜紝涓嶈兘提交鍙戣揣');
+  }
+  if (!hasMockOrderGoods(orderDetail.items)) {
+    reasons.push('订单无货品，不能提交发货');
   }
   if (!state.reserve_precheck_passed) {
     reasons.push(...state.reserve_precheck_reasons);
@@ -1164,13 +1231,13 @@ export const submitMockOrderFulfillment = (
       updateMockOmsState(orderId, (current) => {
         current.reserve_status = 'RESERVE_FAILED';
         current.fulfillment_status = 'NOT_SUBMITTED';
-        appendMockOmsAction(current, 'SUBMIT_FAILED', '鎻愪氦鍙戣揣澶辫触', null, '绯荤粺');
+        appendMockOmsAction(current, 'SUBMIT_FAILED', '提交发货失败', null, '绯荤粺');
       });
     }
 
     return {
       order_id: orderId,
-      order_no: getMockOrderDetail(orderId).order.platform_order_id ?? orderId,
+      order_no: orderDetail.order.id ?? orderId,
       passed: false,
       reasons,
       reserve_status: 'RESERVE_FAILED',
@@ -1185,13 +1252,13 @@ export const submitMockOrderFulfillment = (
       current.reserve_status = 'RESERVED';
       current.fulfillment_status = 'WAVE_PENDING';
       current.reserve_precheck_reasons = [];
-      appendMockOmsAction(current, 'SUBMIT', '鎻愪氦鍙戣揣鎴愬姛锛岃繘鍏ュ緟娉㈡', null, '绯荤粺');
+      appendMockOmsAction(current, 'SUBMIT', '提交鍙戣揣成功锛岃繘鍏ュ緟波次', null, '绯荤粺');
     });
   }
 
   return {
     order_id: orderId,
-    order_no: getMockOrderDetail(orderId).order.platform_order_id ?? orderId,
+    order_no: orderDetail.order.id ?? orderId,
     passed: true,
     reasons: [],
     reserve_status: options?.dryRun ? state.reserve_status : 'RESERVED',
@@ -1214,7 +1281,7 @@ export const claimMockOrderException = (
       appendMockOmsAction(
         state,
         'CLAIM',
-        '寮傚父鍗曞凡棰嗗彇',
+        '异常鍗曞凡棰嗗彇',
         payload?.operator_id ?? null,
         payload?.operator_name ?? null
       );
@@ -1259,7 +1326,7 @@ export const escalateMockOrderException = (
       appendMockOmsAction(
         state,
         'ESCALATE',
-        payload?.reason?.trim() || '寮傚父鍗曞凡鍗囩骇澶勭悊',
+        payload?.reason?.trim() || '异常单已升级处理',
         payload?.operator_id ?? null,
         payload?.operator_name ?? null
       );
@@ -1556,7 +1623,7 @@ const buildMockOrderReconciliationBatchId = (
 const parseMockOrderReconciliationBatchId = (raw: string) => {
   const parts = raw.split(':');
   if (parts.length !== 4) {
-    throw new Error('鎵规缂栧彿鏍煎紡鏃犳晥');
+    throw new Error('鎵规编号鏍煎紡鏃犳晥');
   }
 
   const [, , periodStart, periodEnd] = parts;
@@ -1854,10 +1921,10 @@ const executeMockOrderSettlementAction = (
 
   if (action === 'EXPORT') {
     if (currentStatus !== 'LOCKED') {
-      throw new Error('浠呭凡閿佸畾缁撶畻鍗曞彲瀵煎嚭');
+      throw new Error('仅已锁定结算单可导出');
     }
     if (!payload?.export_job_id?.trim()) {
-      throw new Error('瀵煎嚭浠诲姟缂栧彿涓嶈兘涓虹┖');
+      throw new Error('瀵煎嚭任务编号不能为空');
     }
     settlementRecord.status = 'EXPORTED';
     settlementRecord.locked_at = settlementRecord.locked_at ?? dayjs().toISOString();
