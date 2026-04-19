@@ -1,4 +1,4 @@
-﻿# ERP 功能矩阵（全盘盘点）
+# ERP 功能矩阵（全盘盘点）
 
 > 状态声明（2026-04-10）：本文件为阶段性盘点快照，存在与当前实现进度不一致的条目。  
 > 当前功能完成口径请优先参考 `docs/ops/TASK_COMPLETION_MATRIX.md` 与 `docs/ops/RELEASE_GATE.md`。  

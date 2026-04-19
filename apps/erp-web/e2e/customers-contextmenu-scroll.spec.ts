@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 test('客户档案右键不抖动', async ({ page }) => {
   await page.goto('/customers');

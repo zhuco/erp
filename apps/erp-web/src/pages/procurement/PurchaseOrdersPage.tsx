@@ -158,7 +158,7 @@ export const PurchaseOrdersPage = () => {
     queryKey: ['purchase-orders', tenantId, query],
     queryFn: () => listPurchaseOrders(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -448,7 +448,7 @@ export const PurchaseOrdersPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={640}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>

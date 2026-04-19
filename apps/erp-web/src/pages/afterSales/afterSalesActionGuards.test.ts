@@ -1,4 +1,4 @@
-import type { AfterSalesStatus, AfterSalesType, ReturnReceipt } from '@/api/afterSalesOps';
+import type { ReturnReceipt } from '@/api/afterSalesOps';
 import { describe, expect, test } from 'vitest';
 
 import type { AfterSalesActionContext } from './afterSalesActionGuards';

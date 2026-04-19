@@ -16,7 +16,7 @@ type RoutePrefetchMetadata = {
   prefetch: () => Promise<unknown>;
 };
 
-type PrefetchableComponent = ComponentType<any> & {
+type PrefetchableComponent = ComponentType<unknown> & {
   __routePrefetchMetadata__?: RoutePrefetchMetadata;
 };
 
@@ -127,7 +127,7 @@ const findPrefetchMetadata = (node: ReactNode): RoutePrefetchMetadata | undefine
   return undefined;
 };
 
-export const attachRoutePrefetch = <T extends ComponentType<any>>(
+export const attachRoutePrefetch = <T extends ComponentType<unknown>>(
   component: T,
   metadata: RoutePrefetchMetadata,
 ): T => {

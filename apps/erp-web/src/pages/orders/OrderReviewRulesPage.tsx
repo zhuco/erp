@@ -162,7 +162,7 @@ export const OrderReviewRulesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['order-review-rules', tenantId, query],
     queryFn: () => listOrderReviewRules(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const summary = useMemo(() => {
@@ -479,7 +479,7 @@ export const OrderReviewRulesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

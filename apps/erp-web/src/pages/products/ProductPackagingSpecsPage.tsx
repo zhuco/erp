@@ -52,7 +52,7 @@ export const ProductPackagingSpecsPage = () => {
     queryKey: ['packaging-specs', 'sku-search', tenantId, skuKeyword],
     queryFn: () => searchSkus(tenantId, skuKeyword),
     enabled: tenantReady && skuKeyword.trim().length >= 2,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const skuOptions = useMemo(
@@ -68,7 +68,7 @@ export const ProductPackagingSpecsPage = () => {
     queryKey: ['product-packaging-specs', tenantId, selectedSkuId],
     queryFn: () => listProductPackagingSpecs(tenantId, selectedSkuId ?? ''),
     enabled: tenantReady && Boolean(selectedSkuId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleSave = async () => {

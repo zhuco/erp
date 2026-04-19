@@ -82,14 +82,14 @@ export const KitsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['kits', tenantId, query],
     queryFn: () => listKits(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({
     queryKey: ['kit-detail', tenantId, selectedKit?.kit_sku_id],
     queryFn: () => getKitDetail(tenantId, selectedKit?.kit_sku_id ?? ''),
     enabled: Boolean(tenantId && selectedKit?.kit_sku_id),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
   const total = data?.total ?? 0;
 

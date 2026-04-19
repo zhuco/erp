@@ -747,7 +747,7 @@ export const SystemIntegrationsPage = () => {
         okText="保存"
         okButtonProps={{ loading: saveMutation.isPending }}
         cancelButtonProps={{ disabled: saveMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

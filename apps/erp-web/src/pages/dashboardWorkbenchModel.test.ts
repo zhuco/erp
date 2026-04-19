@@ -11,56 +11,34 @@ const buildMenuItems = (paths: string[]): AppMenuItem[] =>
   }));
 
 describe('dashboardWorkbenchModel', () => {
-  it('根据当前可访问功能生成推荐岗位工作台，并按优先级排序', () => {
+  it('builds dashboard cards only for the preserved review, channel, and settings entries', () => {
     const cards = buildDashboardWorkbenchCards(
-      buildMenuItems([
-        '/orders/review',
-        '/orders/exceptions',
-        '/orders/review-rules',
-        '/shipments',
-        '/wms/pack',
-        '/inventory',
-      ]),
+      buildMenuItems(['/orders/review', '/orders/recheck', '/channels', '/sales/settings']),
     );
 
-    expect(cards.map((card) => card.key)).toEqual(['review', 'fulfillment', 'warehouse']);
+    expect(cards.map((card) => card.key)).toEqual(['review', 'channels', 'settings']);
     expect(cards[0]).toMatchObject({
-      title: '审单台',
       primaryAction: {
-        label: '进入审单',
         path: '/orders/review',
       },
+      actions: [expect.objectContaining({ path: '/orders/recheck' })],
     });
   });
 
-  it('会过滤掉当前无权访问的次级入口，只保留可达动作', () => {
-    const cards = buildDashboardWorkbenchCards(buildMenuItems(['/procurement/orders']));
-
-    expect(cards).toEqual([
-      expect.objectContaining({
-        key: 'procurement',
-        actions: [],
-        primaryAction: expect.objectContaining({
-          path: '/procurement/orders',
-        }),
-      }),
-    ]);
+  it('returns an empty list when none of the preserved dashboard actions are reachable', () => {
+    expect(buildDashboardWorkbenchCards(buildMenuItems(['/orders']))).toEqual([]);
   });
 
-  it('在可访问功能不足时返回空列表，避免展示错误岗位入口', () => {
-    expect(buildDashboardWorkbenchCards(buildMenuItems(['/reports']))).toEqual([]);
-  });
-
-  it('快捷入口只保留当前可访问功能，并按固定优先级输出', () => {
+  it('keeps dashboard quick links aligned with the reduced UI shell', () => {
     const links = buildDashboardQuickLinks(
-      buildMenuItems(['/inventory', '/orders/review', '/system/settings', '/channels']),
+      buildMenuItems(['/dashboard', '/orders/review', '/orders/recheck', '/channels', '/sales/settings']),
     );
 
     expect(links).toEqual([
       { label: '/orders/review', path: '/orders/review' },
-      { label: '/inventory', path: '/inventory' },
+      { label: '/orders/recheck', path: '/orders/recheck' },
       { label: '/channels', path: '/channels' },
-      { label: '/system/settings', path: '/system/settings' },
+      { label: '/sales/settings', path: '/sales/settings' },
     ]);
   });
 });

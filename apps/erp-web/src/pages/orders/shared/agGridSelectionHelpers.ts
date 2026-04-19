@@ -49,7 +49,7 @@ export const resolveShiftRangeSelectionAction = <TRowNode extends SelectableRowN
     const rowNode = getDisplayedRowAtIndex(rowIndex);
     if (!rowNode) continue;
     hasRow = true;
-    if (!Boolean(rowNode.isSelected())) {
+    if (!rowNode.isSelected()) {
       allSelected = false;
     }
   }
@@ -82,7 +82,7 @@ export const applyShiftRangeSelection = <TRowNode extends SelectableRowNode | nu
   for (let rowIndex = action.startIndex; rowIndex <= action.endIndex; rowIndex += 1) {
     const rowNode = getDisplayedRowAtIndex(rowIndex);
     if (!rowNode) continue;
-    if (Boolean(rowNode.isSelected()) === action.shouldSelect) continue;
+    if ((rowNode.isSelected() ?? false) === action.shouldSelect) continue;
     rowNode.setSelected(action.shouldSelect);
   }
 };
@@ -98,7 +98,7 @@ export const toggleAgGridHeaderSelection = <TRowNode extends SelectableRowNode>(
   }
 
   forEachNodeAfterFilter((rowNode) => {
-    if (!Boolean(rowNode.isSelected())) {
+    if (!rowNode.isSelected()) {
       rowNode.setSelected(true);
     }
   });
@@ -112,7 +112,7 @@ export const resolveAgGridHeaderSelectionState = <TRowNode extends SelectableRow
 
   forEachNodeAfterFilter((rowNode) => {
     totalCount += 1;
-    if (Boolean(rowNode.isSelected())) {
+    if (rowNode.isSelected()) {
       selectedCount += 1;
     }
   });

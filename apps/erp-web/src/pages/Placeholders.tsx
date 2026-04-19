@@ -10,7 +10,7 @@ type PlaceholderPageProps = {
   titleTestId?: string;
 };
 
-const PlaceholderPage = ({
+export const PlaceholderPage = ({
   title,
   description = '页面建设中',
   testId,

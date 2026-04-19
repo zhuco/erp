@@ -73,7 +73,7 @@ export const InventoryFreezesPage = () => {
     queryKey: ['inventory-freezes', tenantId, listQuery],
     queryFn: () => listInventoryFreezes(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const createMutation = useMutation({
@@ -208,7 +208,7 @@ export const InventoryFreezesPage = () => {
         onCancel={() => setCreateOpen(false)}
         onOk={() => createMutation.mutate()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item

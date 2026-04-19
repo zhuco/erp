@@ -1,12 +1,11 @@
-﻿import './orderReviewPage.css';
+import './orderReviewPage.css';
 
 import { Button, InputNumber, Modal, Space, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import type { GridApi } from 'ag-grid-community';
-import type { Key } from 'react';
+import type { Dispatch, Key, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 
 import { listCouriers } from '@/api/couriers';
 import { useOrdersList } from '@/api/hooks';
@@ -18,18 +17,21 @@ import {
   reviewOrder,
   splitOrder,
   updateOrder,
+  type OrderDetail,
   type OrderListQuery,
   type OrderSummary,
 } from '@/api/orders';
 import { listOrderTagDefinitions } from '@/api/orderTagDefinitions';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
-import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
-  WorkbenchMainTableTemplate,
-  WorkbenchToolbarTemplate,
+  WorkbenchPageTemplate,
+  WorkbenchRecordEditorDialog,
+  useWorkbenchSavedViewState,
+  useWorkbenchRecordEditor,
+  WorkbenchToolbar,
   useWorkbenchTablePagination,
-} from '@/components/workbench/templates';
+} from '@/components/page-templates';
 import {
   UiModule03ContextMenu,
   createUiModule08StrategyScreenFilterState,
@@ -40,6 +42,7 @@ import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftMode
 import { useLeftFilterModule, type LeftFilterPanelProps } from '@/pages/orders/shared/useLeftFilterModule';
 import { fetchAllOrdersByScan } from '@/pages/orders/shared/fetchAllOrdersByScan';
 import { useCan } from '@/features/rbac';
+import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
 
 import { OrderReviewBottomPanel } from './review-native/OrderReviewBottomPanel';
@@ -60,12 +63,22 @@ import {
 } from './review-native/orderReviewGridActions';
 import {
   buildOrderReviewLeftCheckedKeys,
+  clearOrderReviewMainGridColumnFilters,
   hasOrderReviewLeftManualFilter,
   reduceOrderReviewFiltersByNode,
 } from './review-native/orderReviewLeftInteractions';
 import { hasMainGridColumnFilters } from './review-native/OrderReviewGridFilters';
 import { OrderReviewLeftPanel } from './review-native/OrderReviewLeftPanel';
-import { OrderReviewMainGrid } from './review-native/OrderReviewMainGrid';
+import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';
+import {
+  buildWorkbenchOrderRecordDraft,
+  buildWorkbenchOrderUpdatePayload,
+  validateWorkbenchOrderRecordDraft,
+} from './shared/orderWorkbenchEditorAdapter';
+import {
+  toOrderWorkbenchGoodsRows,
+  type OrderWorkbenchGoodsRow,
+} from './shared/orderWorkbenchGoodsRows';
 import {
   resolveToolbarActionOrderIds,
   runMergeOrdersAction,
@@ -94,33 +107,34 @@ type DetailOrderPayload = {
   items?: Record<string, unknown>[];
 };
 
-type GoodsGridRow = {
-  __localKey: string;
-  id?: string;
-  platform_sku_id?: string | null;
-  outer_sku_id?: string | null;
-  title?: string | null;
-  quantity?: number | null;
-  price_cent?: number | null;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ORDER_REVIEW_FILTER_SNAPSHOT_VERSION = 1;
+const WORKBENCH_ANNOUNCE_EVENT = 'erp:workbench-announce';
+
+type OrderReviewFilterSnapshot = {
+  version: number;
+  savedAt: number;
+  searchInput: string;
+  searchKeyword: string;
+  quickFilterExpanded: boolean;
+  columnFilters: ColumnFilters;
+  leftScreenFiltersDraft: UiModule08StrategyScreenFilterState;
+  leftScreenFiltersApplied: UiModule08StrategyScreenFilterState;
 };
 
-const toGoodsRows = (rows: Record<string, unknown>[]) =>
-  rows.map((row, index) => {
-    const id = row.id == null ? undefined : String(row.id);
-    const fallbackId = `${String(row.platform_sku_id ?? row.outer_sku_id ?? 'goods')}-${index}`;
-    const localKey = id ?? fallbackId;
-    return {
-      __localKey: localKey,
-      id,
-      platform_sku_id: row.platform_sku_id == null ? null : String(row.platform_sku_id),
-      outer_sku_id: row.outer_sku_id == null ? null : String(row.outer_sku_id),
-      title: row.title == null ? null : String(row.title),
-      quantity: row.quantity == null ? 1 : Number(row.quantity),
-      price_cent: row.price_cent == null ? 0 : Number(row.price_cent),
-    } as GoodsGridRow;
-  });
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+const isEditableKeyboardTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tagName = target.tagName;
+  return (
+    target.isContentEditable ||
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    tagName === 'SELECT' ||
+    Boolean(target.closest('.ant-select-dropdown, .ant-picker-dropdown'))
+  );
+};
 
 const readStringField = (record: OrderSummary, keys: string[]) => {
   const rawRecord = record as Record<string, unknown>;
@@ -338,17 +352,110 @@ const exceptionTypeOptions: Array<{
   { key: 'refundReturn', label: '有退款退货' },
 ];
 
+type OrderReviewSavedViewState = {
+  searchInput?: string;
+  searchKeyword?: string;
+  quickFilterExpanded?: boolean;
+  columnFilters?: ColumnFilters;
+  leftScreenFiltersDraft?: UiModule08StrategyScreenFilterState;
+  leftScreenFiltersApplied?: UiModule08StrategyScreenFilterState;
+  selectedRowKeys?: string[];
+  focusedOrderKey?: string | null;
+  selectionAnchorKey?: string | null;
+  activeOrderKey?: string | null;
+};
+
+const normalizePersistedString = (value: unknown) => String(value ?? '').trim();
+const normalizePersistedNullableString = (value: unknown) => normalizePersistedString(value) || null;
+
+const normalizePersistedStringArray = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = Array.from(
+    new Set(
+      value
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean),
+    ),
+  );
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const filterOrderReviewSelectionKeys = (rows: OrderSummary[], keys: Key[]) => {
+  const existingKeys = new Set(rows.map((row) => resolveOrderRowKey(row)).filter(Boolean));
+  return keys
+    .map((key) => String(key ?? '').trim())
+    .filter((key, index, values) => Boolean(key) && values.indexOf(key) === index && existingKeys.has(key));
+};
+
+const normalizePersistedOrderReviewColumnFilters = (value: unknown): ColumnFilters => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const source = value as Record<string, unknown>;
+
+  return {
+    platform: normalizePersistedStringArray(source.platform),
+    shopId: normalizePersistedStringArray(source.shopId),
+    orderIdKeyword: normalizePersistedString(source.orderIdKeyword) || undefined,
+    platformOrderIdKeyword: normalizePersistedString(source.platformOrderIdKeyword) || undefined,
+    receiverNameKeyword: normalizePersistedString(source.receiverNameKeyword) || undefined,
+    receiverPhoneKeyword: normalizePersistedString(source.receiverPhoneKeyword) || undefined,
+    createdAtFrom: normalizePersistedString(source.createdAtFrom) || undefined,
+    createdAtTo: normalizePersistedString(source.createdAtTo) || undefined,
+    status: normalizePersistedStringArray(source.status) as ColumnFilters['status'],
+    timeRange: normalizePersistedStringArray(source.timeRange) as ColumnFilters['timeRange'],
+    exceptionType: normalizePersistedStringArray(source.exceptionType) as ColumnFilters['exceptionType'],
+    warehouseId: normalizePersistedStringArray(source.warehouseId),
+    logisticsCompany: normalizePersistedStringArray(source.logisticsCompany),
+    remarkState: normalizePersistedStringArray(source.remarkState) as ColumnFilters['remarkState'],
+    tagState: normalizePersistedStringArray(source.tagState) as ColumnFilters['tagState'],
+  };
+};
+
+const normalizePersistedOrderReviewScreenFilters = (value: unknown): UiModule08StrategyScreenFilterState => {
+  const defaults = createUiModule08StrategyScreenFilterState();
+  if (!value || typeof value !== 'object') {
+    return defaults;
+  }
+  const source = value as Partial<UiModule08StrategyScreenFilterState>;
+
+  return {
+    ...defaults,
+    orderQuery: normalizePersistedString(source.orderQuery),
+    salesChannel: normalizePersistedString(source.salesChannel),
+    warehouse: normalizePersistedString(source.warehouse),
+    createdFrom: normalizePersistedString(source.createdFrom),
+    createdTo: normalizePersistedString(source.createdTo),
+    customerRemark:
+      source.customerRemark === 'has' ||
+      source.customerRemark === 'none' ||
+      source.customerRemark === 'exclude'
+        ? source.customerRemark
+        : 'any',
+    serviceRemark:
+      source.serviceRemark === 'has' ||
+      source.serviceRemark === 'none' ||
+      source.serviceRemark === 'exclude'
+        ? source.serviceRemark
+        : 'any',
+    orderTag: normalizePersistedString(source.orderTag),
+    excludedTag: normalizePersistedString(source.excludedTag),
+    carrierLoss: normalizePersistedString(source.carrierLoss),
+    regionScope: source.regionScope === 'exclude' ? 'exclude' : 'all',
+    regionKeyword: normalizePersistedString(source.regionKeyword),
+    orderType: normalizePersistedString(source.orderType),
+    includeSkuMode: source.includeSkuMode === 'all' ? 'all' : 'any',
+    includeSkuKeyword: normalizePersistedString(source.includeSkuKeyword),
+  };
+};
+
 export const OrderReviewPage = () => {
   const tenantId = useTenantId();
+  const userId = useSessionStore((state) => state.userId);
   const canWriteOrders = useCan('orders.write');
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const {
-    setRightPanel,
-    setRightPanelVisible,
-    setBottomPanel,
-    setBottomPanelVisible,
-  } = useWorkbenchPanels();
 
   const { pagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
     defaultPageSize,
@@ -365,6 +472,7 @@ export const OrderReviewPage = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
   const [selectionAnchorKey, setSelectionAnchorKey] = useState<string | null>(null);
+  const [activeOrderKey, setActiveOrderKey] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderSummary | null>(null);
 
   const [leftScreenFiltersDraft, setLeftScreenFiltersDraft] = useState<UiModule08StrategyScreenFilterState>(() =>
@@ -387,12 +495,101 @@ export const OrderReviewPage = () => {
     split: false,
   });
 
+  const reviewSavedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.savedView.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const filterSnapshotStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.filterSnapshot.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderSummary> | null>(null);
   const fetchStartedAtRef = useRef<number | null>(null);
   const hasInitializedActiveOrderRef = useRef(false);
   const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
   const [loadCycle, setLoadCycle] = useState(0);
+
+  const hydrateReviewSavedView = useCallback((parsed: OrderReviewSavedViewState) => {
+    if (typeof parsed.searchInput === 'string') {
+      setSearchInput(parsed.searchInput);
+    }
+    if (typeof parsed.searchKeyword === 'string') {
+      setSearchKeyword(parsed.searchKeyword);
+    }
+    if (typeof parsed.quickFilterExpanded === 'boolean') {
+      setQuickFilterExpanded(parsed.quickFilterExpanded);
+    }
+    if (parsed.columnFilters) {
+      setColumnFilters(normalizePersistedOrderReviewColumnFilters(parsed.columnFilters));
+    }
+    if (parsed.leftScreenFiltersDraft) {
+      setLeftScreenFiltersDraft(normalizePersistedOrderReviewScreenFilters(parsed.leftScreenFiltersDraft));
+    }
+    if (parsed.leftScreenFiltersApplied) {
+      setLeftScreenFiltersApplied(
+        normalizePersistedOrderReviewScreenFilters(parsed.leftScreenFiltersApplied),
+      );
+    }
+    if (parsed.selectedRowKeys) {
+      setSelectedRowKeys(normalizePersistedStringArray(parsed.selectedRowKeys) ?? []);
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'focusedOrderKey')) {
+      setFocusedOrderKey(normalizePersistedNullableString(parsed.focusedOrderKey));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'selectionAnchorKey')) {
+      setSelectionAnchorKey(normalizePersistedNullableString(parsed.selectionAnchorKey));
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'activeOrderKey')) {
+      const nextActiveOrderKey =
+        normalizePersistedNullableString(parsed.activeOrderKey) ??
+        normalizePersistedNullableString(parsed.focusedOrderKey);
+      setActiveOrderKey(nextActiveOrderKey);
+      if (nextActiveOrderKey) {
+        hasInitializedActiveOrderRef.current = true;
+      }
+    }
+  }, []);
+
+  const serializeReviewSavedView = useCallback(
+    (): OrderReviewSavedViewState => ({
+      searchInput,
+      searchKeyword,
+      quickFilterExpanded,
+      columnFilters,
+      leftScreenFiltersDraft,
+      leftScreenFiltersApplied,
+      selectedRowKeys: selectedRowKeys.map((item) => String(item)),
+      focusedOrderKey,
+      selectionAnchorKey,
+      activeOrderKey: resolveOrderRowKey(activeOrder) || activeOrderKey,
+    }),
+    [
+      activeOrder,
+      activeOrderKey,
+      columnFilters,
+      focusedOrderKey,
+      leftScreenFiltersApplied,
+      leftScreenFiltersDraft,
+      quickFilterExpanded,
+      searchInput,
+      selectedRowKeys,
+      searchKeyword,
+      selectionAnchorKey,
+    ],
+  );
+
+  useWorkbenchSavedViewState<OrderReviewSavedViewState>({
+    storageKey: reviewSavedViewKey,
+    hydrate: hydrateReviewSavedView,
+    serialize: serializeReviewSavedView,
+  });
 
   const { data: shopData } = useQuery({
     queryKey: ['shops', tenantId, 'orders-review-native'],
@@ -609,7 +806,7 @@ export const OrderReviewPage = () => {
   }, [isFetching]);
 
   const serverRows = data?.items ?? [];
-  const sourceRowsForFilter = hasFullScopeColumnFilterActive ? (manualFilterScopeRows ?? []) : serverRows;
+  const sourceRowsForFilter = hasFullScopeColumnFilterActive ? (manualFilterScopeRows ?? serverRows) : serverRows;
 
   const filteredRows = useMemo(() => {
     const selectedPlatformSet = new Set(normalizeMulti(columnFilters.platform));
@@ -799,59 +996,84 @@ export const OrderReviewPage = () => {
 
   useEffect(() => {
     if (!rows.length) {
+      if (isFetching) {
+        return;
+      }
+      setSelectedRowKeys([]);
       setActiveOrder(null);
+      setActiveOrderKey(null);
       setFocusedOrderKey(null);
       return;
     }
+
+    const rowMap = new Map<string, OrderSummary>();
+    rows.forEach((row) => {
+      const key = resolveOrderRowKey(row);
+      if (key) {
+        rowMap.set(key, row);
+      }
+    });
+
+    setSelectedRowKeys((current) => {
+      const next = filterOrderReviewSelectionKeys(rows, current);
+      if (
+        next.length === current.length &&
+        next.every((key, index) => key === String(current[index] ?? ''))
+      ) {
+        return current;
+      }
+      return next;
+    });
+
     const firstKey = resolveOrderRowKey(rows[0]) || null;
-    if (!activeOrder) {
-      if (!hasInitializedActiveOrderRef.current) {
-        hasInitializedActiveOrderRef.current = true;
+    const activeOrderRecordKey = activeOrder ? resolveOrderRowKey(activeOrder) || null : null;
+    const nextActiveOrderKey =
+      (activeOrderRecordKey && rowMap.has(activeOrderRecordKey) && activeOrderRecordKey) ||
+      (activeOrderKey && rowMap.has(activeOrderKey) && activeOrderKey) ||
+      null;
+
+    if (nextActiveOrderKey) {
+      const nextActiveOrder = rowMap.get(nextActiveOrderKey) ?? null;
+      if (!activeOrder || activeOrderRecordKey !== nextActiveOrderKey) {
+        setActiveOrder(nextActiveOrder);
+      }
+      if (activeOrderKey !== nextActiveOrderKey) {
+        setActiveOrderKey(nextActiveOrderKey);
+      }
+      if (!focusedOrderKey || !rowMap.has(focusedOrderKey)) {
+        setFocusedOrderKey(nextActiveOrderKey);
+      }
+      return;
+    }
+
+    if (activeOrder) {
+      setActiveOrder(null);
+    }
+    if (activeOrderKey) {
+      setActiveOrderKey(null);
+    }
+
+    if (!hasInitializedActiveOrderRef.current) {
+      hasInitializedActiveOrderRef.current = true;
+      if (rows[0]) {
         setActiveOrder(rows[0]);
-        if (!focusedOrderKey) {
+        setActiveOrderKey(firstKey);
+        if (!focusedOrderKey || !rowMap.has(focusedOrderKey)) {
           setFocusedOrderKey(firstKey);
         }
-        return;
-      }
-      if (focusedOrderKey) {
-        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-        if (!focusExists) {
-          setFocusedOrderKey(null);
-        }
       }
       return;
     }
 
-    const activeKey = resolveOrderRowKey(activeOrder);
-    const activeExists = Boolean(activeKey) && rows.some((row) => resolveOrderRowKey(row) === activeKey);
-    if (!activeExists) {
-      setActiveOrder(null);
-      if (focusedOrderKey) {
-        const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-        if (!focusExists) {
-          setFocusedOrderKey(null);
-        }
-      }
+    if (focusedOrderKey && !rowMap.has(focusedOrderKey)) {
+      setFocusedOrderKey(firstKey);
       return;
     }
 
-    if (focusedOrderKey) {
-      const focusExists = rows.some((row) => resolveOrderRowKey(row) === focusedOrderKey);
-      if (!focusExists) {
-        setFocusedOrderKey(activeKey || null);
-      }
-      return;
-    }
-
-    if (activeKey) {
-      setFocusedOrderKey(activeKey);
-      return;
-    }
-
-    if (firstKey && !focusedOrderKey) {
+    if (!focusedOrderKey && firstKey) {
       setFocusedOrderKey(firstKey);
     }
-  }, [activeOrder, focusedOrderKey, rows]);
+  }, [activeOrder, activeOrderKey, focusedOrderKey, isFetching, rows]);
 
   useEffect(() => {
     if (!selectionAnchorKey) return;
@@ -862,6 +1084,16 @@ export const OrderReviewPage = () => {
   }, [rows, selectionAnchorKey]);
 
   const activeDetailOrderId = useMemo(() => (activeOrder ? resolveOrderActionId(activeOrder) : ''), [activeOrder]);
+
+  useEffect(() => {
+    if (!rows.length) {
+      return;
+    }
+    const nextActiveOrderKey = resolveOrderRowKey(activeOrder);
+    if (nextActiveOrderKey && nextActiveOrderKey !== activeOrderKey) {
+      setActiveOrderKey(nextActiveOrderKey);
+    }
+  }, [activeOrder, activeOrderKey, rows]);
 
   const detailQuery = useQuery({
     queryKey: ['orders-review-native', tenantId, 'detail', activeDetailOrderId],
@@ -896,8 +1128,36 @@ export const OrderReviewPage = () => {
     });
   }, [activeDetailOrderId, queryClient, rows, tenantId]);
 
+  const workbenchRecordEditor = useWorkbenchRecordEditor<OrderSummary, OrderDetail, ReturnType<typeof buildWorkbenchOrderRecordDraft>>({
+    resolveRecordId: (record) => resolveOrderActionId(record),
+    loadRecord: async (orderId) => {
+      if (!tenantId) {
+        throw new Error('缺少租户上下文，请刷新页面后重试');
+      }
+      return getOrderDetail(tenantId, orderId);
+    },
+    buildDraft: (detail) => buildWorkbenchOrderRecordDraft(detail, String(detail.order?.id ?? '').trim()),
+    saveRecord: async (orderId, draft) => {
+      if (!tenantId) {
+        throw new Error('缺少租户上下文，请刷新页面后重试');
+      }
+      return updateOrder(tenantId, orderId, buildWorkbenchOrderUpdatePayload(draft));
+    },
+    onSaved: async () => {
+      await Promise.all([refetch(), detailQuery.refetch()]);
+    },
+  });
+  const workbenchEditorValidationMessages = useMemo(
+    () =>
+      workbenchRecordEditor.draft ? validateWorkbenchOrderRecordDraft(workbenchRecordEditor.draft) : [],
+    [workbenchRecordEditor.draft],
+  );
+
   const detailOrder = (detailQuery.data?.order ?? null) as DetailOrderPayload | null;
-  const goodsRows = useMemo(() => toGoodsRows((detailOrder?.items ?? []) as Record<string, unknown>[]), [detailOrder]);
+  const goodsRows = useMemo(
+    () => toOrderWorkbenchGoodsRows((detailOrder?.items ?? []) as Record<string, unknown>[]),
+    [detailOrder],
+  );
   const logRows = useMemo(() => (detailQuery.data?.audit_logs ?? []) as Record<string, unknown>[], [detailQuery.data]);
   const currentOrderTags = useMemo(
     () =>
@@ -907,7 +1167,7 @@ export const OrderReviewPage = () => {
     [detailQuery.data],
   );
   const [orderTagsApplying, setOrderTagsApplying] = useState(false);
-  const [goodsRowsState, setGoodsRowsState] = useState<GoodsGridRow[]>([]);
+  const [goodsRowsState, setGoodsRowsState] = useState<OrderWorkbenchGoodsRow[]>([]);
   const [goodsSaving, setGoodsSaving] = useState(false);
 
   useEffect(() => {
@@ -1065,7 +1325,7 @@ export const OrderReviewPage = () => {
   );
 
   const persistGoodsRows = useCallback(
-    async (nextRows: GoodsGridRow[], successText: string) => {
+    async (nextRows: OrderWorkbenchGoodsRow[], successText: string) => {
       const previousRows = goodsRowsState;
       setGoodsRowsState(nextRows);
 
@@ -1371,10 +1631,22 @@ export const OrderReviewPage = () => {
     ],
   );
 
+  const handleLeftFiltersChange = useCallback<Dispatch<SetStateAction<ColumnFilters>>>(
+    (action) => {
+      setColumnFilters((previous) => (typeof action === 'function' ? action(previous) : action));
+      resetPagination();
+    },
+    [resetPagination],
+  );
+
+  const handleBeforeLeftLeafFilterApply = useCallback(() => {
+    setColumnFilters((previous) => clearOrderReviewMainGridColumnFilters(previous));
+  }, []);
+
   useLeftFilterModule<OrderSummary, ColumnFilters>({
     rows: leftStatsSourceRows,
     filters: columnFilters,
-    onFiltersChange: setColumnFilters,
+    onFiltersChange: handleLeftFiltersChange,
     initialExpandedKeys: ['order-time-group'],
     emptyRowLabel: '无匹配项',
     hasManualFilter: hasOrderReviewLeftManualFilter,
@@ -1383,12 +1655,13 @@ export const OrderReviewPage = () => {
     buildLeftNodes: () => leftNodes,
     reduceFiltersByNode: reduceOrderReviewFiltersByNode,
     renderPanel: renderOrderReviewLeftPanel,
+    onBeforeLeafFilterApply: handleBeforeLeftLeafFilterApply,
   });
 
   const handleMainGridColumnFiltersChange = useCallback((nextFilters: ColumnFilters) => {
     setColumnFilters(nextFilters);
     resetPagination();
-  }, []);
+  }, [resetPagination]);
 
   const handleExportGrid = useCallback(() => {
     const api = mainGridApiRef.current;
@@ -1453,6 +1726,7 @@ export const OrderReviewPage = () => {
 
   const handleMainRowActive = useCallback((record: OrderSummary) => {
     setActiveOrder(record);
+    setActiveOrderKey(resolveOrderRowKey(record) || null);
   }, []);
 
   const handleMainFocus = useCallback((record: OrderSummary) => {
@@ -1466,15 +1740,22 @@ export const OrderReviewPage = () => {
         message.warning('订单ID为空，无法打开编辑页');
         return;
       }
-      navigate(`/orders/${encodeURIComponent(orderId)}`);
+      const rowKey = resolveOrderRowKey(record) || orderId;
+      setActiveOrder(record);
+      setActiveOrderKey(rowKey);
+      setFocusedOrderKey(rowKey);
+      void workbenchRecordEditor.openEditor(record).catch((error) => {
+        message.error(error instanceof Error ? error.message : '打开订单编辑窗口失败');
+      });
     },
-    [navigate],
+    [workbenchRecordEditor],
   );
 
   const handleMainContextMenu = useCallback(
     (record: OrderSummary, event: MouseEvent) => {
       const key = resolveOrderRowKey(record) || null;
       setActiveOrder(record);
+      setActiveOrderKey(key);
       setFocusedOrderKey(key);
       if (key && !selectedRowKeys.some((item) => String(item) === String(key))) {
         setSelectedRowKeys([key]);
@@ -1610,6 +1891,189 @@ export const OrderReviewPage = () => {
     toolbarActionDeps,
   ]);
 
+  const announceWorkbench = useCallback((text: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent(WORKBENCH_ANNOUNCE_EVENT, {
+        detail: { message: text },
+      }),
+    );
+  }, []);
+
+  const persistFilterSnapshot = useCallback(
+    (slot: number) => {
+      if (!filterSnapshotStorageKey) {
+        message.warning('当前租户上下文未就绪，无法保存筛选快照');
+        return;
+      }
+      const snapshot: OrderReviewFilterSnapshot = {
+        version: ORDER_REVIEW_FILTER_SNAPSHOT_VERSION,
+        savedAt: Date.now(),
+        searchInput,
+        searchKeyword,
+        quickFilterExpanded,
+        columnFilters,
+        leftScreenFiltersDraft,
+        leftScreenFiltersApplied,
+      };
+
+      let currentMap: Record<string, OrderReviewFilterSnapshot> = {};
+      try {
+        const raw = localStorage.getItem(filterSnapshotStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, OrderReviewFilterSnapshot> | null;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            currentMap = parsed;
+          }
+        }
+      } catch {
+        currentMap = {};
+      }
+
+      currentMap[String(slot)] = snapshot;
+      localStorage.setItem(filterSnapshotStorageKey, JSON.stringify(currentMap));
+      message.success(`已保存筛选快照 ${slot}`);
+      announceWorkbench(`已保存筛选快照 ${slot}`);
+    },
+    [
+      announceWorkbench,
+      columnFilters,
+      filterSnapshotStorageKey,
+      leftScreenFiltersApplied,
+      leftScreenFiltersDraft,
+      quickFilterExpanded,
+      searchInput,
+      searchKeyword,
+    ],
+  );
+
+  const replayFilterSnapshot = useCallback(
+    (slot: number) => {
+      if (!filterSnapshotStorageKey) {
+        message.warning('当前租户上下文未就绪，无法回放筛选快照');
+        return;
+      }
+
+      try {
+        const raw = localStorage.getItem(filterSnapshotStorageKey);
+        if (!raw) {
+          message.warning(`筛选快照 ${slot} 尚未保存`);
+          return;
+        }
+        const parsed = JSON.parse(raw) as Record<string, OrderReviewFilterSnapshot> | null;
+        const snapshot = parsed?.[String(slot)];
+        if (!snapshot) {
+          message.warning(`筛选快照 ${slot} 尚未保存`);
+          return;
+        }
+        setSearchInput(String(snapshot.searchInput ?? ''));
+        setSearchKeyword(String(snapshot.searchKeyword ?? ''));
+        setQuickFilterExpanded(Boolean(snapshot.quickFilterExpanded));
+        setColumnFilters(normalizePersistedOrderReviewColumnFilters(snapshot.columnFilters));
+        setLeftScreenFiltersDraft(
+          normalizePersistedOrderReviewScreenFilters(snapshot.leftScreenFiltersDraft),
+        );
+        setLeftScreenFiltersApplied(
+          normalizePersistedOrderReviewScreenFilters(snapshot.leftScreenFiltersApplied),
+        );
+        resetPagination();
+        message.success(`已应用筛选快照 ${slot}`);
+        announceWorkbench(`已应用筛选快照 ${slot}`);
+      } catch {
+        message.error('筛选快照读取失败，请重新保存后再试');
+      }
+    },
+    [announceWorkbench, filterSnapshotStorageKey, resetPagination],
+  );
+
+  useEffect(() => {
+    const handlePageHotkeys = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      const digitMatch = event.code.match(/^Digit([1-9])$/);
+      if (
+        digitMatch &&
+        event.altKey &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        event.preventDefault();
+        replayFilterSnapshot(Number(digitMatch[1]));
+        return;
+      }
+
+      if (
+        digitMatch &&
+        event.altKey &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        event.ctrlKey
+      ) {
+        event.preventDefault();
+        persistFilterSnapshot(Number(digitMatch[1]));
+        return;
+      }
+
+      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === 'a') {
+        event.preventDefault();
+        if (!hasReviewActionTarget || actionLoading.review) {
+          return;
+        }
+        void handleApproveOrders();
+        return;
+      }
+      if (key === 'm') {
+        event.preventDefault();
+        if (actionOrderIds.length < 2 || actionLoading.merge) {
+          return;
+        }
+        void handleMergeOrders();
+        return;
+      }
+      if (key === 's') {
+        event.preventDefault();
+        if (!hasReviewActionTarget || actionLoading.split) {
+          return;
+        }
+        openSplitModal();
+        return;
+      }
+      if (key === 'c') {
+        event.preventDefault();
+        setSelectedRowKeys([]);
+        setSelectionAnchorKey(null);
+        announceWorkbench('已清空勾选');
+      }
+    };
+
+    window.addEventListener('keydown', handlePageHotkeys);
+    return () => {
+      window.removeEventListener('keydown', handlePageHotkeys);
+    };
+  }, [
+    actionLoading.merge,
+    actionLoading.review,
+    actionLoading.split,
+    actionOrderIds.length,
+    announceWorkbench,
+    handleApproveOrders,
+    handleMergeOrders,
+    hasReviewActionTarget,
+    openSplitModal,
+    persistFilterSnapshot,
+    replayFilterSnapshot,
+  ]);
+
   const selectedAmountCent = useMemo(() => {
     if (!selectedOrderIds.length) return 0;
     const selected = new Set(selectedOrderIds);
@@ -1626,7 +2090,7 @@ export const OrderReviewPage = () => {
         <span>
           总数 {total} 条，本页 {rows.length} 条，已选 {selectedRowKeys.length} 条，已选金额 ¥{moneyValue(selectedAmountCent / 100)}
         </span>
-        <span data-testid="order-review-load-timing" style={{ marginInlineStart: 8 }}>
+        <span className="order-workbench-load-timing" data-testid="order-review-load-timing">
           {isFetching ? '加载中...' : lastFetchDurationMs == null ? '加载耗时 --' : `加载耗时 ${lastFetchDurationMs}ms`}
         </span>
         <span data-testid="order-review-load-cycle" style={{ display: 'none' }}>
@@ -1660,6 +2124,7 @@ export const OrderReviewPage = () => {
           const rowKey = resolveOrderRowKey(current) || null;
           setFocusedOrderKey(rowKey);
           setActiveOrder(current);
+          setActiveOrderKey(rowKey);
         }
         if (key === 'clear-selection') {
           setSelectedRowKeys([]);
@@ -1792,32 +2257,8 @@ export const OrderReviewPage = () => {
     [activeDetailOrderId, goodsRowsState, goodsSaving, logRows],
   );
 
-  useEffect(() => {
-    setRightPanelVisible(true);
-    return () => {
-      setRightPanel(undefined);
-      setRightPanelVisible(false);
-    };
-  }, [setRightPanel, setRightPanelVisible]);
-
-  useEffect(() => {
-    setRightPanel(rightPanel);
-  }, [rightPanelSyncKey, setRightPanel]);
-
-  useEffect(() => {
-    setBottomPanelVisible(true);
-    return () => {
-      setBottomPanel(undefined);
-      setBottomPanelVisible(false);
-    };
-  }, [setBottomPanel, setBottomPanelVisible]);
-
-  useEffect(() => {
-    setBottomPanel(bottomPanel);
-  }, [bottomPanelSyncKey, setBottomPanel]);
-
   const toolbar = (
-        <WorkbenchToolbarTemplate
+      <WorkbenchToolbar
       className="order-review-toolbar"
       leftContent={
         <>
@@ -1825,6 +2266,7 @@ export const OrderReviewPage = () => {
             data-testid="order-review-approve"
             size="small"
             type="primary"
+            aria-keyshortcuts="Alt+Shift+A"
             loading={actionLoading.review}
             disabled={!hasReviewActionTarget || actionLoading.review}
             onClick={() => {
@@ -1836,6 +2278,7 @@ export const OrderReviewPage = () => {
           <Button
             data-testid="order-review-split"
             size="small"
+            aria-keyshortcuts="Alt+Shift+S"
             loading={actionLoading.split}
             disabled={!hasReviewActionTarget || actionLoading.split}
             onClick={openSplitModal}
@@ -1845,6 +2288,7 @@ export const OrderReviewPage = () => {
           <Button
             data-testid="order-review-merge"
             size="small"
+            aria-keyshortcuts="Alt+Shift+M"
             loading={actionLoading.merge}
             disabled={actionOrderIds.length < 2 || actionLoading.merge}
             onClick={() => {
@@ -1876,46 +2320,6 @@ export const OrderReviewPage = () => {
     />
   );
 
-  const mainContent = (
-    <WorkbenchMainTableTemplate
-      className="order-review-page"
-      toolbar={toolbar}
-      tableContainerRef={tableRef}
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
-      tableContent={
-        <div className="order-review-grid-main">
-          <OrderReviewMainGrid
-            rows={rows}
-            quickFilterExpanded={quickFilterExpanded}
-            columnFilters={columnFilters}
-            shopOptions={shopOptions}
-            logisticsOptions={courierOptions}
-            selectedRowKeys={selectedRowKeys}
-            focusedOrderKey={focusedOrderKey}
-            onGridApiChange={handleMainGridApiChange}
-            onColumnFiltersChange={handleMainGridColumnFiltersChange}
-            onSelectionChange={handleMainSelectionChange}
-            onRowActive={handleMainRowActive}
-            onRowDoubleClick={handleMainRowDoubleClick}
-            onFocus={handleMainFocus}
-            onContextMenu={handleMainContextMenu}
-            loading={isFetching}
-            error={error}
-            onRetry={() => {
-              void refetch();
-            }}
-          />
-        </div>
-      }
-      footerSummary={summary}
-      footerSyncKey={`order-review-native-${total}`}
-      total={total}
-      pagination={pagination}
-      onPaginationChange={handlePaginationChange}
-      showFooterScrollbarRow
-    />
-  );
-
   const splitModal = (
     <Modal
       title="拆分订单"
@@ -1943,27 +2347,84 @@ export const OrderReviewPage = () => {
   );
 
   return (
-    <div
-      data-testid="order-review-page"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-        width: '100%',
-        maxWidth: '100%',
-        height: '100%',
-      }}
-    >
-      {mainContent}
-      {splitModal}
-      <UiModule03ContextMenu
-        open={mainContextMenu.open}
-        position={mainContextMenu.position}
-        menu={mainContextMenuConfig}
-        onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
-      />
-    </div>
+      <WorkbenchPageTemplate
+      toolbar={toolbar}
+      tableContainerRef={tableRef}
+      tableContent={
+        <div className="order-review-grid-main">
+          <OrderWorkbenchMainGridEntry
+            variant="review"
+            rows={rows}
+            filterOptionRows={sourceRowsForFilter}
+            quickFilterExpanded={quickFilterExpanded}
+            columnFilters={columnFilters}
+            shopOptions={shopOptions}
+            logisticsOptions={courierOptions}
+            selectedRowKeys={selectedRowKeys}
+            focusedOrderKey={focusedOrderKey}
+            onGridApiChange={handleMainGridApiChange}
+            onColumnFiltersChange={handleMainGridColumnFiltersChange}
+            onSelectionChange={handleMainSelectionChange}
+            onRowActive={handleMainRowActive}
+            onRowDoubleClick={handleMainRowDoubleClick}
+            onFocus={handleMainFocus}
+            onContextMenu={handleMainContextMenu}
+            loading={isFetching}
+            error={error}
+            onRetry={() => {
+              void refetch();
+            }}
+          />
+        </div>
+      }
+      footerSummary={summary}
+      footerSyncKey={`order-review-native-${total}`}
+      total={total}
+      pagination={pagination}
+      onPaginationChange={handlePaginationChange}
+      showFooterScrollbarRow={true}
+      rightPanel={rightPanel}
+      rightPanelSyncKey={rightPanelSyncKey}
+      bottomPanel={bottomPanel}
+      bottomPanelSyncKey={bottomPanelSyncKey}
+      overlays={
+        <>
+          <WorkbenchRecordEditorDialog
+            open={workbenchRecordEditor.open}
+            title="订单编辑"
+            loading={workbenchRecordEditor.loading}
+            saving={workbenchRecordEditor.saving}
+            error={workbenchRecordEditor.error}
+            draft={workbenchRecordEditor.draft}
+            validationMessages={workbenchEditorValidationMessages}
+            warehouseOptions={mergedWarehouseOptions}
+            logisticsOptions={mergedCourierOptions}
+            onCancel={workbenchRecordEditor.closeEditor}
+            onSave={() => {
+              if (workbenchEditorValidationMessages.length > 0) {
+                message.warning(workbenchEditorValidationMessages[0] ?? '请先修正编辑问题后再保存');
+                return;
+              }
+              void workbenchRecordEditor.saveEditor().then(
+                () => {
+                  message.success('订单已保存');
+                },
+                (error) => {
+                  message.error(error instanceof Error ? error.message : '订单保存失败');
+                },
+              );
+            }}
+            onDraftChange={workbenchRecordEditor.setDraft}
+          />
+          {splitModal}
+          <UiModule03ContextMenu
+            open={mainContextMenu.open}
+            position={mainContextMenu.position}
+            menu={mainContextMenuConfig}
+            onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
+          />
+        </>
+      }
+    />
   );
 };
-

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -349,7 +349,7 @@ const SkuBatchStrategiesPanel = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -431,7 +431,7 @@ export const SkuBatchesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sku-batches', tenantId, query],
     queryFn: () => listSkuBatches(tenantId, query),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: Boolean(tenantId)
   });
 
@@ -963,7 +963,7 @@ export const SkuBatchesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

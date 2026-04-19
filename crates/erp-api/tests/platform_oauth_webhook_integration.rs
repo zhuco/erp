@@ -463,7 +463,7 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         r#"
         insert into shops (
           shop_id, tenant_id, platform, platform_shop_id, name, shop_name, status, credentials, auth_meta_json
-        ) values ($1, $2, 'taobao', 'TB-HEALTHY', '鍋ュ悍搴楅摵', '鍋ュ悍搴楅摵', 'AUTHORIZED', $3, $4)
+        ) values ($1, $2, 'taobao', 'TB-HEALTHY', '鍋ュ悍店铺', '鍋ュ悍店铺', 'AUTHORIZED', $3, $4)
         "#,
     )
     .bind(healthy_shop_id)
@@ -483,7 +483,7 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         r#"
         insert into shops (
           shop_id, tenant_id, platform, platform_shop_id, name, shop_name, status, credentials, auth_meta_json
-        ) values ($1, $2, 'jd', 'JD-DISCONNECTED', '寮傚父搴楅摵', '寮傚父搴楅摵', 'AUTHORIZED', $3, $4)
+        ) values ($1, $2, 'jd', 'JD-DISCONNECTED', '异常店铺', '异常店铺', 'AUTHORIZED', $3, $4)
         "#,
     )
     .bind(disconnected_shop_id)
@@ -505,7 +505,7 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         r#"
         insert into shops (
           shop_id, tenant_id, platform, platform_shop_id, name, shop_name, status, credentials, auth_meta_json
-        ) values ($1, $2, 'douyin', 'DY-WEBHOOK-WARN', 'Webhook 棰勮搴楅摵', 'Webhook 棰勮搴楅摵', 'AUTHORIZED', $3, '{}'::jsonb)
+        ) values ($1, $2, 'douyin', 'DY-WEBHOOK-WARN', 'Webhook 棰勮店铺', 'Webhook 棰勮店铺', 'AUTHORIZED', $3, '{}'::jsonb)
         "#,
     )
     .bind(webhook_warning_shop_id)

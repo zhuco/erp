@@ -11,6 +11,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Typography,
   message
 } from 'antd';
@@ -24,8 +25,9 @@ import type { KitComponent, KitDetail } from '@/api/kits';
 import { getKitDetail, saveKitBom } from '@/api/kits';
 import type { SkuKind, SkuSearchItem } from '@/api/skus';
 import { searchSkus } from '@/api/skus';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useTenantId } from '@/features/tenant';
 
 type ComponentFormValues = {
@@ -100,6 +102,9 @@ export const KitEditorPage = () => {
   const [componentOptions, setComponentOptions] = useState<SkuSearchItem[]>([]);
   const [kitSearching, setKitSearching] = useState(false);
   const [componentSearching, setComponentSearching] = useState(false);
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['kit-detail', tenantId, kitSkuId],
@@ -353,11 +358,112 @@ export const KitEditorPage = () => {
     []
   );
 
+  const filteredComponents = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return components;
+    }
+    return components.filter((item) => {
+      return (
+        String(item.component_sku_id ?? '').toLowerCase().includes(keyword) ||
+        String(item.component_sku_code ?? '').toLowerCase().includes(keyword) ||
+        String(item.component_name ?? '').toLowerCase().includes(keyword) ||
+        String(item.component_barcode ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [components, toolbarSearchKeyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="编辑步骤">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            1. 选择 Kit SKU，新增或调整组件。
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            2. 保存后会生成最新 BOM 快照。
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="当前统计">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            组件总数：{components.length}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            筛选后：{filteredComponents.length}
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [components.length, filteredComponents.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Card size="small" title="保存状态">
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          当前 Kit：{kitSku?.sku_code ?? '-'}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 6 }}>
+          当前组件：{components.length}
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          最近保存：{savedSnapshot ? formatDateTime(savedSnapshot.updated_at) : '未保存'}
+        </Typography.Paragraph>
+      </Card>
+    ),
+    [components.length, kitSku?.sku_code, savedSnapshot]
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'component-preview',
+            label: `组件预览 (${filteredComponents.length})`,
+            children: (
+              <Table<KitComponent>
+                size="small"
+                rowKey="component_sku_id"
+                columns={savedColumns}
+                dataSource={filteredComponents}
+                pagination={false}
+              />
+            )
+          },
+          {
+            key: 'save-summary',
+            label: '保存摘要',
+            children: saveSummary ? (
+              <Typography.Paragraph style={{ margin: 0 }}>
+                新增 {saveSummary.added}，移除 {saveSummary.removed}，调整 {saveSummary.updated}
+              </Typography.Paragraph>
+            ) : (
+              <Typography.Text type="secondary">暂无保存摘要</Typography.Text>
+            )
+          }
+        ]}
+      />
+    ),
+    [filteredComponents, saveSummary, savedColumns]
+  );
+
   if (!kitSkuId) {
     return (
       <ErrorState
-        title="缺少 Kit SKU"
-        description="无法加载组合装详情"
+        title="缂哄皯 Kit SKU"
+        description="无法加载组合装详情。"
         hint="请返回组合装列表重新选择。"
         action={<Button onClick={() => navigate('/kits')}>返回列表</Button>}
       />
@@ -368,115 +474,134 @@ export const KitEditorPage = () => {
     return <ErrorState title="组合装详情加载失败" error={error} onRetry={() => refetch()} />;
   }
 
-  return (
-    <UiModule02WorkbenchTemplate
-      header={
-        <Typography.Title level={3} data-testid="kit-editor-title">
-          组合装编辑
-        </Typography.Title>
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={
+        <Space align="center" size={10} wrap>
+          <Typography.Title level={3} data-testid="kit-editor-title" style={{ margin: 0 }}>
+            组合装编辑
+          </Typography.Title>
+          <Button type="primary" loading={saving} onClick={handleSave} data-testid="kit-save-button">
+            保存
+          </Button>
+          <Button onClick={() => navigate('/kits')}>返回列表</Button>
+        </Space>
       }
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="按组件 SKU / 名称 / 条码筛选"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('可通过顶部搜索快速定位组件')}
+    />
+  );
+
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
       tableContent={
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <LoadingState loading={detailLoading} onRetry={() => refetch()} />
           <Card>
-        <Form layout="vertical">
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item label="Kit SKU">
+            <Form layout="vertical">
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Kit SKU">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="搜索 Kit SKU"
+                      options={buildSkuOptions([...kitOptions, ...(kitSku ? [kitSku] : [])])}
+                      filterOption={false}
+                      loading={kitSearching}
+                      onSearch={(value) => loadSkuOptions(value, 'KIT', setKitOptions, setKitSearching)}
+                      onFocus={() => loadSkuOptions('', 'KIT', setKitOptions, setKitSearching)}
+                      value={kitSku?.sku_id}
+                      onChange={(value) => {
+                        const next = value ? skuIndex.get(value) ?? null : null;
+                        if (next && next.sku_kind && next.sku_kind !== 'KIT') {
+                          message.error('请选择 KIT 类型 SKU');
+                          return;
+                        }
+                        setKitSku(next);
+                      }}
+                      data-testid="kit-sku-select"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="当前组件数量">
+                    <InputNumber value={components.length} disabled style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Form>
+            <Form
+              form={form}
+              layout="inline"
+              onFinish={handleAddComponent}
+              initialValues={{ qty: 1 }}
+            >
+              <Form.Item
+                name="component_sku_id"
+                rules={[{ required: true, message: '请选择组件 SKU' }]}
+              >
                 <Select
                   showSearch
                   allowClear
-                  placeholder="搜索 Kit SKU"
-                  options={buildSkuOptions([...kitOptions, ...(kitSku ? [kitSku] : [])])}
+                  placeholder="搜索组件 SKU/条码/名称"
+                  options={buildSkuOptions(componentOptions)}
                   filterOption={false}
-                  loading={kitSearching}
-                  onSearch={(value) => loadSkuOptions(value, 'KIT', setKitOptions, setKitSearching)}
-                  onFocus={() => loadSkuOptions('', 'KIT', setKitOptions, setKitSearching)}
-                  value={kitSku?.sku_id}
-                  onChange={(value) => {
-                    const next = value ? skuIndex.get(value) ?? null : null;
-                    if (next && next.sku_kind && next.sku_kind !== 'KIT') {
-                      message.error('请选择 KIT 类型 SKU');
-                      return;
-                    }
-                    setKitSku(next);
-                  }}
-                  data-testid="kit-sku-select"
+                  loading={componentSearching}
+                  onSearch={(value) =>
+                    loadSkuOptions(value, undefined, setComponentOptions, setComponentSearching)
+                  }
+                  onFocus={() =>
+                    loadSkuOptions('', undefined, setComponentOptions, setComponentSearching)
+                  }
+                  data-testid="kit-component-select"
                 />
               </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="当前组件数量">
-                <InputNumber value={components.length} disabled style={{ width: '100%' }} />
+              <Form.Item
+                name="qty"
+                rules={[{ required: true, message: '请输入数量' }]}
+              >
+                <InputNumber min={1} data-testid="kit-component-qty" />
               </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-        <Form
-          form={form}
-          layout="inline"
-          onFinish={handleAddComponent}
-          initialValues={{ qty: 1 }}
-        >
-          <Form.Item
-            name="component_sku_id"
-            rules={[{ required: true, message: '请选择组件 SKU' }]}
-          >
-            <Select
-              showSearch
-              allowClear
-              placeholder="搜索组件 SKU/条码/名称"
-              options={buildSkuOptions(componentOptions)}
-              filterOption={false}
-              loading={componentSearching}
-              onSearch={(value) =>
-                loadSkuOptions(value, undefined, setComponentOptions, setComponentSearching)
-              }
-              onFocus={() =>
-                loadSkuOptions('', undefined, setComponentOptions, setComponentSearching)
-              }
-              data-testid="kit-component-select"
+              <Form.Item name="expire_at">
+                <DatePicker placeholder="有效期" />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" data-testid="kit-component-add">
+                  添加组件
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+          <Card title="BOM 组件">
+            <Table<KitComponent>
+              rowKey="component_sku_id"
+              columns={componentColumns}
+              dataSource={filteredComponents}
+              pagination={false}
+              loading={isLoading || isFetching}
             />
-          </Form.Item>
-          <Form.Item
-            name="qty"
-            rules={[{ required: true, message: '请输入数量' }]}
-          >
-            <InputNumber min={1} data-testid="kit-component-qty" />
-          </Form.Item>
-          <Form.Item name="expire_at">
-            <DatePicker placeholder="有效期" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" data-testid="kit-component-add">
-              添加组件
+          </Card>
+          <Space>
+            <Button type="primary" loading={saving} onClick={handleSave} data-testid="kit-save-button">
+              保存
             </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Card title="BOM 组件">
-        <Table<KitComponent>
-          rowKey="component_sku_id"
-          columns={componentColumns}
-          dataSource={components}
-          pagination={false}
-          loading={isLoading || isFetching}
-        />
-      </Card>
-      <Space>
-        <Button type="primary" loading={saving} onClick={handleSave} data-testid="kit-save-button">
-          保存
-        </Button>
-        <Button onClick={() => navigate('/kits')}>返回列表</Button>
-      </Space>
-      {saveSummary ? (
-        <Alert
-          type="success"
-          showIcon
-          message="BOM 已保存"
-          description={`新增 ${saveSummary.added}，移除 ${saveSummary.removed}，数量调整 ${saveSummary.updated}`}
-        />
-      ) : null}
+            <Button onClick={() => navigate('/kits')}>返回列表</Button>
+          </Space>
+          {saveSummary ? (
+            <Alert
+              type="success"
+              showIcon
+              message="BOM 已保存"
+              description={`新增 ${saveSummary.added}，移除 ${saveSummary.removed}，数量调整 ${saveSummary.updated}`}
+            />
+          ) : null}
           {savedSnapshot ? (
             <Card title="BOM 明细">
               <Descriptions column={2} size="small" bordered>
@@ -501,6 +626,8 @@ export const KitEditorPage = () => {
           ) : null}
         </Space>
       }
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
     />
   );
 };

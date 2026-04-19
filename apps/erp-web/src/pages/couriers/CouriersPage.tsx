@@ -42,7 +42,7 @@ export const CouriersPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['couriers', tenantId, query],
     queryFn: () => listCouriers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const updateMutation = useMutation({

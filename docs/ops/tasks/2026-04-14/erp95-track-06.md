@@ -1,4 +1,4 @@
-﻿> 本卡片已被 5-track 主计划取代，请勿继续作为当前执行主卡。现行卡片：docs/ops/tasks/2026-04-14/erp95-5track-04.md。
+> 本卡片已被 5-track 主计划取代，请勿继续作为当前执行主卡。现行卡片：docs/ops/tasks/2026-04-14/erp95-5track-04.md。
 
 ---
 name: ERP95-06 WMS inventory and fulfillment consistency

@@ -1,16 +1,18 @@
 {
   "name": "erp-web",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.6",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "lint:page-templates": "node ./scripts/check-page-template-usage.mjs",
+    "lint": "pnpm run lint:page-templates && eslint . --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit --project tsconfig.node.json && tsc --noEmit --project e2e/tsconfig.json",
     "test:unit": "vitest --run",
     "test:e2e": "playwright test",
+    "test:e2e:a11y": "playwright test e2e/workbench-a11y.spec.ts --project=chromium",
     "test:e2e:perf": "playwright test e2e/order-review-performance-budget.spec.ts --project=chromium",
     "test:e2e:latency": "playwright test e2e/order-review-interaction-latency-evaluation.spec.ts --project=chromium",
     "test:e2e:release-gate": "node ./scripts/run_release_gate_e2e.mjs",
@@ -37,6 +39,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@playwright/test": "^1.44.1",
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.66",
@@ -58,4 +61,3 @@
     "vitest": "^1.6.0"
   }
 }
-

@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 const getCenterRows = (grid: any) => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
 const getSelectionCell = (grid: any, rowId: string) =>
@@ -362,7 +362,7 @@ test('order review first selection-column click toggles without prior row activa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-review-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = getCenterRows(grid);
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
@@ -386,7 +386,7 @@ test('order review exposes selection diagnostics for single-click selection-colu
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-review-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = getCenterRows(grid);
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
@@ -740,6 +740,38 @@ test('order review supports header click sorting on the main grid', async ({ pag
 
   const sortIndicator = idHeader.locator('.ag-sort-indicator-order, .ag-sort-descending-icon');
   await expect(sortIndicator.first()).toBeVisible();
+
+  const pseudoStyles = await idHeader.evaluate((node: Element) => {
+    const element = node as HTMLElement;
+    const activeIcon = Array.from(
+      element.querySelectorAll('.ag-sort-indicator-container .ag-icon'),
+    )
+      .filter((icon): icon is HTMLElement => icon instanceof HTMLElement)
+      .find((icon) => {
+        const computedStyles = getComputedStyle(icon);
+        return computedStyles.display !== 'none' && computedStyles.visibility !== 'hidden';
+      });
+
+    if (!activeIcon) {
+      return null;
+    }
+
+    const beforeStyles = getComputedStyle(activeIcon, '::before');
+    const afterStyles = getComputedStyle(activeIcon, '::after');
+    return {
+      beforeDisplay: beforeStyles.display,
+      afterDisplay: afterStyles.display,
+      afterBackgroundImage: afterStyles.backgroundImage,
+    };
+  });
+
+  expect(pseudoStyles).not.toBeNull();
+  if (!pseudoStyles) {
+    throw new Error('订单审核未找到当前可见的排序图标');
+  }
+  expect(pseudoStyles.beforeDisplay).toBe('none');
+  expect(pseudoStyles.afterDisplay).toBe('block');
+  expect(pseudoStyles.afterBackgroundImage).toContain('data:image/svg+xml');
 
   const firstId = await getCellText(grid, 0, 'id');
   const secondId = await getCellText(grid, 1, 'id');

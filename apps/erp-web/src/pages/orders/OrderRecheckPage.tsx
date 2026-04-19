@@ -1,3 +1,3 @@
-﻿import { OrderExceptionsPage } from './OrderExceptionsPage';
+import { OrderExceptionsPage } from './OrderExceptionsPage';
 
 export const OrderRecheckPage = () => <OrderExceptionsPage />;

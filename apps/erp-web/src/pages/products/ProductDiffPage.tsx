@@ -10,21 +10,25 @@ import {
   Row,
   Select,
   Space,
+  Tabs,
   Tag,
   Timeline,
   Typography,
   TablePaginationConfig,
+  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { PlatformCode } from '@/features/platform';
 import { platformLabels } from '@/features/platform';
 import { useTenantId } from '@/features/tenant';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { PlatformTag } from '@/components/PlatformTag';
-import { UiModule02WorkbenchTemplate, UiModule03MainTableSection } from '@/components/ui-modules';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useShopProductSkus } from '@/api/hooks';
 import type { ShopProductSku, ShopProductSkuListQuery } from '@/api/shopProducts';
 import { listShops, type Shop } from '@/api/shops';
@@ -121,7 +125,9 @@ export const ProductDiffPage = () => {
     pageSize: 20,
   });
   const [drawerRecord, setDrawerRecord] = useState<ShopProductSku | null>(null);
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
   const [form] = Form.useForm<DiffFilters>();
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const shopQuery = useQuery({
     queryKey: ['shops', tenantId, 'product-diff'],
@@ -318,16 +324,126 @@ export const ProductDiffPage = () => {
     ];
   }, [drawerRecord, shopMap]);
 
+
+  useEffect(() => {
+    setToolbarSearchInput(filters.keyword ?? '');
+  }, [filters.keyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="????">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            ?????????????????????????????
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            ?????????????????????????????
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="????">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            ?????{records.length}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            ?????{conflictSummary.length || 0}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            ????{shopOptions.length}
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [conflictSummary.length, records.length, shopOptions.length],
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const handleToolbarSearch = () => {
+    const nextKeyword = toolbarSearchInput.trim() || undefined;
+    const nextValues = {
+      ...form.getFieldsValue(),
+      keyword: nextKeyword,
+    };
+    form.setFieldValue('keyword', nextKeyword);
+    handleSearch(nextValues);
+  };
+
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={
+        <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-diff-title">
+          ??????
+        </Typography.Title>
+      }
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={handleToolbarSearch}
+      searchPlaceholder="? SKU / ???????"
+      onExport={() => message.info('???????')}
+      onPrint={() => message.info('???????')}
+      onHelp={() => message.info('????????????????????')}
+    />
+  );
+
+  const rightPanel = (
+    <Card size="small" title="????">
+      <Typography.Paragraph style={{ marginBottom: 6 }}>
+        ????{data?.total ?? 0}
+      </Typography.Paragraph>
+      <Typography.Paragraph style={{ marginBottom: 6 }}>
+        ????{records.length}
+      </Typography.Paragraph>
+      <Typography.Paragraph style={{ marginBottom: 0 }}>
+        ?????{conflictSummary[0] ? `${conflictReasonLabelMap[conflictSummary[0][0]] ?? conflictSummary[0][0]} ? ${conflictSummary[0][1]}` : '??'}
+      </Typography.Paragraph>
+    </Card>
+  );
+
+  const bottomPanel = (
+    <Tabs
+      size="small"
+      items={[
+        {
+          key: 'overview',
+          label: `???? (${records.length})`,
+          children: (
+            <Space wrap data-testid="product-diff-reason-pills">
+              {conflictSummary.length ? (
+                conflictSummary.map(([reason, count]) => (
+                  <Tag key={reason} color="orange">
+                    {conflictReasonLabelMap[reason] ?? reason} ? {count}
+                  </Tag>
+                ))
+              ) : (
+                <Typography.Text type="secondary">???????</Typography.Text>
+              )}
+              {matchSourceSummary.map(([source, count]) => (
+                <Tag key={source} color="blue">
+                  {matchSourceLabelMap[source] ?? source} ? {count}
+                </Tag>
+              ))}
+            </Space>
+          ),
+        },
+      ]}
+    />
+  );
+
   return (
     <>
-      <UiModule02WorkbenchTemplate
-        header={
-          <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-diff-title">
-            产品差异分析
-          </Typography.Title>
-        }
+      <OrderReviewWorkbenchTemplate
+        pageTestId="product-diff-page"
+        toolbar={toolbar}
         tableContent={
-          <>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Card>
               <Form
                 form={form}
@@ -337,75 +453,57 @@ export const ProductDiffPage = () => {
               >
                 <Row gutter={16}>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="platform" label="平台">
-                      <Select allowClear options={platformOptions} placeholder="选择平台" />
+                    <Form.Item name="platform" label="??">
+                      <Select allowClear options={platformOptions} placeholder="????" />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="shop_ids" label="店铺">
-                      <Select mode="multiple" allowClear placeholder="筛选店铺" options={shopOptions} />
+                    <Form.Item name="shop_ids" label="??">
+                      <Select mode="multiple" allowClear placeholder="????" options={shopOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="status" label="SKU 状态">
+                    <Form.Item name="status" label="SKU ??">
                       <Select options={statusOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="match_status" label="匹配状态">
+                    <Form.Item name="match_status" label="????">
                       <Select allowClear options={matchStatusOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="mapping_status" label="映射状态">
+                    <Form.Item name="mapping_status" label="????">
                       <Select allowClear options={mappingStatusOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="match_source" label="匹配来源">
+                    <Form.Item name="match_source" label="????">
                       <Select allowClear options={matchSourceOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Form.Item name="conflict_reason" label="冲突原因">
+                    <Form.Item name="conflict_reason" label="????">
                       <Select allowClear options={conflictReasonOptions} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={8}>
-                    <Form.Item name="keyword" label="关键词">
-                      <Input placeholder="名称 / 平台 SKU" allowClear />
+                    <Form.Item name="keyword" label="???">
+                      <Input placeholder="?? / ?? SKU" allowClear />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
                     <Space>
                       <Button type="primary" htmlType="submit">
-                        筛选
+                        ??
                       </Button>
-                      <Button onClick={handleReset}>重置</Button>
+                      <Button onClick={handleReset}>??</Button>
                     </Space>
                   </Col>
                 </Row>
               </Form>
             </Card>
-            <Card style={{ marginTop: 16 }}>
-              <Space wrap data-testid="product-diff-reason-pills">
-                {conflictSummary.length ? (
-                  conflictSummary.map(([reason, count]) => (
-                    <Tag key={reason} color="orange">
-                      {conflictReasonLabelMap[reason] ?? reason} · {count}
-                    </Tag>
-                  ))
-                ) : (
-                  <Typography.Text type="secondary">当前无冲突记录</Typography.Text>
-                )}
-                {matchSourceSummary.map(([source, count]) => (
-                  <Tag key={source} color="blue">
-                    {matchSourceLabelMap[source] ?? source} · {count}
-                  </Tag>
-                ))}
-              </Space>
-            </Card>
-            <Card title="差异概览" style={{ marginTop: 16 }}>
+            <Card title="????">
               <UiModule03MainTableSection<ShopProductSku>
                 dataTestId="product-diff-table"
                 rowKey="sku_record_id"
@@ -414,7 +512,7 @@ export const ProductDiffPage = () => {
                 loading={isLoading || isFetching}
                 error={error}
                 onRetry={() => refetch()}
-                emptyText="暂无差异记录"
+                emptyText="??????"
                 total={data?.total ?? 0}
                 pagination={pagination}
                 onPaginationChange={setPagination}
@@ -422,36 +520,36 @@ export const ProductDiffPage = () => {
                 enablePanels={false}
               />
             </Card>
-          </>
+          </Space>
         }
+        rightPanel={rightPanel}
+        bottomPanel={bottomPanel}
       />
 
-      <Drawer title="映射追踪" open={Boolean(drawerRecord)} onClose={() => setDrawerRecord(null)} width={520}>
+      <Drawer title="????" open={Boolean(drawerRecord)} onClose={() => setDrawerRecord(null)} width={520}>
         {drawerRecord ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions column={1} size="small">
-              <Descriptions.Item label="平台">{drawerRecord.platform}</Descriptions.Item>
-              <Descriptions.Item label="店铺">
-                {shopMap.get(drawerRecord.shop_id)?.name ?? drawerRecord.shop_id}
-              </Descriptions.Item>
-              <Descriptions.Item label="平台 SKU">{drawerRecord.platform_sku_id}</Descriptions.Item>
+              <Descriptions.Item label="??">{drawerRecord.platform}</Descriptions.Item>
+              <Descriptions.Item label="??">{shopMap.get(drawerRecord.shop_id)?.name ?? drawerRecord.shop_id}</Descriptions.Item>
+              <Descriptions.Item label="?? SKU">{drawerRecord.platform_sku_id}</Descriptions.Item>
               <Descriptions.Item label="ERP SKU">
                 {drawerRecord.mapped_sku_code ?? '-'} {drawerRecord.mapped_sku_name ?? ''}
               </Descriptions.Item>
-              <Descriptions.Item label="映射状态">
-                {mappingStatusLabelMap[drawerRecord.mapping_status ?? ''] ?? '未知'}
+              <Descriptions.Item label="????">
+                {mappingStatusLabelMap[drawerRecord.mapping_status ?? ''] ?? '??'}
               </Descriptions.Item>
-              <Descriptions.Item label="匹配来源">
-                {matchSourceLabelMap[drawerRecord.match_source ?? ''] ?? '未明确'}
+              <Descriptions.Item label="????">
+                {matchSourceLabelMap[drawerRecord.match_source ?? ''] ?? '???'}
               </Descriptions.Item>
-              <Descriptions.Item label="冲突原因">
+              <Descriptions.Item label="????">
                 {drawerRecord.conflict_reason
                   ? conflictReasonLabelMap[drawerRecord.conflict_reason] ?? drawerRecord.conflict_reason
-                  : '未检测到'}
+                  : '????'}
               </Descriptions.Item>
             </Descriptions>
             <Divider style={{ margin: 0 }} />
-            <Typography.Text strong>流向概览</Typography.Text>
+            <Typography.Text strong>????</Typography.Text>
             <Timeline items={timelineItems} />
           </Space>
         ) : null}

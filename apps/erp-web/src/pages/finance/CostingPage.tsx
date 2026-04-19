@@ -85,7 +85,7 @@ export const CostingPage = () => {
     queryKey: ['costing-runs', tenantId, query],
     queryFn: () => listInventoryCostingRuns(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -254,7 +254,7 @@ export const CostingPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

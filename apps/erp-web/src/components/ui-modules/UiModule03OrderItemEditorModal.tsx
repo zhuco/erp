@@ -276,7 +276,7 @@ export const UiModule03OrderItemEditorModal = ({
         width={920}
         className="order-review-item-editor-modal"
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form layout="vertical" form={form} className="order-review-item-editor-form">
           <Form.Item name="sku_code" hidden>
@@ -327,6 +327,7 @@ export const UiModule03OrderItemEditorModal = ({
                   </Form.Item>
                   <Button
                     icon={<EllipsisOutlined />}
+                    aria-label="Open SKU selector"
                     onClick={() => setSkuSelectorOpen(true)}
                   />
                 </Space.Compact>

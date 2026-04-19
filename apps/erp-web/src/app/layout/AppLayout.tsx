@@ -3,7 +3,7 @@ import type { MenuProps } from 'antd';
 import { DownOutlined, MenuOutlined, MoreOutlined, SearchOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -34,7 +34,7 @@ type CachedMenuItem = {
   children?: CachedMenuItem[];
 };
 
-const menuCacheKeyPrefix = 'erp.menu.cache';
+const menuCacheKeyPrefix = 'erp.menu.cache.v2';
 
 const encodeCacheKey = (value: string) => {
   if (typeof window === 'undefined') {
@@ -335,7 +335,7 @@ export const AppLayout = () => {
       key: tabKey,
       path: `${location.pathname}${location.search}`,
       title,
-      closable: tabKey !== '/orders'
+      closable: tabKey !== '/dashboard'
     });
   }, [addOrUpdateTab, location.pathname, location.search, menuTitleMap]);
 
@@ -364,7 +364,7 @@ export const AppLayout = () => {
       if (nextTab) {
         navigate(nextTab.path);
       } else {
-        navigate('/orders');
+        navigate('/dashboard');
       }
     }
   };
@@ -382,7 +382,7 @@ export const AppLayout = () => {
 
   const handleCloseAll = () => {
     closeAllTabs();
-    navigate('/orders');
+    navigate('/dashboard');
   };
 
   const tabActions: MenuProps['items'] = [
@@ -410,19 +410,26 @@ export const AppLayout = () => {
     }
   };
 
+  const handleMenuNavigate = useCallback(
+    (key: string) => {
+      const targetPath = dropdownMenu.keyToPath.get(key);
+      if (targetPath) {
+        navigate(targetPath);
+      }
+    },
+    [dropdownMenu.keyToPath, navigate]
+  );
+
   const handleMainMenuClick: MenuProps['onClick'] = ({ key }) => {
-    const targetPath = dropdownMenu.keyToPath.get(String(key));
-    if (targetPath) {
-      navigate(targetPath);
-    }
+    handleMenuNavigate(String(key));
   };
 
   const handleTopMenuClick: MenuProps['onClick'] = ({ key }) => {
-    const targetPath = dropdownMenu.keyToPath.get(String(key));
-    if (targetPath) {
-      navigate(targetPath);
-    }
+    handleMenuNavigate(String(key));
   };
+
+  const userMenuAriaLabel = useMemo(() => `User menu: ${userName}`, [userName]);
+  const userAvatarInitial = useMemo(() => userName.slice(0, 1).toUpperCase(), [userName]);
 
   const outletKey = `${activeKey ?? location.pathname}-${
     refreshTokens[activeKey ?? location.pathname] ?? 0
@@ -459,15 +466,18 @@ export const AppLayout = () => {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
+                aria-label="Global search"
                 placeholder="搜索订单/包裹/SKU"
                 style={{ width: 240 }}
               />
               <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }}>
-                <Space style={{ cursor: 'pointer' }}>
-                  <Avatar>{userName.slice(0, 1).toUpperCase()}</Avatar>
-                  <span>{userName}</span>
-                  <DownOutlined />
-                </Space>
+                <Button type="text" className="app-layout-user-trigger" aria-label={userMenuAriaLabel}>
+                  <Space>
+                    <Avatar>{userAvatarInitial}</Avatar>
+                    <span>{userName}</span>
+                    <DownOutlined aria-hidden="true" />
+                  </Space>
+                </Button>
               </Dropdown>
             </Space>
           </div>
@@ -477,6 +487,7 @@ export const AppLayout = () => {
             <Select
               value={tenantId || undefined}
               style={{ minWidth: 200 }}
+              aria-label="Tenant selector"
               placeholder="选择商家"
               options={tenantOptions}
               onChange={(value) => setTenantId(value)}
@@ -487,6 +498,7 @@ export const AppLayout = () => {
               allowClear
               value={shopIds.length ? shopIds : undefined}
               style={{ minWidth: 200 }}
+              aria-label="Shop filter"
               placeholder="全部店铺"
               options={shopOptions}
               onChange={(value) => setShopIds(value)}
@@ -496,6 +508,7 @@ export const AppLayout = () => {
             <Select
               value={warehouseId}
               style={{ minWidth: 160 }}
+              aria-label="Default warehouse"
               placeholder="默认仓库"
               options={warehouseOptions}
               onChange={(value) => setWarehouseId(value)}
@@ -522,7 +535,7 @@ export const AppLayout = () => {
             }}
             tabBarExtraContent={
               <Dropdown menu={{ items: tabActions, onClick: handleTabActionClick }}>
-                <Button size="small" icon={<MoreOutlined />} />
+                <Button size="small" icon={<MoreOutlined />} aria-label="Tab actions" />
               </Dropdown>
             }
           />

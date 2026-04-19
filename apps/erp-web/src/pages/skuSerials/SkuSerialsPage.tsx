@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   Card,
@@ -375,7 +375,7 @@ const SkuSerialRulesPanel = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -471,7 +471,7 @@ export const SkuSerialsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sku-serials', tenantId, query],
     queryFn: () => listSkuSerials(tenantId, query),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: Boolean(tenantId)
   });
 
@@ -911,7 +911,7 @@ export const SkuSerialsPage = () => {
         open={generateOpen}
         onClose={() => setGenerateOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setGenerateOpen(false)}>取消</Button>

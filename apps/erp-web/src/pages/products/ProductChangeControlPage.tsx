@@ -490,7 +490,7 @@ export const ProductChangeControlPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         data-testid="product-change-drawer"
         footer={
           <Space>

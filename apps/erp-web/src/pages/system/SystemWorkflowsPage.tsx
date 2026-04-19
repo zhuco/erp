@@ -506,7 +506,7 @@ export const SystemWorkflowsPage = () => {
         okText="保存"
         okButtonProps={{ loading: saveMutation.isPending }}
         cancelButtonProps={{ disabled: saveMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={ruleForm} layout="vertical">
           <Form.Item
@@ -569,7 +569,7 @@ export const SystemWorkflowsPage = () => {
         okText="保存"
         okButtonProps={{ loading: saveMutation.isPending }}
         cancelButtonProps={{ disabled: saveMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={workflowForm} layout="vertical">
           <Form.Item

@@ -45,7 +45,7 @@ export const TransferSuggestionsPage = () => {
   const listQuery = useQuery({
     queryKey: ['planning', 'transfer-suggestions', tenantId],
     queryFn: () => listPlanningTransferSuggestions(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const generateMutation = useMutation({

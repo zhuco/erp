@@ -11,7 +11,7 @@ import {
   Space,
   Tag,
   Typography,
-  message
+  message,
 } from 'antd';
 import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Supplier, SupplierCreatePayload } from '@/api/suppliers';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/api/suppliers';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 type FilterValues = {
@@ -40,7 +40,7 @@ const formatDateTime = (value?: string | null) =>
 
 const statusOptions = [
   { label: 'ACTIVE', value: 'ACTIVE' },
-  { label: 'INACTIVE', value: 'INACTIVE' }
+  { label: 'INACTIVE', value: 'INACTIVE' },
 ];
 
 export const SuppliersPage = () => {
@@ -51,7 +51,7 @@ export const SuppliersPage = () => {
   const [filters, setFilters] = useState<FilterValues>({});
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 20
+    pageSize: 20,
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -62,15 +62,15 @@ export const SuppliersPage = () => {
     () => ({
       keyword: filters.keyword?.trim() || undefined,
       offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? 20),
-      limit: pagination.pageSize ?? 20
+      limit: pagination.pageSize ?? 20,
     }),
-    [filters, pagination.current, pagination.pageSize]
+    [filters, pagination.current, pagination.pageSize],
   );
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['suppliers', tenantId, query],
     queryFn: () => listSuppliers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData,
   });
 
   const deleteMutation = useMutation({
@@ -87,34 +87,34 @@ export const SuppliersPage = () => {
     },
     onSettled: () => {
       setDeletingId(null);
-    }
+    },
   });
 
   const columns = useMemo<ColumnsType<Supplier>>(
     () => [
       {
         title: 'Supplier',
-        dataIndex: 'name'
+        dataIndex: 'name',
       },
       {
         title: 'Contact',
-        dataIndex: 'contact'
+        dataIndex: 'contact',
       },
       {
         title: 'Settlement',
-        dataIndex: 'settlement_terms'
+        dataIndex: 'settlement_terms',
       },
       {
         title: 'Status',
         dataIndex: 'status',
         render: (value?: string | null) => (
           <Tag color={value === 'ACTIVE' ? 'green' : 'default'}>{value ?? '-'}</Tag>
-        )
+        ),
       },
       {
         title: 'Updated At',
         dataIndex: 'updated_at',
-        render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
+        render: (_, record) => formatDateTime(record.updated_at ?? record.created_at),
       },
       {
         title: 'Actions',
@@ -130,7 +130,7 @@ export const SuppliersPage = () => {
                   name: record.name,
                   contact: record.contact ?? undefined,
                   settlement_terms: record.settlement_terms ?? undefined,
-                  status: record.status ?? undefined
+                  status: record.status ?? undefined,
                 });
               }}
             >
@@ -151,10 +151,10 @@ export const SuppliersPage = () => {
               </Button>
             </Popconfirm>
           </Space>
-        )
-      }
+        ),
+      },
     ],
-    [deleteMutation, deletingId, drawerForm]
+    [deleteMutation, deletingId, drawerForm],
   );
 
   const handleSearch = (values: FilterValues) => {
@@ -181,7 +181,7 @@ export const SuppliersPage = () => {
         name: values.name.trim(),
         contact: values.contact?.trim() || undefined,
         settlement_terms: values.settlement_terms?.trim() || undefined,
-        status: values.status
+        status: values.status,
       };
       setSaving(true);
       if (editingSupplier) {
@@ -203,7 +203,7 @@ export const SuppliersPage = () => {
     }
   };
 
-  return (
+  const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Row justify="space-between" align="middle">
         <Typography.Title level={3} style={{ margin: 0 }} data-testid="suppliers-title">
@@ -223,11 +223,7 @@ export const SuppliersPage = () => {
                 <Input allowClear placeholder="Search by supplier name" />
               </Form.Item>
             </Col>
-            <Col
-              xs={24}
-              md={16}
-              style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
-            >
+            <Col xs={24} md={16} style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}>
               <Space>
                 <Button type="primary" htmlType="submit" data-testid="suppliers-search">
                   Search
@@ -240,7 +236,13 @@ export const SuppliersPage = () => {
           </Row>
         </Form>
       </Card>
-      <ServerTable<Supplier>
+    </Space>
+  );
+
+  return (
+    <>
+      <UiModule03MainTableSection<Supplier>
+        header={header}
         rowKey="supplier_id"
         columns={columns}
         data={data?.items ?? []}
@@ -259,7 +261,7 @@ export const SuppliersPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -270,11 +272,7 @@ export const SuppliersPage = () => {
         }
       >
         <Form form={drawerForm} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Supplier name"
-            rules={[{ required: true, message: 'Please enter supplier name' }]}
-          >
+          <Form.Item name="name" label="Supplier name" rules={[{ required: true, message: 'Please enter supplier name' }]}>
             <Input placeholder="Supplier name" />
           </Form.Item>
           <Form.Item name="contact" label="Contact">
@@ -288,6 +286,6 @@ export const SuppliersPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
-    </Space>
+    </>
   );
 };

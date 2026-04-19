@@ -69,7 +69,7 @@ export const CustomerTagsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-tags', tenantId, query],
     queryFn: () => listCustomerTags(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -246,7 +246,7 @@ export const CustomerTagsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

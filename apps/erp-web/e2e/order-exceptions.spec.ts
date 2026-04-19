@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 const getSelectionCell = (grid: any, rowId: string) =>
   grid.locator(`.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"]`).first();
@@ -110,6 +110,37 @@ test('订单复核页面接入统一主表和底部子表模板', async ({ page 
   await expect(page.getByTestId('order-review-goods-tab')).toBeVisible();
   await expect(page.getByRole('tab', { name: '货品', exact: true })).toBeVisible();
   await expect(page.getByRole('tab', { name: '日志', exact: true })).toBeVisible();
+});
+
+test('订单复核排序图标使用轻量箭头样式，不显示深色方块', async ({ page }) => {
+  await page.goto('/orders/exceptions');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-exceptions-data-grid');
+  await expect(grid).toBeVisible();
+  await expect.poll(async () => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row').count()).toBeGreaterThan(0);
+
+  const orderNoHeader = grid.locator('.ag-header-row-column .ag-header-cell[col-id="order_no"]').first();
+  await expect(orderNoHeader).toBeVisible();
+
+  await orderNoHeader.click();
+
+  const sortIcon = orderNoHeader.locator('.ag-sort-indicator-container .ag-icon').first();
+  await expect(sortIcon).toBeVisible();
+
+  const pseudoStyles = await sortIcon.evaluate((element) => {
+    const beforeStyles = getComputedStyle(element, '::before');
+    const afterStyles = getComputedStyle(element, '::after');
+    return {
+      beforeDisplay: beforeStyles.display,
+      afterDisplay: afterStyles.display,
+      afterBackgroundImage: afterStyles.backgroundImage,
+    };
+  });
+
+  expect(pseudoStyles.beforeDisplay).toBe('none');
+  expect(pseudoStyles.afterDisplay).toBe('block');
+  expect(pseudoStyles.afterBackgroundImage).toContain('data:image/svg+xml');
 });
 
 test('订单复核左侧过滤到待处理后，主表首行显示与网格数据保持一致', async ({ page }) => {
@@ -291,7 +322,7 @@ test('订单复核首击选择列即可勾选，无需先激活行', async ({ pa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-exceptions-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await page.waitForTimeout(800);
@@ -318,7 +349,7 @@ test('订单复核暴露单击选择列勾选的点击诊断信息', async ({ pa
   await expect(grid).toBeVisible();
 
   const diagnostic = grid.getByTestId('order-exceptions-selection-diagnostic');
-  await expect(diagnostic).toBeVisible();
+  await expect(diagnostic).toBeHidden();
 
   const rows = grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
   await page.waitForTimeout(800);
@@ -661,4 +692,147 @@ test('订单复核单行筛选结果在延迟后仍保持可见', async ({ page 
   }
 
   test.skip(executed === 0, '左侧单行筛选节点未渲染，跳过延迟可见性断言');
+});
+
+test('订单复核左侧过滤会清空列筛选且不留下空白选择框', async ({ page }, testInfo) => {
+  await page.goto('/orders/exceptions');
+  await loginAndSelectTenant(page);
+
+  const grid = page.getByTestId('order-exceptions-data-grid');
+  await expect(grid).toBeVisible();
+
+  const platformFilter = page.getByTestId('order-exceptions-floating-filter-platform');
+  await expect(platformFilter).toBeVisible();
+
+  const candidate = await page.evaluate<
+    | {
+        platform: string;
+        leftNodeId: string;
+      }
+    | null
+  >(() => {
+    const gridTestWindow = window as Window & {
+      __ERP_GRID_TEST_APIS?: Record<string, unknown>;
+    };
+    const api = gridTestWindow.__ERP_GRID_TEST_APIS?.['order-exceptions-data-grid'] as
+      | {
+          forEachNode: (
+            callback: (node: {
+              data?: {
+                platform?: string | null;
+                exception_status?: string | null;
+                target_warehouse_id?: string | null;
+                assignee_name?: string | null;
+              };
+            }) => void,
+          ) => void;
+        }
+      | undefined;
+    if (!api) {
+      return null;
+    }
+
+    const rows: Array<{
+      platform: string;
+      status: string;
+      warehouse: string;
+      assignee: string;
+    }> = [];
+
+    api.forEachNode((node) => {
+      const platform = String(node.data?.platform ?? '').trim();
+      const status = String(node.data?.exception_status ?? '').trim();
+      if (!platform || !status) {
+        return;
+      }
+      rows.push({
+        platform,
+        status,
+        warehouse: String(node.data?.target_warehouse_id ?? '').trim() || '__none__',
+        assignee: String(node.data?.assignee_name ?? '').trim() || '__unassigned__',
+      });
+    });
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const buildCandidate = (
+      getNodeId: (row: (typeof rows)[number]) => string,
+      getGroupValue: (row: (typeof rows)[number]) => string,
+    ) => {
+      const platforms = Array.from(new Set(rows.map((row) => row.platform)));
+      const groups = Array.from(new Set(rows.map((row) => getGroupValue(row))));
+
+      for (const platform of platforms) {
+        for (const group of groups) {
+          const groupRows = rows.filter((row) => getGroupValue(row) === group);
+          if (groupRows.length === 0) {
+            continue;
+          }
+          const hasPlatformInsideGroup = groupRows.some((row) => row.platform === platform);
+          const hasPlatformOutsideGroup = rows.some(
+            (row) => row.platform === platform && getGroupValue(row) !== group,
+          );
+          if (!hasPlatformInsideGroup && hasPlatformOutsideGroup) {
+            return {
+              platform,
+              leftNodeId: getNodeId(groupRows[0]!),
+            };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    return (
+      buildCandidate((row) => `status:${row.status}`, (row) => row.status) ??
+      buildCandidate((row) => `warehouse:${row.warehouse}`, (row) => row.warehouse) ??
+      buildCandidate((row) => `assignee:${row.assignee}`, (row) => row.assignee)
+    );
+  });
+
+  test.skip(candidate == null, '当前模拟数据未找到“左侧过滤后应清空列筛选”的样本');
+  if (candidate == null) {
+    return;
+  }
+
+  await platformFilter.selectOption(candidate.platform);
+  await expect(platformFilter).toHaveValue(candidate.platform);
+  await grid.screenshot({
+    path: testInfo.outputPath('order-exceptions-column-filter-active.png'),
+  });
+
+  const leftNode = page
+    .locator(`.order-review-left-ag-grid-shell .ag-row[row-id="${candidate.leftNodeId}"] .ag-cell`)
+    .first();
+  await expect(leftNode).toBeVisible();
+  await leftNode.click();
+  await page.waitForTimeout(300);
+  await grid.screenshot({
+    path: testInfo.outputPath('order-exceptions-column-filter-cleared-after-left-filter.png'),
+  });
+
+  await expect
+    .poll(async () => {
+      return platformFilter.evaluate((element) => {
+        const select = element as HTMLSelectElement;
+        const selectedOption = select.selectedOptions.item(0);
+        return {
+          value: select.value,
+          selectedIndex: select.selectedIndex,
+          selectedText: selectedOption?.textContent?.trim() ?? '',
+        };
+      });
+    })
+    .toEqual({
+      value: '',
+      selectedIndex: 0,
+      selectedText: '全部平台',
+    });
+
+  await expect
+    .poll(async () => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row').count())
+    .toBeGreaterThan(0);
 });

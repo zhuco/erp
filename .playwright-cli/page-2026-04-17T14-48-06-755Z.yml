@@ -1,0 +1,30 @@
+- generic [ref=e7]:
+  - img "衡策云" [ref=e10]
+  - heading "登录 衡策云" [level=3] [ref=e12]
+  - generic [ref=e13]: 使用账号密码登录进入系统。
+  - generic [ref=e15]:
+    - generic [ref=e17]:
+      - generic "商家ID" [ref=e19]: "* 商家ID"
+      - generic [ref=e20]:
+        - textbox "* 商家ID" [ref=e23]:
+          - /placeholder: 请输入商家ID
+        - generic [ref=e59]: 请输入商家ID
+    - generic [ref=e25]:
+      - generic "用户名" [ref=e27]: "* 用户名"
+      - textbox "* 用户名" [ref=e31]:
+        - /placeholder: 请输入用户名
+        - text: 11111111-1111-1111-1111-111111111111erp-operator
+    - generic [ref=e33]:
+      - generic "密码" [ref=e35]: "* 密码"
+      - generic [ref=e39]:
+        - textbox "* 密码" [ref=e40]:
+          - /placeholder: 请输入密码
+          - text: mock-password
+        - img "eye-invisible" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+    - button "登 录" [active] [ref=e46] [cursor=pointer]:
+      - generic [ref=e47]: 登 录
+  - button "collapsed 高级：使用访问 Token 登录" [ref=e51] [cursor=pointer]:
+    - img "collapsed" [ref=e53]:
+      - img [ref=e54]
+    - generic [ref=e56]: 高级：使用访问 Token 登录

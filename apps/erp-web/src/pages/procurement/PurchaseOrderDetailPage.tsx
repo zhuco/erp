@@ -313,7 +313,7 @@ export const PurchaseOrderDetailPage = () => {
         onOk={handleReceive}
         confirmLoading={receiveMutation.isPending}
         okText="Confirm"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={receiveForm} layout="vertical">
           <Form.Item

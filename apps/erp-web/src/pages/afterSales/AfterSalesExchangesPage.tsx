@@ -84,7 +84,7 @@ export const AfterSalesExchangesPage = () => {
   const { data, isFetching, error, refetch } = useQuery({
     queryKey: ['after-sales', tenantId, 'exchange-resend', query],
     queryFn: () => listAfterSales(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleSearch = (values: FilterValues) => {

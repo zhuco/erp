@@ -136,7 +136,7 @@ export const MarketingPostmortemsPage = () => {
     queryKey: ['marketing-postmortems', tenantId, query],
     queryFn: () => listMarketingPostmortems(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -325,7 +325,7 @@ export const MarketingPostmortemsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={620}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

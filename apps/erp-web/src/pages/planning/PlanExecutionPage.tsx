@@ -39,7 +39,7 @@ export const PlanExecutionPage = () => {
   const query = useQuery({
     queryKey: ['planning', 'plan-executions', tenantId],
     queryFn: () => listPlanningPlanExecutions(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const items = query.data?.items ?? [];

@@ -283,7 +283,7 @@ export const PurchaseSuggestionsPage = () => {
         onOk={handleCreate}
         confirmLoading={createMutation.isPending}
         okText="Create"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={createForm} layout="vertical">
           <Form.Item

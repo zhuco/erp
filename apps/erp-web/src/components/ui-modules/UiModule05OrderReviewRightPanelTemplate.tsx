@@ -1,5 +1,8 @@
-﻿import { Button, Descriptions, Dropdown, Select, Space, Tag, Typography } from 'antd';
+import { Button, Descriptions, Dropdown, Select, Space, Typography } from 'antd';
 import type { MenuProps, SelectProps } from 'antd';
+
+import { OrderTagBadges } from '@/components/OrderTagBadges';
+import type { OrderDisplayTag } from '@/features/orderTags';
 
 import { UiModule05DetailPanel } from './UiModule05DetailPanel';
 import './UiModule05OrderReviewRightPanelTemplate.css';
@@ -24,7 +27,7 @@ type UiModule05OrderReviewRightPanelTemplateProps = {
   warehouseUpdating: boolean;
   detailSelectDisabled: boolean;
   orderTagsApplying: boolean;
-  markTags: string[];
+  markTags: OrderDisplayTag[];
   markMenuItems: NonNullable<MenuProps['items']>;
   onMarkSelect: (key: string) => void;
   onLogisticsChange: (value: string) => void;
@@ -62,12 +65,10 @@ export const UiModule05OrderReviewRightPanelTemplate = ({
           key: 'marks',
           label: '订单记号',
           children: (
-            <div className="ui-module-05-order-mark-inline">
-              <div className="ui-module-05-order-mark-inline-tags">
-                {markTags.map((tag) => (
-                  <Tag key={tag}>{tag}</Tag>
-                ))}
-              </div>
+              <div className="ui-module-05-order-mark-inline">
+                <div className="ui-module-05-order-mark-inline-tags">
+                  <OrderTagBadges tags={markTags} emptyText="-" />
+                </div>
               <Dropdown
                 trigger={['click']}
                 menu={{

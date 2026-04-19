@@ -112,7 +112,7 @@ export const SupplierPerformancePage = () => {
     queryKey: ['supplier-performances', tenantId, query],
     queryFn: () => listSupplierPerformances(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

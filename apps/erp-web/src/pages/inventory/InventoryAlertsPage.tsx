@@ -196,7 +196,7 @@ export const InventoryAlertsPage = () => {
     queryKey: ['inventory-alerts', tenantId, listQuery],
     queryFn: () => listInventoryAlerts(tenantId, listQuery),
     enabled: tenantReady && insightsFeature.enabled,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     retry: false
   });
 

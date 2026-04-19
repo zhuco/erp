@@ -1,4 +1,4 @@
-﻿
+
 import { Alert, Button, Descriptions, Empty, Form, Input, InputNumber, Modal, Select, Space, Spin, Tabs, Typography, message } from 'antd';
 import type { MenuProps, TablePaginationConfig } from 'antd';
 import {
@@ -51,9 +51,6 @@ import {
   UiModule03TableFooter,
   UiModule04BottomTable,
   UiModule05DetailPanel,
-  UiModule08LeftAgFilterTab,
-  UiModule08LeftPanelTemplate,
-  UiModule08LeftScreenTab,
   UiModule08StrategyScreenFilterForm,
   createUiModule08StrategyScreenFilterState,
   type UiModule08StrategyScreenFilterState,
@@ -1716,94 +1713,109 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
 
   const leftPanel = useMemo(
     () => (
-      <UiModule08LeftPanelTemplate
-        className="order-review-left-ag-panel"
-        dataTestId="order-review-left-ag-panel"
-        activeKey={leftTab}
-        onChange={(key) => setLeftTab(key as 'filter' | 'screen')}
-        filterContent={
-          <div className="order-review-left-ag-filter-tab">
-            <UiModule08LeftAgFilterTab
-              className="order-review-left-ag-filter-grid-area"
-              title="左侧过滤（AG Grid）"
-              keyword={leftKeyword}
-              onKeywordChange={setLeftKeyword}
-              searchPlaceholder="搜索平台/店铺"
-              toolsExtra={
-                <Button
-                  size="small"
-                  type="link"
-                  disabled={!selectedPlatform.length && !selectedShop.length}
-                  onClick={() => setColumnFilters({})}
-                >
-                  清空
-                </Button>
-              }
-              gridShellClassName="ag-theme-quartz order-review-left-ag-grid-shell"
-            >
-              <AgGridReact<OrderReviewAgLeftRenderRow>
-                theme="legacy"
-                rowData={leftRowsForRender}
-                columnDefs={leftColDefs}
-                getRowId={(params) => params.data.key}
-                rowHeight={30}
-                headerHeight={32}
-                sideBar={false}
-                cellSelection={false}
-                enableCellTextSelection={false}
-                onCellClicked={handleLeftClick}
-                getRowClass={(params) => (params.data?.checked ? 'order-review-left-ag-row-checked' : undefined)}
-              />
-            </UiModule08LeftAgFilterTab>
-            <div className="order-review-left-ag-stats" data-testid="order-review-left-stats">
-              <div className="order-review-left-ag-stats-header">
-                <Typography.Text strong>过滤统计</Typography.Text>
-                <Typography.Text type="secondary" data-testid="order-review-left-stats-total">
-                  总订单 {globalOrderTotal}
-                </Typography.Text>
-              </div>
-              <Typography.Text type="secondary">
-                {isGlobalStatsFetching ? '统计更新中…' : shouldFallbackToAll ? '口径：全部订单' : '口径：待复核订单'}
-              </Typography.Text>
-              <div className="order-review-left-ag-stats-body">
-                <div className="order-review-left-ag-stats-pie-wrap">
-                  <div
-                    className="order-review-left-ag-stats-pie"
-                    style={{ backgroundImage: leftStatsPieBackground }}
-                    data-testid="order-review-left-stats-pie"
-                  >
-                    <span className="order-review-left-ag-stats-pie-center">
-                      <PieChartOutlined />
-                    </span>
+      <div className="order-review-left-ag-panel" data-testid="order-review-left-ag-panel">
+        <Tabs
+          size="small"
+          activeKey={leftTab}
+          onChange={(key) => setLeftTab(key as 'filter' | 'screen')}
+          items={[
+            {
+              key: 'filter',
+              label: '过滤',
+              children: (
+                <div className="order-review-left-ag-filter-tab">
+                  <div className="order-review-left-ag-stats-header">
+                    <Typography.Text strong>左侧过滤（AG Grid）</Typography.Text>
+                    <Button
+                      size="small"
+                      type="link"
+                      disabled={!selectedPlatform.length && !selectedShop.length}
+                      onClick={() => setColumnFilters({})}
+                    >
+                      清空
+                    </Button>
+                  </div>
+                  <Input.Search
+                    allowClear
+                    size="small"
+                    placeholder="搜索平台/店铺"
+                    value={leftKeyword}
+                    onChange={(event) => setLeftKeyword(event.target.value)}
+                  />
+                  <div className="ag-theme-quartz order-review-left-ag-grid-shell order-review-left-ag-filter-grid-area">
+                    <AgGridReact<OrderReviewAgLeftRenderRow>
+                      theme="legacy"
+                      rowData={leftRowsForRender}
+                      columnDefs={leftColDefs}
+                      getRowId={(params) => params.data.key}
+                      rowHeight={30}
+                      headerHeight={32}
+                      sideBar={false}
+                      cellSelection={false}
+                      enableCellTextSelection={false}
+                      onCellClicked={handleLeftClick}
+                      getRowClass={(params) => (params.data?.checked ? 'order-review-left-ag-row-checked' : undefined)}
+                    />
+                  </div>
+                  <div className="order-review-left-ag-stats" data-testid="order-review-left-stats">
+                    <div className="order-review-left-ag-stats-header">
+                      <Typography.Text strong>过滤统计</Typography.Text>
+                      <Typography.Text type="secondary" data-testid="order-review-left-stats-total">
+                        总订单 {globalOrderTotal}
+                      </Typography.Text>
+                    </div>
+                    <Typography.Text type="secondary">
+                      {isGlobalStatsFetching ? '统计更新中…' : shouldFallbackToAll ? '口径：全部订单' : '口径：待复核订单'}
+                    </Typography.Text>
+                    <div className="order-review-left-ag-stats-body">
+                      <div className="order-review-left-ag-stats-pie-wrap">
+                        <div
+                          className="order-review-left-ag-stats-pie"
+                          style={{ backgroundImage: leftStatsPieBackground }}
+                          data-testid="order-review-left-stats-pie"
+                        >
+                          <span className="order-review-left-ag-stats-pie-center">
+                            <PieChartOutlined />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="order-review-left-ag-stats-legend">
+                        {leftStatsItems.map((item) => (
+                          <div className="order-review-left-ag-stats-legend-row" key={item.key}>
+                            <span
+                              className="order-review-left-ag-stats-dot"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="order-review-left-ag-stats-label">{item.label}</span>
+                            <span className="order-review-left-ag-stats-value">{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="order-review-left-ag-stats-legend">
-                  {leftStatsItems.map((item) => (
-                    <div className="order-review-left-ag-stats-legend-row" key={item.key}>
-                      <span
-                        className="order-review-left-ag-stats-dot"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="order-review-left-ag-stats-label">{item.label}</span>
-                      <span className="order-review-left-ag-stats-value">{item.value}</span>
-                    </div>
-                  ))}
+              ),
+            },
+            {
+              key: 'screen',
+              label: '筛选',
+              children: (
+                <div className="order-review-left-ag-screen-tab">
+                  <div className="order-review-left-ag-stats-header">
+                    <Typography.Text strong>筛选条件</Typography.Text>
+                  </div>
+                  <UiModule08StrategyScreenFilterForm
+                    value={leftScreenFiltersDraft}
+                    onFieldChange={updateLeftScreenFilter}
+                    onApply={applyLeftScreenFilters}
+                    onReset={resetLeftScreenFilters}
+                  />
                 </div>
-              </div>
-            </div>
-          </div>
-        }
-        screenContent={
-          <UiModule08LeftScreenTab className="order-review-left-ag-screen-tab" title="筛选条件">
-            <UiModule08StrategyScreenFilterForm
-              value={leftScreenFiltersDraft}
-              onFieldChange={updateLeftScreenFilter}
-              onApply={applyLeftScreenFilters}
-              onReset={resetLeftScreenFilters}
-            />
-          </UiModule08LeftScreenTab>
-        }
-      />
+              ),
+            },
+          ]}
+        />
+      </div>
     ),
     [
       applyLeftScreenFilters,

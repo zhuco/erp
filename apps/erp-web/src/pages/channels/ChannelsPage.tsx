@@ -1,356 +1,387 @@
 import './channelsPage.css';
 
+import { ReloadOutlined } from '@ant-design/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
-  Col,
-  DatePicker,
+  Descriptions,
   Drawer,
   Form,
   Input,
-  Modal,
-  Popconfirm,
-  Row,
   Select,
   Space,
-  Switch,
   Tag,
+  Tabs,
   Typography,
   message,
 } from 'antd';
 import type { MenuProps, TablePaginationConfig } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Dayjs } from 'dayjs';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type Key } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Key,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import type { Channel, ChannelCreatePayload } from '@/api/channels';
-import { createChannel, deleteChannel, listChannels, updateChannel } from '@/api/channels';
-import { listWarehouses } from '@/api/warehouses';
-import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
+import type { Shop, ShopCreatePayload, ShopUpdatePayload } from '@/api/shops';
+import {
+  createShop,
+  getShopAuthStatus,
+  listShops,
+  requestTokenRefresh,
+  startShopAuthorize,
+  submitShopAuthCallback,
+  updateShop,
+} from '@/api/shops';
+import type { OrderSummary } from '@/api/orders';
 import { PlatformTag } from '@/components/PlatformTag';
-import { UiModule03ContextMenu, UiModule03MainTableSection } from '@/components/ui-modules';
+import {
+  UiModule03ContextMenu,
+  createUiModule08StrategyScreenFilterState,
+  type UiModule08StrategyScreenFilterChangeHandler,
+} from '@/components/ui-modules';
+import {
+  WorkbenchPageTemplate,
+  WorkbenchToolbar,
+} from '@/components/page-templates';
 import type { PlatformCode } from '@/features/platform';
-import { platformOptions } from '@/features/platform';
+import { platformOptions, platformValues } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
+import { OrderReviewLeftPanel } from '@/pages/orders/review-native/OrderReviewLeftPanel';
+import type { ColumnFilters as OrderReviewMainColumnFilters } from '@/pages/orders/review-native/types';
+import { OrderWorkbenchMainGridEntry } from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
+import { useLeftFilterModule, type LeftFilterPanelProps } from '@/pages/orders/shared/useLeftFilterModule';
 import { routerBasePath, routerMode } from '@/utils/env';
 
-import {
-  ChannelsWorkbenchLeftPanel,
-  ChannelsWorkbenchOverview,
-  ChannelsWorkbenchRightPanel,
-} from './ChannelWorkbenchPanels';
-import {
-  buildChannelActiveFilterSummary,
-  buildChannelAuthCallbackUrl,
-  buildChannelListQuery,
-  buildChannelQuickFilters,
-  filterChannels,
-  parseChannelAuthCallbackSearch,
-  resolveChannelQuickFilterState,
-  summarizeChannels,
-  type ChannelQuickFilterId,
-  type ChannelStatusFilter,
-  type ChannelWorkbenchColumnFilters,
-} from './channelWorkbenchModel';
+import { buildShopAuthCallbackUrl, parseShopAuthCallbackSearch } from './shopAccessModel';
 
-type FormValues = {
+type ShopStatusFilter = 'all' | 'AUTHORIZED' | 'EXPIRED' | 'DISABLED';
+type TokenHealthFilter = 'all' | 'healthy' | 'expiring' | 'expired' | 'missing' | 'error';
+type TokenHealth = Exclude<TokenHealthFilter, 'all'>;
+type ShopSecondaryActionKey =
+  | 'edit'
+  | 'authorize'
+  | 'refresh-token'
+  | 'toggle-status'
+  | 'goto-shop-access'
+  | 'goto-sync-jobs';
+
+type ShopWorkbenchFilters = {
+  platform?: PlatformCode[];
+  status?: Array<Exclude<ShopStatusFilter, 'all'>>;
+  tokenHealth?: TokenHealth[];
+};
+
+type ShopColumnFilterState = {
+  nameKeyword: string;
+  platformShopIdKeyword: string;
+  shopIdKeyword: string;
+  status: ShopStatusFilter;
+  tokenHealth: TokenHealthFilter;
+};
+
+type ShopFormValues = {
   platform: PlatformCode;
+  platform_shop_id: string;
   name: string;
-  department?: string;
-  owner?: string;
-  allow_manual_order: boolean;
-  allow_manual_after_sales: boolean;
-  default_warehouse_id?: string;
-  commission_formula?: string;
+  status: string;
+  auth_meta_json_input?: string;
 };
 
-type PlatformPickerMode = 'create' | 'copy';
-
-type ChannelColumnFilters = Omit<ChannelWorkbenchColumnFilters, 'updatedRange'> & {
-  updatedRange?: [Dayjs, Dayjs] | null;
+type ShopContextMenuState = {
+  open: boolean;
+  position: { x: number; y: number } | null;
+  shop: Shop | null;
 };
 
-const statusMeta = {
-  ACTIVE: { label: '启用中', color: 'success' },
-  DISABLED: { label: '已停用', color: 'default' },
-} as const;
+const shopStatusOptions: Array<{ label: string; value: ShopStatusFilter }> = [
+  { label: '全部状态', value: 'all' },
+  { label: '已授权', value: 'AUTHORIZED' },
+  { label: '授权过期', value: 'EXPIRED' },
+  { label: '已停用', value: 'DISABLED' },
+];
+
+const tokenHealthOptions: Array<{ label: string; value: TokenHealthFilter }> = [
+  { label: '全部 Token', value: 'all' },
+  { label: '健康', value: 'healthy' },
+  { label: '即将过期', value: 'expiring' },
+  { label: '已过期', value: 'expired' },
+  { label: '缺失', value: 'missing' },
+  { label: '异常', value: 'error' },
+];
+
+const leftPanelStatusOptions = shopStatusOptions.filter(
+  (option): option is { label: string; value: Exclude<ShopStatusFilter, 'all'> } =>
+    option.value !== 'all',
+);
+
+const leftPanelTokenOptions = tokenHealthOptions.filter(
+  (option): option is { label: string; value: TokenHealth } => option.value !== 'all',
+);
+
+const editableStatusOptions = shopStatusOptions
+  .filter((option) => option.value !== 'all')
+  .map((option) => ({ label: option.label, value: option.value }));
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
 
-const createEmptyColumnFilters = (): ChannelColumnFilters => ({
-  updatedRange: null,
-});
+const resolveStatusTag = (status: string) => {
+  switch (status) {
+    case 'AUTHORIZED':
+      return { color: 'success', label: '已授权' };
+    case 'EXPIRED':
+      return { color: 'warning', label: '授权过期' };
+    case 'DISABLED':
+      return { color: 'default', label: '已停用' };
+    default:
+      return { color: 'processing', label: status || '未知状态' };
+  }
+};
 
-const isPlatformCode = (value: string | null): value is PlatformCode =>
-  Boolean(value && platformOptions.some((option) => option.value === value));
+const resolveTokenHealth = (shop: Shop): TokenHealth => {
+  const token = shop.token_status;
+  if (!token || !token.has_access_token) {
+    return 'missing';
+  }
+  if (token.last_error?.trim()) {
+    return 'error';
+  }
+  if (token.is_expired) {
+    return 'expired';
+  }
+  if (token.is_expiring_soon) {
+    return 'expiring';
+  }
+  return 'healthy';
+};
+
+const resolveTokenTag = (health: TokenHealth) => {
+  switch (health) {
+    case 'healthy':
+      return { color: 'success', label: '健康' };
+    case 'expiring':
+      return { color: 'warning', label: '即将过期' };
+    case 'expired':
+      return { color: 'error', label: '已过期' };
+    case 'missing':
+      return { color: 'default', label: '缺失' };
+    case 'error':
+      return { color: 'volcano', label: '异常' };
+    default:
+      return { color: 'default', label: '-' };
+  }
+};
+
+const parseAuthMetaInput = (raw?: string): Record<string, unknown> | undefined => {
+  if (!raw || !raw.trim()) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    throw new Error('授权元信息必须是 JSON 对象');
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : '授权元信息 JSON 格式错误');
+  }
+};
+
+const EMPTY_SHOP_ITEMS: Shop[] = [];
+const EMPTY_SHOP_WORKBENCH_FILTERS: ShopWorkbenchFilters = {};
+
+const normalizeStringArray = (value?: string[]) =>
+  value ? Array.from(new Set(value.map((item) => item.trim()).filter(Boolean))) : [];
+
+const resolveConicGradientBackground = (segments: Array<{ ratio: number; color: string }>) => {
+  if (segments.length === 0) {
+    return 'conic-gradient(#dce4ee 0deg 360deg)';
+  }
+  let angle = 0;
+  const stops = segments.map((segment) => {
+    const start = angle;
+    const end = angle + segment.ratio * 360;
+    angle = end;
+    return `${segment.color} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`;
+  });
+  if (angle < 360) {
+    stops.push(`#dce4ee ${angle.toFixed(2)}deg 360deg`);
+  }
+  return `conic-gradient(${stops.join(', ')})`;
+};
+
+const mapShopToOrderSummary = (shop: Shop): OrderSummary => {
+  const tokenHealth = resolveTokenHealth(shop);
+  const tokenLabel = resolveTokenTag(tokenHealth).label;
+  const statusForReview =
+    shop.status === 'AUTHORIZED'
+      ? 'REVIEW_PASSED'
+      : shop.status === 'EXPIRED'
+        ? 'REVIEW_REQUIRED'
+        : 'REJECTED';
+
+  const orderStatus = shop.status === 'DISABLED' ? 'CANCELED' : 'PENDING_SHIPMENT';
+  const exceptionFlags =
+    tokenHealth === 'healthy'
+      ? []
+      : tokenHealth === 'expiring'
+        ? ['STOP_SHIPPING']
+        : tokenHealth === 'expired'
+          ? ['NO_LOGISTICS']
+          : tokenHealth === 'missing'
+            ? ['MISSING_SKU']
+            : ['ORDER_FROZEN'];
+
+  return {
+    id: shop.shop_id,
+    order_id: shop.shop_id,
+    platform_order_id: shop.platform_shop_id,
+    platform: shop.platform,
+    shop_id: shop.shop_id,
+    receiver_name: shop.name,
+    receiver_phone: tokenLabel,
+    review_status: statusForReview,
+    order_status: orderStatus,
+    tags: [tokenLabel],
+    exception_flags: exceptionFlags,
+    logistics_company: tokenLabel,
+    created_at: shop.updated_at,
+    total_amount_cent: 0,
+  } as OrderSummary;
+};
 
 export const ChannelsPage = () => {
   const tenantId = useTenantId();
-  const canWrite = useCan('channels.write');
-  const queryClient = useQueryClient();
-  const location = useLocation();
+  const canWrite = useCan('shops.write');
   const navigate = useNavigate();
-  const {
-    setLeftPanel,
-    setRightPanel,
-    setBottomPanel,
-    setLeftPanelVisible,
-    setRightPanelVisible,
-    setBottomPanelVisible,
-    clearPanels,
-  } = useWorkbenchPanels();
-  const [drawerForm] = Form.useForm<FormValues>();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  const [drawerForm] = Form.useForm<ShopFormValues>();
+
+  const [workbenchFilters, setWorkbenchFilters] = useState<ShopWorkbenchFilters>(
+    EMPTY_SHOP_WORKBENCH_FILTERS,
+  );
+  const [searchInput, setSearchInput] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [shopColumnFilters] = useState<ShopColumnFilterState>({
+    nameKeyword: '',
+    platformShopIdKeyword: '',
+    shopIdKeyword: '',
+    status: 'all',
+    tokenHealth: 'all',
+  });
+  const [reviewColumnFilters, setReviewColumnFilters] = useState<OrderReviewMainColumnFilters>({});
+  const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 20,
   });
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [mainContextMenu, setMainContextMenu] = useState<ShopContextMenuState>({
+    open: false,
+    position: null,
+    shop: null,
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [platformPickerOpen, setPlatformPickerOpen] = useState(false);
-  const [platformPickerMode, setPlatformPickerMode] = useState<PlatformPickerMode>('create');
-  const [selectedPlatform, setSelectedPlatform] = useState<PlatformCode | null>(null);
-  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
-  const [copySource, setCopySource] = useState<Channel | null>(null);
+  const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [saving, setSaving] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<ChannelStatusFilter>('ACTIVE');
-  const [activeQuickFilterId, setActiveQuickFilterId] = useState<ChannelQuickFilterId | null>('ACTIVE');
-  const [searchValue, setSearchValue] = useState('');
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [columnFilters, setColumnFilters] = useState<ChannelColumnFilters>(() =>
-    createEmptyColumnFilters(),
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [authorizingId, setAuthorizingId] = useState<string | null>(null);
+  const [leftScreenFiltersDraft, setLeftScreenFiltersDraft] = useState(
+    createUiModule08StrategyScreenFilterState,
   );
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channel: Channel } | null>(
-    null,
+  const [, setLeftScreenFiltersApplied] = useState(
+    createUiModule08StrategyScreenFilterState,
   );
-  const lastSelectedIndexRef = useRef<number | null>(null);
-  const createFromQueryHandledRef = useRef(false);
 
-  const resetSelection = useCallback(() => {
+  const callbackHandledRef = useRef<string | null>(null);
+
+  const clearMainSelection = useCallback(() => {
+    setSelectedShop(null);
     setSelectedRowKeys([]);
-    setSelectedChannel(null);
-    setContextMenu(null);
-    lastSelectedIndexRef.current = null;
   }, []);
 
-  const resetToFirstPage = useCallback(() => {
-    setPagination((prev) => ({ ...prev, current: 1 }));
-  }, []);
-
-  const normalizedColumnFilters = useMemo<ChannelWorkbenchColumnFilters>(
+  const listQuery = useMemo(
     () => ({
-      ...columnFilters,
-      updatedRange:
-        columnFilters.updatedRange && columnFilters.updatedRange.length === 2
-          ? {
-              start: columnFilters.updatedRange[0]?.format('YYYY-MM-DD'),
-              end: columnFilters.updatedRange[1]?.format('YYYY-MM-DD'),
-            }
-          : null,
+      offset: 0,
+      limit: 1000,
     }),
-    [columnFilters],
+    [],
   );
 
-  const query = useMemo(
-    () => buildChannelListQuery(searchKeyword, statusFilter),
-    [searchKeyword, statusFilter],
-  );
-
-  const channelsQuery = useQuery({
-    queryKey: ['channels', tenantId, query],
-    queryFn: () => listChannels(tenantId, query),
+  const shopsQuery = useQuery({
+    queryKey: ['shops', tenantId, listQuery],
+    queryFn: () => listShops(tenantId, listQuery),
     enabled: Boolean(tenantId),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
-  const warehousesQuery = useQuery({
-    queryKey: ['warehouses', tenantId],
-    queryFn: () =>
-      listWarehouses(tenantId, {
-        status: 'ACTIVE',
-        offset: 0,
-        limit: 200,
-      }),
-    enabled: Boolean(tenantId),
-    keepPreviousData: true,
-  });
-
-  const warehouseMap = useMemo(() => {
-    const map = new Map<string, string>();
-    warehousesQuery.data?.items.forEach((warehouse) => {
-      map.set(warehouse.warehouse_id, warehouse.name);
-    });
-    return map;
-  }, [warehousesQuery.data?.items]);
-
-  const warehouseOptions = useMemo(
-    () =>
-      warehousesQuery.data?.items.map((warehouse) => ({
-        value: warehouse.warehouse_id,
-        label: `${warehouse.name} (${warehouse.code})`,
-      })) ?? [],
-    [warehousesQuery.data?.items],
-  );
-
-  const listItems = channelsQuery.data?.items ?? [];
-  const filteredItems = useMemo(
-    () =>
-      filterChannels(listItems, {
-        searchKeyword,
-        statusFilter,
-        columnFilters: normalizedColumnFilters,
-      }),
-    [listItems, normalizedColumnFilters, searchKeyword, statusFilter],
-  );
-
-  const pagedItems = useMemo(() => {
-    const current = pagination.current ?? 1;
-    const pageSize = pagination.pageSize ?? 20;
-    const start = (current - 1) * pageSize;
-    return filteredItems.slice(start, start + pageSize);
-  }, [filteredItems, pagination.current, pagination.pageSize]);
-
-  const quickFilters = useMemo(() => buildChannelQuickFilters(listItems), [listItems]);
-  const workbenchSummary = useMemo(() => summarizeChannels(listItems), [listItems]);
   const callbackState = useMemo(
-    () => parseChannelAuthCallbackSearch(location.search),
+    () => parseShopAuthCallbackSearch(location.search),
     [location.search],
   );
 
-  const selectedChannelCallbackUrl = useMemo(() => {
-    if (!selectedChannel || typeof window === 'undefined') {
-      return null;
-    }
-    return buildChannelAuthCallbackUrl({
-      origin: window.location.origin,
-      routerMode,
-      routerBasePath,
-      channelId: selectedChannel.channel_id,
-      platform: selectedChannel.platform,
-    });
-  }, [selectedChannel]);
-
-  const activeFilterSummary = useMemo(
-    () =>
-      buildChannelActiveFilterSummary({
-        activeQuickFilterId,
-        quickFilters,
-        searchKeyword,
-        statusFilter,
-        columnFilters: normalizedColumnFilters,
-        warehouseNameResolver: (warehouseId) => warehouseMap.get(warehouseId) ?? warehouseId,
-      }),
-    [activeQuickFilterId, normalizedColumnFilters, quickFilters, searchKeyword, statusFilter, warehouseMap],
-  );
-
-  const syncSelection = useCallback(
-    (keys: Key[], rows?: Channel[], active?: Channel | null) => {
-      const normalizedKeys = Array.from(new Set(keys.map((key) => String(key))));
-      setSelectedRowKeys(normalizedKeys);
-      if (!normalizedKeys.length) {
-        setSelectedChannel(null);
-        lastSelectedIndexRef.current = null;
-        return;
-      }
-      if (active) {
-        setSelectedChannel(active);
-        return;
-      }
-      if (rows?.length) {
-        setSelectedChannel(rows[0] ?? null);
-        return;
-      }
-      setSelectedChannel((previous) => {
-        if (previous && normalizedKeys.includes(previous.channel_id)) {
-          return previous;
-        }
-        return pagedItems.find((item) => normalizedKeys.includes(item.channel_id)) ?? null;
-      });
+  const callbackMutation = useMutation({
+    mutationFn: ({
+      shopId,
+      payload,
+    }: {
+      shopId: string;
+      payload: Parameters<typeof submitShopAuthCallback>[2];
+    }) => submitShopAuthCallback(tenantId, shopId, payload),
+    onSuccess: () => {
+      message.success('店铺授权回调已处理');
+      void queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['shop-auth-status', tenantId] });
     },
-    [pagedItems],
-  );
-
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '处理授权回调失败');
+    },
+  });
   useEffect(() => {
-    if (!selectedRowKeys.length) {
+    if (!callbackState?.shopId) {
+      callbackHandledRef.current = null;
       return;
     }
-    setSelectedRowKeys((previous) =>
-      previous.filter((key) => filteredItems.some((item) => item.channel_id === key)),
-    );
-  }, [filteredItems, selectedRowKeys.length]);
 
-  useEffect(() => {
-    if (!selectedChannel) {
+    const key = [
+      callbackState.shopId,
+      callbackState.code ?? '',
+      callbackState.error ?? '',
+      callbackState.state ?? '',
+    ].join('::');
+
+    if (callbackHandledRef.current === key) {
       return;
     }
-    if (!filteredItems.some((item) => item.channel_id === selectedChannel.channel_id)) {
-      setSelectedChannel(null);
-    }
-  }, [filteredItems, selectedChannel]);
+    callbackHandledRef.current = key;
 
-  useEffect(() => {
-    if (!callbackState?.channelId) {
-      return;
-    }
-    setActiveQuickFilterId('all');
-    setStatusFilter('all');
-    setSearchValue('');
-    setSearchKeyword('');
-    setColumnFilters(createEmptyColumnFilters());
-    resetToFirstPage();
-  }, [callbackState?.channelId, resetToFirstPage]);
+    callbackMutation.mutate({
+      shopId: callbackState.shopId,
+      payload: {
+        code: callbackState.code,
+        state: callbackState.state,
+        error: callbackState.error,
+        error_description: callbackState.errorDescription,
+      },
+    });
 
-  useEffect(() => {
-    if (!callbackState?.channelId) {
-      return;
-    }
-    const callbackChannel = listItems.find((item) => item.channel_id === callbackState.channelId);
-    if (callbackChannel) {
-      syncSelection([callbackChannel.channel_id], [callbackChannel], callbackChannel);
-    }
-  }, [callbackState?.channelId, listItems, syncSelection]);
-
-  useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get('open_create') !== '1') {
-      createFromQueryHandledRef.current = false;
-      return;
-    }
-    if (createFromQueryHandledRef.current || !canWrite) {
-      return;
-    }
-
-    createFromQueryHandledRef.current = true;
-    const platform = params.get('platform');
-    if (isPlatformCode(platform)) {
-      drawerForm.resetFields();
-      drawerForm.setFieldsValue({
-        platform,
-        name: '',
-        department: undefined,
-        owner: undefined,
-        allow_manual_order: false,
-        allow_manual_after_sales: false,
-        default_warehouse_id: undefined,
-        commission_formula: undefined,
-      });
-      setSelectedPlatform(platform);
-      setPlatformPickerOpen(false);
-      setDrawerOpen(true);
-    } else {
-      setPlatformPickerMode('create');
-      setSelectedPlatform(null);
-      setPlatformPickerOpen(true);
-    }
-
-    params.delete('open_create');
-    params.delete('platform');
+    ['auth_callback', 'shop_id', 'code', 'state', 'error', 'error_description'].forEach((item) =>
+      params.delete(item),
+    );
     const nextSearch = params.toString();
     navigate(
       {
@@ -359,270 +390,560 @@ export const ChannelsPage = () => {
       },
       { replace: true },
     );
-  }, [canWrite, drawerForm, location.pathname, location.search, navigate]);
+  }, [callbackMutation, callbackState, location.pathname, location.search, navigate]);
 
-  const handleSearch = useCallback(
-    (value: string) => {
-      setSearchValue(value);
-      setSearchKeyword(value.trim());
-      resetSelection();
-      resetToFirstPage();
-    },
-    [resetSelection, resetToFirstPage],
-  );
+  const sourceItems = shopsQuery.data?.items ?? EMPTY_SHOP_ITEMS;
 
-  const handleSearchChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      setSearchValue(value);
-      if (!value.trim()) {
-        setSearchKeyword('');
-        resetSelection();
-        resetToFirstPage();
-      }
-    },
-    [resetSelection, resetToFirstPage],
-  );
-
-  const updateColumnFilters = useCallback(
-    (patch: Partial<ChannelColumnFilters>) => {
-      setColumnFilters((previous) => ({ ...previous, ...patch }));
-      setActiveQuickFilterId(null);
-      resetSelection();
-      resetToFirstPage();
-    },
-    [resetSelection, resetToFirstPage],
-  );
-
-  const handleQuickFilterSelect = useCallback(
-    (filterId: ChannelQuickFilterId) => {
-      const next = resolveChannelQuickFilterState(filterId);
-      setActiveQuickFilterId(filterId);
-      setStatusFilter(next.statusFilter);
-      setColumnFilters((previous) => ({ ...previous, ...next.columnFilters }));
-      resetSelection();
-      resetToFirstPage();
-    },
-    [resetSelection, resetToFirstPage],
-  );
-
-  const handleCopyCallbackUrl = useCallback(async () => {
-    if (!selectedChannelCallbackUrl) {
-      message.warning('请先选择渠道');
-      return;
-    }
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(selectedChannelCallbackUrl);
-      } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = selectedChannelCallbackUrl;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-      message.success('回调地址已复制');
-    } catch {
-      message.error('复制回调地址失败');
-    }
-  }, [selectedChannelCallbackUrl]);
-
-  const handleOpenShops = useCallback(() => {
-    const params = new URLSearchParams();
-    if (selectedChannel) {
-      params.set('platform', selectedChannel.platform);
-    }
-    navigate(`/channels/shops${params.toString() ? `?${params.toString()}` : ''}`);
-  }, [navigate, selectedChannel]);
-
-  const handleOpenSyncJobs = useCallback(() => {
-    navigate('/channels/sync-jobs');
-  }, [navigate]);
-
-  const workbenchLeftPanel = useMemo(
-    () => (
-      <ChannelsWorkbenchLeftPanel
-        quickFilters={quickFilters}
-        activeQuickFilterId={activeQuickFilterId}
-        activeFilterSummary={activeFilterSummary}
-        selectedChannel={selectedChannel}
-        onSelectQuickFilter={handleQuickFilterSelect}
-      />
-    ),
-    [
-      activeFilterSummary,
-      activeQuickFilterId,
-      handleQuickFilterSelect,
-      quickFilters,
-      selectedChannel,
-    ],
-  );
-
-  const workbenchRightPanel = useMemo(
-    () => (
-      <ChannelsWorkbenchRightPanel
-        selectedChannel={selectedChannel}
-        warehouseMap={warehouseMap}
-        callbackUrl={selectedChannelCallbackUrl}
-        callbackState={callbackState}
-        onCopyCallbackUrl={handleCopyCallbackUrl}
-        onOpenShops={handleOpenShops}
-        onOpenSyncJobs={handleOpenSyncJobs}
-      />
-    ),
-    [
-      callbackState,
-      handleCopyCallbackUrl,
-      handleOpenShops,
-      handleOpenSyncJobs,
-      selectedChannel,
-      selectedChannelCallbackUrl,
-      warehouseMap,
-    ],
-  );
-
-  useEffect(() => {
-    setLeftPanel(workbenchLeftPanel);
-    setRightPanel(workbenchRightPanel);
-    setBottomPanel(undefined);
-    setLeftPanelVisible(true);
-    setRightPanelVisible(true);
-    setBottomPanelVisible(false);
-    return () => clearPanels();
-  }, [
-    clearPanels,
-    setBottomPanel,
-    setBottomPanelVisible,
-    setLeftPanel,
-    setLeftPanelVisible,
-    setRightPanel,
-    setRightPanelVisible,
-    workbenchLeftPanel,
-    workbenchRightPanel,
-  ]);
-
-  const deleteMutation = useMutation({
-    mutationFn: (channelId: string) => deleteChannel(tenantId, channelId),
-    onSuccess: () => {
-      message.success('渠道已删除');
-      resetSelection();
-      void queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
-    },
-    onError: (error) => {
-      message.error(error instanceof Error ? error.message : '删除渠道失败');
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ channelId, status }: { channelId: string; status: 'ACTIVE' | 'DISABLED' }) =>
-      updateChannel(tenantId, channelId, { status }),
-    onSuccess: (_, variables) => {
-      message.success(variables.status === 'DISABLED' ? '渠道已停用' : '渠道已启用');
-      void queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
-    },
-    onError: (error) => {
-      message.error(error instanceof Error ? error.message : '更新渠道状态失败');
-    },
-  });
-
-  const handleOpenPlatformPicker = useCallback((mode: PlatformPickerMode) => {
-    setPlatformPickerMode(mode);
-    setSelectedPlatform(null);
-    setPlatformPickerOpen(true);
+  const hasWorkbenchLeftFilter = useCallback((filters: ShopWorkbenchFilters) => {
+    return (
+      normalizeStringArray(filters.platform).length > 0 ||
+      normalizeStringArray(filters.status).length > 0 ||
+      normalizeStringArray(filters.tokenHealth).length > 0
+    );
   }, []);
 
-  const openCreate = useCallback(() => {
-    setEditingChannel(null);
-    setCopySource(null);
-    handleOpenPlatformPicker('create');
-  }, [handleOpenPlatformPicker]);
+  const filterByWorkbenchFilters = useCallback((rows: Shop[], filters: ShopWorkbenchFilters) => {
+    const platformFilters = normalizeStringArray(filters.platform);
+    const statusFilters = normalizeStringArray(filters.status);
+    const tokenHealthFilters = normalizeStringArray(filters.tokenHealth);
 
-  const openCopy = useCallback(() => {
-    if (!selectedChannel) {
-      message.warning('请先选择渠道');
+    return rows.filter((shop) => {
+      if (platformFilters.length > 0 && !platformFilters.includes(shop.platform)) {
+        return false;
+      }
+      if (statusFilters.length > 0 && !statusFilters.includes(shop.status)) {
+        return false;
+      }
+      if (tokenHealthFilters.length > 0 && !tokenHealthFilters.includes(resolveTokenHealth(shop))) {
+        return false;
+      }
+      return true;
+    });
+  }, []);
+
+  const buildShopLeftCheckedKeys = useCallback((filters: ShopWorkbenchFilters) => {
+    const platformKeys = normalizeStringArray(filters.platform).map((value) => `platform:${value}`);
+    const statusKeys = normalizeStringArray(filters.status).map((value) => `status:${value}`);
+    const tokenHealthKeys = normalizeStringArray(filters.tokenHealth).map((value) => `token:${value}`);
+    return new Set([...platformKeys, ...statusKeys, ...tokenHealthKeys]);
+  }, []);
+
+  const buildShopLeftNodes = useCallback((rows: Shop[]): OrderReviewAgLeftNode[] => {
+    const platformChildren: OrderReviewAgLeftNode[] = [
+      {
+        key: 'platform:*',
+        label: '全部平台',
+        count: rows.length,
+        nodeType: 'platform',
+      },
+      ...platformOptions.map((option) => ({
+        key: `platform:${option.value}`,
+        label: option.label,
+        count: rows.filter((shop) => shop.platform === option.value).length,
+        nodeType: 'platform' as const,
+      })),
+    ];
+
+    const statusChildren: OrderReviewAgLeftNode[] = [
+      {
+        key: 'status:*',
+        label: '全部状态',
+        count: rows.length,
+        nodeType: 'status',
+      },
+      ...leftPanelStatusOptions.map((option) => ({
+        key: `status:${option.value}`,
+        label: option.label,
+        count: rows.filter((shop) => shop.status === option.value).length,
+        nodeType: 'status' as const,
+      })),
+    ];
+
+    const tokenChildren: OrderReviewAgLeftNode[] = [
+      {
+        key: 'token:*',
+        label: '全部 Token',
+        count: rows.length,
+        nodeType: 'exception',
+      },
+      ...leftPanelTokenOptions.map((option) => ({
+        key: `token:${option.value}`,
+        label: option.label,
+        count: rows.filter((shop) => resolveTokenHealth(shop) === option.value).length,
+        nodeType: 'exception' as const,
+      })),
+    ];
+
+    return [
+      {
+        key: 'all:*',
+        label: '全部店铺',
+        count: rows.length,
+        nodeType: 'group',
+      },
+      {
+        key: 'group:platform',
+        label: '平台',
+        count: rows.length,
+        nodeType: 'group',
+        children: platformChildren,
+      },
+      {
+        key: 'group:status',
+        label: '接入状态',
+        count: rows.length,
+        nodeType: 'group',
+        children: statusChildren,
+      },
+      {
+        key: 'group:token',
+        label: 'Token状态',
+        count: rows.length,
+        nodeType: 'group',
+        children: tokenChildren,
+      },
+    ];
+  }, []);
+
+  const reduceShopFiltersByNode = useCallback(
+    (previous: ShopWorkbenchFilters, node: { key: string; nodeType: string }): ShopWorkbenchFilters => {
+      const cleared: ShopWorkbenchFilters = {
+        ...previous,
+        platform: undefined,
+        status: undefined,
+        tokenHealth: undefined,
+      };
+
+      if (node.key === 'all:*') {
+        return cleared;
+      }
+      if (node.key === 'platform:*') {
+        return { ...cleared, platform: undefined };
+      }
+      if (node.key === 'status:*') {
+        return { ...cleared, status: undefined };
+      }
+      if (node.key === 'token:*') {
+        return { ...cleared, tokenHealth: undefined };
+      }
+      if (node.key.startsWith('platform:')) {
+        const value = node.key.slice('platform:'.length) as PlatformCode;
+        return { ...cleared, platform: [value] };
+      }
+      if (node.key.startsWith('status:')) {
+        const value = node.key.slice('status:'.length) as Exclude<ShopStatusFilter, 'all'>;
+        return { ...cleared, status: [value] };
+      }
+      if (node.key.startsWith('token:')) {
+        const value = node.key.slice('token:'.length) as TokenHealth;
+        return { ...cleared, tokenHealth: [value] };
+      }
+
+      return previous;
+    },
+    [],
+  );
+
+  const leftStatsItems = useMemo(() => {
+    const palette = ['#334e68', '#7da888', '#8bcdd3', '#d48935', '#b76e79'];
+    const total = sourceItems.length || 1;
+    const platformEntries = platformOptions
+      .map((option) => ({
+        key: option.value,
+        label: option.label,
+        value: sourceItems.filter((shop) => shop.platform === option.value).length,
+      }))
+      .filter((entry) => entry.value > 0);
+
+    return platformEntries.map((entry, index) => ({
+      key: entry.key,
+      label: entry.label,
+      value: entry.value,
+      ratio: entry.value / total,
+      color: palette[index % palette.length],
+    }));
+  }, [sourceItems]);
+
+  const leftStatsPieBackground = useMemo(
+    () =>
+      resolveConicGradientBackground(
+        leftStatsItems.map((item) => ({
+          ratio: item.ratio,
+          color: item.color,
+        })),
+      ),
+    [leftStatsItems],
+  );
+
+  const updateLeftScreenFilter = useCallback<UiModule08StrategyScreenFilterChangeHandler>((key, value) => {
+    setLeftScreenFiltersDraft((previous) => ({ ...previous, [key]: value }));
+  }, []);
+
+  const resolveSalesChannelToPlatform = useCallback((salesChannel: string): PlatformCode | undefined => {
+    const normalized = salesChannel.trim().toLowerCase();
+    if (!normalized) {
+      return undefined;
+    }
+    const matched = platformOptions.find((option) => {
+      const optionLabel = String(option.label).trim().toLowerCase();
+      const optionValue = String(option.value).trim().toLowerCase();
+      return normalized === optionLabel || normalized === optionValue;
+    });
+    return matched?.value as PlatformCode | undefined;
+  }, []);
+
+  const applyLeftScreenFilters = useCallback(() => {
+    const next = {
+      ...leftScreenFiltersDraft,
+      orderQuery: leftScreenFiltersDraft.orderQuery.trim(),
+      salesChannel: leftScreenFiltersDraft.salesChannel.trim(),
+      warehouse: leftScreenFiltersDraft.warehouse.trim(),
+      createdFrom: leftScreenFiltersDraft.createdFrom.trim(),
+      createdTo: leftScreenFiltersDraft.createdTo.trim(),
+      orderTag: leftScreenFiltersDraft.orderTag.trim(),
+      excludedTag: leftScreenFiltersDraft.excludedTag.trim(),
+      carrierLoss: leftScreenFiltersDraft.carrierLoss.trim(),
+      regionKeyword: leftScreenFiltersDraft.regionKeyword.trim(),
+      orderType: leftScreenFiltersDraft.orderType.trim(),
+      includeSkuKeyword: leftScreenFiltersDraft.includeSkuKeyword.trim(),
+    };
+    setLeftScreenFiltersDraft(next);
+    setLeftScreenFiltersApplied(next);
+    setSearchInput(next.orderQuery);
+    setSearchKeyword(next.orderQuery);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    clearMainSelection();
+
+    const mappedPlatform = resolveSalesChannelToPlatform(next.salesChannel);
+    setWorkbenchFilters((previous) => ({
+      ...previous,
+      platform: mappedPlatform ? [mappedPlatform] : undefined,
+    }));
+  }, [clearMainSelection, leftScreenFiltersDraft, resolveSalesChannelToPlatform]);
+
+  const resetLeftScreenFilters = useCallback(() => {
+    const next = createUiModule08StrategyScreenFilterState();
+    setLeftScreenFiltersDraft(next);
+    setLeftScreenFiltersApplied(next);
+    setSearchInput('');
+    setSearchKeyword('');
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    clearMainSelection();
+    setWorkbenchFilters((previous) => ({ ...previous, platform: undefined }));
+  }, [clearMainSelection]);
+
+  const renderChannelsLeftPanel = useCallback(
+    ({ leftTab, onLeftTabChange, leftRowsForRender, onLeftRowClick }: LeftFilterPanelProps) => (
+      <OrderReviewLeftPanel
+        leftTab={leftTab}
+        onLeftTabChange={onLeftTabChange}
+        leftRowsForRender={leftRowsForRender}
+        onLeftRowClick={onLeftRowClick}
+        leftScreenFiltersDraft={leftScreenFiltersDraft}
+        onLeftScreenFieldChange={updateLeftScreenFilter}
+        onApplyLeftScreenFilters={applyLeftScreenFilters}
+        onResetLeftScreenFilters={resetLeftScreenFilters}
+        leftStatsItems={leftStatsItems}
+        leftStatsPieBackground={leftStatsPieBackground}
+        globalOrderTotal={sourceItems.length}
+        isGlobalStatsFetching={shopsQuery.isFetching}
+        shouldFallbackToAll={true}
+      />
+    ),
+    [
+      applyLeftScreenFilters,
+      leftScreenFiltersDraft,
+      leftStatsItems,
+      leftStatsPieBackground,
+      resetLeftScreenFilters,
+      shopsQuery.isFetching,
+      sourceItems.length,
+      updateLeftScreenFilter,
+    ],
+  );
+
+  const { filteredRows: leftFilteredItems } = useLeftFilterModule<Shop, ShopWorkbenchFilters>({
+    rows: sourceItems,
+    filters: workbenchFilters,
+    onFiltersChange: setWorkbenchFilters,
+    initialExpandedKeys: ['group:platform', 'group:status', 'group:token'],
+    hasManualFilter: hasWorkbenchLeftFilter,
+    filterRows: filterByWorkbenchFilters,
+    buildCheckedKeys: buildShopLeftCheckedKeys,
+    buildLeftNodes: buildShopLeftNodes,
+    reduceFiltersByNode: reduceShopFiltersByNode,
+    renderPanel: renderChannelsLeftPanel,
+    onBeforeLeafFilterApply: () => {
+      setPagination((prev) => ({ ...prev, current: 1 }));
+      clearMainSelection();
+    },
+  });
+
+  const filteredItems = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+    const nameKeyword = shopColumnFilters.nameKeyword.trim().toLowerCase();
+    const platformShopIdKeyword = shopColumnFilters.platformShopIdKeyword.trim().toLowerCase();
+    const shopIdKeyword = shopColumnFilters.shopIdKeyword.trim().toLowerCase();
+
+    return leftFilteredItems.filter((shop) => {
+      if (keyword) {
+        const searchFields = [shop.name, shop.shop_id, shop.platform_shop_id, shop.platform, shop.status]
+          .filter(Boolean)
+          .map((value) => String(value).toLowerCase());
+        if (!searchFields.some((value) => value.includes(keyword))) {
+          return false;
+        }
+      }
+
+      if (nameKeyword && !shop.name.toLowerCase().includes(nameKeyword)) {
+        return false;
+      }
+      if (platformShopIdKeyword && !shop.platform_shop_id.toLowerCase().includes(platformShopIdKeyword)) {
+        return false;
+      }
+      if (shopIdKeyword && !shop.shop_id.toLowerCase().includes(shopIdKeyword)) {
+        return false;
+      }
+      if (shopColumnFilters.status !== 'all' && shop.status !== shopColumnFilters.status) {
+        return false;
+      }
+      if (
+        shopColumnFilters.tokenHealth !== 'all' &&
+        resolveTokenHealth(shop) !== shopColumnFilters.tokenHealth
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [
+    shopColumnFilters.nameKeyword,
+    shopColumnFilters.platformShopIdKeyword,
+    shopColumnFilters.shopIdKeyword,
+    shopColumnFilters.status,
+    shopColumnFilters.tokenHealth,
+    leftFilteredItems,
+    searchKeyword,
+  ]);
+
+  const pagedItems = useMemo(() => {
+    const current = pagination.current ?? 1;
+    const pageSize = pagination.pageSize ?? 20;
+    const start = (current - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, pagination.current, pagination.pageSize]);
+
+  useEffect(() => {
+    if (!selectedShop) {
       return;
     }
-    setEditingChannel(null);
-    setCopySource(selectedChannel);
-    handleOpenPlatformPicker('copy');
-  }, [handleOpenPlatformPicker, selectedChannel]);
+    if (!filteredItems.some((item) => item.shop_id === selectedShop.shop_id)) {
+      setSelectedShop(null);
+    }
+  }, [filteredItems, selectedShop]);
 
-  const openEditWithChannel = useCallback(
-    (channel: Channel) => {
-      setCopySource(null);
-      setEditingChannel(channel);
+  useEffect(() => {
+    const current = pagination.current ?? 1;
+    const pageSize = pagination.pageSize ?? 20;
+    const maxPage = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+    if (current > maxPage) {
+      setPagination((prev) => ({ ...prev, current: maxPage }));
+    }
+  }, [filteredItems.length, pagination.current, pagination.pageSize]);
+
+  const rowShopsById = useMemo(() => {
+    const map = new Map<string, Shop>();
+    filteredItems.forEach((shop) => {
+      map.set(shop.shop_id, shop);
+    });
+    return map;
+  }, [filteredItems]);
+
+  useEffect(() => {
+    setSelectedRowKeys((previous) => {
+      const next = previous.filter((key) => rowShopsById.has(String(key).trim()));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [rowShopsById]);
+
+  useEffect(() => {
+    const firstKey = String(selectedRowKeys[0] ?? '').trim();
+    if (!firstKey) {
+      if (selectedShop) {
+        setSelectedShop(null);
+      }
+      return;
+    }
+    if (selectedShop && selectedRowKeys.some((key) => String(key).trim() === selectedShop.shop_id)) {
+      return;
+    }
+    const nextShop = rowShopsById.get(firstKey) ?? null;
+    if ((selectedShop?.shop_id ?? '') === (nextShop?.shop_id ?? '')) {
+      return;
+    }
+    setSelectedShop(nextShop);
+  }, [rowShopsById, selectedRowKeys, selectedShop]);
+
+  const reviewRows = useMemo<OrderSummary[]>(
+    () => pagedItems.map((shop) => mapShopToOrderSummary(shop)),
+    [pagedItems],
+  );
+
+  const reviewFilterOptionRows = useMemo<OrderSummary[]>(
+    () => filteredItems.map((shop) => mapShopToOrderSummary(shop)),
+    [filteredItems],
+  );
+
+  const reviewShopOptions = useMemo(
+    () =>
+      sourceItems.map((shop) => ({
+        label: shop.name,
+        value: shop.shop_id,
+      })),
+    [sourceItems],
+  );
+
+  const reviewLogisticsOptions = useMemo(
+    () =>
+      leftPanelTokenOptions.map((option) => ({
+        label: option.label,
+        value: option.label,
+      })),
+    [],
+  );
+
+  const selectedAuthStatusQuery = useQuery({
+    queryKey: ['shop-auth-status', tenantId, selectedShop?.shop_id],
+    queryFn: () => getShopAuthStatus(tenantId, selectedShop!.shop_id),
+    enabled: Boolean(tenantId && selectedShop?.shop_id),
+    placeholderData: (previousData) => previousData,
+  });
+
+  const selectedShopView = selectedAuthStatusQuery.data ?? selectedShop;
+
+  const selectedShopCallbackUrl = useMemo(() => {
+    if (!selectedShopView || typeof window === 'undefined') {
+      return null;
+    }
+    return buildShopAuthCallbackUrl({
+      origin: window.location.origin,
+      routerMode,
+      routerBasePath,
+      shopId: selectedShopView.shop_id,
+    });
+  }, [selectedShopView]);
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ shopId, status }: { shopId: string; status: string }) =>
+      updateShop(tenantId, shopId, { status }),
+    onMutate: ({ shopId }) => setTogglingId(shopId),
+    onSuccess: (_payload, vars) => {
+      message.success(vars.status === 'DISABLED' ? '店铺已停用' : '店铺已启用');
+      void queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['shop-auth-status', tenantId] });
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '切换店铺状态失败');
+    },
+    onSettled: () => setTogglingId(null),
+  });
+
+  const refreshTokenMutation = useMutation({
+    mutationFn: (shopId: string) => requestTokenRefresh(tenantId, shopId),
+    onMutate: (shopId) => setRefreshingId(shopId),
+    onSuccess: () => {
+      message.success('已提交 Token 刷新请求');
+      void queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['shop-auth-status', tenantId] });
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '提交 Token 刷新失败');
+    },
+    onSettled: () => setRefreshingId(null),
+  });
+
+  const authorizeMutation = useMutation({
+    mutationFn: ({ shopId, redirectUri }: { shopId: string; redirectUri?: string }) =>
+      startShopAuthorize(tenantId, shopId, { redirect_uri: redirectUri }),
+    onMutate: ({ shopId }) => setAuthorizingId(shopId),
+    onSuccess: async (payload) => {
+      const popup = window.open(payload.authorize_url, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(payload.authorize_url);
+        }
+        message.warning('浏览器阻止了新窗口，授权链接已复制到剪贴板');
+      } else {
+        message.success('授权窗口已打开');
+      }
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '发起授权失败');
+    },
+    onSettled: () => setAuthorizingId(null),
+  });
+
+  const handleToolbarSearch = useCallback(() => {
+    setSearchKeyword(searchInput.trim());
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    clearMainSelection();
+  }, [clearMainSelection, searchInput]);
+  const openCreate = useCallback(() => {
+    setEditingShop(null);
+    drawerForm.resetFields();
+    drawerForm.setFieldsValue({
+      platform: platformValues[0],
+      status: 'AUTHORIZED',
+      auth_meta_json_input: '',
+    });
+    setDrawerOpen(true);
+  }, [drawerForm]);
+
+  const openEdit = useCallback(
+    (shop: Shop) => {
+      setEditingShop(shop);
       drawerForm.setFieldsValue({
-        platform: channel.platform,
-        name: channel.name,
-        department: channel.department ?? undefined,
-        owner: channel.owner ?? undefined,
-        allow_manual_order: channel.allow_manual_order,
-        allow_manual_after_sales: channel.allow_manual_after_sales,
-        default_warehouse_id: channel.default_warehouse_id ?? undefined,
-        commission_formula: channel.commission_formula ?? undefined,
+        platform: shop.platform,
+        platform_shop_id: shop.platform_shop_id,
+        name: shop.name,
+        status: shop.status || 'AUTHORIZED',
+        auth_meta_json_input: Object.keys(shop.auth_meta_json ?? {}).length
+          ? JSON.stringify(shop.auth_meta_json, null, 2)
+          : '',
       });
       setDrawerOpen(true);
     },
     [drawerForm],
   );
 
-  const openEdit = useCallback(() => {
-    if (!selectedChannel) {
-      message.warning('请先选择渠道');
-      return;
-    }
-    openEditWithChannel(selectedChannel);
-  }, [openEditWithChannel, selectedChannel]);
-
-  const handlePlatformConfirm = useCallback(() => {
-    if (!selectedPlatform) {
-      message.warning('请选择平台');
-      return;
-    }
-    const base = platformPickerMode === 'copy' ? copySource : null;
-    drawerForm.resetFields();
-    drawerForm.setFieldsValue({
-      platform: selectedPlatform,
-      name: base ? `${base.name}-复制` : '',
-      department: base?.department ?? undefined,
-      owner: base?.owner ?? undefined,
-      allow_manual_order: base?.allow_manual_order ?? false,
-      allow_manual_after_sales: base?.allow_manual_after_sales ?? false,
-      default_warehouse_id: base?.default_warehouse_id ?? undefined,
-      commission_formula: base?.commission_formula ?? undefined,
-    });
-    setPlatformPickerOpen(false);
-    setDrawerOpen(true);
-  }, [copySource, drawerForm, platformPickerMode, selectedPlatform]);
-
   const handleSave = useCallback(async () => {
     try {
       const values = await drawerForm.validateFields();
-      const payload: ChannelCreatePayload = {
-        platform: values.platform,
-        name: values.name.trim(),
-        department: values.department?.trim() || undefined,
-        owner: values.owner?.trim() || undefined,
-        allow_manual_order: values.allow_manual_order,
-        allow_manual_after_sales: values.allow_manual_after_sales,
-        default_warehouse_id: values.default_warehouse_id,
-        commission_formula: values.commission_formula?.trim() || undefined,
-      };
+      const authMetaJson = parseAuthMetaInput(values.auth_meta_json_input);
       setSaving(true);
-      if (editingChannel) {
-        await updateChannel(tenantId, editingChannel.channel_id, payload);
-        message.success('渠道已更新');
+
+      if (editingShop) {
+        const payload: ShopUpdatePayload = {
+          name: values.name.trim(),
+          status: values.status,
+          auth_meta_json: authMetaJson,
+        };
+        await updateShop(tenantId, editingShop.shop_id, payload);
+        message.success('店铺已更新');
       } else {
-        await createChannel(tenantId, payload);
-        message.success('渠道已创建');
+        const payload: ShopCreatePayload = {
+          platform: values.platform,
+          platform_shop_id: values.platform_shop_id.trim(),
+          name: values.name.trim(),
+          status: values.status,
+          auth_meta_json: authMetaJson,
+        };
+        await createShop(tenantId, payload);
+        message.success('店铺已创建');
       }
+
       setDrawerOpen(false);
-      setEditingChannel(null);
-      setCopySource(null);
-      await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+      setEditingShop(null);
+      await queryClient.invalidateQueries({ queryKey: ['shops', tenantId] });
     } catch (error) {
       if (error instanceof Error && error.message) {
         message.error(error.message);
@@ -630,419 +951,535 @@ export const ChannelsPage = () => {
     } finally {
       setSaving(false);
     }
-  }, [drawerForm, editingChannel, queryClient, tenantId]);
+  }, [drawerForm, editingShop, queryClient, tenantId]);
 
-  const headerContent = useMemo(
-    () => <ChannelsWorkbenchOverview summary={workbenchSummary} callbackState={callbackState} />,
-    [callbackState, workbenchSummary],
+  const handleAuthorize = useCallback(
+    (shop: Shop) => {
+      const redirectUri =
+        typeof window === 'undefined'
+          ? undefined
+          : buildShopAuthCallbackUrl({
+              origin: window.location.origin,
+              routerMode,
+              routerBasePath,
+              shopId: shop.shop_id,
+            });
+      authorizeMutation.mutate({ shopId: shop.shop_id, redirectUri });
+    },
+    [authorizeMutation],
   );
 
-  const columns = useMemo<ColumnsType<Channel>>(() => {
-    const current = pagination.current ?? 1;
-    const pageSize = pagination.pageSize ?? 20;
-    return [
-      {
-        title: '序号',
-        key: 'index',
-        width: 72,
-        align: 'center',
-        render: (_value, _record, index) => (current - 1) * pageSize + index + 1,
-      },
-      { title: '渠道名称', dataIndex: 'name', key: 'name' },
-      {
-        title: '平台',
-        dataIndex: 'platform',
-        key: 'platform',
-        render: (_value, record) => <PlatformTag platform={record.platform} />,
-      },
-      { title: '负责部门', dataIndex: 'department', key: 'department', render: (value) => value ?? '-' },
-      { title: '负责人', dataIndex: 'owner', key: 'owner', render: (value) => value ?? '-' },
-      {
-        title: '默认仓',
-        dataIndex: 'default_warehouse_id',
-        key: 'default_warehouse_id',
-        render: (value: string | null | undefined) => (value ? warehouseMap.get(value) ?? value : '-'),
-      },
-      {
-        title: '手工建单',
-        dataIndex: 'allow_manual_order',
-        key: 'allow_manual_order',
-        render: (value: boolean) => (value ? <Tag color="green">允许</Tag> : <Tag>不允许</Tag>),
-      },
-      {
-        title: '手工售后',
-        dataIndex: 'allow_manual_after_sales',
-        key: 'allow_manual_after_sales',
-        render: (value: boolean) => (value ? <Tag color="green">允许</Tag> : <Tag>不允许</Tag>),
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        key: 'status',
-        render: (value: 'ACTIVE' | 'DISABLED') => (
-          <Tag color={statusMeta[value].color}>{statusMeta[value].label}</Tag>
-        ),
-      },
-      {
-        title: '更新时间',
-        dataIndex: 'updated_at',
-        key: 'updated_at',
-        render: (_value, record) => formatDateTime(record.updated_at ?? record.created_at),
-      },
-    ];
-  }, [pagination.current, pagination.pageSize, warehouseMap]);
+  const handleToggleStatus = useCallback(
+    (shop: Shop) => {
+      const nextStatus = shop.status === 'DISABLED' ? 'AUTHORIZED' : 'DISABLED';
+      toggleStatusMutation.mutate({
+        shopId: shop.shop_id,
+        status: nextStatus,
+      });
+    },
+    [toggleStatusMutation.mutate],
+  );
 
-  const queryCells = useMemo(
-    () => ({
-      name: (
-        <Input
-          size="small"
-          allowClear
-          placeholder="渠道名称"
-          value={searchValue}
-          onChange={handleSearchChange}
-          onPressEnter={(event) => handleSearch((event.target as HTMLInputElement).value ?? '')}
-        />
-      ),
-      platform: (
-        <Select
-          size="small"
-          allowClear
-          placeholder="平台"
-          options={platformOptions}
-          value={columnFilters.platform}
-          onChange={(value) => updateColumnFilters({ platform: value ?? undefined })}
-        />
-      ),
-      department: (
-        <Input
-          size="small"
-          allowClear
-          placeholder="负责部门"
-          value={columnFilters.department}
-          onChange={(event) => updateColumnFilters({ department: event.target.value || undefined })}
-        />
-      ),
-      owner: (
-        <Input
-          size="small"
-          allowClear
-          placeholder="负责人"
-          value={columnFilters.owner}
-          onChange={(event) => updateColumnFilters({ owner: event.target.value || undefined })}
-        />
-      ),
-      default_warehouse_id: (
-        <Select
-          size="small"
-          allowClear
-          placeholder="默认仓"
-          options={warehouseOptions}
-          loading={warehousesQuery.isFetching}
-          value={columnFilters.warehouseId}
-          onChange={(value) => updateColumnFilters({ warehouseId: value ?? undefined })}
-        />
-      ),
-      allow_manual_order: (
-        <Select
-          size="small"
-          allowClear
-          placeholder="手工建单"
-          options={[
-            { label: '允许', value: 'allow' },
-            { label: '不允许', value: 'deny' },
-          ]}
-          value={columnFilters.allowManualOrder}
-          onChange={(value) =>
-            updateColumnFilters({
-              allowManualOrder:
-                (value as ChannelWorkbenchColumnFilters['allowManualOrder']) ?? undefined,
-            })
-          }
-        />
-      ),
-      allow_manual_after_sales: (
-        <Select
-          size="small"
-          allowClear
-          placeholder="手工售后"
-          options={[
-            { label: '允许', value: 'allow' },
-            { label: '不允许', value: 'deny' },
-          ]}
-          value={columnFilters.allowManualAfterSales}
-          onChange={(value) =>
-            updateColumnFilters({
-              allowManualAfterSales:
-                (value as ChannelWorkbenchColumnFilters['allowManualAfterSales']) ?? undefined,
-            })
-          }
-        />
-      ),
-      status: (
-        <Select
-          size="small"
-          allowClear
-          placeholder="状态"
-          options={[
-            { label: '启用中', value: 'ACTIVE' },
-            { label: '已停用', value: 'DISABLED' },
-          ]}
-          value={statusFilter === 'all' ? undefined : statusFilter}
-          onChange={(value) => {
-            setActiveQuickFilterId(null);
-            setStatusFilter((value as ChannelStatusFilter) ?? 'all');
-            resetSelection();
-            resetToFirstPage();
-          }}
-        />
-      ),
-      updated_at: (
-        <DatePicker.RangePicker
-          size="small"
-          allowClear
-          value={columnFilters.updatedRange ?? undefined}
-          onChange={(range) => updateColumnFilters({ updatedRange: (range as [Dayjs, Dayjs] | null) ?? null })}
-        />
-      ),
-    }),
+  const runSecondaryAction = useCallback(
+    (action: ShopSecondaryActionKey, shop: Shop) => {
+      if (action === 'edit') {
+        if (!canWrite) {
+          return;
+        }
+        openEdit(shop);
+        return;
+      }
+      if (action === 'authorize') {
+        if (!canWrite) {
+          return;
+        }
+        handleAuthorize(shop);
+        return;
+      }
+      if (action === 'refresh-token') {
+        if (!canWrite) {
+          return;
+        }
+        refreshTokenMutation.mutate(shop.shop_id);
+        return;
+      }
+      if (action === 'toggle-status') {
+        if (!canWrite) {
+          return;
+        }
+        handleToggleStatus(shop);
+        return;
+      }
+      if (action === 'goto-shop-access') {
+        navigate('/channels/shops');
+        return;
+      }
+      if (action === 'goto-sync-jobs') {
+        navigate('/shops/sync-jobs');
+      }
+    },
     [
-      columnFilters.allowManualAfterSales,
-      columnFilters.allowManualOrder,
-      columnFilters.department,
-      columnFilters.owner,
-      columnFilters.platform,
-      columnFilters.updatedRange,
-      columnFilters.warehouseId,
-      handleSearch,
-      handleSearchChange,
-      resetSelection,
-      resetToFirstPage,
-      searchValue,
-      statusFilter,
-      updateColumnFilters,
-      warehouseOptions,
-      warehousesQuery.isFetching,
+      canWrite,
+      handleAuthorize,
+      handleToggleStatus,
+      navigate,
+      openEdit,
+      refreshTokenMutation.mutate,
     ],
   );
 
-  const contextMenuItems: MenuProps['items'] = [
-    {
-      key: 'toggle',
-      label: contextMenu?.channel.status === 'DISABLED' ? '启用渠道' : '停用渠道',
-      disabled: !canWrite,
+  const closeMainContextMenu = useCallback(() => {
+    setMainContextMenu({ open: false, position: null, shop: null });
+  }, []);
+
+  const handleMainGridContextMenu = useCallback((shop: Shop, event: MouseEvent | ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedShop(shop);
+    setSelectedRowKeys([shop.shop_id]);
+    setMainContextMenu({
+      open: true,
+      position: { x: event.clientX, y: event.clientY },
+      shop,
+    });
+  }, []);
+
+  const mainContextMenuConfig = useMemo<MenuProps>(() => {
+    const contextShop = mainContextMenu.shop;
+    const nextStatusLabel = contextShop?.status === 'DISABLED' ? '启用店铺' : '停用店铺';
+    return {
+      items: [
+        { key: 'edit', label: '编辑', disabled: !canWrite || !contextShop },
+        { key: 'authorize', label: '发起授权', disabled: !canWrite || !contextShop },
+        { key: 'refresh-token', label: '刷新 Token', disabled: !canWrite || !contextShop },
+        { key: 'toggle-status', label: nextStatusLabel, disabled: !canWrite || !contextShop },
+        { type: 'divider' },
+        { key: 'goto-shop-access', label: '打开店铺接入页' },
+        { key: 'goto-sync-jobs', label: '打开同步任务页' },
+      ],
+      onClick: ({ key }) => {
+        if (!contextShop) {
+          return;
+        }
+        runSecondaryAction(key as ShopSecondaryActionKey, contextShop);
+        closeMainContextMenu();
+      },
+    };
+  }, [canWrite, closeMainContextMenu, mainContextMenu.shop, runSecondaryAction]);
+
+  const resolveShopFromOrderRecord = useCallback(
+    (record: OrderSummary | null | undefined) => {
+      const key = String(record?.id ?? record?.shop_id ?? record?.order_id ?? '').trim();
+      if (!key) {
+        return null;
+      }
+      return rowShopsById.get(key) ?? null;
     },
-  ];
+    [rowShopsById],
+  );
 
-  const toolbarLeft = (
-    <Space size={8}>
-      <Button type="primary" onClick={openCreate} disabled={!canWrite} data-testid="channels-create">
-        新增
-      </Button>
-      <Button onClick={openCopy} disabled={!canWrite || !selectedChannel} data-testid="channels-copy">
-        复制
-      </Button>
-      <Button onClick={openEdit} disabled={!canWrite || !selectedChannel} data-testid="channels-edit">
-        修改
-      </Button>
-      <Popconfirm
-        title="确认删除当前渠道？"
-        okText="删除"
-        cancelText="取消"
-        onConfirm={() => selectedChannel && deleteMutation.mutate(selectedChannel.channel_id)}
-        disabled={!selectedChannel || !canWrite}
-      >
-        <Button danger disabled={!selectedChannel || !canWrite} data-testid="channels-delete">
-          删除
+  const handleReviewMainSelectionChange = useCallback(
+    (keys: Key[]) => {
+      const normalizedKeys = Array.from(
+        new Set(
+          keys
+            .map((key) => String(key).trim())
+            .filter(Boolean),
+        ),
+      );
+      setSelectedRowKeys(normalizedKeys);
+      const firstKey = normalizedKeys[0] ?? '';
+      if (!firstKey) {
+        setSelectedShop(null);
+        return;
+      }
+      if (selectedShop && normalizedKeys.includes(selectedShop.shop_id)) {
+        return;
+      }
+      setSelectedShop(rowShopsById.get(firstKey) ?? null);
+    },
+    [rowShopsById, selectedShop],
+  );
+
+  const handleReviewMainRowActive = useCallback(
+    (record: OrderSummary) => {
+      const shop = resolveShopFromOrderRecord(record);
+      if (shop) {
+        setSelectedShop(shop);
+      }
+    },
+    [resolveShopFromOrderRecord],
+  );
+
+  const handleReviewMainRowDoubleClick = useCallback(
+    (record: OrderSummary) => {
+      if (!canWrite) {
+        return;
+      }
+      const shop = resolveShopFromOrderRecord(record);
+      if (shop) {
+        openEdit(shop);
+      }
+    },
+    [canWrite, openEdit, resolveShopFromOrderRecord],
+  );
+
+  const handleReviewMainFocus = useCallback((record: OrderSummary) => {
+    setFocusedOrderKey(String(record.id ?? record.shop_id ?? record.order_id ?? '').trim() || null);
+  }, []);
+
+  const handleReviewMainContextMenu = useCallback(
+    (record: OrderSummary, event: MouseEvent) => {
+      const shop = resolveShopFromOrderRecord(record);
+      if (!shop) {
+        return;
+      }
+      handleMainGridContextMenu(shop, event);
+    },
+    [handleMainGridContextMenu, resolveShopFromOrderRecord],
+  );
+  const detailPanelContent = useMemo(() => {
+    if (!selectedShopView) {
+      return <Typography.Text type="secondary">请选择一行查看店铺详情</Typography.Text>;
+    }
+
+    const tokenHealthMeta = resolveTokenTag(resolveTokenHealth(selectedShopView));
+    const statusMeta = resolveStatusTag(selectedShopView.status);
+    const toggleLabel = selectedShopView.status === 'DISABLED' ? '启用店铺' : '停用店铺';
+
+    return (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Descriptions column={1} bordered size="small">
+          <Descriptions.Item label="店铺名称">{selectedShopView.name}</Descriptions.Item>
+          <Descriptions.Item label="平台">
+            <PlatformTag platform={selectedShopView.platform} />
+          </Descriptions.Item>
+          <Descriptions.Item label="平台店铺ID">{selectedShopView.platform_shop_id}</Descriptions.Item>
+          <Descriptions.Item label="店铺ID">{selectedShopView.shop_id}</Descriptions.Item>
+          <Descriptions.Item label="接入状态">
+            <Tag color={statusMeta.color}>{statusMeta.label}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="Token状态">
+            <Tag color={tokenHealthMeta.color}>{tokenHealthMeta.label}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="Token过期时间">
+            {formatDateTime(selectedShopView.token_status?.expires_at)}
+          </Descriptions.Item>
+          <Descriptions.Item label="最近刷新">
+            {formatDateTime(selectedShopView.token_status?.last_refresh_at)}
+          </Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+            {formatDateTime(selectedShopView.updated_at)}
+          </Descriptions.Item>
+        </Descriptions>
+
+        <Card size="small" title="二级动作" className="channels-detail-card">
+          <Space size={[8, 8]} wrap>
+            <Button
+              size="small"
+              disabled={!canWrite}
+              onClick={() => runSecondaryAction('authorize', selectedShopView)}
+              loading={authorizingId === selectedShopView.shop_id}
+            >
+              发起授权
+            </Button>
+            <Button
+              size="small"
+              disabled={!canWrite}
+              onClick={() => runSecondaryAction('refresh-token', selectedShopView)}
+              loading={refreshingId === selectedShopView.shop_id}
+            >
+              刷新 Token
+            </Button>
+            <Button
+              size="small"
+              disabled={!canWrite}
+              onClick={() => runSecondaryAction('toggle-status', selectedShopView)}
+              loading={togglingId === selectedShopView.shop_id}
+            >
+              {toggleLabel}
+            </Button>
+            <Button size="small" onClick={() => runSecondaryAction('goto-shop-access', selectedShopView)}>
+              店铺接入
+            </Button>
+            <Button size="small" onClick={() => runSecondaryAction('goto-sync-jobs', selectedShopView)}>
+              同步任务
+            </Button>
+          </Space>
+          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+            一级工具栏仅保留高频动作，其余动作统一下沉到右键菜单与本面板。
+          </Typography.Text>
+        </Card>
+
+        <Card size="small" title="授权回调地址" className="channels-detail-card">
+          {selectedShopCallbackUrl ? (
+            <Typography.Paragraph className="channels-callback-url" copyable>
+              {selectedShopCallbackUrl}
+            </Typography.Paragraph>
+          ) : (
+            <Typography.Text type="secondary">暂无回调地址</Typography.Text>
+          )}
+        </Card>
+
+        <Card size="small" title="授权元信息" className="channels-detail-card">
+          <Typography.Paragraph className="channels-callback-url">
+            {JSON.stringify(selectedShopView.auth_meta_json ?? {}, null, 2)}
+          </Typography.Paragraph>
+        </Card>
+
+        {selectedShopView.token_status?.last_error ? (
+          <Card size="small" title="Token异常" className="channels-detail-card">
+            <Typography.Text type="danger">{selectedShopView.token_status.last_error}</Typography.Text>
+          </Card>
+        ) : null}
+      </Space>
+    );
+  }, [
+    authorizingId,
+    canWrite,
+    refreshingId,
+    runSecondaryAction,
+    selectedShopCallbackUrl,
+    selectedShopView,
+    togglingId,
+  ]);
+
+  const tableFooterSummary = useMemo(
+    () => (
+      <Space size={12} wrap>
+        <Typography.Text>总计 {filteredItems.length} 家</Typography.Text>
+        <Typography.Text type="secondary">当前页 {pagedItems.length} 家</Typography.Text>
+        <Typography.Text type="secondary">已选 {selectedRowKeys.length} 家</Typography.Text>
+      </Space>
+    ),
+    [filteredItems.length, pagedItems.length, selectedRowKeys.length],
+  );
+
+  const toolbarPrimaryActions = useMemo(
+    () => (
+      <Space size={6} wrap>
+        <Button size="small" type="primary" disabled={!canWrite} onClick={openCreate}>
+          新建店铺
         </Button>
-      </Popconfirm>
-      <Button icon={<ReloadOutlined />} onClick={() => void channelsQuery.refetch()}>
-        刷新
-      </Button>
-    </Space>
+        <Button
+          size="small"
+          disabled={!canWrite || !selectedShop}
+          onClick={() => selectedShop && openEdit(selectedShop)}
+        >
+          编辑
+        </Button>
+        <Button size="small" icon={<ReloadOutlined />} onClick={() => void shopsQuery.refetch()}>
+          刷新列表
+        </Button>
+      </Space>
+    ),
+    [canWrite, openCreate, openEdit, selectedShop, shopsQuery.refetch],
   );
 
-  const toolbarCenter = (
-    <Input.Search
-      allowClear
-      value={searchValue}
-      placeholder="搜索渠道名称 / 负责人 / 部门"
-      onSearch={handleSearch}
-      onChange={handleSearchChange}
-      style={{ width: 280 }}
-      data-testid="channels-search"
-    />
+  const toolbar = useMemo(
+    () => (
+      <WorkbenchToolbar
+        className="order-review-toolbar"
+        leftContent={toolbarPrimaryActions}
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onSearch={handleToolbarSearch}
+        searchPlaceholder="店铺名称 / 店铺ID / 平台店铺ID"
+        searchInputClassName="order-review-toolbar-search"
+        searchButtonClassName="order-review-toolbar-search-trigger"
+        onExport={() => message.info('导出功能待接入')}
+        onPrint={() => message.info('打印功能待接入')}
+        onHelp={() => message.info('帮助功能待接入')}
+      />
+    ),
+    [handleToolbarSearch, searchInput, toolbarPrimaryActions],
   );
 
-  const toolbarRight = (
-    <Space size={8} wrap>
-      <Button onClick={handleOpenShops} data-testid="channels-open-shops">
-        店铺接入
-      </Button>
-      <Button onClick={handleOpenSyncJobs}>同步任务</Button>
-      <Button onClick={() => message.info('帮助文档入口待接入')}>帮助</Button>
-    </Space>
+  const rightPanel = useMemo(
+    () => (
+      <div className="industrial-list-workbench-right-panel">
+        <Card size="small" title="详情" className="industrial-list-workbench-card industrial-list-workbench-detail-card">
+          {detailPanelContent}
+        </Card>
+      </div>
+    ),
+    [detailPanelContent],
   );
 
-  const footerSummary = (
-    <span>
-      总计 {filteredItems.length} 条，本页 {pagedItems.length} 条，已选 {selectedRowKeys.length} 条
-    </span>
+  const rightPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        selectedShopId: selectedShopView?.shop_id ?? '',
+        selectedShopStatus: selectedShopView?.status ?? '',
+        selectedShopUpdatedAt: selectedShopView?.updated_at ?? '',
+        selectedShopTokenExpiresAt: selectedShopView?.token_status?.expires_at ?? '',
+        selectedShopTokenError: selectedShopView?.token_status?.last_error ?? '',
+        callbackUrl: selectedShopCallbackUrl ?? '',
+        canWrite,
+        authorizingId: authorizingId ?? '',
+        refreshingId: refreshingId ?? '',
+        togglingId: togglingId ?? '',
+      }),
+    [
+      authorizingId,
+      canWrite,
+      refreshingId,
+      selectedShopCallbackUrl,
+      selectedShopView?.shop_id,
+      selectedShopView?.status,
+      selectedShopView?.token_status?.expires_at,
+      selectedShopView?.token_status?.last_error,
+      selectedShopView?.updated_at,
+      togglingId,
+    ],
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'summary',
+            label: '汇总',
+            children: (
+              <Space size={16} wrap>
+                <Typography.Text>店铺总数：{filteredItems.length}</Typography.Text>
+                <Typography.Text type="secondary">当前页：{pagedItems.length}</Typography.Text>
+                <Typography.Text type="secondary">已选：{selectedRowKeys.length}</Typography.Text>
+              </Space>
+            ),
+          },
+          {
+            key: 'selected',
+            label: '当前选中',
+            children: selectedShopView ? (
+              <Descriptions column={2} size="small" bordered>
+                <Descriptions.Item label="店铺名称">{selectedShopView.name}</Descriptions.Item>
+                <Descriptions.Item label="店铺ID">{selectedShopView.shop_id}</Descriptions.Item>
+                <Descriptions.Item label="平台">{selectedShopView.platform}</Descriptions.Item>
+                <Descriptions.Item label="状态">{selectedShopView.status}</Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Typography.Text type="secondary">请选择一行店铺数据</Typography.Text>
+            ),
+          },
+        ]}
+      />
+    ),
+    [filteredItems.length, pagedItems.length, selectedRowKeys.length, selectedShopView],
+  );
+
+  const bottomPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        filteredCount: filteredItems.length,
+        pagedCount: pagedItems.length,
+        selectedCount: selectedRowKeys.length,
+        selectedShopId: selectedShopView?.shop_id ?? '',
+        selectedShopStatus: selectedShopView?.status ?? '',
+      }),
+    [
+      filteredItems.length,
+      pagedItems.length,
+      selectedRowKeys.length,
+      selectedShopView?.shop_id,
+      selectedShopView?.status,
+    ],
+  );
+
+  const drawer = (
+    <Drawer
+      title={editingShop ? '编辑店铺' : '新建店铺'}
+      open={drawerOpen}
+      onClose={() => setDrawerOpen(false)}
+      width={560}
+      destroyOnHidden
+      footer={
+        <Space>
+          <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+          <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+            保存
+          </Button>
+        </Space>
+      }
+    >
+      <Form form={drawerForm} layout="vertical">
+        <Form.Item name="platform" label="平台" rules={[{ required: true, message: '请选择平台' }]}>
+          <Select options={platformOptions} disabled={Boolean(editingShop)} />
+        </Form.Item>
+        <Form.Item
+          name="platform_shop_id"
+          label="平台店铺ID"
+          rules={[{ required: true, message: '请输入平台店铺ID' }]}
+        >
+          <Input placeholder="例如：taobao_9527" disabled={Boolean(editingShop)} />
+        </Form.Item>
+        <Form.Item name="name" label="店铺名称" rules={[{ required: true, message: '请输入店铺名称' }]}>
+          <Input placeholder="例如：淘宝旗舰店-A" />
+        </Form.Item>
+        <Form.Item name="status" label="接入状态" rules={[{ required: true, message: '请选择接入状态' }]}>
+          <Select options={editableStatusOptions} />
+        </Form.Item>
+        <Form.Item name="auth_meta_json_input" label="授权元信息（JSON）">
+          <Input.TextArea rows={6} placeholder='例如：{"oauth_status":"SUCCESS","region":"cn-east-1"}' />
+        </Form.Item>
+      </Form>
+    </Drawer>
   );
 
   return (
-    <div className="channels-page" data-testid="channels-page">
-      <UiModule03MainTableSection<Channel>
-        className="channels-workbench"
-        dataTestId="channels-workbench-grid"
-        tableClassName="channels-table"
-        toolbarLeft={toolbarLeft}
-        toolbarCenter={toolbarCenter}
-        toolbarRight={toolbarRight}
-        header={headerContent}
-        columns={columns}
-        data={pagedItems}
-        loading={channelsQuery.isLoading || channelsQuery.isFetching}
-        error={channelsQuery.error}
-        onRetry={() => void channelsQuery.refetch()}
-        errorTitle="渠道列表加载失败"
-        emptyText="暂无渠道"
-        total={filteredItems.length}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        rowKey="channel_id"
-        columnSettingsKey="channels.table.columns"
-        queryCells={queryCells}
-        footerSummary={footerSummary}
-        leftPanelWidth={320}
-        contextMenuSelectsRow={false}
-        rowSelection={{ selectedRowKeys, onChange: (keys, rows) => syncSelection(keys, rows as Channel[]) }}
-        rowClassName={(record) =>
-          record.channel_id === selectedChannel?.channel_id ? 'ant-table-row-selected' : ''
-        }
-        onRow={(record, index) => ({
-          onClick: (event) => {
-            const mouseEvent = event as MouseEvent;
-            const currentIndex = index ?? pagedItems.findIndex((item) => item.channel_id === record.channel_id);
-            if (currentIndex < 0) {
-              syncSelection([record.channel_id], [record], record);
-              return;
-            }
-            if (mouseEvent.shiftKey && lastSelectedIndexRef.current != null) {
-              const start = Math.min(lastSelectedIndexRef.current, currentIndex);
-              const end = Math.max(lastSelectedIndexRef.current, currentIndex);
-              syncSelection(pagedItems.slice(start, end + 1).map((item) => item.channel_id), undefined, record);
-            } else if (mouseEvent.ctrlKey || mouseEvent.metaKey) {
-              const keySet = new Set(selectedRowKeys);
-              if (keySet.has(record.channel_id)) {
-                keySet.delete(record.channel_id);
-              } else {
-                keySet.add(record.channel_id);
-              }
-              syncSelection(Array.from(keySet), undefined, record);
-            } else {
-              syncSelection([record.channel_id], [record], record);
-            }
-            lastSelectedIndexRef.current = currentIndex;
-          },
-          onDoubleClick: () => {
-            if (!canWrite) {
-              message.warning('当前没有编辑权限');
-              return;
-            }
-            setSelectedChannel(record);
-            openEditWithChannel(record);
-          },
-          onContextMenu: (event) => {
-            event.preventDefault();
-            const currentIndex = index ?? pagedItems.findIndex((item) => item.channel_id === record.channel_id);
-            if (currentIndex >= 0) {
-              lastSelectedIndexRef.current = currentIndex;
-            }
-            syncSelection([record.channel_id], [record], record);
-            setContextMenu({ x: event.clientX, y: event.clientY, channel: record });
-          },
-        })}
-      />
-
-      <UiModule03ContextMenu
-        open={Boolean(contextMenu)}
-        position={contextMenu}
-        menu={{
-          items: contextMenuItems,
-          onClick: () => {
-            if (!contextMenu || !canWrite) {
-              return;
-            }
-            const nextStatus = contextMenu.channel.status === 'DISABLED' ? 'ACTIVE' : 'DISABLED';
-            statusMutation.mutate({ channelId: contextMenu.channel.channel_id, status: nextStatus });
-            setContextMenu(null);
-          },
-        }}
-        onClose={() => setContextMenu(null)}
-      />
-
-      <Modal title="选择平台" open={platformPickerOpen} onCancel={() => setPlatformPickerOpen(false)} onOk={handlePlatformConfirm} okText="确定" cancelText="取消">
-        <Row gutter={[12, 12]}>
-          {platformOptions.map((platform) => (
-            <Col span={12} key={platform.value}>
-              <Card
-                hoverable
-                onClick={() => setSelectedPlatform(platform.value as PlatformCode)}
-                style={{ borderColor: selectedPlatform === platform.value ? 'var(--ant-color-primary)' : undefined }}
-              >
-                <Space direction="vertical" size={4}>
-                  <PlatformTag platform={platform.value as PlatformCode} />
-                  <Typography.Text>{platform.label}</Typography.Text>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </Modal>
-
-      <Drawer
-        title={editingChannel ? '修改渠道' : copySource ? '复制渠道' : '新增渠道'}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        width={560}
-        destroyOnClose
-        footer={
-          <Space>
-            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
-            <Button type="primary" loading={saving} onClick={() => void handleSave()}>
-              保存
-            </Button>
-          </Space>
-        }
-      >
-        <Form form={drawerForm} layout="vertical" initialValues={{ allow_manual_order: false, allow_manual_after_sales: false }}>
-          <Form.Item name="platform" label="平台" rules={[{ required: true, message: '请选择平台' }]}>
-            <Select options={platformOptions} disabled />
-          </Form.Item>
-          <Form.Item name="name" label="渠道名称" rules={[{ required: true, message: '请输入渠道名称' }]}>
-            <Input placeholder="例如：淘宝旗舰店渠道" />
-          </Form.Item>
-          <Form.Item name="department" label="负责部门">
-            <Input placeholder="例如：电商事业部" />
-          </Form.Item>
-          <Form.Item name="owner" label="负责人">
-            <Input placeholder="例如：张三" />
-          </Form.Item>
-          <Form.Item name="allow_manual_order" label="允许手工建单" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="allow_manual_after_sales" label="允许手工新建售后单" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="default_warehouse_id" label="默认发货仓">
-            <Select allowClear placeholder="选择默认发货仓" options={warehouseOptions} loading={warehousesQuery.isLoading} />
-          </Form.Item>
-          <Form.Item name="commission_formula" label="平台佣金公式">
-            <Input.TextArea rows={3} placeholder="例如：sales_amount * 0.05" />
-          </Form.Item>
-        </Form>
-      </Drawer>
-    </div>
+      <WorkbenchPageTemplate
+      pageTestId="channels-workbench-grid"
+      className="order-review-page channels-page"
+      toolbar={toolbar}
+      tableContent={
+        <div className="order-review-grid-main">
+          <OrderWorkbenchMainGridEntry
+            variant="review"
+            rows={reviewRows}
+            filterOptionRows={reviewFilterOptionRows}
+            quickFilterExpanded={true}
+            columnFilters={reviewColumnFilters}
+            shopOptions={reviewShopOptions}
+            logisticsOptions={reviewLogisticsOptions}
+            selectedRowKeys={selectedRowKeys}
+            focusedOrderKey={focusedOrderKey}
+            onColumnFiltersChange={setReviewColumnFilters}
+            onSelectionChange={handleReviewMainSelectionChange}
+            onRowActive={handleReviewMainRowActive}
+            onRowDoubleClick={handleReviewMainRowDoubleClick}
+            onFocus={handleReviewMainFocus}
+            onContextMenu={handleReviewMainContextMenu}
+            loading={shopsQuery.isLoading || shopsQuery.isFetching || selectedAuthStatusQuery.isFetching}
+            error={shopsQuery.error}
+            onRetry={() => {
+              void shopsQuery.refetch();
+            }}
+          />
+        </div>
+      }
+      footerSummary={tableFooterSummary}
+      footerSyncKey={`channels-review-${pagination.current ?? 1}-${pagination.pageSize ?? 20}-${filteredItems.length}`}
+      total={filteredItems.length}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+      showFooterScrollbarRow={true}
+      rightPanel={rightPanel}
+      rightPanelSyncKey={rightPanelSyncKey}
+      bottomPanel={bottomPanel}
+      bottomPanelSyncKey={bottomPanelSyncKey}
+      overlays={
+        <>
+          <UiModule03ContextMenu
+            open={mainContextMenu.open}
+            position={mainContextMenu.position}
+            menu={mainContextMenuConfig}
+            onClose={closeMainContextMenu}
+          />
+          {drawer}
+        </>
+      }
+    />
   );
 };

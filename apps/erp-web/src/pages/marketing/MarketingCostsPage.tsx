@@ -130,7 +130,7 @@ export const MarketingCostsPage = () => {
     queryKey: ['marketing-costs', tenantId, query],
     queryFn: () => listMarketingCosts(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -337,7 +337,7 @@ export const MarketingCostsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={620}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

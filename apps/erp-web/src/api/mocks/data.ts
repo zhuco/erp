@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 
 import type { PlatformCode } from '@/features/platform';
 import { Platform, platformValues } from '@/features/platform';
+import { buildMockOrderNo } from './orderMockGovernance';
 
 import type { InventoryLedger } from '../inventoryLedgers';
 import type { StockSyncJob } from '../inventorySyncJobs';
@@ -601,8 +602,7 @@ const buildOrder = (index: number): OrderSummary => {
         : index % 4 === 2
           ? 'ALLOCATED'
           : 'SHIPPED';
-  const orderIdSeq = String(index + 1).padStart(4, '0');
-  const orderId = `DT${dayjs().format('YYYYMMDD')}${orderIdSeq}`;
+  const orderId = buildMockOrderNo(dayjs(), index + 1);
   return {
     id: orderId,
     platform,
@@ -628,9 +628,32 @@ const buildOrder = (index: number): OrderSummary => {
   };
 };
 
+const BASE_MOCK_ORDER_COUNT = 72;
+const REVIEW_PENDING_MOCK_ORDER_COUNT = 120;
+let nextSpecialMockOrderSequence = BASE_MOCK_ORDER_COUNT + REVIEW_PENDING_MOCK_ORDER_COUNT + 1;
+const reserveSpecialMockOrderId = () => buildMockOrderNo(dayjs(), nextSpecialMockOrderSequence++);
+
+const specialMockOrderIds = {
+  noItems: reserveSpecialMockOrderId(),
+  noLogistics: reserveSpecialMockOrderId(),
+  missingSku: reserveSpecialMockOrderId(),
+  shortage: reserveSpecialMockOrderId(),
+  frozen: reserveSpecialMockOrderId(),
+  addressInvalid: reserveSpecialMockOrderId(),
+  duplicate: reserveSpecialMockOrderId(),
+  blacklist: reserveSpecialMockOrderId(),
+  reviewFlagged: reserveSpecialMockOrderId(),
+  merged: reserveSpecialMockOrderId(),
+  split: reserveSpecialMockOrderId(),
+  manyItems: reserveSpecialMockOrderId(),
+  fulfillmentReady: reserveSpecialMockOrderId(),
+  reserveFailed: reserveSpecialMockOrderId(),
+  manualHold: reserveSpecialMockOrderId(),
+};
+
 const specialMockOrders: OrderSummary[] = [
   {
-    id: 'TEST-ORDER-NO-ITEMS',
+    id: specialMockOrderIds.noItems,
     platform: Platform.Taobao,
     shop_id: 'SHOP-taobao-1',
     platform_order_id: 'PLAT-TEST-NO-ITEMS',
@@ -652,7 +675,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-NO-LOGISTICS',
+    id: specialMockOrderIds.noLogistics,
     platform: Platform.Pdd,
     shop_id: 'SHOP-pdd-1',
     platform_order_id: 'PLAT-TEST-NO-LOGISTICS',
@@ -674,7 +697,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-MISSING-SKU',
+    id: specialMockOrderIds.missingSku,
     platform: Platform.Jd,
     shop_id: 'SHOP-jd-1',
     platform_order_id: 'PLAT-TEST-MISSING-SKU',
@@ -696,7 +719,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: 'SF998877'
   },
   {
-    id: 'TEST-ORDER-SHORTAGE',
+    id: specialMockOrderIds.shortage,
     platform: Platform.Douyin,
     shop_id: 'SHOP-douyin-1',
     platform_order_id: 'PLAT-TEST-SHORTAGE',
@@ -718,7 +741,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: 'SF998878'
   },
   {
-    id: 'TEST-ORDER-FROZEN',
+    id: specialMockOrderIds.frozen,
     platform: Platform.Taobao,
     shop_id: 'SHOP-taobao-2',
     platform_order_id: 'PLAT-TEST-FROZEN',
@@ -740,7 +763,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: 'SF998879'
   },
   {
-    id: 'TEST-ORDER-ADDRESS-INVALID',
+    id: specialMockOrderIds.addressInvalid,
     platform: Platform.Jd,
     shop_id: 'SHOP-jd-2',
     platform_order_id: 'PLAT-TEST-ADDRESS',
@@ -762,7 +785,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-DUPLICATE',
+    id: specialMockOrderIds.duplicate,
     platform: Platform.Taobao,
     shop_id: 'SHOP-taobao-3',
     platform_order_id: 'PLAT-TEST-DUPLICATE',
@@ -784,7 +807,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-BLACKLIST',
+    id: specialMockOrderIds.blacklist,
     platform: Platform.Pdd,
     shop_id: 'SHOP-pdd-2',
     platform_order_id: 'PLAT-TEST-BLACKLIST',
@@ -806,7 +829,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-REVIEW-FLAGGED',
+    id: specialMockOrderIds.reviewFlagged,
     platform: Platform.Douyin,
     shop_id: 'SHOP-douyin-2',
     platform_order_id: 'PLAT-TEST-FLAGGED',
@@ -828,7 +851,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-MERGED',
+    id: specialMockOrderIds.merged,
     platform: Platform.Taobao,
     shop_id: 'SHOP-taobao-4',
     platform_order_id: 'PLAT-TEST-MERGED',
@@ -850,7 +873,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: 'SF998880'
   },
   {
-    id: 'TEST-ORDER-SPLIT',
+    id: specialMockOrderIds.split,
     platform: Platform.Jd,
     shop_id: 'SHOP-jd-3',
     platform_order_id: 'PLAT-TEST-SPLIT',
@@ -872,7 +895,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: 'SF998881'
   },
   {
-    id: 'TEST-ORDER-MANY-ITEMS',
+    id: specialMockOrderIds.manyItems,
     platform: Platform.Pdd,
     shop_id: 'SHOP-pdd-3',
     platform_order_id: 'PLAT-TEST-MANY-ITEMS',
@@ -894,7 +917,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-FULFILLMENT-READY',
+    id: specialMockOrderIds.fulfillmentReady,
     platform: Platform.Taobao,
     shop_id: 'SHOP-taobao-5',
     platform_order_id: 'PLAT-TEST-FULFILLMENT-READY',
@@ -916,7 +939,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-RESERVE-FAILED',
+    id: specialMockOrderIds.reserveFailed,
     platform: Platform.Jd,
     shop_id: 'SHOP-jd-4',
     platform_order_id: 'PLAT-TEST-RESERVE-FAILED',
@@ -938,7 +961,7 @@ const specialMockOrders: OrderSummary[] = [
     tracking_no: null
   },
   {
-    id: 'TEST-ORDER-MANUAL-HOLD',
+    id: specialMockOrderIds.manualHold,
     platform: Platform.Douyin,
     shop_id: 'SHOP-douyin-3',
     platform_order_id: 'PLAT-TEST-MANUAL-HOLD',
@@ -1483,8 +1506,8 @@ const buildShipment = (index: number): ShipmentSummary => {
   };
 };
 
-const baseMockOrders = Array.from({ length: 72 }, (_, index) => buildOrder(index));
-const reviewPendingMockOrders = Array.from({ length: 120 }, (_, index) => {
+const baseMockOrders = Array.from({ length: BASE_MOCK_ORDER_COUNT }, (_, index) => buildOrder(index));
+const reviewPendingMockOrders = Array.from({ length: REVIEW_PENDING_MOCK_ORDER_COUNT }, (_, index) => {
   const order = buildOrder(index + baseMockOrders.length);
   const exceptionFlags = (order.exception_flags ?? []).filter(
     (flag) => flag !== 'REVIEW_REJECTED'
@@ -2173,6 +2196,7 @@ const buildOrderItem = (order: OrderSummary, index: number): OrderItem => {
     platform_sku_id: `PLAT-SKU-${100 + index}`,
     outer_sku_id: index % 2 === 0 ? `OUTER-${200 + index}` : null,
     title: `示例商品-${index + 1}`,
+    spec_text: `${index % 2 === 0 ? '黑色' : '白色'} / ${['S', 'M', 'L'][index % 3]}`,
     quantity: (index % 3) + 1,
     price_cent: 990 + index * 50,
     mapping_missing: mappingMissing
@@ -2795,6 +2819,7 @@ export {
   shipmentWarehouses,
   buildShipment,
   mockOrders,
+  specialMockOrderIds,
   mockOmsMainChainSeeds,
   mockOrderReceiverAddresses,
   mockAfterSales,

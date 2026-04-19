@@ -89,7 +89,7 @@ export const ExpenseAllocationPage = () => {
     queryKey: ['finance-expenses', tenantId, query],
     queryFn: () => listFinanceExpenses(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -283,7 +283,7 @@ export const ExpenseAllocationPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

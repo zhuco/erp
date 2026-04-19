@@ -1,18 +1,26 @@
-import type { HTMLAttributes, MutableRefObject, ReactNode, Ref } from 'react';
+import type {
+  HTMLAttributes,
+  MouseEvent as ReactMouseEvent,
+  MutableRefObject,
+  ReactNode,
+  Ref
+} from 'react';
 import { useCallback, useMemo, useRef } from 'react';
 import type { Key } from 'react';
 import type { TablePaginationConfig, TableProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 import {
-  ErpDataGrid,
   type ErpDataGridColumn,
-  type ErpDataGridRow,
   type SummaryField,
   type SummaryResolver
 } from '@/components/ErpDataGrid';
 import type { ServerTableSortState } from '@/components/ServerTable';
-import { WorkbenchMainTableTemplate } from '@/components/workbench/templates';
+import {
+  OrderReviewWorkbenchTemplate,
+  OrderReviewWorkbenchToolbarTemplate
+} from '@/components/workbench/templates';
+import { OrderWorkbenchMainGridEntry } from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
 
 import './UiModule03MainTableSection.css';
 
@@ -23,6 +31,7 @@ type UiModule03MainTableSectionProps<T extends object> = {
   dataTestId?: string;
   rowClickSelects?: boolean;
   suppressInitialFocus?: boolean;
+  toolbar?: ReactNode;
   toolbarLeft?: ReactNode;
   toolbarCenter?: ReactNode;
   toolbarRight?: ReactNode;
@@ -73,6 +82,7 @@ export const UiModule03MainTableSection = <T extends object>({
   dataTestId,
   rowClickSelects = false,
   suppressInitialFocus = false,
+  toolbar,
   toolbarLeft,
   toolbarCenter,
   toolbarRight,
@@ -146,6 +156,24 @@ export const UiModule03MainTableSection = <T extends object>({
   ]
     .filter(Boolean)
     .join(' ');
+  const hasToolbarSlots = toolbarLeft != null || toolbarCenter != null || toolbarRight != null;
+  const resolvedToolbar = useMemo<ReactNode>(() => {
+    if (toolbar !== undefined) {
+      return toolbar;
+    }
+    if (!hasToolbarSlots) {
+      return undefined;
+    }
+    return (
+      <OrderReviewWorkbenchToolbarTemplate
+        searchEnabled={false}
+        canExport={false}
+        leftContent={toolbarLeft}
+        centerContent={toolbarCenter ?? null}
+        rightContent={toolbarRight ?? null}
+      />
+    );
+  }, [hasToolbarSlots, toolbar, toolbarCenter, toolbarLeft, toolbarRight]);
 
   const resolveRowKeyValue = (record: T, index?: number): Key | undefined => {
     if (typeof rowKey === 'function') {
@@ -323,34 +351,40 @@ export const UiModule03MainTableSection = <T extends object>({
   }, [columnKeys, queryCells, showQueryRow]);
 
   const handleSelectionChange = useCallback(
-    (keys: Key[], rows: T[]) => {
-      rowSelection?.onChange?.(keys, rows);
+    (keys: Key[], rows?: T[]) => {
+      const resolvedRows =
+        rows ??
+        keys
+          .map((key) => {
+            const index = data.findIndex((record, rowIndex) => resolveRowKeyValue(record, rowIndex) === key);
+            return index >= 0 ? data[index] : undefined;
+          })
+          .filter((record): record is T => record !== undefined);
+      rowSelection?.onChange?.(keys, resolvedRows);
     },
-    [rowSelection]
+    [data, resolveRowKeyValue, rowSelection]
   );
 
   const handleRowClick = useCallback(
-    (record: T, row: { getData: () => ErpDataGridRow<T> }, event: UIEvent) => {
-      const rowData = row.getData();
-      const rowIndex = rowData.__erpRowIndex ?? resolveRowIndex(record) ?? 0;
+    (record: T, event: ReactMouseEvent) => {
+      const rowIndex = resolveRowIndex(record) ?? 0;
       const rowProps = onRow?.(record, rowIndex);
-      rowProps?.onClick?.(event);
+      rowProps?.onClick?.(event as unknown as UIEvent);
     },
     [onRow, resolveRowIndex]
   );
 
   const handleRowDoubleClick = useCallback(
-    (record: T, row: { getData: () => ErpDataGridRow<T> }, event: UIEvent) => {
-      const rowData = row.getData();
-      const rowIndex = rowData.__erpRowIndex ?? resolveRowIndex(record) ?? 0;
+    (record: T, event: ReactMouseEvent) => {
+      const rowIndex = resolveRowIndex(record) ?? 0;
       const rowProps = onRow?.(record, rowIndex);
-      rowProps?.onDoubleClick?.(event);
+      rowProps?.onDoubleClick?.(event as unknown as UIEvent);
     },
     [onRow, resolveRowIndex]
   );
 
   const handleRowContextMenu = useCallback(
-    (record: T, event: MouseEvent) => {
+    (record: T, event: ReactMouseEvent) => {
       const rowIndex = resolveRowIndex(record);
       const rowProps = onRow?.(record, rowIndex);
       if (contextMenuSelectsRow) {
@@ -360,24 +394,23 @@ export const UiModule03MainTableSection = <T extends object>({
         }
       }
       onContextMenuSelect?.(record, rowIndex ?? undefined);
-      rowProps?.onContextMenu?.(event);
+      rowProps?.onContextMenu?.(event as unknown as MouseEvent);
     },
     [contextMenuSelectsRow, onContextMenuSelect, onRow, resolveRowIndex, resolveRowKeyValue, rowSelection]
   );
 
   return (
-    <WorkbenchMainTableTemplate
+    <OrderReviewWorkbenchTemplate
       className={className}
       tableClassName={resolvedTableClassName}
       tableContainerRef={handleTableContainerRef}
-      toolbarLeft={toolbarLeft}
-      toolbarCenter={toolbarCenter}
-      toolbarRight={toolbarRight}
+      toolbar={resolvedToolbar}
       header={header}
       actionBar={actionBar}
       tableContent={
-        <ErpDataGrid<T>
-          data={data}
+        <OrderWorkbenchMainGridEntry
+          variant="query"
+          rows={data}
           columns={dataGridColumns}
           rowKey={resolveDataGridRowKey}
           headerFilters={headerFilters}

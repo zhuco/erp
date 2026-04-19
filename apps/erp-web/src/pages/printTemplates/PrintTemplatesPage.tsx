@@ -35,7 +35,7 @@ import {
   updatePrintTemplate
 } from '@/api/printTemplates';
 import { PlatformTag } from '@/components/PlatformTag';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import type { PlatformCode } from '@/features/platform';
 import { platformOptions } from '@/features/platform';
 import { useTenantId } from '@/features/tenant';
@@ -58,10 +58,10 @@ type FormValues = {
 };
 
 const templateTypeOptions = [
-  { label: '面单', value: 'SHIPPING_LABEL' },
-  { label: '拣货单', value: 'PICK_LIST' },
-  { label: '装箱单', value: 'PACK_LIST' },
-  { label: '发票', value: 'INVOICE' }
+  { label: '闈㈠崟', value: 'SHIPPING_LABEL' },
+  { label: 'Pick List', value: 'PICK_LIST' },
+  { label: 'Pack List', value: 'PACK_LIST' },
+  { label: '鍙戠エ', value: 'INVOICE' }
 ];
 
 const templateFormatOptions = [
@@ -103,7 +103,7 @@ export const PrintTemplatesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['print-templates', tenantId, query],
     queryFn: () => listPrintTemplates(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -112,7 +112,7 @@ export const PrintTemplatesPage = () => {
       setDeletingId(templateId);
     },
     onSuccess: () => {
-      message.success('打印模板已删除');
+      message.success('Template deleted');
       queryClient.invalidateQueries({ queryKey: ['print-templates', tenantId] });
     },
     onError: (err) => {
@@ -135,25 +135,25 @@ export const PrintTemplatesPage = () => {
         dataIndex: 'shop_id'
       },
       {
-        title: '类型',
+        title: '绫诲瀷',
         dataIndex: 'template_type',
         render: (_, record) =>
-          record.template_type === 'SHIPPING_LABEL' ? '面单' : record.template_type
+          record.template_type === 'SHIPPING_LABEL' ? '闈㈠崟' : record.template_type
       },
       {
-        title: '版本',
+        title: '鐗堟湰',
         dataIndex: 'version'
       },
       {
-        title: '格式',
+        title: '鏍煎紡',
         dataIndex: 'content_format',
         render: (_, record) => record.content_format ?? '-'
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'enabled',
         render: (_, record) =>
-          record.enabled ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>
+          record.enabled ? <Tag color="green">鍚敤</Tag> : <Tag>鍋滅敤</Tag>
       },
       {
         title: '更新时间',
@@ -161,7 +161,7 @@ export const PrintTemplatesPage = () => {
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -189,7 +189,7 @@ export const PrintTemplatesPage = () => {
               编辑
             </Button>
             <Popconfirm
-              title="确认删除该模板？"
+              title="确认删除璇ユā鏉匡紵"
               okText="删除"
               cancelText="取消"
               onConfirm={() => deleteMutation.mutate(record.template_id)}
@@ -256,10 +256,10 @@ export const PrintTemplatesPage = () => {
           content_format: payload.content_format
         };
         await updatePrintTemplate(tenantId, editingTemplate.template_id, updatePayload);
-        message.success('打印模板已更新');
+        message.success('Template updated');
       } else {
         await createPrintTemplate(tenantId, payload);
-        message.success('打印模板已创建');
+        message.success('Template created');
       }
       setDrawerOpen(false);
       setEditingTemplate(null);
@@ -280,7 +280,7 @@ export const PrintTemplatesPage = () => {
           打印模板
         </Typography.Title>
         <Button type="primary" onClick={openCreateDrawer}>
-          新建模板
+          鏂板缓模板
         </Button>
       </Space>
       <Card>
@@ -297,34 +297,34 @@ export const PrintTemplatesPage = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="template_type" label="类型">
-                <Select allowClear options={templateTypeOptions} placeholder="选择类型" />
+              <Form.Item name="template_type" label="绫诲瀷">
+                <Select allowClear options={templateTypeOptions} placeholder="閫夋嫨绫诲瀷" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="enabled" label="启用状态">
+              <Form.Item name='enabled' label='Enabled'>
                 <Select
                   allowClear
                   options={[
-                    { label: '启用', value: true },
-                    { label: '停用', value: false }
+                    { label: '鍚敤', value: true },
+                    { label: '鍋滅敤', value: false }
                   ]}
-                  placeholder="选择状态"
+                  placeholder='Select status'
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<PrintTemplate>
+      <UiModule03MainTableSection<PrintTemplate>
         rowKey="template_id"
         columns={columns}
         data={data?.items ?? []}
@@ -339,11 +339,11 @@ export const PrintTemplatesPage = () => {
         columnSettingsKey="print-templates.table.columns"
       />
       <Drawer
-        title={editingTemplate ? '编辑模板' : '新建模板'}
+        title={editingTemplate ? '编辑模板' : '鏂板缓模板'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -357,42 +357,42 @@ export const PrintTemplatesPage = () => {
           <Form.Item
             name="shop_id"
             label="店铺ID"
-            rules={[{ required: true, message: '请输入店铺ID' }]}
+            rules={[{ required: true, message: '璇疯緭鍏ュ簵閾篒D' }]}
           >
             <Input placeholder="输入店铺ID" disabled={Boolean(editingTemplate)} />
           </Form.Item>
           <Form.Item
             name="platform"
             label="平台"
-            rules={[{ required: true, message: '请选择平台' }]}
+            rules={[{ required: true, message: '璇烽€夋嫨平台' }]}
           >
             <Select options={platformOptions} disabled={Boolean(editingTemplate)} />
           </Form.Item>
           <Form.Item
             name="template_type"
-            label="类型"
-            rules={[{ required: true, message: '请选择模板类型' }]}
+            label="绫诲瀷"
+            rules={[{ required: true, message: '璇烽€夋嫨模板绫诲瀷' }]}
           >
             <Select options={templateTypeOptions} disabled={Boolean(editingTemplate)} />
           </Form.Item>
           <Form.Item
             name="version"
-            label="版本"
-            rules={[{ required: true, message: '请输入版本' }]}
+            label="鐗堟湰"
+            rules={[{ required: true, message: 'Please enter version' }]}
           >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item
             name="content_format"
-            label="格式"
-            rules={[{ required: true, message: '请选择格式' }]}
+            label="鏍煎紡"
+            rules={[{ required: true, message: '璇烽€夋嫨鏍煎紡' }]}
           >
             <Select options={templateFormatOptions} />
           </Form.Item>
-          <Form.Item name="content" label="模板内容">
-            <Input.TextArea rows={6} placeholder="支持HTML或JSON" />
+          <Form.Item name="content" label="模板鍐呭">
+            <Input.TextArea rows={6} placeholder="鏀寔HTML鎴朖SON" />
           </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
+          <Form.Item name="enabled" label="鍚敤" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
@@ -400,3 +400,4 @@ export const PrintTemplatesPage = () => {
     </Space>
   );
 };
+

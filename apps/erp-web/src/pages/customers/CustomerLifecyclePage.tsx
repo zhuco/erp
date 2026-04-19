@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Card,
   Col,
@@ -91,7 +91,7 @@ export const CustomerLifecyclePage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-lifecycle', tenantId, query],
     queryFn: () => listCustomerLifecycleTasks(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -104,7 +104,7 @@ export const CustomerLifecyclePage = () => {
       queryClient.invalidateQueries({ queryKey: ['customer-lifecycle', tenantId] });
     },
     onError: (err) => {
-      message.error(err instanceof Error ? err.message : '鍒犻櫎鐢熷懡鍛ㄦ湡浠诲姟澶辫触');
+      message.error(err instanceof Error ? err.message : '删除鐢熷懡鍛ㄦ湡任务失败');
     },
     onSettled: () => {
       setDeletingId(null);
@@ -119,11 +119,11 @@ export const CustomerLifecyclePage = () => {
         render: (value: string) => stageMap.get(value) ?? value
       },
       {
-        title: '瑙﹁揪绛栫暐',
+        title: '瑙﹁揪策略',
         dataIndex: 'strategy'
       },
       {
-        title: '瑙﹀彂瑙勫垯',
+        title: '瑙﹀彂规则',
         dataIndex: 'trigger_rule',
         render: (value?: string | null) => value ?? '-'
       },
@@ -145,7 +145,7 @@ export const CustomerLifecyclePage = () => {
         render: (value?: string | null) => formatDateTime(value)
       },
       {
-        title: '鏇存柊鏃堕棿',
+        title: '更新时间',
         dataIndex: 'updated_at',
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
@@ -169,12 +169,12 @@ export const CustomerLifecyclePage = () => {
                 });
               }}
             >
-              缂栬緫
+              编辑
             </Button>
             <Popconfirm
               title="确认删除生命周期任务？"
-              okText="鍒犻櫎"
-              cancelText="鍙栨秷"
+              okText="删除"
+              cancelText="取消"
               onConfirm={() => deleteMutation.mutate(record.task_id)}
             >
               <Button
@@ -183,7 +183,7 @@ export const CustomerLifecyclePage = () => {
                 disabled={!canWrite}
                 loading={deleteMutation.isPending && deletingId === record.task_id}
               >
-                鍒犻櫎
+                删除
               </Button>
             </Popconfirm>
           </Space>
@@ -252,7 +252,7 @@ export const CustomerLifecyclePage = () => {
           onClick={openCreateDrawer}
           data-testid="customer-lifecycle-create"
         >
-          鏂板缓浠诲姟
+          新建任务
         </Button>
       </Space>
       <Card>
@@ -302,8 +302,8 @@ export const CustomerLifecyclePage = () => {
         loading={isLoading || isFetching}
         error={error}
         onRetry={() => refetch()}
-        errorTitle="鍔犺浇鐢熷懡鍛ㄦ湡浠诲姟澶辫触"
-        emptyText="鏆傛棤鐢熷懡鍛ㄦ湡浠诲姟"
+        errorTitle="加载鐢熷懡鍛ㄦ湡任务失败"
+        emptyText="暂无鐢熷懡鍛ㄦ湡任务"
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
@@ -312,16 +312,16 @@ export const CustomerLifecyclePage = () => {
         dataTestId="customer-lifecycle-table"
       />
       <Drawer
-        title={editingTask ? '缂栬緫鐢熷懡鍛ㄦ湡浠诲姟' : '鏂板缓鐢熷懡鍛ㄦ湡浠诲姟'}
+        title={editingTask ? '编辑鐢熷懡鍛ㄦ湡任务' : '鏂板缓鐢熷懡鍛ㄦ湡任务'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>鍙栨秷</Button>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
             <Button type="primary" loading={saving} onClick={handleSave} data-testid="customer-lifecycle-form-save">
-              淇濆瓨
+              保存
             </Button>
           </Space>
         }
@@ -336,7 +336,7 @@ export const CustomerLifecyclePage = () => {
           </Form.Item>
           <Form.Item
             name="strategy"
-            label="瑙﹁揪绛栫暐"
+            label="瑙﹁揪策略"
             rules={[{ required: true, message: '请输入触达策略' }]}
           >
             <Input placeholder="触达策略" data-testid="customer-lifecycle-form-strategy" />

@@ -105,7 +105,7 @@ export const PrintDevicesPage = () => {
   const devicesQuery = useQuery({
     queryKey: ['print-devices', tenantId, query],
     queryFn: () => listPrintDevices(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   useEffect(() => {
@@ -360,7 +360,7 @@ export const PrintDevicesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -398,7 +398,7 @@ export const PrintDevicesPage = () => {
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setRegisterOpen(false)}>取消</Button>

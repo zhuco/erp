@@ -519,7 +519,7 @@ export const ProductBarcodesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         data-testid="product-barcodes-drawer"
         footer={
           <Space>

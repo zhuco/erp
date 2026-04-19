@@ -1,4 +1,4 @@
-﻿# ERP95 Round 8 Exec Log
+# ERP95 Round 8 Exec Log
 
 日期：2026-04-15
 

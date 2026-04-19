@@ -252,6 +252,8 @@ Only run E2E when:
 
 The Web UI uses Playwright for end-to-end testing with mocked API responses. Tests run against actual UI components but use `VITE_USE_MOCKS=true` to avoid dependency on backend.
 
+UI 交互类页面的验收口径，统一以 `docs/web/UI_DEVELOPMENT_STANDARD.md` 为准。凡是涉及工作台骨架、主数据表、左侧筛选、批量操作、保存视图、滚动条、排序图标、列筛选行为的改动，必须先对齐该文档，再编写或更新 E2E。
+
 ### Quick Start
 
 #### Run All Tests

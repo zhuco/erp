@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+echo "[pre-commit] Verifying staged files use UTF-8 (without BOM)..."
+node scripts/verify_utf8_encoding.mjs --staged

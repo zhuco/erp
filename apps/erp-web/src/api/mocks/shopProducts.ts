@@ -17,6 +17,7 @@ import type {
   ShopProductTaskListResponse,
   ShopProductTaskResponse,
 } from '../shopProducts';
+import { Platform } from '@/features/platform';
 import { applyPagination, mockTenantId } from './data';
 import { getActiveMockApparelRule } from './mappingRules';
 
@@ -25,7 +26,7 @@ const mockShopProductSkus: ShopProductSku[] = [
     sku_record_id: 'shop-sku-1',
     tenant_id: mockTenantId,
     shop_id: 'SHOP-taobao-1',
-    platform: 'taobao',
+    platform: Platform.Taobao,
     platform_product_id: 'product-1',
     platform_sku_id: 'TB-SKU-001',
     merchant_code: 'TB-001',
@@ -48,7 +49,7 @@ const mockShopProductSkus: ShopProductSku[] = [
     sku_record_id: 'shop-sku-2',
     tenant_id: mockTenantId,
     shop_id: 'SHOP-taobao-1',
-    platform: 'taobao',
+    platform: Platform.Taobao,
     platform_product_id: 'product-1',
     platform_sku_id: 'TB-SKU-002',
     merchant_code: 'TB-001',
@@ -75,7 +76,7 @@ const mockShopProductSkus: ShopProductSku[] = [
     sku_record_id: 'shop-sku-3',
     tenant_id: mockTenantId,
     shop_id: 'SHOP-jd-1',
-    platform: 'jd',
+    platform: Platform.Jd,
     platform_product_id: 'product-2',
     platform_sku_id: 'JD-SKU-003',
     merchant_code: 'JD-002',
@@ -102,7 +103,7 @@ const mockShopProductSkus: ShopProductSku[] = [
     sku_record_id: 'shop-sku-4',
     tenant_id: mockTenantId,
     shop_id: 'SHOP-taobao-1',
-    platform: 'taobao',
+    platform: Platform.Taobao,
     platform_product_id: 'product-1',
     platform_sku_id: 'TB-SKU-004',
     merchant_code: 'TB-001',
@@ -383,12 +384,12 @@ export const createMockShopProductMatchTask = (
       target.match_source = null;
       target.mapping_status = 'CONFLICT';
       target.conflict_reason = parsed.reasonCode;
-      failures.push({
-        sku_record_id: id,
-        platform_sku_id: target.platform_sku_id,
-        merchant_sku_code: target.merchant_sku_code ?? null,
-        reason: parsed.reasonText,
-      });
+        failures.push({
+          sku_record_id: id,
+          platform_sku_id: target.platform_sku_id,
+          merchant_sku_code: target.merchant_sku_code ?? null,
+          reason: parsed.reasonText ?? '匹配失败',
+        });
       return;
     }
 

@@ -86,7 +86,7 @@ export const LogisticsProductsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['logistics-products', tenantId, query],
     queryFn: () => listLogisticsProducts(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const carriersQuery = useQuery({
@@ -297,7 +297,7 @@ export const LogisticsProductsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

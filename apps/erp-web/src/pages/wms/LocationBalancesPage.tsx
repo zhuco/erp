@@ -45,7 +45,7 @@ export const LocationBalancesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['location-balances', tenantId, query],
     queryFn: () => listLocationBalances(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<LocationBalance>>(

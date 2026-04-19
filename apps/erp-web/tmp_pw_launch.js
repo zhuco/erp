@@ -1,4 +1,4 @@
-﻿console.log('before require');
+console.log('before require');
 const { chromium } = require('@playwright/test');
 console.log('before launch');
 (async () => {

@@ -188,7 +188,7 @@ export const ShipmentsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['shipments', tenantId, query],
     queryFn: () => listShipments(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const packagesQuery = useQuery({
@@ -404,7 +404,7 @@ export const ShipmentsPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         {activeShipment ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>

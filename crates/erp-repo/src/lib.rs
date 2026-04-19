@@ -1,4 +1,4 @@
-﻿pub mod after_sale_cases;
+pub mod after_sale_cases;
 pub mod after_sales;
 pub mod after_sales_import_jobs;
 pub mod after_sales_inspections;

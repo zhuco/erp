@@ -23,6 +23,7 @@ export const UiModule04BottomTable = ({
     containerRef,
     syncKey
   });
+  const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
   const isScrollable = (element: HTMLElement) =>
     element.scrollHeight - element.clientHeight > 1;
@@ -62,7 +63,7 @@ export const UiModule04BottomTable = ({
     return resolveScrollableParent(container) ?? tableTarget;
   };
 
-  useLayoutEffect(() => {
+  useSafeLayoutEffect(() => {
     const target = resolveVerticalTarget();
     if (!target) {
       return;

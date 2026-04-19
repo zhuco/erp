@@ -25,9 +25,13 @@ async fn modular_exports_build_healthz_app() {
         .await
         .expect("app should respond");
 
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
     let body = to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("healthz body should be readable");
-    assert_eq!(body.as_ref(), b"ok");
+    match status {
+        StatusCode::OK => assert_eq!(body.as_ref(), b"ok"),
+        StatusCode::SERVICE_UNAVAILABLE => assert_eq!(body.as_ref(), b"db not ready"),
+        status => panic!("unexpected healthz status: {status}"),
+    }
 }

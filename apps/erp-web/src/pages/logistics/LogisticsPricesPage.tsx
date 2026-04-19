@@ -91,7 +91,7 @@ export const LogisticsPricesPage = () => {
     queryKey: ['logistics-prices', tenantId, query],
     queryFn: () => listLogisticsPrices(tenantId, query),
     enabled: featureFlag.enabled,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const carriersQuery = useQuery({
@@ -351,7 +351,7 @@ export const LogisticsPricesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

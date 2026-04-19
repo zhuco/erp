@@ -32,7 +32,7 @@ import {
   replayDeadLetter,
   requeueOutboxEvent
 } from '@/api/failureQueue';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -129,13 +129,13 @@ export const FailureQueuePage = () => {
   const deadLettersQuery = useQuery({
     queryKey: ['dead-letters', tenantId, deadQuery],
     queryFn: () => listDeadLetters(tenantId, deadQuery),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const outboxEventsQuery = useQuery({
     queryKey: ['outbox-events', tenantId, outboxQuery],
     queryFn: () => listOutboxEvents(tenantId, outboxQuery),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleDeadSearch = (values: DeadLetterFilters) => {
@@ -167,7 +167,7 @@ export const FailureQueuePage = () => {
   const handleReplay = async (deadLetterId: string) => {
     try {
       await replayDeadLetter(tenantId, deadLetterId);
-      message.success('重放已提交');
+      message.success('Replay submitted');
       await queryClient.invalidateQueries({ queryKey: ['dead-letters', tenantId] });
       await queryClient.invalidateQueries({ queryKey: ['outbox-events', tenantId] });
     } catch (error) {
@@ -178,7 +178,7 @@ export const FailureQueuePage = () => {
   const handleRequeue = async (outboxId: string) => {
     try {
       await requeueOutboxEvent(tenantId, outboxId);
-      message.success('已重新入队');
+      message.success('Requeued');
       await queryClient.invalidateQueries({ queryKey: ['outbox-events', tenantId] });
     } catch (error) {
       message.error(error instanceof Error ? error.message : '重试失败');
@@ -188,42 +188,42 @@ export const FailureQueuePage = () => {
   const deadLetterColumns = useMemo<ColumnsType<DeadLetter>>(
     () => [
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (_, record) => (
           <Tag color={deadLetterStatusColors[record.status]}>{record.status}</Tag>
         )
       },
       {
-        title: '事件类型',
+        title: '浜嬩欢绫诲瀷',
         dataIndex: 'event_type'
       },
       {
-        title: '错误',
+        title: '閿欒',
         dataIndex: 'error',
         ellipsis: true,
         render: (_, record) => record.error || '-'
       },
       {
-        title: '尝试次数',
+        title: '灏濊瘯娆℃暟',
         dataIndex: 'attempts'
       },
       {
-        title: '分类',
+        title: '鍒嗙被',
         dataIndex: 'classification'
       },
       {
-        title: '创建时间',
+        title: '鍒涘缓鏃堕棿',
         dataIndex: 'created_at',
         render: (_, record) => formatDateTime(record.created_at)
       },
       {
-        title: '重放时间',
+        title: '重放鏃堕棿',
         dataIndex: 'replayed_at',
         render: (_, record) => formatDateTime(record.replayed_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) =>
           record.status === 'PENDING' && canReplay ? (
@@ -241,48 +241,48 @@ export const FailureQueuePage = () => {
   const outboxColumns = useMemo<ColumnsType<OutboxEvent>>(
     () => [
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (_, record) => (
           <Tag color={outboxStatusColors[record.status]}>{record.status}</Tag>
         )
       },
       {
-        title: '事件类型',
+        title: '浜嬩欢绫诲瀷',
         dataIndex: 'event_type'
       },
       {
-        title: '尝试次数',
+        title: '灏濊瘯娆℃暟',
         dataIndex: 'attempts'
       },
       {
-        title: '错误',
+        title: '閿欒',
         dataIndex: 'last_error',
         ellipsis: true,
         render: (_, record) => record.last_error || '-'
       },
       {
-        title: '下次重试',
+        title: '涓嬫重试',
         dataIndex: 'next_retry_at',
         render: (_, record) => formatDateTime(record.next_retry_at)
       },
       {
-        title: '最近尝试',
+        title: 'Last Attempt',
         dataIndex: 'last_attempt_at',
         render: (_, record) => formatDateTime(record.last_attempt_at)
       },
       {
-        title: '投递时间',
+        title: 'Delivered At',
         dataIndex: 'published_at',
         render: (_, record) => formatDateTime(record.published_at)
       },
       {
-        title: '创建时间',
+        title: '鍒涘缓鏃堕棿',
         dataIndex: 'created_at',
         render: (_, record) => formatDateTime(record.created_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) =>
           ['FAILED', 'DEAD', 'DISPATCHING'].includes(record.status) && canReplay ? (
@@ -324,22 +324,22 @@ export const FailureQueuePage = () => {
                   <Form form={deadForm} layout="vertical" onFinish={handleDeadSearch}>
                     <Row gutter={16}>
                       <Col xs={24} md={6}>
-                        <Form.Item name="status" label="状态">
+                        <Form.Item name='status' label='Status'>
                           <Select allowClear options={deadLetterStatusOptions} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
                         <Space>
                           <Button type="primary" htmlType="submit">
-                            查询
+                            鏌ヨ
                           </Button>
-                          <Button onClick={handleDeadReset}>重置</Button>
+                          <Button onClick={handleDeadReset}>閲嶇疆</Button>
                         </Space>
                       </Col>
                     </Row>
                   </Form>
                 </Card>
-                <ServerTable<DeadLetter>
+                <UiModule03MainTableSection<DeadLetter>
                   rowKey="dead_letter_id"
                   columns={deadLetterColumns}
                   data={deadLetters}
@@ -376,34 +376,34 @@ export const FailureQueuePage = () => {
           },
           {
             key: 'outbox',
-            label: 'Outbox堆积',
+            label: 'Outbox鍫嗙Н',
             children: (
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <Card>
                   <Form form={outboxForm} layout="vertical" onFinish={handleOutboxSearch}>
                     <Row gutter={16}>
                       <Col xs={24} md={6}>
-                        <Form.Item name="status" label="状态">
+                        <Form.Item name='status' label='Status'>
                           <Select allowClear options={outboxStatusOptions} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={6}>
-                        <Form.Item name="event_type" label="事件类型">
+                        <Form.Item name="event_type" label="浜嬩欢绫诲瀷">
                           <Input allowClear placeholder="ORDER_UPSERTED" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
                         <Space>
                           <Button type="primary" htmlType="submit">
-                            查询
+                            鏌ヨ
                           </Button>
-                          <Button onClick={handleOutboxReset}>重置</Button>
+                          <Button onClick={handleOutboxReset}>閲嶇疆</Button>
                         </Space>
                       </Col>
                     </Row>
                   </Form>
                 </Card>
-                <ServerTable<OutboxEvent>
+                <UiModule03MainTableSection<OutboxEvent>
                   rowKey="outbox_id"
                   columns={outboxColumns}
                   data={outboxEvents}
@@ -411,7 +411,7 @@ export const FailureQueuePage = () => {
                   error={outboxEventsQuery.error}
                   onRetry={() => outboxEventsQuery.refetch()}
                   errorTitle="Outbox加载失败"
-                  emptyText="暂无Outbox事件"
+                  emptyText="暂无Outbox浜嬩欢"
                   total={resolveTotal(outboxPagination, outboxEventsQuery.data?.next_cursor)}
                   pagination={outboxPagination}
                   onPaginationChange={(pagination) => {
@@ -443,3 +443,4 @@ export const FailureQueuePage = () => {
     </Space>
   );
 };
+

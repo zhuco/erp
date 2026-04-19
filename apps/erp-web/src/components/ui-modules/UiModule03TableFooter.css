@@ -87,6 +87,7 @@
 .order-workbench-pagination-controls {
   margin-left: auto;
   flex: 0 0 auto;
+  padding-right: 3px;
 }
 
 .order-review-pagination-summary > *,
@@ -95,5 +96,14 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-workbench-load-timing {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 8px;
+  color: #64748b;
+  font-size: 12px;
   white-space: nowrap;
 }

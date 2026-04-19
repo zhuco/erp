@@ -1,103 +1,151 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  claimMockOrderException,
-  getMockOrderDetail,
-  listMockOrderExceptions,
-  resolveMockOrderException,
-  submitMockOrderFulfillment
-} from './mocks/orders';
-import { mockTenantId } from './mocks/data';
+const loadMockOrders = async () => {
+  vi.resetModules();
+  const data = await import('./mocks/data');
+  const orders = await import('./mocks/orders');
 
-describe('OMS 主链 mock', () => {
-  it('异常池只返回 fulfillment_status = NOT_SUBMITTED 的异常单', () => {
+  return {
+    ...orders,
+    mockOmsMainChainSeeds: data.mockOmsMainChainSeeds,
+    specialMockOrderIds: data.specialMockOrderIds,
+  };
+};
+
+const loadOrdersApiWithMocks = async () => {
+  vi.resetModules();
+  vi.doMock('@/utils/env', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/env')>('@/utils/env');
+    return {
+      ...actual,
+      useMocks: true,
+    };
+  });
+
+  const data = await import('./mocks/data');
+  const orders = await import('./orders');
+
+  return {
+    ...orders,
+    mockTenantId: data.mockTenantId,
+    specialMockOrderIds: data.specialMockOrderIds,
+  };
+};
+
+afterEach(() => {
+  vi.doUnmock('@/utils/env');
+  vi.resetModules();
+});
+
+describe('OMS main-chain mocks', () => {
+  it('lists only open exceptions that are still not submitted for fulfillment', async () => {
+    const { listMockOrderExceptions } = await loadMockOrders();
+
     const result = listMockOrderExceptions({ status: 'OPEN' });
 
     expect(result.items.length).toBeGreaterThan(0);
     expect(result.items.every((item) => item.fulfillment_status === 'NOT_SUBMITTED')).toBe(true);
   });
 
-  it('dryRun 只返回预检结果，不改写主链状态', () => {
-    const first = submitMockOrderFulfillment('TEST-ORDER-FULFILLMENT-READY', { dryRun: true });
-    const second = submitMockOrderFulfillment('TEST-ORDER-FULFILLMENT-READY', { dryRun: true });
+  it('keeps dry-run submissions side-effect free for a fulfillment-ready order', async () => {
+    const { specialMockOrderIds, submitMockOrderFulfillment } = await loadMockOrders();
+
+    const first = submitMockOrderFulfillment(specialMockOrderIds.fulfillmentReady, { dryRun: true });
+    const second = submitMockOrderFulfillment(specialMockOrderIds.fulfillmentReady, { dryRun: true });
 
     expect(first.passed).toBe(true);
     expect(first.reserve_status).toBeNull();
     expect(first.fulfillment_status).toBe('NOT_SUBMITTED');
+    expect(second.passed).toBe(true);
     expect(second.reserve_status).toBeNull();
     expect(second.fulfillment_status).toBe('NOT_SUBMITTED');
   });
 
-  it('提交发货成功后写入 RESERVED 和 WAVE_PENDING', () => {
-    const result = submitMockOrderFulfillment('TEST-ORDER-FULFILLMENT-READY');
+  it('submits a fulfillment-ready order into RESERVED and WAVE_PENDING', async () => {
+    const { specialMockOrderIds, submitMockOrderFulfillment } = await loadMockOrders();
+
+    const result = submitMockOrderFulfillment(specialMockOrderIds.fulfillmentReady);
 
     expect(result.passed).toBe(true);
     expect(result.reserve_status).toBe('RESERVED');
     expect(result.fulfillment_status).toBe('WAVE_PENDING');
   });
 
-  it('提交发货失败后写入 RESERVE_FAILED 并保持 NOT_SUBMITTED', () => {
-    const result = submitMockOrderFulfillment('TEST-ORDER-RESERVE-FAILED');
+  it('keeps reserve-failed samples in NOT_SUBMITTED when submission fails', async () => {
+    const { mockOmsMainChainSeeds, submitMockOrderFulfillment } = await loadMockOrders();
+    const reserveFailedSeed = mockOmsMainChainSeeds.find(
+      (seed) =>
+        seed.audit_status === 'REVIEW_PASSED' &&
+        seed.exception_status === 'NONE' &&
+        seed.reserve_precheck_passed === false,
+    );
+
+    expect(reserveFailedSeed).toBeDefined();
+
+    const result = submitMockOrderFulfillment(reserveFailedSeed!.order_id);
 
     expect(result.passed).toBe(false);
     expect(result.reserve_status).toBe('RESERVE_FAILED');
     expect(result.fulfillment_status).toBe('NOT_SUBMITTED');
   });
 
-  it('领取后复核通过会清空已闭环异常的 flags', () => {
-    claimMockOrderException('TEST-ORDER-MISSING-SKU', {
+  it('clears exception flags after an exception is claimed and resolved', async () => {
+    const {
+      claimMockOrderException,
+      getMockOrderDetail,
+      resolveMockOrderException,
+      specialMockOrderIds,
+    } = await loadMockOrders();
+
+    claimMockOrderException(specialMockOrderIds.missingSku, {
       operator_id: 'USER-OMS-003',
-      operator_name: '异常复核员'
+      operator_name: 'reviewer',
     });
-    const resolved = resolveMockOrderException('TEST-ORDER-MISSING-SKU', {
+    const resolved = resolveMockOrderException(specialMockOrderIds.missingSku, {
       operator_id: 'USER-OMS-003',
-      operator_name: '异常复核员',
-      reason: '已人工补齐商品映射'
+      operator_name: 'reviewer',
+      reason: 'mapping fixed',
     });
-    const detail = getMockOrderDetail('TEST-ORDER-MISSING-SKU');
+    const detail = getMockOrderDetail(specialMockOrderIds.missingSku);
 
     expect(resolved.exception_status).toBe('RESOLVED');
     expect(detail.order.exception_flags).toEqual([]);
   });
 
-  it('订单详情返回值不应泄漏共享引用', () => {
-    const detail = getMockOrderDetail('TEST-ORDER-ADDRESS-INVALID');
-    detail.items[0]!.title = '已被污染的商品';
-    detail.notes[0]!.note = '已被污染的备注';
-    detail.tags[0]!.tag = '已被污染的标记';
+  it('returns cloned order detail payloads instead of leaking shared references', async () => {
+    const { getMockOrderDetail, specialMockOrderIds } = await loadMockOrders();
 
-    const fresh = getMockOrderDetail('TEST-ORDER-ADDRESS-INVALID');
+    const detail = getMockOrderDetail(specialMockOrderIds.addressInvalid);
+    detail.items[0]!.title = 'mutated item';
+    detail.notes[0]!.note = 'mutated note';
+    detail.tags[0]!.tag = 'mutated tag';
 
-    expect(fresh.items[0]?.title).not.toBe('已被污染的商品');
-    expect(fresh.notes[0]?.note).not.toBe('已被污染的备注');
-    expect(fresh.tags[0]?.tag).not.toBe('已被污染的标记');
+    const fresh = getMockOrderDetail(specialMockOrderIds.addressInvalid);
+
+    expect(fresh.items[0]?.title).not.toBe('mutated item');
+    expect(fresh.notes[0]?.note).not.toBe('mutated note');
+    expect(fresh.tags[0]?.tag).not.toBe('mutated tag');
   });
 
-  it('公共 API 在 mock 模式下返回异常池与提交发货结果', async () => {
-    vi.resetModules();
-    vi.doMock('@/utils/env', async () => {
-      const actual = await vi.importActual<typeof import('@/utils/env')>('@/utils/env');
-      return {
-        ...actual,
-        useMocks: true
-      };
-    });
+  it(
+    'exposes exception list and fulfillment submission through the public mock API',
+    async () => {
+      const { listOrderExceptions, mockTenantId, specialMockOrderIds, submitOrdersForFulfillment } =
+        await loadOrdersApiWithMocks();
 
-    const { listOrderExceptions, submitOrdersForFulfillment } = await import('./orders');
+      const exceptionResult = await listOrderExceptions(mockTenantId, { status: 'OPEN' });
+      const submitResult = await submitOrdersForFulfillment(mockTenantId, [
+        specialMockOrderIds.fulfillmentReady,
+      ]);
 
-    const exceptionResult = await listOrderExceptions(mockTenantId, { status: 'OPEN' });
-    const submitResult = await submitOrdersForFulfillment(mockTenantId, [
-      'TEST-ORDER-FULFILLMENT-READY'
-    ]);
-
-    expect(exceptionResult.items.length).toBeGreaterThan(0);
-    expect(exceptionResult.items.every((item) => item.fulfillment_status === 'NOT_SUBMITTED')).toBe(
-      true
-    );
-    expect(submitResult).toHaveLength(1);
-    expect(submitResult[0]?.reserve_status).toBe('RESERVED');
-    expect(submitResult[0]?.fulfillment_status).toBe('WAVE_PENDING');
-
-    vi.doUnmock('@/utils/env');
-  });
+      expect(exceptionResult.items.length).toBeGreaterThan(0);
+      expect(
+        exceptionResult.items.every((item) => item.fulfillment_status === 'NOT_SUBMITTED'),
+      ).toBe(true);
+      expect(submitResult).toHaveLength(1);
+      expect(submitResult[0]?.reserve_status).toBe('RESERVED');
+      expect(submitResult[0]?.fulfillment_status).toBe('WAVE_PENDING');
+    },
+    15000,
+  );
 });

@@ -33,7 +33,7 @@ import {
   listOrderTagDefinitions,
   updateOrderTagDefinition
 } from '@/api/orderTagDefinitions';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -68,8 +68,8 @@ const isTemplateOption = (item: unknown): item is TemplateOption => {
 };
 
 const statusOptions = [
-  { label: '启用', value: 'ACTIVE' },
-  { label: '停用', value: 'DISABLED' }
+  { label: '鍚敤', value: 'ACTIVE' },
+  { label: '鍋滅敤', value: 'DISABLED' }
 ];
 
 const formatDateTime = (value?: string | null) =>
@@ -103,17 +103,17 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
 
   const templateDefaults: TemplateOption[] = [
     {
-      label: '加急订单（订单金额>=5000）',
+      label: 'Urgent Order (total>=5000)',
       value: 'urgent_high',
       payload: [{ field_path: 'total_cent', op: '>=', value: 5000 }]
     },
     {
-      label: '高SKU件数标记',
+      label: '高SKU浠舵暟标记',
       value: 'sku_count',
       payload: [{ field_path: 'sku_count', op: '>=', value: 5 }]
     },
     {
-      label: '地址异常标记',
+      label: '鍦板潃异常标记',
       value: 'address_invalid',
       payload: [{ field_path: 'address_invalid', op: '=', value: true }]
     }
@@ -161,14 +161,14 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
     queryKey: ['order-tag-definitions', tenantId, query],
     queryFn: () => listOrderTagDefinitions(tenantId, query),
     enabled: featureFlag.enabled,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
     mutationFn: (tagId: string) => deleteOrderTagDefinition(tenantId, tagId),
     onMutate: (tagId) => setDeletingId(tagId),
     onSuccess: () => {
-      message.success('订单标记已删除');
+      message.success('Order tag deleted');
       queryClient.invalidateQueries({ queryKey: ['order-tag-definitions', tenantId] });
     },
     onError: (err) => {
@@ -180,11 +180,11 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
   const columns = useMemo<ColumnsType<OrderTagDefinition>>(
     () => [
       {
-        title: '标记名称',
+        title: '标记鍚嶇О',
         dataIndex: 'name'
       },
       {
-        title: '颜色',
+        title: '棰滆壊',
         dataIndex: 'color',
         render: (value) =>
           value ? (
@@ -196,34 +196,34 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
           )
       },
       {
-        title: '优先级',
+        title: 'Priority',
         dataIndex: 'priority'
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
-        render: (value) => (value === 'DISABLED' ? <Tag color="red">停用</Tag> : '启用')
+        render: (value) => (value === 'DISABLED' ? <Tag color="red">鍋滅敤</Tag> : '鍚敤')
       },
       {
-        title: '默认标记',
+        title: '榛樿标记',
         dataIndex: 'auto_apply',
         render: (value) =>
-          value ? <Tag color="green">自动打标</Tag> : <Tag>手动</Tag>
+          value ? <Tag color="green">鑷姩鎵撴爣</Tag> : <Tag>鎵嬪姩</Tag>
       },
       {
-        title: '命中条件',
+        title: '鍛戒腑鏉′欢',
         dataIndex: 'conditions_json',
         render: (value) => {
           if (!value) {
             return '-';
           }
           if (Array.isArray(value)) {
-            return value.length > 0 ? <Tag>已配置</Tag> : '-';
+            return value.length > 0 ? <Tag>Configured</Tag> : '-';
           }
           if (typeof value === 'object') {
-            return Object.keys(value).length > 0 ? <Tag>已配置</Tag> : '-';
+            return Object.keys(value).length > 0 ? <Tag>Configured</Tag> : '-';
           }
-          return <Tag>已配置</Tag>;
+          return <Tag>Configured</Tag>;
         }
       },
       {
@@ -232,7 +232,7 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -259,7 +259,7 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
               编辑
             </Button>
             <Popconfirm
-              title="确认删除该标记？"
+              title="确认删除璇ユ爣璁帮紵"
               okText="删除"
               cancelText="取消"
               onConfirm={() => deleteMutation.mutate(record.tag_id)}
@@ -315,7 +315,7 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
           conditions = JSON.parse(values.conditions_json);
           setConditionsError(null);
         } catch {
-          setConditionsError('条件格式必须为合法 JSON');
+          setConditionsError('鏉′欢鏍煎紡蹇呴』涓哄悎娉?JSON');
           return;
         }
       }
@@ -330,10 +330,10 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
       setSaving(true);
       if (editingTag) {
         await updateOrderTagDefinition(tenantId, editingTag.tag_id, payload);
-        message.success('订单标记已更新');
+        message.success('Order tag updated');
       } else {
         await createOrderTagDefinition(tenantId, payload);
-        message.success('订单标记已创建');
+        message.success('Order tag created');
       }
       setDrawerOpen(false);
       setEditingTag(null);
@@ -350,19 +350,19 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
   const handleSaveTemplate = async () => {
     const name = templateName.trim();
     if (!name) {
-      message.warning('请输入模板名称');
+      message.warning('Please enter template name');
       return;
     }
     const conditionsRaw = drawerForm.getFieldValue('conditions_json') as string | undefined;
     if (!conditionsRaw) {
-      message.warning('请先填写条件');
+      message.warning('璇峰厛濉啓鏉′欢');
       return;
     }
     let payload: Record<string, unknown> | unknown[] = [];
     try {
       payload = JSON.parse(conditionsRaw);
     } catch {
-      message.warning('条件格式必须为合法 JSON');
+      message.warning('鏉′欢鏍煎紡蹇呴』涓哄悎娉?JSON');
       return;
     }
     const currentSetting = templateQuery.data?.[0];
@@ -386,7 +386,7 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
         value,
         expected_version: currentSetting?.version
       });
-      message.success('模板已保存');
+      message.success('Template saved');
       setTemplateModalOpen(false);
       setTemplateName('');
       templateQuery.refetch();
@@ -400,8 +400,8 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
   if (!featureFlag.enabled) {
     return (
       <Alert
-        message="标记系统已关闭"
-        description={featureFlag.reason || '请在系统设置中启用标记系统'}
+        message="Tag system is disabled"
+        description={featureFlag.reason || 'Please enable tag system in settings'}
         type="warning"
         showIcon
       />
@@ -419,34 +419,34 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
           <span />
         )}
         <Button type="primary" disabled={!canWrite} onClick={openCreateDrawer}>
-          新建标记
+          鏂板缓标记
         </Button>
       </Space>
       <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="标记名称" />
+              <Form.Item name="keyword" label="Keyword">
+                <Input allowClear placeholder="标记鍚嶇О" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="全部状态" />
+              <Form.Item name="status" label="Status">
+                <Select allowClear options={statusOptions} placeholder="All status" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<OrderTagDefinition>
+      <UiModule03MainTableSection<OrderTagDefinition>
         rowKey="tag_id"
         columns={columns}
         data={data?.items ?? []}
@@ -461,11 +461,11 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
         columnSettingsKey="order-tags.table.columns"
       />
       <Drawer
-        title={editingTag ? '编辑订单标记' : '新建订单标记'}
+        title={editingTag ? '编辑订单标记' : '鏂板缓订单标记'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -478,21 +478,21 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
         <Form form={drawerForm} layout="vertical">
           <Form.Item
             name="name"
-            label="标记名称"
-            rules={[{ required: true, message: '请输入标记名称' }]}
+            label="标记鍚嶇О"
+            rules={[{ required: true, message: 'Please enter tag name' }]}
           >
-            <Input placeholder="例如：加急订单" />
+            <Input placeholder="e.g. Urgent order" />
           </Form.Item>
-          <Form.Item name="color" label="颜色">
-            <Input placeholder="例如：#ff4d4f" />
+          <Form.Item name="color" label="棰滆壊">
+            <Input placeholder="渚嬪锛?ff4d4f" />
           </Form.Item>
-          <Form.Item name="priority" label="优先级">
+          <Form.Item name="priority" label="Priority">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="auto_apply" label="默认标记" valuePropName="checked">
-            <Switch checkedChildren="自动打标" unCheckedChildren="手动" />
+          <Form.Item name="auto_apply" label="榛樿标记" valuePropName="checked">
+            <Switch checkedChildren="鑷姩鎵撴爣" unCheckedChildren="鎵嬪姩" />
           </Form.Item>
-          <Form.Item label="条件模板">
+          <Form.Item label="鏉′欢模板">
             <Space style={{ width: '100%' }} align="start">
               <Select
                 allowClear
@@ -501,7 +501,7 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
                   label: option.label,
                   value: option.value
                 }))}
-                placeholder="选择模板快速填充"
+                placeholder="Select template to fill conditions"
                 onChange={(value) => {
                   if (!value) {
                     setTemplateKey(null);
@@ -523,20 +523,20 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
           </Form.Item>
           <Form.Item
             name="conditions_json"
-            label="命中条件（JSON）"
-            extra="支持 OrderReviewCondition 结构，空数组表示全部命中"
+            label="Hit Conditions (JSON)"
+            extra="鏀寔 OrderReviewCondition 缁撴瀯锛岀┖鏁扮粍琛ㄧず鍏ㄩ儴鍛戒腑"
             validateStatus={conditionsError ? 'error' : ''}
             help={conditionsError ?? undefined}
           >
-            <Input.TextArea rows={6} placeholder='例如：[{"field_path":"total_cent","op":">","value":10000}]' />
+            <Input.TextArea rows={6} placeholder='渚嬪锛歔{"field_path":"total_cent","op":">","value":10000}]' />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="ACTIVE">
+          <Form.Item name="status" label="Status" initialValue="ACTIVE">
             <Select options={statusOptions} />
           </Form.Item>
         </Form>
       </Drawer>
       <Modal
-        title="保存条件模板"
+        title="保存鏉′欢模板"
         open={templateModalOpen}
         okText="保存"
         cancelText="取消"
@@ -547,9 +547,10 @@ export const OrderTagDefinitionsPage = ({ showTitle = true }: OrderTagDefinition
         <Input
           value={templateName}
           onChange={(event) => setTemplateName(event.target.value)}
-          placeholder="请输入模板名称"
+          placeholder="Please input template name"
         />
       </Modal>
     </Space>
   );
 };
+

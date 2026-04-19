@@ -436,7 +436,7 @@ export const listWmsWaveRules = async (
     {
       headers: buildAuthHeaders()
     },
-    '鑾峰彇娉㈡瑙勫垯澶辫触'
+    '鑾峰彇波次规则失败'
   );
 };
 
@@ -457,7 +457,7 @@ export const createWmsWaveRule = async (
       },
       body: JSON.stringify(payload)
     },
-    '娣诲姞娉㈡瑙勫垯澶辫触'
+    '娣诲姞波次规则失败'
   );
 };
 
@@ -479,7 +479,7 @@ export const updateWmsWaveRule = async (
       },
       body: JSON.stringify(payload)
     },
-    '鏇存柊娉㈡瑙勫垯澶辫触'
+    '更新波次规则失败'
   );
 };
 
@@ -496,7 +496,7 @@ export const deleteWmsWaveRule = async (
       method: 'DELETE',
       headers: buildAuthHeaders()
     },
-    '鍒犻櫎娉㈡瑙勫垯澶辫触'
+    '删除波次规则失败'
   );
 };
 
@@ -722,7 +722,7 @@ export const checkWmsOutbound = async (
       },
       body: JSON.stringify(payload)
     },
-    '鎻愪氦澶嶆牳澶辫触'
+    '提交复核失败'
   );
 };
 
@@ -745,7 +745,7 @@ export const weighWmsOutbound = async (
       },
       body: JSON.stringify(payload)
     },
-    '鎻愪氦绉伴噸澶辫触'
+    '提交称重失败'
   );
 };
 

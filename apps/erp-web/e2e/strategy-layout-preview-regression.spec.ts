@@ -1,4 +1,4 @@
-﻿import { expect, loginAndSelectTenant, test } from './fixtures';
+import { expect, loginAndSelectTenant, test } from './fixtures';
 
 test.describe('strategy layout preview regressions', () => {
   test('keeps Chinese module labels and preserves selection after row focus changes', async ({

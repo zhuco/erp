@@ -87,7 +87,7 @@ export const AfterSaleCaseListPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['after-sale-cases', tenantId, query],
     queryFn: () => listAfterSales(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const columns = useMemo<ColumnsType<AfterSaleCaseSummary>>(

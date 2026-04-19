@@ -11469,7 +11469,7 @@ async fn update_logistics_warehouse_strategy(
 
     let summary = req
         .history_summary
-        .unwrap_or_else(|| "鏇存柊浠撻厤绛栫暐".to_string());
+        .unwrap_or_else(|| "更新仓配策略".to_string());
     if let Err(e) = repo
         .insert_history(LogisticsWarehouseStrategyHistoryCreate {
             tenant_id,
@@ -19459,7 +19459,7 @@ async fn pack_wms_outbound(
         {
             Ok(v) => v,
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
                 None
             }
         };
@@ -19519,7 +19519,7 @@ async fn pack_wms_outbound(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                    warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
                 }
             }
         }
@@ -20464,7 +20464,7 @@ async fn ship_wms_outbound(
         {
             Ok(v) => v,
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
                 None
             }
         };
@@ -20523,7 +20523,7 @@ async fn ship_wms_outbound(
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                    warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
                 }
             }
         }
@@ -21355,7 +21355,7 @@ async fn update_wms_outbound_logistics(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
             None
         }
     };
@@ -21412,7 +21412,7 @@ async fn update_wms_outbound_logistics(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
             }
         }
     }
@@ -22701,7 +22701,7 @@ async fn approve_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
             None
         }
     };
@@ -22758,7 +22758,7 @@ async fn approve_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
             }
         }
     }
@@ -22836,7 +22836,7 @@ async fn reject_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
             None
         }
     };
@@ -22893,7 +22893,7 @@ async fn reject_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
             }
         }
     }
@@ -23022,7 +23022,7 @@ async fn receive_after_sales(
     {
         Ok(v) => v,
         Err(e) => {
-            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇澶辫触");
+            warn!(error = %e, "閿€鍞崟鑱斿姩鑾峰彇失败");
             None
         }
     };
@@ -23075,7 +23075,7 @@ async fn receive_after_sales(
             }
             Ok(None) => {}
             Err(e) => {
-                warn!(error = %e, "閿€鍞崟鑱斿姩鏇存柊澶辫触");
+                warn!(error = %e, "閿€鍞崟鑱斿姩更新失败");
             }
         }
     }
@@ -34757,7 +34757,7 @@ async fn list_system_integration_shops_overview(
             push_webhook_alert_messages(&mut alert_messages, &webhook_health);
             for job in &shop_jobs {
                 if job.status.eq_ignore_ascii_case("FAILED") {
-                    alert_messages.push(format!("{} 鍚屾澶辫触", job.job_type));
+                    alert_messages.push(format!("{} 鍚屾失败", job.job_type));
                 }
             }
 
@@ -54366,7 +54366,7 @@ async fn auto_match_sku_views(
                     sku_record_id: view.sku_record_id,
                     platform_sku_id: view.platform_sku_id.clone(),
                     merchant_sku_code: view.merchant_sku_code.clone(),
-                    reason: format!("鍖归厤鍐欏叆澶辫触: {e}"),
+                    reason: format!("匹配写入失败: {e}"),
                 });
             }
         }
@@ -54974,12 +54974,12 @@ fn build_sku_import_header_index(headers: &[String]) -> Result<SkuImportHeaderIn
     let mut index = SkuImportHeaderIndex::default();
     for (idx, header) in headers.iter().enumerate() {
         match header.as_str() {
-            "product_id" | "productid" | "璐у搧缂栧彿" | "鍟嗗搧缂栧彿" | "浜у搧缂栧彿" => {
+            "product_id" | "productid" | "货品编号" | "鍟嗗搧编号" | "浜у搧编号" => {
                 index.product_id = Some(idx)
             }
-            "product_name" | "product" | "productname" | "璐у搧鍚嶇О" | "鍟嗗搧鍚嶇О"
+            "product_name" | "product" | "productname" | "货品鍚嶇О" | "鍟嗗搧鍚嶇О"
             | "浜у搧鍚嶇О" => index.product_name = Some(idx),
-            "sku_code" | "sku" | "skucode" | "瑙勬牸缂栧彿" | "瑙勬牸缂栫爜" | "sku缂栧彿"
+            "sku_code" | "sku" | "skucode" | "规格编号" | "规格编码" | "sku编号"
             | "sku缂栫爜" => index.sku_code = Some(idx),
             "barcode" | "bar_code" | "鏉＄爜" => index.barcode = Some(idx),
             "aux_barcode" | "assistant_barcode" | "辅助条码" | "辅助码" => {
@@ -54988,7 +54988,7 @@ fn build_sku_import_header_index(headers: &[String]) -> Result<SkuImportHeaderIn
             "name" | "sku_name" | "sku鍚嶇О" | "瑙勬牸鍚嶇О" => index.name = Some(idx),
             "spec" | "spec_info" | "规格信息" | "规格" => index.spec = Some(idx),
             "unit" | "鍗曚綅" => index.unit = Some(idx),
-            "category_id" | "categoryid" | "鍒嗙被缂栧彿" | "鍒嗙被id" | "鍒嗙被缂栫爜" => {
+            "category_id" | "categoryid" | "分类编号" | "鍒嗙被id" | "分类编码" => {
                 index.category_id = Some(idx)
             }
             "category_name" | "category" | "鍒嗙被鍚嶇О" | "鍒嗙被" => {
@@ -57436,8 +57436,8 @@ fn default_system_workflow_catalog() -> SystemWorkflowCatalogPayload {
             },
             SystemWorkflowDefinition {
                 workflow_id: "WF-PO-2".to_string(),
-                doc_type: "閲囪喘璁㈠崟".to_string(),
-                name: "閲囪喘璁㈠崟瀹℃壒".to_string(),
+                doc_type: "閲囪喘订单".to_string(),
+                name: "閲囪喘订单瀹℃壒".to_string(),
                 version: "v2.0".to_string(),
                 status: "ARCHIVED".to_string(),
                 steps: vec!["閲囪喘缁忕悊".to_string(), "璐㈠姟瀹℃牳".to_string()],
@@ -57497,14 +57497,14 @@ fn default_system_custom_fields_catalog() -> SystemCustomFieldsCatalogPayload {
         fields: vec![
             SystemCustomField {
                 field_id: "CF-ORDER-01".to_string(),
-                entity: "璁㈠崟".to_string(),
+                entity: "订单".to_string(),
                 label: "娓犻亾澶囨敞".to_string(),
                 field_key: "channel_note".to_string(),
                 field_type: "TEXT".to_string(),
                 required: false,
                 compatible: true,
                 status: "ACTIVE".to_string(),
-                description: Some("鍚屾娓犻亾璁㈠崟澶囨敞".to_string()),
+                description: Some("鍚屾娓犻亾订单澶囨敞".to_string()),
                 updated_at: (now - Duration::days(2)).to_rfc3339(),
             },
             SystemCustomField {
@@ -57544,7 +57544,7 @@ fn default_system_custom_fields_catalog() -> SystemCustomFieldsCatalogPayload {
             SystemCustomFieldAudit {
                 record_id: "AUD-1002".to_string(),
                 field_id: "CF-SKU-02".to_string(),
-                action: "鏇存柊瀛楁".to_string(),
+                action: "更新瀛楁".to_string(),
                 operator: "鍟嗗搧涓荤".to_string(),
                 comment: Some("鏂板娓╂帶绛夌骇閫夐」".to_string()),
                 created_at: (now - Duration::days(2)).to_rfc3339(),
@@ -57575,7 +57575,7 @@ fn default_system_audit_reports_catalog() -> SystemAuditReportsCatalogPayload {
         reports: vec![
             SystemAuditReport {
                 report_id: "REP-ORDER-01".to_string(),
-                module: "璁㈠崟".to_string(),
+                module: "订单".to_string(),
                 period: "2025-12".to_string(),
                 owner: "瀹¤涓撳憳".to_string(),
                 anomalies: 3,
@@ -57629,7 +57629,7 @@ fn default_system_integrations_catalog() -> SystemIntegrationsCatalogPayload {
             SystemIntegrationConfig {
                 integration_id: "INT-EC-01".to_string(),
                 name: "天猫旗舰店".to_string(),
-                category: "鐢靛晢骞冲彴".to_string(),
+                category: "电商平台".to_string(),
                 provider: "Alibaba OpenAPI".to_string(),
                 status: "CONNECTED".to_string(),
                 success_rate: 98.7,
@@ -58972,7 +58972,7 @@ mod tests {
             tenant_id: TenantId(uuid::Uuid::new_v4()),
             platform: Platform::Taobao,
             platform_shop_id: "TB-TEST".to_string(),
-            name: "娴嬭瘯搴楅摵".to_string(),
+            name: "测试店铺".to_string(),
             status: status.to_string(),
             auth_meta_json: json!({}),
             created_at: now,

@@ -1,6 +1,7 @@
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 
 import { AgGridSelectionHeaderCheckbox } from './AgGridSelectionHeaderCheckbox';
+import './agGridWorkbenchStructuralColumns.css';
 
 export const ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS = new Set(['__erpSelection', '__erpRowIndex']);
 
@@ -12,15 +13,31 @@ type BuildAgGridWorkbenchStructuralColDefsOptions = {
 
 const renderSelectionCheckbox = <TRow,>(params: ICellRendererParams<TRow>) => {
   const rowNode = params.node;
-  if (!rowNode?.data) return null;
+  if (!rowNode?.data) {
+    return null;
+  }
 
   return (
-    <span
-      className={`ag-selection-checkbox erp-selection-checkbox-visual${rowNode.isSelected() ? ' is-checked' : ''}`}
-      title="勾选/取消勾选"
-      aria-hidden="true"
-    />
+    <span className="ag-selection-checkbox-hitbox" aria-hidden="true">
+      <span
+        className={`ag-selection-checkbox erp-selection-checkbox-visual${rowNode.isSelected() ? ' is-checked' : ''}`}
+        title="Toggle selection"
+      />
+    </span>
   );
+};
+
+const resolveSourceRowIndex = (rowNode: { rowIndex?: number | null; sourceRowIndex?: number | null } | null | undefined) => {
+  const sourceRowIndex =
+    typeof rowNode?.sourceRowIndex === 'number' && Number.isFinite(rowNode.sourceRowIndex)
+      ? rowNode.sourceRowIndex
+      : null;
+  if (sourceRowIndex != null && sourceRowIndex >= 0) {
+    return sourceRowIndex;
+  }
+  const displayedRowIndex =
+    typeof rowNode?.rowIndex === 'number' && Number.isFinite(rowNode.rowIndex) ? rowNode.rowIndex : 0;
+  return Math.max(0, displayedRowIndex);
 };
 
 export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
@@ -45,8 +62,9 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
           suppressMovable: true,
         }
       : {}),
-    headerClass: 'order-review-main-header-center order-review-main-selection-header-cell',
-    cellClass: 'order-review-main-selection-cell',
+    headerClass:
+      'order-review-main-header-center order-review-main-selection-header-cell order-workbench-selection-header-centered',
+    cellClass: 'order-review-main-selection-cell order-workbench-selection-cell-centered',
     cellRenderer: renderSelectionCheckbox,
     headerComponent: AgGridSelectionHeaderCheckbox,
     headerComponentParams: {
@@ -61,7 +79,7 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
     minWidth: 38,
     maxWidth: 58,
     sortable: false,
-    filter: false,
+    filter: 'agNumberColumnFilter',
     resizable: true,
     ...(pinLeft
       ? {
@@ -71,7 +89,12 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
           suppressMovable: true,
         }
       : {}),
-    valueGetter: (params) => Number(params.node?.rowIndex ?? 0) + 1,
+    valueGetter: (params) => resolveSourceRowIndex(params.node as { rowIndex?: number | null; sourceRowIndex?: number | null }) + 1,
+    comparator: (_left, _right, nodeA, nodeB) => {
+      const leftIndex = resolveSourceRowIndex(nodeA as { rowIndex?: number | null; sourceRowIndex?: number | null });
+      const rightIndex = resolveSourceRowIndex(nodeB as { rowIndex?: number | null; sourceRowIndex?: number | null });
+      return leftIndex - rightIndex;
+    },
     headerClass: 'order-review-main-header-center order-review-main-row-index-header',
     cellClass: 'order-review-main-row-index-cell',
   },

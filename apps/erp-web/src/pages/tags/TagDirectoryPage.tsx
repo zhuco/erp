@@ -1,11 +1,12 @@
-import { Card, Space, Tabs, Typography } from 'antd';
+import { Card, Tabs, Typography } from 'antd';
 import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { OrderTagBadges } from '@/components/OrderTagBadges';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { builtinOrderTags, type BuiltinOrderTag } from '@/features/orderTags';
 import { OrderTagDefinitionsPage } from '@/pages/tags/OrderTagDefinitionsPage';
@@ -18,56 +19,55 @@ type TagDirectoryTab = 'orders' | 'skus' | 'builtin';
 const BuiltinTagDirectory = () => {
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 20
+    pageSize: 20,
   });
 
   const columns = useMemo<ColumnsType<BuiltinOrderTag>>(
     () => [
       {
-        title: '标记',
+        title: 'Tag',
         dataIndex: 'code',
         width: 90,
-        render: (_, record) => <OrderTagBadges tags={[record.name]} />
+        render: (_, record) => <OrderTagBadges tags={[record.name]} />,
       },
       {
-        title: '名称',
+        title: 'Name',
         dataIndex: 'name',
-        width: 160
+        width: 160,
       },
       {
-        title: '说明',
-        dataIndex: 'description'
-      }
+        title: 'Description',
+        dataIndex: 'description',
+      },
     ],
-    []
+    [],
+  );
+
+  const header = (
+    <Card size="small">
+      <Typography.Text strong>Builtin order tags</Typography.Text>
+      <br />
+      <Typography.Text type="secondary">System default tags for fast order identification.</Typography.Text>
+    </Card>
   );
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card size="small">
-        <Space direction="vertical" size={4}>
-          <Typography.Text strong>内置订单标记</Typography.Text>
-          <Typography.Text type="secondary">
-            系统默认标记，用于快速识别特殊订单。
-          </Typography.Text>
-        </Space>
-      </Card>
-      <div className="tag-directory-table">
-        <ServerTable<BuiltinOrderTag>
-          rowKey="key"
-          columns={columns}
-          data={builtinOrderTags}
-          loading={false}
-          error={null}
-          onRetry={() => undefined}
-          emptyText="暂无内置标记"
-          total={builtinOrderTags.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          columnSettingsKey="tags.builtin.table.columns"
-        />
-      </div>
-    </Space>
+    <div className="tag-directory-table">
+      <UiModule03MainTableSection<BuiltinOrderTag>
+        header={header}
+        rowKey="key"
+        columns={columns}
+        data={builtinOrderTags}
+        loading={false}
+        error={null}
+        onRetry={() => undefined}
+        emptyText="No builtin tags"
+        total={builtinOrderTags.length}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        columnSettingsKey="tags.builtin.table.columns"
+      />
+    </div>
   );
 };
 
@@ -77,25 +77,25 @@ export const TagDirectoryPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const availableTabs = useMemo(() => {
-    const items = [] as { key: TagDirectoryTab; label: string; children: React.ReactNode }[];
+    const items = [] as { key: TagDirectoryTab; label: string; children: ReactNode }[];
     if (canReadOrders) {
       items.push({
         key: 'orders',
-        label: '订单标记',
-        children: <OrderTagDefinitionsPage showTitle={false} />
+        label: 'Order Tags',
+        children: <OrderTagDefinitionsPage showTitle={false} />,
       });
     }
     if (canReadSkus) {
       items.push({
         key: 'skus',
-        label: '货品标记',
-        children: <SkuTagDefinitionsPage showTitle={false} />
+        label: 'SKU Tags',
+        children: <SkuTagDefinitionsPage showTitle={false} />,
       });
     }
     items.push({
       key: 'builtin',
-      label: '内置标记',
-      children: <BuiltinTagDirectory />
+      label: 'Builtin Tags',
+      children: <BuiltinTagDirectory />,
     });
     return items;
   }, [canReadOrders, canReadSkus]);
@@ -118,7 +118,7 @@ export const TagDirectoryPage = () => {
     <div className="tag-directory-page">
       <div className="tag-directory-toolbar">
         <Typography.Title level={3} style={{ margin: 0 }}>
-          标记目录
+          Tag Directory
         </Typography.Title>
       </div>
       <Tabs activeKey={activeKey} onChange={handleTabChange} items={availableTabs} />

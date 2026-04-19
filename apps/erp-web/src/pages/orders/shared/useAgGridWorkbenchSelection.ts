@@ -10,6 +10,7 @@ import type {
 } from 'ag-grid-community';
 
 import { applyShiftRangeSelection } from './agGridSelectionHelpers';
+import { resolveSelectionDiagnosticsEnabled } from './selectionDiagnostics';
 
 type UseAgGridWorkbenchSelectionOptions<TRow> = {
   apiRef: MutableRefObject<GridApi<TRow> | null>;
@@ -23,7 +24,8 @@ type UseAgGridWorkbenchSelectionOptions<TRow> = {
 };
 
 const isValidRowIndex = (rowIndex: number | null | undefined): rowIndex is number => rowIndex != null && rowIndex >= 0;
-const enableSelectionDiagnostics = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const enableSelectionDiagnostics = resolveSelectionDiagnosticsEnabled();
+const selectionCheckboxTargetSelector = '.ag-selection-checkbox-hitbox, .ag-selection-checkbox';
 
 export type AgGridSelectionDiagnostic = {
   action: 'activate-row' | 'ignore' | 'range-selection' | 'skip' | 'toggle-selection';
@@ -52,6 +54,13 @@ export const isEditableAgGridKeyboardTarget = (target: EventTarget | null) => {
   if (target.isContentEditable) return true;
   if (target.closest('.ag-floating-filter') || target.closest('.ag-cell-inline-editing')) return true;
   return false;
+};
+
+export const isSelectionCheckboxTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return Boolean(target.closest(selectionCheckboxTargetSelector));
 };
 
 export const useAgGridWorkbenchSelection = <TRow>({
@@ -323,9 +332,21 @@ export const useAgGridWorkbenchSelection = <TRow>({
       const currentRowIndex = rowNode?.rowIndex ?? null;
       const colId = event.colDef?.colId ?? event.column?.getColId?.() ?? '';
       const eventTarget = nativeEvent?.target as HTMLElement | null;
+      const clickedSelectionCheckbox = isSelectionCheckboxTarget(eventTarget);
 
       if (colId === '__erpSelection') {
         if (!rowNode) {
+          return;
+        }
+        if (!clickedSelectionCheckbox) {
+          publishSelectionDiagnostic({
+            action: 'ignore',
+            api,
+            colId,
+            hitZone: 'selection-column',
+            rowIndex: currentRowIndex,
+            rowKey: resolveRowKey(record),
+          });
           return;
         }
         armSuppressRowActivation();
@@ -337,7 +358,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
           action: shiftPressed ? 'range-selection' : 'toggle-selection',
           api,
           colId,
-          hitZone: eventTarget?.closest('.ag-selection-checkbox') ? 'selection-checkbox' : 'selection-column',
+          hitZone: 'selection-checkbox',
           rowIndex: currentRowIndex,
           rowKey: resolveRowKey(record),
         });

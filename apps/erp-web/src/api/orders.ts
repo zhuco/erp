@@ -20,9 +20,11 @@ import {
   lockMockOrderSettlement,
   rejectMockOrderException,
   resolveMockOrderException,
+  reserveMockOrderId,
   requeueMockOrderReview,
   requeueMockOrderAudit,
   rematchMockOrderItems,
+  reviewMockOrder,
   settleMockOrderReconciliation,
   submitMockOrderFulfillment,
   returnMockOrderToDownload,
@@ -525,7 +527,8 @@ const aggregateOrderReviewStatsByScan = async (
   let offset = 0;
   let total = 0;
 
-  while (true) {
+  let hasMore = true;
+  while (hasMore) {
     const page = await listOrders(
       tenantId,
       {
@@ -540,7 +543,8 @@ const aggregateOrderReviewStatsByScan = async (
       total = Number(page.total ?? 0);
     }
     if (!items.length) {
-      break;
+      hasMore = false;
+      continue;
     }
 
     items.forEach((item) => {
@@ -556,10 +560,11 @@ const aggregateOrderReviewStatsByScan = async (
 
     offset += items.length;
     if (total > 0 && offset >= total) {
-      break;
+      hasMore = false;
+      continue;
     }
     if (items.length < pageSize) {
-      break;
+      hasMore = false;
     }
   }
 
@@ -663,6 +668,9 @@ export const reviewOrder = async (
   orderId: string,
   payload: OrderReviewRequest
 ): Promise<OrderReviewState> => {
+  if (useMocks) {
+    return reviewMockOrder(orderId, payload);
+  }
   const result = await apiClient.POST('/v1/tenants/{tenant_id}/orders/{order_id}/review', {
     params: {
       path: { tenant_id: tenantId, order_id: orderId }
@@ -773,8 +781,8 @@ export const splitOrder = async (
       split_count: splitCount,
       created_at: new Date().toISOString(),
       child_orders:
-        payload.children?.map((child, index) => ({
-          order_id: `${orderId}-S${index + 1}`,
+        payload.children?.map((child) => ({
+          order_id: reserveMockOrderId(),
           items: child.items.map((item) => ({
             line_id: item.line_id,
             sku_id: null,
@@ -783,8 +791,8 @@ export const splitOrder = async (
             price_cent: 0
           }))
         })) ??
-        Array.from({ length: splitCount }, (_, index) => ({
-          order_id: `${orderId}-S${index + 1}`,
+        Array.from({ length: splitCount }, () => ({
+          order_id: reserveMockOrderId(),
           items: []
         }))
     };

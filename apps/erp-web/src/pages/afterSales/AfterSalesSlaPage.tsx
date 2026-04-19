@@ -94,7 +94,7 @@ export const AfterSalesSlaPage = () => {
   const { data, isFetching, error, refetch } = useQuery({
     queryKey: ['after-sales-sla-rules', tenantId, query],
     queryFn: () => listAfterSalesSlaRules(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const rules = data?.items ?? [];

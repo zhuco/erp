@@ -39,7 +39,7 @@ export const PurchasePlansPage = () => {
   const listQuery = useQuery({
     queryKey: ['planning', 'purchase-plans', tenantId],
     queryFn: () => listPlanningPurchasePlans(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const generateMutation = useMutation({

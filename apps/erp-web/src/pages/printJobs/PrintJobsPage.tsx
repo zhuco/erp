@@ -31,7 +31,7 @@ import type {
 } from '@/api/printJobs';
 import { dispatchPrintJob, getPrintJobDetail, listPrintJobs } from '@/api/printJobs';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { retryPrintJobAndPrint } from '@/features/printing/printJobFlow';
 import { useTenantId } from '@/features/tenant';
 
@@ -95,7 +95,7 @@ export const PrintJobsPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['print-jobs', tenantId, query],
     queryFn: () => listPrintJobs(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const {
@@ -115,7 +115,7 @@ export const PrintJobsPage = () => {
     setRetryingId(printJobId);
     try {
       await retryPrintJobAndPrint(tenantId, printJobId);
-      message.success('已重新提交打印');
+      message.success('Retry submitted');
       await queryClient.invalidateQueries({ queryKey: ['print-jobs', tenantId] });
       await queryClient.invalidateQueries({ queryKey: ['print-job-detail', tenantId, printJobId] });
     } catch (err) {
@@ -129,7 +129,7 @@ export const PrintJobsPage = () => {
     setDispatchingId(printJobId);
     try {
       await dispatchPrintJob(tenantId, printJobId);
-      message.success('已重新派发打印任务');
+      message.success('Redispatch submitted');
       await queryClient.invalidateQueries({ queryKey: ['print-jobs', tenantId] });
       await queryClient.invalidateQueries({ queryKey: ['print-job-detail', tenantId, printJobId] });
     } catch (err) {
@@ -142,12 +142,12 @@ export const PrintJobsPage = () => {
   const columns = useMemo<ColumnsType<PrintJobSummary>>(
     () => [
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (_, record) => <Tag color={statusColors[record.status]}>{record.status}</Tag>
       },
       {
-        title: '派发状态',
+        title: 'Dispatch Status',
         dataIndex: 'dispatch_status',
         render: (_, record) =>
           record.dispatch_status ? (
@@ -159,33 +159,33 @@ export const PrintJobsPage = () => {
           )
       },
       {
-        title: '类型',
+        title: '绫诲瀷',
         dataIndex: 'job_type',
         render: (_, record) => record.job_type ?? '-'
       },
       {
-        title: '鎵ц璁惧',
+        title: 'Triggered At',
         dataIndex: 'device_name',
         render: (_, record) =>
           record.device_name || record.device_fingerprint || '-'
       },
       {
-        title: '关联类型',
+        title: '鍏宠仈绫诲瀷',
         dataIndex: 'ref_type',
         render: (_, record) => record.ref_type ?? '-'
       },
       {
-        title: '关联ID',
+        title: '鍏宠仈ID',
         dataIndex: 'ref_id',
         render: (_, record) => record.ref_id ?? '-'
       },
       {
-        title: '尝试次数',
+        title: '灏濊瘯娆℃暟',
         dataIndex: 'attempts',
         render: (_, record) => record.attempts ?? 0
       },
       {
-        title: '输出',
+        title: '杈撳嚭',
         dataIndex: 'output_url',
         render: (_, record) =>
           record.output_url ? (
@@ -202,7 +202,7 @@ export const PrintJobsPage = () => {
         render: (_, record) => formatDateTime(record.updated_at ?? record.created_at)
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -231,7 +231,7 @@ export const PrintJobsPage = () => {
                 loading={dispatchingId === record.job_id}
                 onClick={() => handleDispatch(record.job_id)}
               >
-                重派
+                閲嶆淳
               </Button>
             ) : null}
           </Space>
@@ -255,12 +255,12 @@ export const PrintJobsPage = () => {
   const eventColumns = useMemo<ColumnsType<PrintJobEvent>>(
     () => [
       {
-        title: '时间',
+        title: '鏃堕棿',
         dataIndex: 'created_at',
         render: (_, record) => formatDateTime(record.created_at)
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (_, record) => <Tag color={statusColors[record.status]}>{record.status}</Tag>
       },
@@ -270,7 +270,7 @@ export const PrintJobsPage = () => {
         render: (_, record) => record.error ?? '-'
       },
       {
-        title: '操作人',
+        title: 'Actions',
         dataIndex: 'actor_type',
         render: (_, record) => record.actor_type ?? '-'
       }
@@ -287,37 +287,37 @@ export const PrintJobsPage = () => {
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
+              <Form.Item name='status' label='Status'>
+                <Select allowClear options={statusOptions} placeholder='Select status' />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="job_type" label="类型">
-                <Input allowClear placeholder="如 SHIPPING_LABEL" />
+              <Form.Item name="job_type" label="绫诲瀷">
+                <Input allowClear placeholder='e.g. SHIPPING_LABEL' />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="ref_type" label="关联类型">
-                <Input allowClear placeholder="如 SHIPMENT" />
+              <Form.Item name="ref_type" label="鍏宠仈绫诲瀷">
+                <Input allowClear placeholder='e.g. SHIPMENT' />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="ref_id" label="关联ID">
-                <Input allowClear placeholder="输入关联ID" />
+              <Form.Item name="ref_id" label="鍏宠仈ID">
+                <Input allowClear placeholder="杈撳叆鍏宠仈ID" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  查询
+                  鏌ヨ
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset}>閲嶇疆</Button>
               </Space>
             </Col>
           </Row>
         </Form>
       </Card>
-      <ServerTable<PrintJobSummary>
+      <UiModule03MainTableSection<PrintJobSummary>
         rowKey="job_id"
         columns={columns}
         data={data?.items ?? []}
@@ -339,7 +339,7 @@ export const PrintJobsPage = () => {
           setActiveJobId(null);
         }}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailBusy && !detail ? (
           <LoadingState loading={detailBusy} onRetry={() => detailRefetch()} />
@@ -355,16 +355,16 @@ export const PrintJobsPage = () => {
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="任务 ID">{detail.job_id}</Descriptions.Item>
-              <Descriptions.Item label="类型">{detail.job_type ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="执行设备">
+              <Descriptions.Item label="绫诲瀷">{detail.job_type ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="鎵ц璁惧">
                 {detail.device_name || detail.device_fingerprint || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="关联类型">{detail.ref_type ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="关联ID">{detail.ref_id ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="状态">
+              <Descriptions.Item label="鍏宠仈绫诲瀷">{detail.ref_type ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="鍏宠仈ID">{detail.ref_id ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="Status">
                 <Tag color={statusColors[detail.status]}>{detail.status}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="派发状态">
+              <Descriptions.Item label="Dispatch Status">
                 {detail.dispatch_status ? (
                   <Tag color={dispatchStatusColors[detail.dispatch_status]}>
                     {detail.dispatch_status}
@@ -373,8 +373,8 @@ export const PrintJobsPage = () => {
                   '-'
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="尝试次数">{detail.attempts ?? 0}</Descriptions.Item>
-              <Descriptions.Item label="输出">
+              <Descriptions.Item label="灏濊瘯娆℃暟">{detail.attempts ?? 0}</Descriptions.Item>
+              <Descriptions.Item label="杈撳嚭">
                 {detail.output_url ? (
                   <a href={`${apiBaseUrl}${detail.output_url}`} target="_blank" rel="noreferrer">
                     下载
@@ -383,7 +383,7 @@ export const PrintJobsPage = () => {
                   '-'
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
+              <Descriptions.Item label="鍒涘缓鏃堕棿">
                 {formatDateTime(detail.created_at)}
               </Descriptions.Item>
               <Descriptions.Item label="更新时间">
@@ -394,7 +394,7 @@ export const PrintJobsPage = () => {
               <ErrorState
                 title="打印失败"
                 description={detail.last_error}
-                hint="可重试打印或检查打印机连接。"
+                hint="You can retry printing or check the printer connection."
                 action={
                   detail.status === 'FAILED' ? (
                     <Button
@@ -422,7 +422,7 @@ export const PrintJobsPage = () => {
               dataSource={detail.events}
               pagination={false}
               size="small"
-              title={() => '事件历史'}
+              title={() => '浜嬩欢鍘嗗彶'}
             />
           </Space>
         ) : null}
@@ -430,3 +430,4 @@ export const PrintJobsPage = () => {
     </Space>
   );
 };
+

@@ -4,12 +4,14 @@ import { fileURLToPath } from 'node:url';
 
 const requiredFiles = [
   '.editorconfig',
+  '.gitattributes',
   '.gitignore',
   'rustfmt.toml',
   'clippy.toml',
 ];
 
 const requiredScripts = [
+  'check:utf8',
   'lint',
   'typecheck',
   'test',

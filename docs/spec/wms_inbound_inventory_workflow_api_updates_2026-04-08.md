@@ -119,11 +119,11 @@
 
 ## 6. Flow-Level Integration Tests (2026-04-08)
 
-新增流程级集成测试文件：
+脨脗脭枚脕梅鲁碳閮筋嚚刹棣愭檿募镁拢潞
 
 - `crates/erp-api/tests/wms_inbound_inventory_workflow_integration.rs`
 
-覆盖两条业务闭环：
+瑕嗙洊涓ゆ潯业脦帽卤栈路拢潞
 
 1. `procurement_inbound_and_settlement_flow_integration`
    - `POST /procurement-plans/generate`
@@ -143,7 +143,7 @@
    - `POST /wms/inbounds/{doc_id}/putaway`
    - `GET /wms/inout-records`
 
-建议验证命令：
+寤鸿楠屩っ兠济侇：
 
 1. `cargo test -p erp-api --test wms_inbound_inventory_workflow_integration -- --nocapture`
 2. `cargo test -p erp-api --test wms_inventory_workflow_permissions -- --nocapture`

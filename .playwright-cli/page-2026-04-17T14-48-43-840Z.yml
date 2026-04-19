@@ -1,0 +1,883 @@
+- generic [ref=e60]:
+  - link "跳过导航，直达主内容" [ref=e61] [cursor=pointer]:
+    - /url: "#workbench-main-content"
+  - status [ref=e62]: 订单查询 加载完成
+  - banner [ref=e63]:
+    - generic [ref=e64]:
+      - generic [ref=e65]: ERP
+      - generic [ref=e67]:
+        - link "首页" [ref=e68] [cursor=pointer]:
+          - /url: /dashboard
+        - button "渠道" [ref=e69] [cursor=pointer]
+        - button "销售" [ref=e70] [cursor=pointer]
+        - button "商品" [ref=e71] [cursor=pointer]
+        - button "采购" [ref=e72] [cursor=pointer]
+        - button "计划" [ref=e73] [cursor=pointer]
+        - button "仓储" [ref=e74] [cursor=pointer]
+        - button "物流" [ref=e75] [cursor=pointer]
+        - button "客户" [ref=e76] [cursor=pointer]
+        - button "财务" [ref=e77] [cursor=pointer]
+        - button "营销" [ref=e78] [cursor=pointer]
+        - button "洞察" [ref=e79] [cursor=pointer]
+        - button "集成" [ref=e80] [cursor=pointer]
+        - button "系统" [ref=e81] [cursor=pointer]
+      - generic [ref=e83]:
+        - combobox "功能搜索输入" [ref=e86]
+        - button "功能搜索" [ref=e87] [cursor=pointer]:
+          - img "search" [ref=e89]:
+            - img [ref=e90]
+      - generic [ref=e92]:
+        - generic [ref=e93]:
+          - button "开启紧凑模式" [ref=e95] [cursor=pointer]:
+            - img "column-height" [ref=e97]:
+              - img [ref=e98]
+          - button "通知" [ref=e101] [cursor=pointer]:
+            - img "bell" [ref=e103]:
+              - img [ref=e104]
+          - button "设置" [ref=e107] [cursor=pointer]:
+            - img "setting" [ref=e109]:
+              - img [ref=e110]
+          - button "退出登录" [ref=e113] [cursor=pointer]:
+            - img "logout" [ref=e115]:
+              - img [ref=e116]
+        - button "用户菜单：admin@example.com" [ref=e118] [cursor=pointer]:
+          - generic [ref=e119]:
+            - generic [ref=e122]: A
+            - generic [ref=e123]: admin@example.com
+            - img [ref=e125]:
+              - img [ref=e126]
+    - generic [ref=e128]:
+      - generic [ref=e129]:
+        - strong [ref=e131]: 快捷工具栏
+        - generic [ref=e132]: 暂无快捷入口
+        - button "设 置" [ref=e133] [cursor=pointer]:
+          - generic [ref=e134]: 设 置
+      - group "布局预设" [ref=e135]:
+        - button "紧凑布局" [ref=e136] [cursor=pointer]:
+          - generic [ref=e137]: 紧凑布局
+        - button "标准布局" [ref=e138] [cursor=pointer]:
+          - generic [ref=e139]: 标准布局
+        - button "分析布局" [ref=e140] [cursor=pointer]:
+          - generic [ref=e141]: 分析布局
+      - generic [ref=e142]: 布局预设：标准布局
+      - button "命令面板 (Ctrl+K)" [ref=e143] [cursor=pointer]:
+        - generic [ref=e144]: 命令面板 (Ctrl+K)
+      - button "快捷键帮助 (?)" [ref=e145] [cursor=pointer]:
+        - generic [ref=e146]: 快捷键帮助 (?)
+    - generic [ref=e149]:
+      - tablist [ref=e150]:
+        - tab "订单查询" [selected] [ref=e154] [cursor=pointer]
+        - button "Tab actions" [ref=e156] [cursor=pointer]:
+          - img "more" [ref=e158]:
+            - img [ref=e159]
+      - generic:
+        - generic:
+          - tabpanel "订单查询"
+  - generic [ref=e161]:
+    - complementary [ref=e162]:
+      - generic [ref=e165]:
+        - tablist [ref=e166]:
+          - generic [ref=e168]:
+            - tab "过滤" [selected] [ref=e170] [cursor=pointer]
+            - tab "筛选" [ref=e172] [cursor=pointer]
+        - tabpanel "过滤" [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e178]:
+              - grid [ref=e180]:
+                - text:   
+                - rowgroup [ref=e181]:
+                  - row "minus-square folder-open 订单范围 171" [ref=e182]:
+                    - gridcell "minus-square folder-open 订单范围 171" [ref=e183]:
+                      - generic [ref=e184]:
+                        - img "minus-square" [ref=e186]:
+                          - img [ref=e187]
+                        - img "folder-open" [ref=e191]:
+                          - img [ref=e192]
+                        - generic [ref=e194]: 订单范围
+                        - generic [ref=e195]: "171"
+                  - row "warning 全部订单 171" [ref=e196]:
+                    - gridcell "warning 全部订单 171" [ref=e197]:
+                      - generic [ref=e198]:
+                        - img "warning" [ref=e200]:
+                          - img [ref=e201]
+                        - generic [ref=e203]: 全部订单
+                        - generic [ref=e204]: "171"
+                  - row "warning 异常订单 76" [ref=e205]:
+                    - gridcell "warning 异常订单 76" [ref=e206]:
+                      - generic [ref=e207]:
+                        - img "warning" [ref=e209]:
+                          - img [ref=e210]
+                        - generic [ref=e212]: 异常订单
+                        - generic [ref=e213]: "76"
+                  - row "warning 无效货品 33" [ref=e214]:
+                    - gridcell "warning 无效货品 33" [ref=e215]:
+                      - generic [ref=e216]:
+                        - img "warning" [ref=e218]:
+                          - img [ref=e219]
+                        - generic [ref=e221]: 无效货品
+                        - generic [ref=e222]: "33"
+                  - row "plus-square folder 订单状态 171" [ref=e223]:
+                    - gridcell "plus-square folder 订单状态 171" [ref=e224]:
+                      - generic [ref=e225]:
+                        - img "plus-square" [ref=e227]:
+                          - img [ref=e228]
+                        - img "folder" [ref=e232]:
+                          - img [ref=e233]
+                        - generic [ref=e235]: 订单状态
+                        - generic [ref=e236]: "171"
+                  - row "plus-square folder 销售渠道 171" [ref=e237]:
+                    - gridcell "plus-square folder 销售渠道 171" [ref=e238]:
+                      - generic [ref=e239]:
+                        - img "plus-square" [ref=e241]:
+                          - img [ref=e242]
+                        - img "folder" [ref=e246]:
+                          - img [ref=e247]
+                        - generic [ref=e249]: 销售渠道
+                        - generic [ref=e250]: "171"
+                  - row "plus-square folder 标记 171" [ref=e251]:
+                    - gridcell "plus-square folder 标记 171" [ref=e252]:
+                      - generic [ref=e253]:
+                        - img "plus-square" [ref=e255]:
+                          - img [ref=e256]
+                        - img "folder" [ref=e260]:
+                          - img [ref=e261]
+                        - generic [ref=e263]: 标记
+                        - generic [ref=e264]: "171"
+                - rowgroup
+                - rowgroup
+                - rowgroup
+              - text:    
+            - generic [ref=e265]:
+              - generic [ref=e266]:
+                - strong [ref=e268]: 过滤统计
+                - generic [ref=e269]: 总订单 171
+              - generic [ref=e270]: 口径：当前查询结果
+              - generic [ref=e271]:
+                - img "pie-chart" [ref=e275]:
+                  - img [ref=e276]
+                - generic [ref=e278]:
+                  - generic [ref=e279]:
+                    - generic [ref=e281]: 淘宝
+                    - generic [ref=e282]: "53"
+                  - generic [ref=e283]:
+                    - generic [ref=e285]: 京东
+                    - generic [ref=e286]: "52"
+                  - generic [ref=e287]:
+                    - generic [ref=e289]: 拼多多
+                    - generic [ref=e290]: "33"
+                  - generic [ref=e291]:
+                    - generic [ref=e293]: 抖音
+                    - generic [ref=e294]: "33"
+    - separator "Resize left panel width" [ref=e295]:
+      - button "Collapse left panel" [ref=e296] [cursor=pointer]:
+        - img "caret-left" [ref=e298]:
+          - img [ref=e299]
+    - main "Workbench main content" [ref=e301]:
+      - generic [ref=e303]:
+        - generic [ref=e306]:
+          - generic [ref=e307]:
+            - generic [ref=e309]:
+              - generic [ref=e311]:
+                - generic "时间范围" [ref=e313]: "时间范围 :"
+                - generic [ref=e317] [cursor=pointer]:
+                  - generic [ref=e318]:
+                    - generic "近一个月" [ref=e319]
+                    - combobox "时间范围 :" [ref=e320]
+                  - img "down" [ref=e322]:
+                    - img [ref=e323]
+              - generic [ref=e326]:
+                - generic "归档状态" [ref=e328]: "归档状态 :"
+                - generic [ref=e332] [cursor=pointer]:
+                  - generic [ref=e333]:
+                    - generic "未归档数据" [ref=e334]
+                    - combobox "归档状态 :" [ref=e335]
+                  - img "down" [ref=e337]:
+                    - img [ref=e338]
+              - generic [ref=e341]:
+                - generic "平台" [ref=e343]: "平台 :"
+                - generic [ref=e347] [cursor=pointer]:
+                  - combobox "平台 :" [ref=e349]
+                  - img "down" [ref=e351]:
+                    - img [ref=e352]
+            - generic [ref=e355]:
+              - textbox "网店订单号/客户帐号/手机" [ref=e357]
+              - button "查询" [ref=e359] [cursor=pointer]:
+                - img "search" [ref=e361]:
+                  - img [ref=e362]
+            - generic [ref=e365]:
+              - button "导 出" [ref=e367] [cursor=pointer]:
+                - generic [ref=e368]: 导 出
+              - button "打 印" [ref=e370] [cursor=pointer]:
+                - generic [ref=e371]: 打 印
+              - button "帮 助" [ref=e373] [cursor=pointer]:
+                - generic [ref=e374]: 帮 助
+          - generic [ref=e377]:
+            - generic [ref=e379]:
+              - group "列筛选" [ref=e380]:
+                - textbox "模糊查询" [ref=e387]
+                - generic [ref=e398]:
+                  - textbox "处理开始" [ref=e400]
+                  - generic "to" [ref=e402]:
+                    - img "swap-right" [ref=e403]:
+                      - img [ref=e404]
+                  - textbox "处理结束" [ref=e407]
+                  - img "calendar" [ref=e409]:
+                    - img [ref=e410]
+                - textbox "货品信息" [ref=e418]
+                - textbox "收货地址" [ref=e432]
+                - textbox "物流单号" [ref=e442]
+                - textbox "网店订单号" [ref=e452]
+              - generic [ref=e457]:
+                - generic [ref=e458]: 暂无数据
+                - grid [ref=e459]:
+                  - rowgroup [ref=e460]:
+                    - row [ref=e461]:
+                      - columnheader [ref=e462]:
+                        - generic [ref=e463] [cursor=pointer]: 
+                        - text: 
+                        - generic: 
+                  - rowgroup [ref=e464]:
+                    - row "标记 订单编号 订单状态 异常 销售渠道 销售平台 处理时间 付款时间 发货仓库 货品信息" [ref=e465]:
+                      - columnheader [ref=e466]:
+                        - generic [ref=e468] [cursor=pointer]: 
+                        - generic [ref=e469] [cursor=pointer]: 
+                        - generic:      
+                      - columnheader "标记" [ref=e470]:
+                        - generic [ref=e472] [cursor=pointer]: 
+                        - generic [ref=e473] [cursor=pointer]: 
+                        - generic [ref=e474] [cursor=pointer]: 标记
+                        - generic:      
+                      - columnheader "订单编号" [ref=e475]:
+                        - generic [ref=e477] [cursor=pointer]: 
+                        - generic [ref=e478] [cursor=pointer]: 
+                        - generic [ref=e479] [cursor=pointer]: 订单编号
+                        - generic:      
+                      - columnheader "订单状态" [ref=e480]:
+                        - generic [ref=e482] [cursor=pointer]: 
+                        - generic [ref=e483] [cursor=pointer]: 
+                        - generic [ref=e484] [cursor=pointer]: 订单状态
+                        - generic:      
+                      - columnheader "异常" [ref=e485]:
+                        - generic [ref=e487] [cursor=pointer]: 
+                        - generic [ref=e488] [cursor=pointer]: 
+                        - generic [ref=e489] [cursor=pointer]: 异常
+                        - generic:      
+                      - columnheader "销售渠道" [ref=e490]:
+                        - generic [ref=e492] [cursor=pointer]: 
+                        - generic [ref=e493] [cursor=pointer]: 
+                        - generic [ref=e494] [cursor=pointer]: 销售渠道
+                        - generic:      
+                      - columnheader "销售平台" [ref=e495]:
+                        - generic [ref=e497] [cursor=pointer]: 
+                        - generic [ref=e498] [cursor=pointer]: 
+                        - generic [ref=e499] [cursor=pointer]: 销售平台
+                        - generic:      
+                      - columnheader "处理时间" [ref=e500]:
+                        - generic [ref=e502] [cursor=pointer]: 
+                        - generic [ref=e503] [cursor=pointer]: 
+                        - generic [ref=e504] [cursor=pointer]: 处理时间
+                        - generic:      
+                      - columnheader "付款时间" [ref=e505]:
+                        - generic [ref=e507] [cursor=pointer]: 
+                        - generic [ref=e508] [cursor=pointer]: 
+                        - generic [ref=e509] [cursor=pointer]: 付款时间
+                        - generic:      
+                      - columnheader "发货仓库" [ref=e510]:
+                        - generic [ref=e512] [cursor=pointer]: 
+                        - generic [ref=e513] [cursor=pointer]: 
+                        - generic [ref=e514] [cursor=pointer]: 发货仓库
+                        - generic:      
+                      - columnheader "货品信息" [ref=e515]:
+                        - generic [ref=e517] [cursor=pointer]: 
+                        - generic [ref=e518] [cursor=pointer]: 
+                        - generic [ref=e519] [cursor=pointer]: 货品信息
+                        - generic:      
+                  - rowgroup [ref=e520]:
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e521]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e522]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e523] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e524]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e525]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e526] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e527]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e528]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e529] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e530]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e531]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e532] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e533]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e534]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e535] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e536]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e537]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e538] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e539]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e540]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e541] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e542]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e543]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e544] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e545]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e546]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e547] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e548]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e549]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e550] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e551]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e552]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e553] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e554]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e555]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e556] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e557]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e558]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e559] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e560]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e561]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e562] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e563]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e564]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e565] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e566]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e567]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e568] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e569]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e570]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e571] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e572]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e573]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e574] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e575]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e576]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e577] [cursor=pointer]
+                        - text: 
+                    - row "Press Space to toggle row selection (unchecked) " [ref=e578]:
+                      - gridcell "Press Space to toggle row selection (unchecked) " [ref=e579]:
+                        - checkbox "Press Space to toggle row selection (unchecked)" [ref=e580] [cursor=pointer]
+                        - text: 
+                  - rowgroup [ref=e581]:
+                    - row "2 VIP DT202604170002 待发货 - SHOP-jd-2 京东 7小时1分钟 2026/4/17 15:47:37 - 示例商品-1、示例商品-..." [ref=e582]:
+                      - gridcell "2" [ref=e583]
+                      - gridcell "VIP" [ref=e584]:
+                        - generic "VIP" [ref=e587]
+                      - gridcell "DT202604170002" [ref=e588]
+                      - gridcell "待发货" [ref=e589]:
+                        - generic [ref=e590]: 待发货
+                      - gridcell "-" [ref=e591]
+                      - gridcell "SHOP-jd-2" [ref=e592]
+                      - gridcell "京东" [ref=e593]:
+                        - generic [ref=e594]: 京东
+                      - gridcell "7小时1分钟" [ref=e595]
+                      - gridcell "2026/4/17 15:47:37" [ref=e596]
+                      - gridcell "-" [ref=e597]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e598]
+                    - row "3 VIP DT202604170005 待复核 - SHOP-taobao-1 淘宝 10小时1分钟 2026/4/17 12:47:37 - 示例商品-1、示例商品-..." [ref=e599]:
+                      - gridcell "3" [ref=e600]
+                      - gridcell "VIP" [ref=e601]:
+                        - generic "VIP" [ref=e604]
+                      - gridcell "DT202604170005" [ref=e605]
+                      - gridcell "待复核" [ref=e606]:
+                        - generic [ref=e607]: 待复核
+                      - gridcell "-" [ref=e608]
+                      - gridcell "SHOP-taobao-1" [ref=e609]
+                      - gridcell "淘宝" [ref=e610]:
+                        - generic [ref=e611]: 淘宝
+                      - gridcell "10小时1分钟" [ref=e612]
+                      - gridcell "2026/4/17 12:47:37" [ref=e613]
+                      - gridcell "-" [ref=e614]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e615]
+                    - row "4 VIP DT202604170006 待发货 无效货品 SHOP-jd-2 京东 11小时1分钟 2026/4/17 11:47:37 - 示例商品-1、示例商品-..." [ref=e616]:
+                      - gridcell "4" [ref=e617]
+                      - gridcell "VIP" [ref=e618]:
+                        - generic "VIP" [ref=e621]
+                      - gridcell "DT202604170006" [ref=e622]
+                      - gridcell "待发货" [ref=e623]:
+                        - generic [ref=e624]: 待发货
+                      - gridcell "无效货品" [ref=e625]:
+                        - generic [ref=e628]: 无效货品
+                      - gridcell "SHOP-jd-2" [ref=e629]
+                      - gridcell "京东" [ref=e630]:
+                        - generic [ref=e631]: 京东
+                      - gridcell "11小时1分钟" [ref=e632]
+                      - gridcell "2026/4/17 11:47:37" [ref=e633]
+                      - gridcell "-" [ref=e634]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e635]
+                    - row "5 VIP DT202604170009 待复核 - SHOP-taobao-1 淘宝 14小时1分钟 2026/4/17 08:47:37 - 示例商品-1、示例商品-..." [ref=e636]:
+                      - gridcell "5" [ref=e637]
+                      - gridcell "VIP" [ref=e638]:
+                        - generic "VIP" [ref=e641]
+                      - gridcell "DT202604170009" [ref=e642]
+                      - gridcell "待复核" [ref=e643]:
+                        - generic [ref=e644]: 待复核
+                      - gridcell "-" [ref=e645]
+                      - gridcell "SHOP-taobao-1" [ref=e646]
+                      - gridcell "淘宝" [ref=e647]:
+                        - generic [ref=e648]: 淘宝
+                      - gridcell "14小时1分钟" [ref=e649]
+                      - gridcell "2026/4/17 08:47:37" [ref=e650]
+                      - gridcell "-" [ref=e651]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e652]
+                    - row "6 VIP DT202604170010 待发货 - SHOP-jd-2 京东 15小时1分钟 2026/4/17 07:47:37 - 示例商品-1、示例商品-..." [ref=e653]:
+                      - gridcell "6" [ref=e654]
+                      - gridcell "VIP" [ref=e655]:
+                        - generic "VIP" [ref=e658]
+                      - gridcell "DT202604170010" [ref=e659]
+                      - gridcell "待发货" [ref=e660]:
+                        - generic [ref=e661]: 待发货
+                      - gridcell "-" [ref=e662]
+                      - gridcell "SHOP-jd-2" [ref=e663]
+                      - gridcell "京东" [ref=e664]:
+                        - generic [ref=e665]: 京东
+                      - gridcell "15小时1分钟" [ref=e666]
+                      - gridcell "2026/4/17 07:47:37" [ref=e667]
+                      - gridcell "-" [ref=e668]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e669]
+                    - row "7 VIP DT202604170013 待复核 - SHOP-taobao-1 淘宝 18小时1分钟 2026/4/17 04:47:37 - 示例商品-1、示例商品-..." [ref=e670]:
+                      - gridcell "7" [ref=e671]
+                      - gridcell "VIP" [ref=e672]:
+                        - generic "VIP" [ref=e675]
+                      - gridcell "DT202604170013" [ref=e676]
+                      - gridcell "待复核" [ref=e677]:
+                        - generic [ref=e678]: 待复核
+                      - gridcell "-" [ref=e679]
+                      - gridcell "SHOP-taobao-1" [ref=e680]
+                      - gridcell "淘宝" [ref=e681]:
+                        - generic [ref=e682]: 淘宝
+                      - gridcell "18小时1分钟" [ref=e683]
+                      - gridcell "2026/4/17 04:47:37" [ref=e684]
+                      - gridcell "-" [ref=e685]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e686]
+                    - row "8 VIP DT202604170014 待发货 - SHOP-jd-2 京东 19小时1分钟 2026/4/17 03:47:37 - 示例商品-1、示例商品-..." [ref=e687]:
+                      - gridcell "8" [ref=e688]
+                      - gridcell "VIP" [ref=e689]:
+                        - generic "VIP" [ref=e692]
+                      - gridcell "DT202604170014" [ref=e693]
+                      - gridcell "待发货" [ref=e694]:
+                        - generic [ref=e695]: 待发货
+                      - gridcell "-" [ref=e696]
+                      - gridcell "SHOP-jd-2" [ref=e697]
+                      - gridcell "京东" [ref=e698]:
+                        - generic [ref=e699]: 京东
+                      - gridcell "19小时1分钟" [ref=e700]
+                      - gridcell "2026/4/17 03:47:37" [ref=e701]
+                      - gridcell "-" [ref=e702]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e703]
+                    - row "9 VIP DT202604170017 待复核 - SHOP-taobao-1 淘宝 22小时1分钟 2026/4/17 00:47:37 - 示例商品-1、示例商品-..." [ref=e704]:
+                      - gridcell "9" [ref=e705]
+                      - gridcell "VIP" [ref=e706]:
+                        - generic "VIP" [ref=e709]
+                      - gridcell "DT202604170017" [ref=e710]
+                      - gridcell "待复核" [ref=e711]:
+                        - generic [ref=e712]: 待复核
+                      - gridcell "-" [ref=e713]
+                      - gridcell "SHOP-taobao-1" [ref=e714]
+                      - gridcell "淘宝" [ref=e715]:
+                        - generic [ref=e716]: 淘宝
+                      - gridcell "22小时1分钟" [ref=e717]
+                      - gridcell "2026/4/17 00:47:37" [ref=e718]
+                      - gridcell "-" [ref=e719]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e720]
+                    - row "10 VIP DT202604170018 待发货 - SHOP-jd-2 京东 23小时1分钟 2026/4/16 23:47:37 - 示例商品-1、示例商品-..." [ref=e721]:
+                      - gridcell "10" [ref=e722]
+                      - gridcell "VIP" [ref=e723]:
+                        - generic "VIP" [ref=e726]
+                      - gridcell "DT202604170018" [ref=e727]
+                      - gridcell "待发货" [ref=e728]:
+                        - generic [ref=e729]: 待发货
+                      - gridcell "-" [ref=e730]
+                      - gridcell "SHOP-jd-2" [ref=e731]
+                      - gridcell "京东" [ref=e732]:
+                        - generic [ref=e733]: 京东
+                      - gridcell "23小时1分钟" [ref=e734]
+                      - gridcell "2026/4/16 23:47:37" [ref=e735]
+                      - gridcell "-" [ref=e736]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e737]
+                    - row "11 VIP DT202604170021 待复核 无效货品 SHOP-taobao-1 淘宝 1天2小时 2026/4/16 20:47:37 - 示例商品-1、示例商品-..." [ref=e738]:
+                      - gridcell "11" [ref=e739]
+                      - gridcell "VIP" [ref=e740]:
+                        - generic "VIP" [ref=e743]
+                      - gridcell "DT202604170021" [ref=e744]
+                      - gridcell "待复核" [ref=e745]:
+                        - generic [ref=e746]: 待复核
+                      - gridcell "无效货品" [ref=e747]:
+                        - generic [ref=e750]: 无效货品
+                      - gridcell "SHOP-taobao-1" [ref=e751]
+                      - gridcell "淘宝" [ref=e752]:
+                        - generic [ref=e753]: 淘宝
+                      - gridcell "1天2小时" [ref=e754]
+                      - gridcell "2026/4/16 20:47:37" [ref=e755]
+                      - gridcell "-" [ref=e756]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e757]
+                    - row "12 VIP DT202604170022 待发货 - SHOP-jd-2 京东 1天3小时 2026/4/16 19:47:37 - 示例商品-1、示例商品-..." [ref=e758]:
+                      - gridcell "12" [ref=e759]
+                      - gridcell "VIP" [ref=e760]:
+                        - generic "VIP" [ref=e763]
+                      - gridcell "DT202604170022" [ref=e764]
+                      - gridcell "待发货" [ref=e765]:
+                        - generic [ref=e766]: 待发货
+                      - gridcell "-" [ref=e767]
+                      - gridcell "SHOP-jd-2" [ref=e768]
+                      - gridcell "京东" [ref=e769]:
+                        - generic [ref=e770]: 京东
+                      - gridcell "1天3小时" [ref=e771]
+                      - gridcell "2026/4/16 19:47:37" [ref=e772]
+                      - gridcell "-" [ref=e773]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e774]
+                    - row "13 VIP DT202604170025 待复核 - SHOP-taobao-1 淘宝 1天6小时 2026/4/16 16:47:37 - 示例商品-1、示例商品-..." [ref=e775]:
+                      - gridcell "13" [ref=e776]
+                      - gridcell "VIP" [ref=e777]:
+                        - generic "VIP" [ref=e780]
+                      - gridcell "DT202604170025" [ref=e781]
+                      - gridcell "待复核" [ref=e782]:
+                        - generic [ref=e783]: 待复核
+                      - gridcell "-" [ref=e784]
+                      - gridcell "SHOP-taobao-1" [ref=e785]
+                      - gridcell "淘宝" [ref=e786]:
+                        - generic [ref=e787]: 淘宝
+                      - gridcell "1天6小时" [ref=e788]
+                      - gridcell "2026/4/16 16:47:37" [ref=e789]
+                      - gridcell "-" [ref=e790]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e791]
+                    - row "14 VIP DT202604170026 待发货 无效货品 SHOP-jd-2 京东 1天7小时 2026/4/16 15:47:37 - 示例商品-1、示例商品-..." [ref=e792]:
+                      - gridcell "14" [ref=e793]
+                      - gridcell "VIP" [ref=e794]:
+                        - generic "VIP" [ref=e797]
+                      - gridcell "DT202604170026" [ref=e798]
+                      - gridcell "待发货" [ref=e799]:
+                        - generic [ref=e800]: 待发货
+                      - gridcell "无效货品" [ref=e801]:
+                        - generic [ref=e804]: 无效货品
+                      - gridcell "SHOP-jd-2" [ref=e805]
+                      - gridcell "京东" [ref=e806]:
+                        - generic [ref=e807]: 京东
+                      - gridcell "1天7小时" [ref=e808]
+                      - gridcell "2026/4/16 15:47:37" [ref=e809]
+                      - gridcell "-" [ref=e810]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e811]
+                    - row "15 VIP DT202604170029 待复核 - SHOP-taobao-1 淘宝 1天10小时 2026/4/16 12:47:37 - 示例商品-1、示例商品-..." [ref=e812]:
+                      - gridcell "15" [ref=e813]
+                      - gridcell "VIP" [ref=e814]:
+                        - generic "VIP" [ref=e817]
+                      - gridcell "DT202604170029" [ref=e818]
+                      - gridcell "待复核" [ref=e819]:
+                        - generic [ref=e820]: 待复核
+                      - gridcell "-" [ref=e821]
+                      - gridcell "SHOP-taobao-1" [ref=e822]
+                      - gridcell "淘宝" [ref=e823]:
+                        - generic [ref=e824]: 淘宝
+                      - gridcell "1天10小时" [ref=e825]
+                      - gridcell "2026/4/16 12:47:37" [ref=e826]
+                      - gridcell "-" [ref=e827]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e828]
+                    - row "16 VIP DT202604170030 待发货 - SHOP-jd-2 京东 1天11小时 2026/4/16 11:47:37 - 示例商品-1、示例商品-..." [ref=e829]:
+                      - gridcell "16" [ref=e830]
+                      - gridcell "VIP" [ref=e831]:
+                        - generic "VIP" [ref=e834]
+                      - gridcell "DT202604170030" [ref=e835]
+                      - gridcell "待发货" [ref=e836]:
+                        - generic [ref=e837]: 待发货
+                      - gridcell "-" [ref=e838]
+                      - gridcell "SHOP-jd-2" [ref=e839]
+                      - gridcell "京东" [ref=e840]:
+                        - generic [ref=e841]: 京东
+                      - gridcell "1天11小时" [ref=e842]
+                      - gridcell "2026/4/16 11:47:37" [ref=e843]
+                      - gridcell "-" [ref=e844]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e845]
+                    - row "17 VIP DT202604170033 待复核 - SHOP-taobao-1 淘宝 1天14小时 2026/4/16 08:47:37 - 示例商品-1、示例商品-..." [ref=e846]:
+                      - gridcell "17" [ref=e847]
+                      - gridcell "VIP" [ref=e848]:
+                        - generic "VIP" [ref=e851]
+                      - gridcell "DT202604170033" [ref=e852]
+                      - gridcell "待复核" [ref=e853]:
+                        - generic [ref=e854]: 待复核
+                      - gridcell "-" [ref=e855]
+                      - gridcell "SHOP-taobao-1" [ref=e856]
+                      - gridcell "淘宝" [ref=e857]:
+                        - generic [ref=e858]: 淘宝
+                      - gridcell "1天14小时" [ref=e859]
+                      - gridcell "2026/4/16 08:47:37" [ref=e860]
+                      - gridcell "-" [ref=e861]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e862]
+                    - row "18 VIP DT202604170034 待发货 - SHOP-jd-2 京东 1天15小时 2026/4/16 07:47:37 - 示例商品-1、示例商品-..." [ref=e863]:
+                      - gridcell "18" [ref=e864]
+                      - gridcell "VIP" [ref=e865]:
+                        - generic "VIP" [ref=e868]
+                      - gridcell "DT202604170034" [ref=e869]
+                      - gridcell "待发货" [ref=e870]:
+                        - generic [ref=e871]: 待发货
+                      - gridcell "-" [ref=e872]
+                      - gridcell "SHOP-jd-2" [ref=e873]
+                      - gridcell "京东" [ref=e874]:
+                        - generic [ref=e875]: 京东
+                      - gridcell "1天15小时" [ref=e876]
+                      - gridcell "2026/4/16 07:47:37" [ref=e877]
+                      - gridcell "-" [ref=e878]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e879]
+                    - row "19 VIP DT202604170037 待复核 - SHOP-taobao-1 淘宝 1天18小时 2026/4/16 04:47:37 - 示例商品-1、示例商品-..." [ref=e880]:
+                      - gridcell "19" [ref=e881]
+                      - gridcell "VIP" [ref=e882]:
+                        - generic "VIP" [ref=e885]
+                      - gridcell "DT202604170037" [ref=e886]
+                      - gridcell "待复核" [ref=e887]:
+                        - generic [ref=e888]: 待复核
+                      - gridcell "-" [ref=e889]
+                      - gridcell "SHOP-taobao-1" [ref=e890]
+                      - gridcell "淘宝" [ref=e891]:
+                        - generic [ref=e892]: 淘宝
+                      - gridcell "1天18小时" [ref=e893]
+                      - gridcell "2026/4/16 04:47:37" [ref=e894]
+                      - gridcell "-" [ref=e895]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e896]
+                    - row "20 VIP DT202604170038 待发货 - SHOP-jd-2 京东 1天19小时 2026/4/16 03:47:37 - 示例商品-1、示例商品-..." [ref=e897]:
+                      - gridcell "20" [ref=e898]
+                      - gridcell "VIP" [ref=e899]:
+                        - generic "VIP" [ref=e902]
+                      - gridcell "DT202604170038" [ref=e903]
+                      - gridcell "待发货" [ref=e904]:
+                        - generic [ref=e905]: 待发货
+                      - gridcell "-" [ref=e906]
+                      - gridcell "SHOP-jd-2" [ref=e907]
+                      - gridcell "京东" [ref=e908]:
+                        - generic [ref=e909]: 京东
+                      - gridcell "1天19小时" [ref=e910]
+                      - gridcell "2026/4/16 03:47:37" [ref=e911]
+                      - gridcell "-" [ref=e912]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e913]
+                    - row "1 VIP DT202604170001 待复核 无效货品 SHOP-taobao-1 淘宝 6小时1分钟 2026/4/17 16:47:37 - 示例商品-1、示例商品-..." [ref=e914]:
+                      - gridcell "1" [ref=e915]
+                      - gridcell "VIP" [ref=e916]:
+                        - generic "VIP" [ref=e919]
+                      - gridcell "DT202604170001" [ref=e920]
+                      - gridcell "待复核" [ref=e921]:
+                        - generic [ref=e922]: 待复核
+                      - gridcell "无效货品" [ref=e923]:
+                        - generic [ref=e926]: 无效货品
+                      - gridcell "SHOP-taobao-1" [ref=e927]
+                      - gridcell "淘宝" [ref=e928]:
+                        - generic [ref=e929]: 淘宝
+                      - gridcell "6小时1分钟" [ref=e930]
+                      - gridcell "2026/4/17 16:47:37" [ref=e931]
+                      - gridcell "-" [ref=e932]
+                      - gridcell "示例商品-1、示例商品-..." [ref=e933]
+                  - rowgroup
+                  - rowgroup
+                  - rowgroup
+                  - rowgroup
+                - text:                                                                                                                                                                                               
+                - text:    
+            - generic [ref=e942]:
+              - generic [ref=e943]:
+                - generic [ref=e944]: 共171 条，已勾选0 条
+                - generic [ref=e945]: 加载耗时 155ms
+              - list [ref=e947]:
+                - listitem "上一页" [ref=e948]:
+                  - button "left" [disabled] [ref=e949]:
+                    - img "left" [ref=e950]:
+                      - img [ref=e951]
+                - listitem "1" [ref=e953] [cursor=pointer]:
+                  - generic [ref=e954]: "1"
+                - listitem "2" [ref=e955] [cursor=pointer]:
+                  - generic [ref=e956]: "2"
+                - listitem "3" [ref=e957] [cursor=pointer]:
+                  - generic [ref=e958]: "3"
+                - listitem "4" [ref=e959] [cursor=pointer]:
+                  - generic [ref=e960]: "4"
+                - listitem "5" [ref=e961] [cursor=pointer]:
+                  - generic [ref=e962]: "5"
+                - listitem "向后 5 页" [ref=e963] [cursor=pointer]:
+                  - generic [ref=e965]:
+                    - img "double-right" [ref=e966]:
+                      - img [ref=e967]
+                    - generic [ref=e969]: •••
+                - listitem "9" [ref=e970] [cursor=pointer]:
+                  - generic [ref=e971]: "9"
+                - listitem "下一页" [ref=e972] [cursor=pointer]:
+                  - button "right" [ref=e973]:
+                    - img "right" [ref=e974]:
+                      - img [ref=e975]
+                - listitem [ref=e977]:
+                  - generic [ref=e978]:
+                    - generic [ref=e979]:
+                      - generic "20 条/页" [ref=e980]
+                      - combobox "页码" [ref=e981]
+                    - img "down" [ref=e983]:
+                      - img [ref=e984]
+        - separator "Resize bottom panel height" [ref=e986]:
+          - button "Collapse bottom panel" [ref=e987] [cursor=pointer]:
+            - img "caret-down" [ref=e989]:
+              - img [ref=e990]
+        - generic [ref=e994]:
+          - tablist [ref=e995]:
+            - generic [ref=e997]:
+              - tab "货品" [selected] [ref=e999] [cursor=pointer]
+              - tab "日志" [ref=e1001] [cursor=pointer]
+              - tab "赠品策略" [ref=e1003] [cursor=pointer]
+              - tab "优惠卡券" [ref=e1005] [cursor=pointer]
+              - tab "上游单据" [ref=e1007] [cursor=pointer]
+              - tab "下游单据" [ref=e1009] [cursor=pointer]
+              - tab "同名订单" [ref=e1011] [cursor=pointer]
+              - tab "分拨发货申请单" [ref=e1013] [cursor=pointer]
+              - tab "发货单" [ref=e1015] [cursor=pointer]
+              - tab "售后单" [ref=e1017] [cursor=pointer]
+              - tab "销售费用" [ref=e1019] [cursor=pointer]
+              - tab "结算申请单" [ref=e1021] [cursor=pointer]
+              - tab "包裹" [ref=e1023] [cursor=pointer]
+              - tab "包材" [ref=e1025] [cursor=pointer]
+          - tabpanel "货品" [ref=e1028]:
+            - table [ref=e1039]:
+              - rowgroup [ref=e1040]:
+                - row "货品编号 货品名称 规格 数量 单价 优惠(折扣) 金额 状态" [ref=e1041]:
+                  - columnheader "货品编号" [ref=e1042]
+                  - columnheader "货品名称" [ref=e1043]
+                  - columnheader "规格" [ref=e1044]
+                  - columnheader "数量" [ref=e1045]
+                  - columnheader "单价" [ref=e1046]
+                  - columnheader "优惠(折扣)" [ref=e1047]
+                  - columnheader "金额" [ref=e1048]
+                  - columnheader "状态" [ref=e1049]
+              - rowgroup [ref=e1050]:
+                - row "OUTER-200 示例商品-1 - 1 ¥9.90 - ¥9.90 无效货品 去匹配" [ref=e1051]:
+                  - cell "OUTER-200" [ref=e1052]
+                  - cell "示例商品-1" [ref=e1053]
+                  - cell "-" [ref=e1054]
+                  - cell "1" [ref=e1055]
+                  - cell "¥9.90" [ref=e1056]
+                  - cell "-" [ref=e1057]
+                  - cell "¥9.90" [ref=e1058]
+                  - cell "无效货品 去匹配" [ref=e1059]:
+                    - generic [ref=e1060]:
+                      - generic [ref=e1062]: 无效货品
+                      - button "去匹配" [ref=e1064] [cursor=pointer]:
+                        - generic [ref=e1065]: 去匹配
+                - row "PLAT-SKU-101 示例商品-2 - 2 ¥10.40 - ¥20.80 -" [ref=e1066]:
+                  - cell "PLAT-SKU-101" [ref=e1067]
+                  - cell "示例商品-2" [ref=e1068]
+                  - cell "-" [ref=e1069]
+                  - cell "2" [ref=e1070]
+                  - cell "¥10.40" [ref=e1071]
+                  - cell "-" [ref=e1072]
+                  - cell "¥20.80" [ref=e1073]
+                  - cell "-" [ref=e1074]
+                - row "OUTER-202 示例商品-3 - 3 ¥10.90 - ¥32.70 -" [ref=e1075]:
+                  - cell "OUTER-202" [ref=e1076]
+                  - cell "示例商品-3" [ref=e1077]
+                  - cell "-" [ref=e1078]
+                  - cell "3" [ref=e1079]
+                  - cell "¥10.90" [ref=e1080]
+                  - cell "-" [ref=e1081]
+                  - cell "¥32.70" [ref=e1082]
+                  - cell "-" [ref=e1083]
+    - separator "Resize right panel width" [ref=e1084]:
+      - button "Collapse right panel" [ref=e1085] [cursor=pointer]:
+        - img "caret-right" [ref=e1087]:
+          - img [ref=e1088]
+    - complementary [ref=e1090]:
+      - generic [ref=e1092]:
+        - generic [ref=e1095]:
+          - generic [ref=e1096]:
+            - button "expanded 订单记号" [expanded] [ref=e1097] [cursor=pointer]:
+              - img "expanded" [ref=e1099]:
+                - img [ref=e1100]
+              - generic [ref=e1102]: 订单记号
+            - generic [ref=e1105]:
+              - generic [ref=e1107]: VIP
+              - button "添 加" [ref=e1108] [cursor=pointer]:
+                - generic [ref=e1109]: 添 加
+          - generic [ref=e1110]:
+            - button "expanded 订单详情" [expanded] [ref=e1111] [cursor=pointer]:
+              - img "expanded" [ref=e1113]:
+                - img [ref=e1114]
+              - generic [ref=e1116]: 订单详情
+            - table [ref=e1123]:
+              - rowgroup [ref=e1124]:
+                - row "订单号 DT202604170001" [ref=e1125]:
+                  - rowheader "订单号" [ref=e1126]
+                  - cell "DT202604170001" [ref=e1127]
+                - row "平台单号 PLAT-TAOBAO-1000" [ref=e1128]:
+                  - rowheader "平台单号" [ref=e1129]
+                  - cell "PLAT-TAOBAO-1000" [ref=e1130]
+                - row "平台 taobao" [ref=e1131]:
+                  - rowheader "平台" [ref=e1132]
+                  - cell "taobao" [ref=e1133]
+                - row "店铺 SHOP-taobao-1" [ref=e1134]:
+                  - rowheader "店铺" [ref=e1135]
+                  - cell "SHOP-taobao-1" [ref=e1136]
+                - row "收件人 收件人1" [ref=e1137]:
+                  - rowheader "收件人" [ref=e1138]
+                  - cell "收件人1" [ref=e1139]
+                - row "手机号 13800001000" [ref=e1140]:
+                  - rowheader "手机号" [ref=e1141]
+                  - cell "13800001000" [ref=e1142]
+                - row "物流公司 选择物流公司 down" [ref=e1143]:
+                  - rowheader "物流公司" [ref=e1144]
+                  - cell "选择物流公司 down" [ref=e1145]:
+                    - generic [ref=e1147]:
+                      - generic [ref=e1148]:
+                        - generic: 选择物流公司
+                        - combobox [ref=e1149]
+                      - img "down" [ref=e1151]:
+                        - img [ref=e1152]
+                - row "发货仓库 默认仓 down" [ref=e1154]:
+                  - rowheader "发货仓库" [ref=e1155]
+                  - cell "默认仓 down" [ref=e1156]:
+                    - generic [ref=e1158]:
+                      - generic [ref=e1159]:
+                        - generic "默认仓" [ref=e1160]
+                        - combobox [ref=e1161]
+                      - img "down" [ref=e1163]:
+                        - img [ref=e1164]
+                - row "应收合计 ¥19.99" [ref=e1166]:
+                  - rowheader "应收合计" [ref=e1167]
+                  - cell "¥19.99" [ref=e1168]
+        - generic [ref=e1170]:
+          - button "collapsed 平台旗帜" [ref=e1172] [cursor=pointer]:
+            - img "collapsed" [ref=e1174]:
+              - img [ref=e1175]
+            - generic [ref=e1177]: 平台旗帜
+          - generic [ref=e1178]:
+            - button "expanded 常用功能" [expanded] [ref=e1179] [cursor=pointer]:
+              - img "expanded" [ref=e1181]:
+                - img [ref=e1182]
+              - generic [ref=e1184]: 常用功能
+            - generic [ref=e1187]:
+              - button "reload 刷新 F5" [ref=e1189] [cursor=pointer]:
+                - img "reload" [ref=e1191]:
+                  - img [ref=e1192]
+                - generic [ref=e1194]: 刷新 F5
+              - button "全 选" [ref=e1196] [cursor=pointer]:
+                - generic [ref=e1197]: 全 选
+              - button "修改收货信息" [ref=e1200] [cursor=pointer]:
+                - generic [ref=e1201]: 修改收货信息
+          - generic [ref=e1202]:
+            - button "expanded 备注" [expanded] [ref=e1203] [cursor=pointer]:
+              - img "expanded" [ref=e1205]:
+                - img [ref=e1206]
+              - generic [ref=e1208]: 备注
+            - generic [ref=e1211]:
+              - generic [ref=e1213]:
+                - text: 客户备注
+                - generic [ref=e1214]: "-"
+              - generic [ref=e1216]:
+                - text: 客服备注
+                - generic [ref=e1217]: 客户备注：优先发货
+              - button "编辑备注" [ref=e1219] [cursor=pointer]:
+                - generic [ref=e1220]: 编辑备注

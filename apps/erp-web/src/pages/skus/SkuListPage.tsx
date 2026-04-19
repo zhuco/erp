@@ -1060,7 +1060,7 @@ export const SkuListPage = () => {
         onCancel={closeImportModal}
         footer={null}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Alert
@@ -1167,7 +1167,7 @@ export const SkuListPage = () => {
         open={failureDrawerOpen}
         onClose={() => setFailureDrawerOpen(false)}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Table<SkuImportFailureRow>
           rowKey={(record) => `${record.row}-${record.field ?? 'NA'}`}
@@ -1192,7 +1192,7 @@ export const SkuListPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={560}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -1402,7 +1402,7 @@ export const SkuListPage = () => {
           setDetailData(null);
         }}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailLoading ? (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>

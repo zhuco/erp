@@ -114,7 +114,7 @@ export const MarketingCouponsPage = () => {
     queryKey: ['marketing-coupons', tenantId, query],
     queryFn: () => listMarketingCoupons(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -328,7 +328,7 @@ export const MarketingCouponsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={620}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

@@ -7,6 +7,15 @@ import {
 } from './shopProducts';
 
 describe('shop product match governance mocks', () => {
+  const requireFirstItem = <T,>(items: T[], message: string) => {
+    const target = items[0];
+    expect(target, message).toBeDefined();
+    if (!target) {
+      throw new Error(message);
+    }
+    return target;
+  };
+
   it('supports mapping_status, match_source and conflict_reason filters', () => {
     const mapped = getMockShopProductSkuList({ mapping_status: 'ACTIVE', limit: 50 });
     expect(mapped.items.length).toBeGreaterThan(0);
@@ -24,7 +33,7 @@ describe('shop product match governance mocks', () => {
   it('keeps failed rows unmatched in auto-match and allows manual remediation', () => {
     const before = getMockShopProductSkuList({ conflict_reason: 'COLOR_DICT_MISS', limit: 50 });
     expect(before.items.length).toBeGreaterThan(0);
-    const target = before.items[0];
+    const target = requireFirstItem(before.items, 'expected a conflict record before auto-match');
     expect(target.mapping_id ?? null).toBeNull();
 
     const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target.sku_record_id] });
@@ -46,10 +55,10 @@ describe('shop product match governance mocks', () => {
   it('uses apparel template dictionaries to normalize color and size during auto-match', () => {
     const before = getMockShopProductSkuList({ keyword: 'TB-001-NAVY', limit: 20 });
     expect(before.items.length).toBeGreaterThan(0);
-    const target = before.items[0];
-    expect(target?.mapping_id ?? null).toBeNull();
+    const target = requireFirstItem(before.items, 'expected a navy sku before auto-match');
+    expect(target.mapping_id ?? null).toBeNull();
 
-    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target!.sku_record_id] });
+    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target.sku_record_id] });
     expect(autoResult.failures.length).toBe(0);
 
     const after = getMockShopProductSkuList({ keyword: 'TB-001-NAVY', limit: 20 });
@@ -64,8 +73,8 @@ describe('shop product match governance mocks', () => {
     const conflict = getMockShopProductSkuList({ keyword: 'TB-001-RED', limit: 20 });
     expect(conflict.items.length).toBeGreaterThan(0);
 
-    const target = conflict.items[0];
-    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target!.sku_record_id] });
+    const target = requireFirstItem(conflict.items, 'expected a red conflict sku');
+    const autoResult = createMockShopProductMatchTask({ sku_record_ids: [target.sku_record_id] });
     expect(autoResult.failures.length).toBe(1);
     expect(autoResult.failures[0]?.reason).toMatch(/颜色字典未命中|尺码字典未命中|模板未命中/);
   });

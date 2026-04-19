@@ -1,4 +1,4 @@
-﻿import { expect, test, loginAndSelectTenant } from './fixtures';
+import { expect, test, loginAndSelectTenant } from './fixtures';
 
 test('order review keeps search focus and stable right click behavior', async ({ page }) => {
   await page.goto('/orders/review');

@@ -485,7 +485,7 @@ export const ProductUnitsPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         data-testid="product-units-drawer"
         footer={
           <Space>

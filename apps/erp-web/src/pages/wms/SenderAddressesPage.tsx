@@ -79,7 +79,7 @@ export const SenderAddressesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['sender-addresses', tenantId, query],
     queryFn: () => listSenderAddresses(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -267,7 +267,7 @@ export const SenderAddressesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

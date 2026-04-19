@@ -1,4 +1,4 @@
-﻿import { Button, Form, Input, InputNumber, Modal, Tabs, message } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Tabs, message } from 'antd';
 import type { MenuProps } from 'antd';
 import type { Key } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -6,18 +6,9 @@ import type { CellContextMenuEvent, ColDef, SelectionChangedEvent } from 'ag-gri
 import { AgGridReact } from 'ag-grid-react';
 
 import { UiModule03ContextMenu, UiModule04BottomTable } from '@/components/ui-modules';
+import type { OrderWorkbenchGoodsRow } from '@/pages/orders/shared/orderWorkbenchGoodsRows';
 
 import { money } from './helpers';
-
-type GoodsGridRow = {
-  __localKey: string;
-  id?: string;
-  platform_sku_id?: string | null;
-  outer_sku_id?: string | null;
-  title?: string | null;
-  quantity?: number | null;
-  price_cent?: number | null;
-};
 
 type LogRow = Record<string, unknown>;
 
@@ -37,17 +28,17 @@ type ContextMenuState<T> = {
 
 type OrderReviewBottomPanelProps = {
   activeOrderId: string;
-  goodsRows: GoodsGridRow[];
+  goodsRows: OrderWorkbenchGoodsRow[];
   logRows: LogRow[];
   goodsSaving?: boolean;
-  onPersistGoodsRows?: (nextRows: GoodsGridRow[], successText: string) => Promise<void> | void;
+  onPersistGoodsRows?: (nextRows: OrderWorkbenchGoodsRow[], successText: string) => Promise<void> | void;
 };
 
 const agShellClass = 'ag-theme-quartz order-review-bottom-ag-shell';
 
 const normalizeText = (value: unknown) => String(value ?? '').trim();
 
-const isSameGoods = (left: GoodsGridRow, right: GoodsGridRow) => {
+const isSameGoods = (left: OrderWorkbenchGoodsRow, right: OrderWorkbenchGoodsRow) => {
   const leftSku = normalizeText(left.platform_sku_id);
   const rightSku = normalizeText(right.platform_sku_id);
   if (leftSku && rightSku) return leftSku === rightSku;
@@ -78,7 +69,7 @@ export const OrderReviewBottomPanel = ({
   const [goodsEditorOpen, setGoodsEditorOpen] = useState(false);
   const [goodsEditorMode, setGoodsEditorMode] = useState<'create' | 'replace'>('create');
   const [goodsEditorTargetKey, setGoodsEditorTargetKey] = useState<Key | null>(null);
-  const [goodsContextMenu, setGoodsContextMenu] = useState<ContextMenuState<GoodsGridRow>>({
+  const [goodsContextMenu, setGoodsContextMenu] = useState<ContextMenuState<OrderWorkbenchGoodsRow>>({
     open: false,
     position: null,
     row: null,
@@ -92,7 +83,7 @@ export const OrderReviewBottomPanel = ({
     setGoodsContextMenu({ open: false, position: null, row: null });
   }, [activeOrderId]);
 
-  const goodsColDefs = useMemo<ColDef<GoodsGridRow>[]>(
+  const goodsColDefs = useMemo<ColDef<OrderWorkbenchGoodsRow>[]>(
     () => [
       {
         colId: '__goodsSelection',
@@ -109,7 +100,23 @@ export const OrderReviewBottomPanel = ({
       { colId: 'id', headerName: '货品行ID', field: 'id', width: 140, minWidth: 88, sortable: false },
       { colId: 'platform_sku_id', headerName: '平台SKU', field: 'platform_sku_id', width: 132, minWidth: 88, sortable: false },
       { colId: 'outer_sku_id', headerName: '商家SKU', field: 'outer_sku_id', width: 132, minWidth: 88, sortable: false },
-      { colId: 'title', headerName: '标题', field: 'title', width: 180, minWidth: 100, sortable: false },
+      {
+        colId: 'shopProductName',
+        headerName: '网店商品名',
+        field: 'shopProductName',
+        width: 180,
+        minWidth: 120,
+        sortable: false,
+      },
+      { colId: 'shopSpec', headerName: '规格', field: 'shopSpec', width: 128, minWidth: 96, sortable: false },
+      {
+        colId: 'mappingStatus',
+        headerName: '匹配状态',
+        width: 92,
+        minWidth: 80,
+        sortable: false,
+        valueGetter: (params) => (params.data?.mappingMissing ? '未匹配' : '已匹配'),
+      },
       {
         colId: 'quantity',
         headerName: '数量',
@@ -157,7 +164,7 @@ export const OrderReviewBottomPanel = ({
   );
 
   const runPersist = useCallback(
-    async (nextRows: GoodsGridRow[], successText: string) => {
+    async (nextRows: OrderWorkbenchGoodsRow[], successText: string) => {
       if (!onPersistGoodsRows) {
         message.warning('当前页面未接入货品持久化');
         return;
@@ -234,14 +241,18 @@ export const OrderReviewBottomPanel = ({
 
       if (goodsEditorMode === 'create') {
         const id = `${activeOrderId || 'ORDER'}-NEW-${Date.now()}`;
-        const newRow: GoodsGridRow = {
+        const newRow: OrderWorkbenchGoodsRow = {
           __localKey: id,
           id,
           platform_sku_id: normalizeText(values.platform_sku_id) || null,
           outer_sku_id: normalizeText(values.outer_sku_id) || null,
           title,
+          shopProductName: title,
+          shopSpec: null,
           quantity,
           price_cent: priceCent,
+          mappingMissing: false,
+          mapping_missing: false,
         };
 
         const hitIndex = goodsRows.findIndex((item) => isSameGoods(item, newRow));
@@ -253,6 +264,7 @@ export const OrderReviewBottomPanel = ({
             platform_sku_id: hit.platform_sku_id ?? newRow.platform_sku_id,
             outer_sku_id: hit.outer_sku_id ?? newRow.outer_sku_id,
             title: hit.title ?? newRow.title,
+            shopProductName: hit.shopProductName ?? newRow.shopProductName,
             quantity: Number(hit.quantity ?? 0) + quantity,
           };
           await runPersist(mergedRows, '货品已存在，已自动合并数量');
@@ -276,7 +288,8 @@ export const OrderReviewBottomPanel = ({
             title,
             quantity,
             price_cent: priceCent,
-          } as GoodsGridRow;
+            shopProductName: title,
+          } as OrderWorkbenchGoodsRow;
         });
         await runPersist(nextRows, '货品修改成功');
       }
@@ -365,7 +378,7 @@ export const OrderReviewBottomPanel = ({
                   </div>
 
                   <div className={agShellClass} data-testid="order-review-goods-grid">
-                    <AgGridReact<GoodsGridRow>
+                    <AgGridReact<OrderWorkbenchGoodsRow>
                       theme="legacy"
                       rowData={goodsRows}
                       columnDefs={goodsColDefs}
@@ -383,14 +396,14 @@ export const OrderReviewBottomPanel = ({
                       animateRows={false}
                       enableCellTextSelection={false}
                       suppressContextMenu
-                      onSelectionChanged={(event: SelectionChangedEvent<GoodsGridRow>) => {
+                      onSelectionChanged={(event: SelectionChangedEvent<OrderWorkbenchGoodsRow>) => {
                         const keys = event.api
                           .getSelectedNodes()
                           .map((node) => node.data?.__localKey ?? '')
                           .filter(Boolean);
                         setGoodsSelectedRowKeys(keys);
                       }}
-                      onCellContextMenu={(event: CellContextMenuEvent<GoodsGridRow>) => {
+                      onCellContextMenu={(event: CellContextMenuEvent<OrderWorkbenchGoodsRow>) => {
                         event.event?.preventDefault?.();
                         if (!event.data || !event.event) {
                           return;
@@ -459,7 +472,7 @@ export const OrderReviewBottomPanel = ({
           void submitGoodsEditor();
         }}
         confirmLoading={goodsSaving}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={goodsForm} layout="vertical">
           <Form.Item label="平台SKU" name="platform_sku_id">
@@ -468,8 +481,8 @@ export const OrderReviewBottomPanel = ({
           <Form.Item label="商家SKU" name="outer_sku_id">
             <Input placeholder="可选" maxLength={128} />
           </Form.Item>
-          <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入货品标题' }]}>
-            <Input placeholder="请输入货品标题" maxLength={256} />
+          <Form.Item label="网店商品名" name="title" rules={[{ required: true, message: '请输入网店商品名' }]}>
+            <Input placeholder="请输入网店商品名" maxLength={256} />
           </Form.Item>
           <Form.Item label="数量" name="quantity" rules={[{ required: true, message: '请输入数量' }]}>
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />

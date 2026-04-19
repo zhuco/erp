@@ -3,19 +3,7 @@ export type RouteAlias = {
   canonicalPath: string;
 };
 
-export const routeAliases: RouteAlias[] = [
-  { legacyPath: '/sales/shops', canonicalPath: '/channels/shops' },
-  { legacyPath: '/sales/product-match', canonicalPath: '/channels/product-match' },
-  { legacyPath: '/sales/shop-orders', canonicalPath: '/channels/shop-orders' },
-  { legacyPath: '/sales/sync-job-runs', canonicalPath: '/channels/sync-jobs' },
-  { legacyPath: '/system/integrations', canonicalPath: '/integrations/center' },
-  { legacyPath: '/system/sync-jobs', canonicalPath: '/integrations/sync-jobs' },
-  { legacyPath: '/system/print-devices', canonicalPath: '/integrations/print-devices' },
-  { legacyPath: '/system/print-mappings', canonicalPath: '/integrations/print-mappings' },
-  { legacyPath: '/suppliers', canonicalPath: '/procurement/suppliers' },
-  { legacyPath: '/warehouses', canonicalPath: '/wms/warehouses' },
-  { legacyPath: '/couriers', canonicalPath: '/logistics/couriers' }
-];
+export const routeAliases: RouteAlias[] = [];
 
 const routeAliasMap = new Map(routeAliases.map((item) => [item.legacyPath, item.canonicalPath]));
 

@@ -1,4 +1,4 @@
-﻿.erp-data-grid {
+.erp-data-grid {
   position: relative;
   width: 100%;
   min-height: 220px;
@@ -6,6 +6,29 @@
 
 .erp-data-grid-table {
   position: relative;
+  width: 100%;
+}
+
+.erp-data-grid-header-filter-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 6px;
+  scrollbar-width: thin;
+}
+
+.erp-data-grid-header-filter-cell {
+  min-width: 100px;
+}
+
+.erp-data-grid-header-filter-cell .ant-input,
+.erp-data-grid-header-filter-cell .ant-input-affix-wrapper,
+.erp-data-grid-header-filter-cell .ant-select-selector,
+.erp-data-grid-header-filter-cell .ant-picker,
+.erp-data-grid-header-filter-cell .ant-input-number {
   width: 100%;
 }
 
@@ -40,6 +63,20 @@
   height: 14px;
   margin: 0;
   cursor: pointer;
+}
+
+.erp-data-grid .erp-data-grid-selection-col-header,
+.erp-data-grid .erp-data-grid-selection-col-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.erp-data-grid .erp-data-grid-selection-col-cell .ag-cell-value,
+.erp-data-grid .erp-data-grid-selection-col-header .ag-header-cell-label {
+  margin: 0 auto;
 }
 
 .erp-data-grid-state {

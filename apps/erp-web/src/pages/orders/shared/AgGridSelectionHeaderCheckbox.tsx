@@ -27,6 +27,11 @@ const buildSelectionState = <TRow,>(api: GridApi<TRow>) =>
     },
   });
 
+const hasSameSelectionState = (
+  left: ReturnType<typeof buildSelectionState>,
+  right: ReturnType<typeof buildSelectionState>,
+) => left.checked === right.checked && left.indeterminate === right.indeterminate;
+
 export const AgGridSelectionHeaderCheckbox = <TRow,>({
   api,
   onToggleAllSelection,
@@ -40,7 +45,13 @@ export const AgGridSelectionHeaderCheckbox = <TRow,>({
 
   useEffect(() => {
     const refreshSelectionState = () => {
-      setSelectionState(buildSelectionState(api));
+      if (api.isDestroyed?.()) {
+        return;
+      }
+      const nextState = buildSelectionState(api);
+      setSelectionState((previous) =>
+        hasSameSelectionState(previous, nextState) ? previous : nextState,
+      );
     };
 
     refreshSelectionState();
@@ -50,6 +61,9 @@ export const AgGridSelectionHeaderCheckbox = <TRow,>({
 
     return () => {
       selectionStateEvents.forEach((eventName) => {
+        if (api.isDestroyed?.()) {
+          return;
+        }
         api.removeEventListener(eventName, refreshSelectionState);
       });
     };

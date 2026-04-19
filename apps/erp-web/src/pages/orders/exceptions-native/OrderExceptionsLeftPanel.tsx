@@ -1,18 +1,18 @@
-﻿import type { CellClickedEvent } from 'ag-grid-community';
+import type { CellClickedEvent } from 'ag-grid-community';
 import { Typography } from 'antd';
 
 import {
-  UiModule08OrderReviewLeftPanelTemplate,
-  type UiModule08OrderReviewLeftRenderRow,
-  type UiModule08OrderReviewLeftStatsItem,
-} from '@/components/ui-modules';
+  WorkbenchLeftPanelTemplate,
+  type WorkbenchLeftRenderRow,
+  type WorkbenchLeftStatsItem,
+} from '@/components/page-templates';
 
 type OrderExceptionsLeftPanelProps = {
   leftTab: 'filter' | 'screen';
   onLeftTabChange: (key: 'filter' | 'screen') => void;
-  leftRowsForRender: UiModule08OrderReviewLeftRenderRow[];
-  onLeftRowClick: (event: CellClickedEvent<UiModule08OrderReviewLeftRenderRow>) => void;
-  leftStatsItems: UiModule08OrderReviewLeftStatsItem[];
+  leftRowsForRender: WorkbenchLeftRenderRow[];
+  onLeftRowClick: (event: CellClickedEvent<WorkbenchLeftRenderRow>) => void;
+  leftStatsItems: WorkbenchLeftStatsItem[];
   leftStatsPieBackground: string;
   globalOrderTotal: number;
   isFetching: boolean;
@@ -30,7 +30,7 @@ export const OrderExceptionsLeftPanel = ({
   isFetching,
   hasManualFilterActive,
 }: OrderExceptionsLeftPanelProps) => (
-  <UiModule08OrderReviewLeftPanelTemplate
+  <WorkbenchLeftPanelTemplate
     dataTestId="order-exceptions-left-panel"
     leftTab={leftTab}
     onLeftTabChange={onLeftTabChange}

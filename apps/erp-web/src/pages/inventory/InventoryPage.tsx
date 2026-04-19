@@ -526,7 +526,7 @@ export const InventoryPage = () => {
         confirmLoading={actionMutation.isPending}
         okText="提交"
         okButtonProps={{ 'data-testid': 'inventory-action-submit' }}
-        destroyOnClose
+        destroyOnHidden
         data-testid="inventory-action-modal"
       >
         {actionState ? (

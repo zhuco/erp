@@ -11,6 +11,7 @@ import {
   Space,
   Switch,
   Tag,
+  Tabs,
   Typography,
   message
 } from 'antd';
@@ -23,11 +24,12 @@ import dayjs from 'dayjs';
 import type { ApiError } from '@/api/errors';
 import { getWmsOutbound, getWmsWave, listWmsOutbounds, shipWmsOutbound } from '@/api/wms';
 import type { WmsOutboundDoc, WmsWaveDetail } from '@/api/wms';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useSessionStore } from '@/features/sessionStore';
 import { useCan } from '@/features/rbac';
 import { useFeatureFlag } from '@/features/featureFlags';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
 
 import './wmsOutboundConfirmPage.css';
 
@@ -77,6 +79,7 @@ export const WmsOutboundConfirmPage = () => {
   const [waveDetail, setWaveDetail] = useState<WmsWaveDetail | null>(null);
   const [waveConfirmOpen, setWaveConfirmOpen] = useState(false);
   const [waveSubmitting, setWaveSubmitting] = useState(false);
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   useEffect(() => {
     try {
@@ -234,11 +237,11 @@ export const WmsOutboundConfirmPage = () => {
   const handleSubmit = async () => {
     const value = keyword.trim();
     if (!value) {
-      message.warning('请输入发货单号/物流单号/关联单号');
+      message.warning('请输入发货单号、物流单号或关联单号');
       return;
     }
     if (!tenantReady) {
-      message.error('请先选择商户');
+      message.error('请先选择租户');
       return;
     }
     if (!canWrite) {
@@ -317,7 +320,7 @@ export const WmsOutboundConfirmPage = () => {
       return;
     }
     if (!waveSummary.eligibleDocs.length) {
-      message.info('波次内没有可出库单据');
+      message.info('波次中没有可确认出库的单据');
       setWaveConfirmOpen(false);
       setWaveDetail(null);
       return;
@@ -336,8 +339,7 @@ export const WmsOutboundConfirmPage = () => {
         if (result.status === 'fulfilled') {
           return count + 1;
         }
-        const reason =
-          result.reason instanceof Error ? result.reason.message : '出库确认失败';
+        const reason = result.reason instanceof Error ? result.reason.message : '出库确认失败';
         failures.push({
           doc_no: waveSummary.eligibleDocs[index]?.doc_no ?? '-',
           reason
@@ -404,37 +406,123 @@ export const WmsOutboundConfirmPage = () => {
     return <Tag color="red">失败</Tag>;
   };
 
-  const toolbarLeft = (
-    <Typography.Title level={3} style={{ margin: 0 }}>
-      出库确认
-    </Typography.Title>
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="确认流程">
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            1. 扫描发货单号、物流单号或关联单号。
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            2. 系统自动匹配可出库单据并确认出库。
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="当前统计">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            已确认出库：{shippedCount}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            最近记录：{records.length}
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [records.length, shippedCount]
   );
 
-  const toolbarRight = (
-    <Space>
-      <Button icon={<SettingOutlined />} size="small" onClick={() => setSettingsOpen(true)}>
-        设置
-      </Button>
-      <Button icon={<QuestionCircleOutlined />} size="small" onClick={() => setHelpOpen(true)}>
-        帮助
-      </Button>
-    </Space>
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={
+        <Space>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            出库确认
+          </Typography.Title>
+          <Button icon={<SettingOutlined />} size="small" onClick={() => setSettingsOpen(true)}>
+            设置
+          </Button>
+          <Button icon={<QuestionCircleOutlined />} size="small" onClick={() => setHelpOpen(true)}>
+            帮助
+          </Button>
+        </Space>
+      }
+      searchValue={keyword}
+      onSearchChange={setKeyword}
+      onSearch={() => {
+        void handleSubmit();
+      }}
+      searchPlaceholder="发货单号 / 物流单号 / 关联单号"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => setHelpOpen(true)}
+    />
+  );
+
+  const rightPanel = (
+    <Card size="small" title="确认状态">
+      <Typography.Paragraph style={{ marginBottom: 6 }}>
+        当前输入：{keyword.trim() || '-'}
+      </Typography.Paragraph>
+      <Typography.Paragraph style={{ marginBottom: 6 }}>
+        操作中：{processing ? '是' : '否'}
+      </Typography.Paragraph>
+      <Typography.Paragraph style={{ marginBottom: 0 }}>
+        波次能力：{waveFlag.enabled ? '已启用' : '未启用'}
+      </Typography.Paragraph>
+    </Card>
+  );
+
+  const bottomPanel = (
+    <Tabs
+      size="small"
+      items={[
+        {
+          key: 'recent-records',
+          label: `最近记录 (${records.length})`,
+          children: records.length ? (
+            <List
+              size="small"
+              dataSource={records}
+              renderItem={(record) => (
+                <List.Item>
+                  <Space>
+                    {recordStatusTag(record)}
+                    <Typography.Text>{record.title}</Typography.Text>
+                    <Typography.Text type="secondary">{record.timestamp}</Typography.Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description="暂无记录" />
+          )
+        }
+      ]}
+    />
   );
 
   return (
-    <UiModule02WorkbenchTemplate
-      toolbarLeft={toolbarLeft}
-      toolbarRight={toolbarRight}
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
       tableContent={
         <div className="wms-outbound-confirm" data-testid="outbound-confirm-page">
           {!canWrite ? (
             <Alert
               type="warning"
-          showIcon
-          message="当前账号没有出库权限"
-          description="请联系管理员授权后再进行出库确认操作。"
-        />
-      ) : null}
+              showIcon
+              message="当前账号没有出库权限"
+              description="请联系管理员授权后再进行出库确认操作。"
+            />
+          ) : null}
 
       <Card className="wms-outbound-confirm__input-card">
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -486,7 +574,7 @@ export const WmsOutboundConfirmPage = () => {
       </Card>
 
       <Drawer
-        title="出库设置"
+        title="出库确认设置"
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         width={360}
@@ -519,7 +607,7 @@ export const WmsOutboundConfirmPage = () => {
       </Drawer>
 
       <Modal
-        title="出库确认帮助"
+        title="出库确认说明"
         open={helpOpen}
         onCancel={() => setHelpOpen(false)}
         footer={[
@@ -530,19 +618,19 @@ export const WmsOutboundConfirmPage = () => {
       >
         <Space direction="vertical" size={12}>
           <Typography.Text>
-            支持扫描发货单号、物流单号或关联单号，回车即可确认出库。
+            支持扫描发货单号、物流单号或关联单号，系统会自动匹配最近的可出库单据。
           </Typography.Text>
           <Typography.Text>
-            如扫描波次号，将展示波次内可出库单据并执行批量出库确认。
+            如果扫描到的是波次号，系统会弹出波次确认窗口，并批量确认可出库单据。
           </Typography.Text>
           <Typography.Text type="secondary">
-            若提示“未找到单据/状态不允许”，请核对单号或联系管理员处理。
+            如果处理失败，请检查单据状态、租户选择和当前账号权限后再重试。
           </Typography.Text>
         </Space>
       </Modal>
 
       <Modal
-        title="波次批量出库确认"
+        title="波次出库确认"
         open={waveConfirmOpen}
         onCancel={() => {
           setWaveConfirmOpen(false);
@@ -569,6 +657,10 @@ export const WmsOutboundConfirmPage = () => {
       </Modal>
         </div>
       }
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
     />
   );
 };
+
+

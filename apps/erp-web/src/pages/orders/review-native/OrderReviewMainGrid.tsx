@@ -1,4 +1,4 @@
-﻿import { Alert, Button, Empty, Spin } from 'antd';
+import { Alert, Button, Empty, Spin } from 'antd';
 import type { Key } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
@@ -18,7 +18,10 @@ import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 
 import type { OrderSummary } from '@/api/orders';
+import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
+import { applyWorkbenchGridColumnPolicy, sanitizeWorkbenchColumnState } from '@/components/page-templates';
+import { resolveBuiltinOrderTag, resolveOrderBuiltinTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import {
   buildAgGridApplyColumnState,
@@ -45,6 +48,7 @@ import {
   ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS,
 } from '../shared/agGridWorkbenchStructuralColumns';
 import { useAgGridWorkbenchSelection } from '../shared/useAgGridWorkbenchSelection';
+import { resolveSelectionDiagnosticsEnabled } from '../shared/selectionDiagnostics';
 import type { ColumnFilters } from './types';
 
 ModuleRegistry.registerModules([...ORDER_WORKBENCH_ENTERPRISE_MODULES]);
@@ -63,8 +67,135 @@ type BuildOrderReviewMainGridColDefsOptions = {
   shopOptions: FilterOption[];
 };
 
-type OrderReviewMainGridProps = {
+const readOrderSummaryText = (record: OrderSummary, keys: string[]) => {
+  const source = record as Record<string, unknown>;
+  for (const key of keys) {
+    const rawValue = source[key];
+    if (rawValue == null) {
+      continue;
+    }
+    const value = String(rawValue).trim();
+    if (value) {
+      return value;
+    }
+  }
+  return '';
+};
+
+const readOrderSummaryNumber = (record: OrderSummary, keys: string[]) => {
+  const source = record as Record<string, unknown>;
+  for (const key of keys) {
+    const rawValue = source[key];
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+      return rawValue;
+    }
+    if (typeof rawValue === 'string') {
+      const parsed = Number(rawValue);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    if (Array.isArray(rawValue)) {
+      return rawValue.length;
+    }
+  }
+  return null;
+};
+
+const readOrderSummaryList = (record: OrderSummary, keys: string[]) => {
+  const source = record as Record<string, unknown>;
+  for (const key of keys) {
+    const rawValue = source[key];
+    if (Array.isArray(rawValue)) {
+      return rawValue
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean);
+    }
+    if (typeof rawValue === 'string') {
+      return rawValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
+};
+
+const orderReviewStatusLabelMap: Record<string, string> = {
+  PENDING: '待审核',
+  REVIEW_REQUIRED: '待复核',
+  UNDER_REVIEW: '待复核',
+  PASSED: '审核通过',
+  AUTO_PASSED: '自动通过',
+  REVIEW_PASSED: '复核通过',
+  REJECTED: '审核驳回',
+  REVIEW_REJECTED: '复核驳回',
+};
+
+const orderStatusLabelMap: Record<string, string> = {
+  WAIT_SELLER_SEND_GOODS: '待发货',
+  WAIT_BUYER_PAY: '待付款',
+  WAIT_BUYER_CONFIRM_GOODS: '待收货',
+  TRADE_FINISHED: '交易完成',
+  TRADE_CLOSED: '交易关闭',
+  PENDING_SHIPMENT: '待发货',
+  SHIPPED: '已发货',
+  COMPLETED: '已完成',
+  CANCELED: '已取消',
+};
+
+const exceptionBadgeLabelMap: Record<string, string> = {
+  ORDER_FROZEN: '冻结',
+  FROZEN: '冻结',
+  FREEZE: '冻结',
+  NO_LOGISTICS: '无物流',
+  STOP_SHIPPING: '停发',
+  SHIPPING_FAILED: '停发',
+  INVENTORY_SHORTAGE: '库存不足',
+  SHORTAGE: '库存不足',
+  OUT_OF_STOCK: '库存不足',
+  MAPPING_MISSING: '商品映射缺失',
+  INVALID_GOODS: '无效货品',
+  INVALID_ITEM: '无效货品',
+  MISSING_SKU: '缺少货品映射',
+  REFUND: '退款',
+  RETURN: '退货',
+  AFTERSALE: '售后',
+  AFTER_SALE: '售后',
+};
+
+const resolveOrderReviewStatusLabel = (record: OrderSummary) => {
+  const rawValue = readOrderSummaryText(record, ['review_status', 'audit_status']);
+  const normalizedValue = rawValue.toUpperCase();
+  return orderReviewStatusLabelMap[normalizedValue] || rawValue || '-';
+};
+
+const resolveOrderStatusLabel = (record: OrderSummary) => {
+  const rawValue = readOrderSummaryText(record, ['order_status', 'oms_status']);
+  const normalizedValue = rawValue.toUpperCase();
+  return orderStatusLabelMap[normalizedValue] || rawValue || '-';
+};
+
+const resolveOrderExceptionBadgesText = (record: OrderSummary) => {
+  const tagValues = readOrderSummaryList(record, ['tags', 'tag_list', 'marks']);
+  const exceptionFlags = readOrderSummaryList(record, ['exception_flags']);
+  const builtinTags = resolveOrderBuiltinTags(record as Record<string, unknown>);
+  const fallbackTags = [
+    ...tagValues.filter((value) => !resolveBuiltinOrderTag(value)),
+    ...exceptionFlags
+      .filter((value) => !resolveBuiltinOrderTag(value))
+      .map((value) => {
+        const normalizedValue = value.trim().toUpperCase();
+        return exceptionBadgeLabelMap[normalizedValue] ?? value;
+      }),
+  ];
+  const merged = [...builtinTags, ...Array.from(new Set(fallbackTags.filter(Boolean)))];
+  return merged.length > 0 ? merged : ['-'];
+};
+
+export type OrderReviewMainGridProps = {
   rows: OrderSummary[];
+  filterOptionRows: OrderSummary[];
   quickFilterExpanded: boolean;
   columnFilters: ColumnFilters;
   shopOptions: FilterOption[];
@@ -93,10 +224,11 @@ type SelectionColumnSnapshot = {
   renderedSelectionCellCount: number;
 };
 
-const selectionColumnDiagnosticsEnabled = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const selectionColumnDiagnosticsEnabled = resolveSelectionDiagnosticsEnabled();
 
 export const OrderReviewMainGrid = ({
   rows,
+  filterOptionRows,
   quickFilterExpanded,
   columnFilters,
   shopOptions,
@@ -336,7 +468,7 @@ export const OrderReviewMainGrid = ({
 
   const platformFilterOptions = useMemo(() => {
     const map = new Map<string, FilterOption>();
-    rows.forEach((record) => {
+    filterOptionRows.forEach((record) => {
       const value = String(record.platform ?? '').trim();
       if (!value) return;
       map.set(value, { value, label: platformLabel(value) });
@@ -348,7 +480,7 @@ export const OrderReviewMainGrid = ({
     }
 
     return Array.from(map.values());
-  }, [columnFilters.platform, rows]);
+  }, [columnFilters.platform, filterOptionRows]);
 
   const emitSelectionKeys = useCallback(
     (api: GridApi<OrderSummary>) => {
@@ -500,7 +632,7 @@ export const OrderReviewMainGrid = ({
 
       applyingPersistedColumnStateRef.current = true;
       api.applyColumnState({
-        state: buildAgGridApplyColumnState(persistedState),
+        state: sanitizeWorkbenchColumnState(buildAgGridApplyColumnState(persistedState)),
         applyOrder: true,
       });
       queueMicrotask(() => {
@@ -683,6 +815,7 @@ export const OrderReviewMainGrid = ({
           enableCellTextSelection={false}
           preventDefaultOnContextMenu
           rowBuffer={10}
+          enableFilterHandlers
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
@@ -775,9 +908,10 @@ export const buildOrderReviewMainGridColDefs = ({
   platformFilterOptions,
   shopOptions,
 }: BuildOrderReviewMainGridColDefsOptions): ColDef<OrderSummary>[] =>
-  [
+  applyWorkbenchGridColumnPolicy([
       ...buildAgGridWorkbenchStructuralColDefs<OrderSummary>({
         onToggleAllSelection,
+        pinLeft: true,
       }),
       {
         colId: 'id',
@@ -815,6 +949,18 @@ export const buildOrderReviewMainGridColDefs = ({
         floatingFilterComponentParams: {
           testId: 'order-review-floating-filter-platform-order-id',
           placeholder: '筛平台单号',
+        },
+      },
+      {
+        colId: 'exception_badges',
+        headerName: '标记/异常',
+        width: 228,
+        minWidth: 120,
+        sortable: true,
+        valueGetter: (params) => (params.data ? resolveOrderExceptionBadgesText(params.data) : ['-']),
+        cellRenderer: (params) => {
+          const tags = Array.isArray(params.value) ? params.value : [];
+          return <OrderTagBadges tags={tags} emptyText="-" />;
         },
       },
       {
@@ -880,6 +1026,21 @@ export const buildOrderReviewMainGridColDefs = ({
         },
       },
       {
+        colId: 'goods_qty',
+        headerName: '商品数',
+        width: 88,
+        minWidth: 56,
+        sortable: true,
+        cellStyle: { textAlign: 'center' },
+        valueGetter: (params) => {
+          if (!params.data) {
+            return '-';
+          }
+          const value = readOrderSummaryNumber(params.data, ['goods_qty', 'item_count', 'items']);
+          return value == null ? '-' : value;
+        },
+      },
+      {
         colId: 'receiver_name',
         headerName: '收件人',
         field: 'receiver_name',
@@ -918,6 +1079,36 @@ export const buildOrderReviewMainGridColDefs = ({
         },
       },
       {
+        colId: 'review_status',
+        headerName: '审核状态',
+        width: 118,
+        minWidth: 72,
+        sortable: true,
+        valueGetter: (params) =>
+          params.data ? resolveOrderReviewStatusLabel(params.data) : '-',
+      },
+      {
+        colId: 'order_status',
+        headerName: '订单状态',
+        width: 118,
+        minWidth: 72,
+        sortable: true,
+        valueGetter: (params) =>
+          params.data ? resolveOrderStatusLabel(params.data) : '-',
+      },
+      {
+        colId: 'ship_warehouse_name',
+        headerName: '发货仓',
+        width: 136,
+        minWidth: 72,
+        sortable: true,
+        valueGetter: (params) =>
+          params.data
+            ? readOrderSummaryText(params.data, ['ship_warehouse_name', 'ship_warehouse_id', 'target_warehouse_id']) ||
+              '-'
+            : '-',
+      },
+      {
         colId: 'logistics_company',
         headerName: '物流公司',
         field: 'logistics_company',
@@ -936,17 +1127,25 @@ export const buildOrderReviewMainGridColDefs = ({
         },
       },
       {
+        colId: 'tracking_no',
+        headerName: '物流单号',
+        width: 156,
+        minWidth: 76,
+        sortable: true,
+        valueGetter: (params) =>
+          params.data ? readOrderSummaryText(params.data, ['tracking_no', 'waybill_no']) || '-' : '-',
+      },
+      {
         colId: 'total_amount_cent',
         headerName: '应收合计',
         field: 'total_amount_cent',
         width: 118,
         minWidth: 60,
         sortable: true,
-        filter: false,
         cellStyle: { textAlign: 'right' },
         valueFormatter: (params) => money((params.value as number | null | undefined) ?? null),
       },
-    ];
+    ]);
 
 export const buildOrderReviewMainGridDefaultColDef = (quickFilterExpanded: boolean): ColDef<OrderSummary> => ({
   filter: false,

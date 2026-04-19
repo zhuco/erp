@@ -85,7 +85,7 @@ export const AfterSalesInterceptsPage = () => {
   const { data, isFetching, error, refetch } = useQuery({
     queryKey: ['after-sales-intercepts', tenantId, query],
     queryFn: () => listAfterSalesIntercepts(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleSearch = (values: FilterValues) => {

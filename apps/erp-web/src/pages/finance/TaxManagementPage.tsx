@@ -111,14 +111,14 @@ export const TaxManagementPage = () => {
     queryKey: ['tax-rules', tenantId, taxQuery],
     queryFn: () => listTaxRules(tenantId, taxQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const adjustQueryResult = useQuery({
     queryKey: ['invoice-adjustments', tenantId, adjustQuery],
     queryFn: () => listInvoiceAdjustments(tenantId, adjustQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveTaxMutation = useMutation({
@@ -411,7 +411,7 @@ export const TaxManagementPage = () => {
         open={taxDrawerOpen}
         onClose={() => setTaxDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setTaxDrawerOpen(false)}>取消</Button>
@@ -444,7 +444,7 @@ export const TaxManagementPage = () => {
         open={adjustDrawerOpen}
         onClose={() => setAdjustDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setAdjustDrawerOpen(false)}>取消</Button>

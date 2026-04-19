@@ -109,7 +109,7 @@ export const PickRecommendStrategiesPage = () => {
     queryKey: ['pick-recommend-strategies', tenantId, listQuery],
     queryFn: () => listPickRecommendStrategies(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const hitQuery = useMemo<PickRecommendHitListQuery>(
@@ -126,7 +126,7 @@ export const PickRecommendStrategiesPage = () => {
     queryKey: ['pick-recommend-hits', tenantId, hitQuery],
     queryFn: () => listPickRecommendHits(tenantId, hitQuery),
     enabled: tenantReady && activeTab === 'hits',
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -479,7 +479,7 @@ export const PickRecommendStrategiesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

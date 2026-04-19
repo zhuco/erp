@@ -65,7 +65,7 @@ export const AuditLogsPage = () => {
     queryKey: ['audit-logs', tenantId, query],
     queryFn: () => listAuditLogs(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   useEffect(() => {

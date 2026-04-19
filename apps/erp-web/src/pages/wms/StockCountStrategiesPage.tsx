@@ -137,7 +137,7 @@ export const StockCountStrategiesPage = () => {
     queryKey: ['stock-count-strategies', tenantId, listQuery],
     queryFn: () => listStockCountStrategies(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const warehouseQuery = useQuery({
@@ -170,7 +170,7 @@ export const StockCountStrategiesPage = () => {
     queryKey: ['stock-count-suggestions', tenantId, suggestionQuery],
     queryFn: () => listStockCountSuggestions(tenantId, suggestionQuery),
     enabled: tenantReady && stockSuggestFlag.enabled && activeTab === 'suggestions',
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -567,7 +567,7 @@ export const StockCountStrategiesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

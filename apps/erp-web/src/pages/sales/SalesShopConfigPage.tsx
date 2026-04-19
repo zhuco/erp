@@ -279,21 +279,21 @@ export const SalesShopConfigPage = () => {
     queryKey: ['sales-shop-configs', tenantId],
     queryFn: () => listSalesShopConfigs(tenantId, { offset: 0, limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const shopsQuery = useQuery({
     queryKey: ['shops', tenantId, 'sales-download'],
     queryFn: () => listShops(tenantId, { limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const syncJobsQuery = useQuery({
     queryKey: ['sync-jobs', tenantId, 'order-sync'],
     queryFn: () => listSyncJobs(tenantId, { job_type: 'order_sync', offset: 0, limit: 200 }),
     enabled: Boolean(tenantId),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const disabledFlows = useMemo(() => {
@@ -1267,7 +1267,7 @@ export const SalesShopConfigPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -1342,7 +1342,7 @@ export const SalesShopConfigPage = () => {
         }
         open={manualDownloadOpen}
         onCancel={() => setManualDownloadOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         width={760}
         okText="提交下载"
         cancelText="取消"

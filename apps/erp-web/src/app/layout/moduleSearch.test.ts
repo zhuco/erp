@@ -11,66 +11,37 @@ import {
 } from './moduleSearch';
 
 describe('moduleSearch', () => {
-  it('builds searchable function entries with top-level module labels', () => {
+  it('only indexes the five preserved entry points', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
-    const orderReviewEntry = entries.find((entry) => entry.path === '/orders/review');
 
-    expect(orderReviewEntry).toBeDefined();
-    expect(orderReviewEntry).toMatchObject({
-      path: '/orders/review',
-      name: '\u5ba1\u6838\u8ba2\u5355',
-      moduleName: '\u9500\u552e',
-      groupName: '\u8ba2\u5355\u4e2d\u5fc3',
-    });
-    expect(orderReviewEntry?.aliases).toEqual(
-      expect.arrayContaining(['\u8ba2\u5355\u5ba1\u6838', '\u5355\u5ba1']),
-    );
+    expect(entries.map((entry) => entry.path)).toEqual([
+      '/dashboard',
+      '/channels',
+      '/orders/review',
+      '/orders/recheck',
+      '/sales/settings',
+    ]);
   });
 
-  it('supports fuzzy Chinese keyword matching for function lookup', () => {
+  it('supports common order-review aliases and direct matching for the remaining pages', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
-    const results = searchFunctionEntries(entries, '\u5355\u5ba1');
 
-    expect(results[0]).toMatchObject({
+    expect(searchFunctionEntries(entries, '单审')[0]).toMatchObject({
       path: '/orders/review',
-      name: '\u5ba1\u6838\u8ba2\u5355',
     });
-  });
-
-  it('supports alias keywords when the displayed menu title differs from common business wording', () => {
-    const entries = buildFunctionSearchEntries(appMenuItems);
-    const results = searchFunctionEntries(entries, '\u8ba2\u5355\u5ba1\u6838');
-
-    expect(results[0]).toMatchObject({
-      path: '/orders/review',
-      name: '\u5ba1\u6838\u8ba2\u5355',
+    expect(searchFunctionEntries(entries, '复核')[0]).toMatchObject({
+      path: '/orders/recheck',
+    });
+    expect(searchFunctionEntries(entries, '渠道')[0]).toMatchObject({
+      path: '/channels',
     });
   });
 
-  it('matches module names and paths when searching', () => {
-    const entries = buildFunctionSearchEntries(appMenuItems);
-
-    expect(searchFunctionEntries(entries, '\u96c6\u6210').map((entry) => entry.path)).toEqual(
-      expect.arrayContaining(['/integrations/center', '/integrations/sync-jobs']),
-    );
-    expect(searchFunctionEntries(entries, 'print').map((entry) => entry.path)).toEqual(
-      expect.arrayContaining(['/integrations/print-devices', '/print-templates']),
-    );
-  });
-
-  it('matches grouped business categories when searching', () => {
-    const entries = buildFunctionSearchEntries(appMenuItems);
-
-    expect(searchFunctionEntries(entries, '\u8ba2\u5355\u4e2d\u5fc3').map((entry) => entry.path)).toEqual(
-      expect.arrayContaining(['/orders', '/orders/review', '/orders/exceptions']),
-    );
-  });
-
-  it('builds recent and common recommendations with recent items first', () => {
+  it('ignores removed pages when building recent and common recommendations', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
     const recommendations = buildFunctionRecommendations(entries, {
-      recentPaths: ['/orders/review', '/orders', '/not-found'],
-      shortcutPaths: ['/orders/review', '/integrations/center'],
+      recentPaths: ['/orders/review', '/orders', '/channels'],
+      shortcutPaths: ['/sales/settings', '/integrations/center'],
     });
 
     expect(recommendations).toEqual([
@@ -79,89 +50,82 @@ describe('moduleSearch', () => {
         source: 'recent',
       }),
       expect.objectContaining({
-        path: '/orders',
+        path: '/channels',
         source: 'recent',
       }),
       expect.objectContaining({
-        path: '/integrations/center',
+        path: '/sales/settings',
         source: 'shortcut',
       }),
     ]);
   });
 
-  it('groups matched functions by module to keep search results clustered by business domain', () => {
+  it('groups the reduced results by their surviving top-level modules', () => {
     const groups = groupFunctionEntriesByModule([
       {
         path: '/orders/review',
-        name: '\u8ba2\u5355\u5ba1\u6838',
-        moduleName: '\u9500\u552e',
-        groupName: '\u8ba2\u5355\u4e2d\u5fc3',
+        name: '审核订单',
+        moduleName: '销售',
+        groupName: '订单中心',
       },
       {
-        path: '/orders',
-        name: '\u8ba2\u5355\u67e5\u8be2',
-        moduleName: '\u9500\u552e',
-        groupName: '\u8ba2\u5355\u4e2d\u5fc3',
+        path: '/orders/recheck',
+        name: '订单复核',
+        moduleName: '销售',
+        groupName: '订单中心',
       },
       {
-        path: '/channels/directory',
-        name: '\u6e20\u9053\u76ee\u5f55',
-        moduleName: '\u6e20\u9053',
-        groupName: '\u5e73\u53f0\u63a5\u5165',
+        path: '/channels',
+        name: '渠道目录',
+        moduleName: '渠道',
       },
     ]);
 
-    expect(groups).toEqual([
-      expect.objectContaining({
-        label: '\u9500\u552e',
-        items: [
-          expect.objectContaining({ path: '/orders/review' }),
-          expect.objectContaining({ path: '/orders' }),
-        ],
-      }),
-      expect.objectContaining({
-        label: '\u6e20\u9053',
-        items: [expect.objectContaining({ path: '/channels/directory' })],
-      }),
-    ]);
+    expect(groups[0]).toMatchObject({
+      label: '销售',
+    });
+    expect(groups[0]?.items.map((item) => item.path)).toEqual(['/orders/review', '/orders/recheck']);
+    expect(groups[1]).toMatchObject({
+      label: '渠道',
+    });
+    expect(groups[1]?.items.map((item) => item.path)).toEqual(['/channels']);
   });
 
-  it('groups recommendations by source so the dropdown can render recent and common sections', () => {
+  it('groups recommendations by source for the reduced navigation shell', () => {
     const groups = groupFunctionRecommendationsBySource([
       {
         path: '/orders/review',
-        name: '\u8ba2\u5355\u5ba1\u6838',
-        moduleName: '\u9500\u552e',
-        groupName: '\u8ba2\u5355\u4e2d\u5fc3',
+        name: '审核订单',
+        moduleName: '销售',
+        groupName: '订单中心',
         source: 'recent',
       },
       {
-        path: '/integrations/center',
-        name: '\u96c6\u6210\u4e2d\u5fc3',
-        moduleName: '\u96c6\u6210',
+        path: '/sales/settings',
+        name: '销售设置',
+        moduleName: '销售',
         source: 'shortcut',
       },
     ]);
 
     expect(groups).toEqual([
       expect.objectContaining({
-        label: '\u6700\u8fd1\u4f7f\u7528',
+        label: '最近使用',
         items: [expect.objectContaining({ path: '/orders/review' })],
       }),
       expect.objectContaining({
-        label: '\u5e38\u7528\u529f\u80fd',
-        items: [expect.objectContaining({ path: '/integrations/center' })],
+        label: '常用功能',
+        items: [expect.objectContaining({ path: '/sales/settings' })],
       }),
     ]);
   });
 
   it('keeps recent function paths deduplicated and ordered by latest visit', () => {
     expect(
-      mergeRecentFunctionPaths(['/orders', '/dashboard', '/orders/review'], '/dashboard', 3),
-    ).toEqual(['/dashboard', '/orders', '/orders/review']);
-    expect(mergeRecentFunctionPaths(['/orders', '/dashboard'], '/orders/review', 2)).toEqual([
-      '/orders/review',
-      '/orders',
-    ]);
+      mergeRecentFunctionPaths(['/channels', '/dashboard', '/orders/review'], '/dashboard', 3),
+    ).toEqual(['/dashboard', '/channels', '/orders/review']);
+    expect(
+      mergeRecentFunctionPaths(['/channels', '/dashboard'], '/orders/recheck', 2),
+    ).toEqual(['/orders/recheck', '/channels']);
   });
 });

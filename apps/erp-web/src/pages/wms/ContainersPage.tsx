@@ -65,7 +65,7 @@ export const ContainersPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['containers', tenantId, query],
     queryFn: () => listContainers(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -237,7 +237,7 @@ export const ContainersPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

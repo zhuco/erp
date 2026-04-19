@@ -205,7 +205,7 @@ export const StocktakeTasksPage = () => {
     queryKey: ['stocktake-tasks', tenantId, listQuery],
     queryFn: () => listStocktakeTasks(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery<StocktakeTaskDetail>({
@@ -732,7 +732,7 @@ export const StocktakeTasksPage = () => {
         onCancel={() => setRuleOpen(false)}
         onOk={() => ruleMutation.mutate()}
         confirmLoading={ruleMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={ruleForm}
@@ -761,7 +761,7 @@ export const StocktakeTasksPage = () => {
         onCancel={() => setGenerateOpen(false)}
         onOk={() => generateMutation.mutate()}
         confirmLoading={generateMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={generateForm} layout="vertical">
           <Form.Item
@@ -809,7 +809,7 @@ export const StocktakeTasksPage = () => {
         onCancel={() => setAssignState({ open: false })}
         onOk={() => assignForm.submit()}
         confirmLoading={assignMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={assignForm} layout="vertical" onFinish={(values) => assignMutation.mutate(values)}>
           <Form.Item
@@ -826,7 +826,7 @@ export const StocktakeTasksPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={820}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailLoading && !detailQuery.data ? (
           <LoadingState loading={detailLoading} onRetry={() => detailQuery.refetch()} />

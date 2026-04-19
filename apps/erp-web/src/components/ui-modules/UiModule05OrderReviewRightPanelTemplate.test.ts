@@ -1,4 +1,4 @@
-﻿import { isValidElement } from 'react';
+import { isValidElement } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Card,
   DatePicker,
@@ -588,11 +588,6 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
       : value || undefined;
     setColumnFilters((prev) => ({ ...prev, [key]: normalized }));
   };
-
-  const tableFooterSyncKey = useMemo(
-    () => `${columns.length}-${listItems.length}`,
-    [columns.length, listItems.length]
-  );
 
   const handleApplyLeftFilters = () => {
     setAppliedLeftFilters({

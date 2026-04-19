@@ -1,4 +1,4 @@
-﻿import { Form, Select } from 'antd';
+import { Form, Select } from 'antd';
 import type { FormProps } from 'antd';
 
 type Option = {

@@ -1,0 +1,81 @@
+- generic [ref=e3]:
+  - link "跳过导航，直达主内容" [ref=e4] [cursor=pointer]:
+    - /url: "#workbench-main-content"
+  - status [ref=e5]
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: ERP
+      - generic [ref=e10]:
+        - link "首页" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+        - button "渠道" [ref=e12] [cursor=pointer]
+        - button "销售" [ref=e13] [cursor=pointer]
+        - button "商品" [ref=e14] [cursor=pointer]
+        - button "采购" [ref=e15] [cursor=pointer]
+        - button "计划" [ref=e16] [cursor=pointer]
+        - button "仓储" [ref=e17] [cursor=pointer]
+        - button "物流" [ref=e18] [cursor=pointer]
+        - button "客户" [ref=e19] [cursor=pointer]
+        - button "财务" [ref=e20] [cursor=pointer]
+        - button "营销" [ref=e21] [cursor=pointer]
+        - button "洞察" [ref=e22] [cursor=pointer]
+        - button "集成" [ref=e23] [cursor=pointer]
+        - button "系统" [ref=e24] [cursor=pointer]
+      - generic [ref=e26]:
+        - combobox "功能搜索输入" [ref=e29]
+        - button "功能搜索" [ref=e30] [cursor=pointer]:
+          - img "search" [ref=e32]:
+            - img [ref=e33]
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - button "开启紧凑模式" [ref=e38] [cursor=pointer]:
+            - img "column-height" [ref=e40]:
+              - img [ref=e41]
+          - button "通知" [ref=e44] [cursor=pointer]:
+            - img "bell" [ref=e46]:
+              - img [ref=e47]
+          - button "设置" [ref=e50] [cursor=pointer]:
+            - img "setting" [ref=e52]:
+              - img [ref=e53]
+          - button "退出登录" [ref=e56] [cursor=pointer]:
+            - img "logout" [ref=e58]:
+              - img [ref=e59]
+        - button "用户菜单：admin@example.com" [ref=e61] [cursor=pointer]:
+          - generic [ref=e62]:
+            - generic [ref=e65]: A
+            - generic [ref=e66]: admin@example.com
+            - img [ref=e68]:
+              - img [ref=e69]
+    - generic [ref=e71]:
+      - generic [ref=e72]:
+        - strong [ref=e74]: 快捷工具栏
+        - generic [ref=e75]: 暂无快捷入口
+        - button "设 置" [ref=e76] [cursor=pointer]:
+          - generic [ref=e77]: 设 置
+      - group "布局预设" [ref=e78]:
+        - button "紧凑布局" [ref=e79] [cursor=pointer]:
+          - generic [ref=e80]: 紧凑布局
+        - button "标准布局" [ref=e81] [cursor=pointer]:
+          - generic [ref=e82]: 标准布局
+        - button "分析布局" [ref=e83] [cursor=pointer]:
+          - generic [ref=e84]: 分析布局
+      - generic [ref=e85]: 布局预设：标准布局
+      - button "命令面板 (Ctrl+K)" [ref=e86] [cursor=pointer]:
+        - generic [ref=e87]: 命令面板 (Ctrl+K)
+      - button "快捷键帮助 (?)" [ref=e88] [cursor=pointer]:
+        - generic [ref=e89]: 快捷键帮助 (?)
+    - generic [ref=e92]:
+      - tablist [ref=e93]:
+        - generic [ref=e96] [cursor=pointer]:
+          - tab "渠道目录" [selected] [ref=e97]
+          - button "remove" [ref=e98]:
+            - img "close" [ref=e99]:
+              - img [ref=e100]
+        - button "Tab actions" [ref=e103] [cursor=pointer]:
+          - img "more" [ref=e105]:
+            - img [ref=e106]
+      - generic:
+        - generic:
+          - tabpanel "渠道目录"
+  - main "Workbench main content" [ref=e109]:
+    - generic [ref=e114]: 页面加载中...

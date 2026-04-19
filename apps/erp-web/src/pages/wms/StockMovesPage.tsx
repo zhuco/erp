@@ -90,7 +90,7 @@ export const StockMovesPage = () => {
     queryKey: ['stock-moves', tenantId, listQuery],
     queryFn: () => listStockMoves(tenantId, listQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const detailQuery = useQuery({
@@ -229,7 +229,7 @@ export const StockMovesPage = () => {
         onCancel={() => setCreateOpen(false)}
         onOk={() => createMutation.mutate()}
         confirmLoading={createMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}
@@ -290,7 +290,7 @@ export const StockMovesPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailQuery.isLoading ? (
           <Card loading />

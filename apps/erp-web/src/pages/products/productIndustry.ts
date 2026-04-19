@@ -1,4 +1,4 @@
-﻿import type { Product } from '@/api/products';
+import type { Product } from '@/api/products';
 
 export type ProductSpecForm = {
   spec_code?: string;

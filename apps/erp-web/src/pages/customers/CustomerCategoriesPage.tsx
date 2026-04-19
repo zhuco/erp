@@ -78,7 +78,7 @@ export const CustomerCategoriesPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['customer-categories', tenantId, query],
     queryFn: () => listCustomerCategories(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
@@ -267,7 +267,7 @@ export const CustomerCategoriesPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={480}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

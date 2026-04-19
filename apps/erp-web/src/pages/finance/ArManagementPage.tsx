@@ -74,7 +74,7 @@ export const ArManagementPage = () => {
     queryKey: ['ar-docs', tenantId, query],
     queryFn: () => listArDocs(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const saveMutation = useMutation({
@@ -283,7 +283,7 @@ export const ArManagementPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>

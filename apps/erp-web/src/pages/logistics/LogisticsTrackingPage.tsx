@@ -1,4 +1,4 @@
-﻿import { Button, Descriptions, Drawer, Form } from 'antd';
+import { Button, Descriptions, Drawer, Form } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -66,7 +66,7 @@ export const LogisticsTrackingPage = () => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['logistics-shipments', tenantId, query],
     queryFn: () => listLogisticsShipments(tenantId, query),
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const {
@@ -174,7 +174,7 @@ export const LogisticsTrackingPage = () => {
           setActiveShipment(null);
         }}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         {trackingLoading || trackingFetching ? (
           <LoadingState

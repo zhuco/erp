@@ -1,7 +1,7 @@
-﻿import type { CellClickedEvent } from 'ag-grid-community';
+import type { CellClickedEvent } from 'ag-grid-community';
 
+import { WorkbenchLeftPanelTemplate } from '@/components/page-templates';
 import {
-  UiModule08OrderReviewLeftPanelTemplate,
   UiModule08StrategyScreenFilterForm,
   type UiModule08StrategyScreenFilterChangeHandler,
   type UiModule08StrategyScreenFilterState,
@@ -40,7 +40,7 @@ export const OrderReviewLeftPanel = ({
   isGlobalStatsFetching,
   shouldFallbackToAll,
 }: OrderReviewLeftPanelProps) => (
-  <UiModule08OrderReviewLeftPanelTemplate
+  <WorkbenchLeftPanelTemplate
     className="order-review-left-ag-panel"
     dataTestId="order-review-left-ag-panel"
     leftTab={leftTab}

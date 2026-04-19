@@ -147,7 +147,7 @@ export const ProcurementInspectionsPage = () => {
     queryKey: ['procurement-inspections', tenantId, query],
     queryFn: () => listProcurementInspections(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({

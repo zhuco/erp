@@ -1,15 +1,16 @@
-import { Button, Card, Descriptions, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Descriptions, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { InboundDocItem, InboundDocStatus, InboundInspection } from '@/api/inbounds';
 import { getInboundDetail, listInboundInspections } from '@/api/inbounds';
 import { listWarehouses } from '@/api/warehouses';
+import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule02WorkbenchTemplate } from '@/components/ui-modules';
+import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -26,8 +27,8 @@ const traceStatusTextMap: Record<string, string> = {
   NOT_RECEIVED: '未收货',
   PART_RECEIVED: '部分收货',
   RECEIVED: '已收货',
-  NOT_REQUIRED: '免检',
-  PENDING: '待质检',
+  NOT_REQUIRED: '不要求',
+  PENDING: '待处理',
   PASSED: '合格',
   FAILED: '不合格',
   PENDING_REVIEW: '待复检',
@@ -67,6 +68,9 @@ export const InboundDetailPage = () => {
   const canWrite = useCan('wms.inbounds.write');
   const tenantReady = isTenantSelected(tenantId);
   const inventoryFeature = useFeatureFlag('inventory.enabled');
+  const [toolbarSearchInput, setToolbarSearchInput] = useState('');
+  const [toolbarSearchKeyword, setToolbarSearchKeyword] = useState('');
+  const { setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible } = useWorkbenchPanels();
 
   const detailQuery = useQuery({
     queryKey: ['inbound-detail', tenantId, doc_id],
@@ -113,7 +117,7 @@ export const InboundDetailPage = () => {
       { title: 'SKU ID', dataIndex: 'sku_id' },
       { title: '数量', dataIndex: 'qty' },
       {
-        title: '结果',
+        title: '质检结果',
         dataIndex: 'result',
         render: (value: string) =>
           value === 'PASSED' ? '合格' : value === 'FAILED' ? '不合格' : '待复检'
@@ -126,6 +130,123 @@ export const InboundDetailPage = () => {
       }
     ],
     []
+  );
+
+  const filteredItems = useMemo(() => {
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return detail?.items ?? [];
+    }
+    return (detail?.items ?? []).filter((item) => {
+      return (
+        item.sku_id.toLowerCase().includes(keyword) ||
+        String(item.sku_code ?? '').toLowerCase().includes(keyword) ||
+        String(item.barcode ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [detail?.items, toolbarSearchKeyword]);
+
+  const filteredInspections = useMemo(() => {
+    const source = inspectionQuery.data?.items ?? [];
+    const keyword = toolbarSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return source;
+    }
+    return source.filter((item) => {
+      return (
+        item.sku_id.toLowerCase().includes(keyword) ||
+        String(item.result ?? '').toLowerCase().includes(keyword) ||
+        String(item.note ?? '').toLowerCase().includes(keyword)
+      );
+    });
+  }, [inspectionQuery.data?.items, toolbarSearchKeyword]);
+
+  const leftPanel = useMemo(
+    () => (
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Card size="small" title="入库进度">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            单号：{detail?.doc.doc_no ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            状态：{detail?.doc.status ?? '-'}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            明细行：{detail?.items.length ?? 0}
+          </Typography.Paragraph>
+        </Card>
+        <Card size="small" title="筛选范围">
+          <Typography.Paragraph style={{ marginBottom: 6 }}>
+            可见明细：{filteredItems.length}
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            可见质检记录：{filteredInspections.length}
+          </Typography.Paragraph>
+        </Card>
+      </Space>
+    ),
+    [detail?.doc.doc_no, detail?.doc.status, detail?.items.length, filteredInspections.length, filteredItems.length]
+  );
+
+  useEffect(() => {
+    setLeftPanelCollapsed(false);
+    setLeftPanel(leftPanel);
+    setLeftPanelVisible(true);
+    return () => {
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
+    };
+  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
+
+  const rightPanel = useMemo(
+    () => (
+      <Card size="small" title="处理建议">
+        <Typography.Paragraph style={{ marginBottom: 8 }}>
+          收货、质检、上架状态会在本页联动刷新，建议按“收货 - 质检 - 上架”流程处理。
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          仓库：{warehouseMap.get(detail?.doc.warehouse_id ?? '') ?? detail?.doc.warehouse_id ?? '-'}
+        </Typography.Paragraph>
+      </Card>
+    ),
+    [detail?.doc.warehouse_id, warehouseMap]
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'items',
+            label: `入库明细 (${filteredItems.length})`,
+            children: (
+              <Table<InboundDocItem>
+                size="small"
+                rowKey={(record) => record.sku_id}
+                columns={columns}
+                dataSource={filteredItems}
+                pagination={false}
+              />
+            )
+          },
+          {
+            key: 'inspections',
+            label: `质检璁板綍 (${filteredInspections.length})`,
+            children: (
+              <Table<InboundInspection>
+                size="small"
+                rowKey={(record) => record.inspection_id}
+                columns={inspectionColumns}
+                dataSource={filteredInspections}
+                pagination={false}
+              />
+            )
+          }
+        ]}
+      />
+    ),
+    [columns, filteredInspections, filteredItems, inspectionColumns]
   );
 
   if (!doc_id) {
@@ -167,7 +288,7 @@ export const InboundDetailPage = () => {
   const toolbarLeft = (
     <Space align="center" size={12} wrap>
       <Typography.Title level={3} data-testid="inbound-detail-title" style={{ margin: 0 }}>
-        入库单详情
+        入库详情
       </Typography.Title>
       <Button data-testid="inbound-detail-back" onClick={() => navigate('/wms/inbounds')}>
         返回列表
@@ -196,21 +317,34 @@ export const InboundDetailPage = () => {
     </Space>
   );
 
+  const toolbar = (
+    <OrderReviewWorkbenchToolbarTemplate
+      leftContent={toolbarLeft}
+      searchValue={toolbarSearchInput}
+      onSearchChange={setToolbarSearchInput}
+      onSearch={() => setToolbarSearchKeyword(toolbarSearchInput.trim())}
+      searchPlaceholder="按 SKU / 条码 / 质检结果筛选"
+      onExport={() => message.info('导出功能待接入')}
+      onPrint={() => message.info('打印功能待接入')}
+      onHelp={() => message.info('可使用顶部搜索快速定位明细与质检记录')}
+    />
+  );
+
   const tableContent = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Descriptions bordered size="small" column={2}>
         <Descriptions.Item label="入库单号">{detail.doc.doc_no}</Descriptions.Item>
         <Descriptions.Item label="状态">{statusTag}</Descriptions.Item>
-        <Descriptions.Item label="入库进度">{renderTraceStatus(traceDoc.inbound_status)}</Descriptions.Item>
+        <Descriptions.Item label="入库状态">{renderTraceStatus(traceDoc.inbound_status)}</Descriptions.Item>
         <Descriptions.Item label="收货状态">{renderTraceStatus(traceDoc.receipt_status)}</Descriptions.Item>
         <Descriptions.Item label="质检状态">{renderTraceStatus(traceDoc.inbound_qc_status)}</Descriptions.Item>
         <Descriptions.Item label="上架状态">{renderTraceStatus(traceDoc.putaway_status)}</Descriptions.Item>
         <Descriptions.Item label="仓库">
           {warehouseMap.get(detail.doc.warehouse_id) ?? detail.doc.warehouse_id}
         </Descriptions.Item>
-        <Descriptions.Item label="类型">{detail.doc.doc_type}</Descriptions.Item>
+        <Descriptions.Item label="单据类型">{detail.doc.doc_type}</Descriptions.Item>
         <Descriptions.Item label="来源类型">{detail.doc.ref_type ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="来源单号">{detail.doc.ref_id ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="来源单据">{detail.doc.ref_id ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="创建时间">
           {formatDateTime(detail.doc.created_at)}
         </Descriptions.Item>
@@ -222,7 +356,7 @@ export const InboundDetailPage = () => {
         data-testid="inbound-detail-items"
         rowKey={(record) => record.sku_id}
         columns={columns}
-        dataSource={detail.items}
+        dataSource={filteredItems}
         pagination={false}
       />
       <Card
@@ -234,7 +368,7 @@ export const InboundDetailPage = () => {
           data-testid="inbound-detail-inspections-table"
           rowKey={(record) => record.inspection_id}
           columns={inspectionColumns}
-          dataSource={inspectionQuery.data?.items ?? []}
+          dataSource={filteredInspections}
           pagination={false}
           locale={{ emptyText: '暂无质检记录' }}
         />
@@ -242,5 +376,13 @@ export const InboundDetailPage = () => {
     </Space>
   );
 
-  return <UiModule02WorkbenchTemplate toolbarLeft={toolbarLeft} tableContent={tableContent} />;
+  return (
+    <OrderReviewWorkbenchTemplate
+      toolbar={toolbar}
+      tableContent={tableContent}
+      rightPanel={rightPanel}
+      bottomPanel={bottomPanel}
+    />
+  );
 };
+

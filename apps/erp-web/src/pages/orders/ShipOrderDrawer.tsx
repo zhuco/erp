@@ -301,7 +301,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
       open={open}
       onClose={onClose}
       width={520}
-      destroyOnClose
+      destroyOnHidden
       data-testid="ship-drawer"
     >
       {order ? (
@@ -364,6 +364,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
                     <Button
                       type="text"
                       icon={<CopyOutlined />}
+                      aria-label="Copy idempotency key"
                       onClick={handleCopyKey}
                       data-testid="ship-idempotency-copy"
                     />

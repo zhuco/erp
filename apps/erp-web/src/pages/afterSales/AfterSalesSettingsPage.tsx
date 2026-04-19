@@ -41,7 +41,7 @@ import {
   updateAfterSalesQualityRule,
   updateAfterSalesReason
 } from '@/api/afterSalesSettings';
-import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -78,21 +78,21 @@ type QualityRuleFormValues = {
 };
 
 const statusOptions = [
-  { label: '启用', value: 'ACTIVE' },
-  { label: '停用', value: 'DISABLED' }
+  { label: '鍚敤', value: 'ACTIVE' },
+  { label: '鍋滅敤', value: 'DISABLED' }
 ];
 
 const afterSalesTypeOptions = [
-  { label: '仅退款', value: 'REFUND_ONLY' },
-  { label: '退货退款', value: 'RETURN_REFUND' },
-  { label: '换货', value: 'EXCHANGE' },
-  { label: '补发', value: 'RESEND' }
+  { label: 'Refund Only', value: 'REFUND_ONLY' },
+  { label: 'Return Refund', value: 'RETURN_REFUND' },
+  { label: '鎹㈣揣', value: 'EXCHANGE' },
+  { label: '琛ュ彂', value: 'RESEND' }
 ];
 
 const qualityResultOptions = [
-  { label: '可二次销售', value: 'RESALE' },
-  { label: '报废', value: 'SCRAP' },
-  { label: '返修', value: 'REPAIR' }
+  { label: 'Resale', value: 'RESALE' },
+  { label: '鎶ュ簾', value: 'SCRAP' },
+  { label: '杩斾慨', value: 'REPAIR' }
 ];
 
 export const AfterSalesSettingsPage = () => {
@@ -139,7 +139,7 @@ export const AfterSalesSettingsPage = () => {
     queryKey: ['sales-shop-configs', tenantId, shopQuery],
     queryFn: () => listSalesShopConfigs(tenantId, shopQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const returnInboundSetting = useQuery({
@@ -169,7 +169,7 @@ export const AfterSalesSettingsPage = () => {
     queryKey: ['after-sales-reasons', tenantId, reasonQuery],
     queryFn: () => listAfterSalesReasons(tenantId, reasonQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const ruleQuery = useMemo<AfterSalesQualityRuleListQuery>(
@@ -184,7 +184,7 @@ export const AfterSalesSettingsPage = () => {
     queryKey: ['after-sales-quality-rules', tenantId, ruleQuery],
     queryFn: () => listAfterSalesQualityRules(tenantId, ruleQuery),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const handleShopToggle = async (record: SalesShopConfig, checked: boolean) => {
@@ -206,10 +206,10 @@ export const AfterSalesSettingsPage = () => {
         enable_logistics_upload: record.enable_logistics_upload
       };
       await updateSalesShopConfig(tenantId, record.shop_id, payload);
-      message.success('售后下载设置已更新');
+      message.success('After-sales download setting updated');
       await queryClient.invalidateQueries({ queryKey: ['sales-shop-configs', tenantId] });
     } catch (err) {
-      message.error(err instanceof Error ? err.message : '更新售后下载设置失败');
+      message.error(err instanceof Error ? err.message : '更新售后下载璁剧疆失败');
     } finally {
       setUpdatingShopId(null);
     }
@@ -217,7 +217,7 @@ export const AfterSalesSettingsPage = () => {
 
   const handleReturnInboundToggle = async (checked: boolean) => {
     if (!canWriteSettings) {
-      message.error('暂无权限更新售后联动设置');
+      message.error('暂无权限更新售后鑱斿姩璁剧疆');
       return;
     }
     setUpdatingLink(true);
@@ -228,7 +228,7 @@ export const AfterSalesSettingsPage = () => {
         key: 'service.enable_return_inbound_link',
         value: checked
       });
-      message.success(checked ? '已开启售后入库联动' : '已关闭售后入库联动');
+      message.success(checked ? 'After-sales inbound link enabled' : 'After-sales inbound link disabled');
       await returnInboundSetting.refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '更新设置失败');
@@ -291,10 +291,10 @@ export const AfterSalesSettingsPage = () => {
       setSavingReason(true);
       if (editingReason) {
         await updateAfterSalesReason(tenantId, editingReason.reason_code, payload);
-        message.success('售后原因已更新');
+        message.success('After-sales reason updated');
       } else {
         await createAfterSalesReason(tenantId, payload);
-        message.success('售后原因已创建');
+        message.success('After-sales reason created');
       }
       setReasonDrawerOpen(false);
       setEditingReason(null);
@@ -312,10 +312,10 @@ export const AfterSalesSettingsPage = () => {
     setDeletingReason(reasonCode);
     try {
       await deleteAfterSalesReason(tenantId, reasonCode);
-      message.success('售后原因已删除');
+      message.success('After-sales reason deleted');
       await queryClient.invalidateQueries({ queryKey: ['after-sales-reasons', tenantId] });
     } catch (err) {
-      message.error(err instanceof Error ? err.message : '删除售后原因失败');
+      message.error(err instanceof Error ? err.message : '删除售后鍘熷洜失败');
     } finally {
       setDeletingReason(null);
     }
@@ -333,10 +333,10 @@ export const AfterSalesSettingsPage = () => {
       setSavingRule(true);
       if (editingRule) {
         await updateAfterSalesQualityRule(tenantId, editingRule.rule_id, payload);
-        message.success('质检规则已更新');
+        message.success('Quality rule updated');
       } else {
         await createAfterSalesQualityRule(tenantId, payload);
-        message.success('质检规则已创建');
+        message.success('Quality rule created');
       }
       setRuleDrawerOpen(false);
       setEditingRule(null);
@@ -354,7 +354,7 @@ export const AfterSalesSettingsPage = () => {
     setDeletingRule(ruleId);
     try {
       await deleteAfterSalesQualityRule(tenantId, ruleId);
-      message.success('质检规则已删除');
+      message.success('Quality rule deleted');
       await queryClient.invalidateQueries({ queryKey: ['after-sales-quality-rules', tenantId] });
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除质检规则失败');
@@ -369,7 +369,7 @@ export const AfterSalesSettingsPage = () => {
       { title: '平台', dataIndex: 'platform' },
       { title: 'Shop ID', dataIndex: 'shop_id' },
       {
-        title: '售后自动下载',
+        title: '售后鑷姩下载',
         dataIndex: 'enable_after_sales_download',
         render: (_, record) => (
           <Switch
@@ -385,25 +385,25 @@ export const AfterSalesSettingsPage = () => {
 
   const reasonColumns = useMemo<ColumnsType<AfterSalesReason>>(
     () => [
-      { title: '原因编码', dataIndex: 'reason_code' },
-      { title: '原因名称', dataIndex: 'label' },
+      { title: '鍘熷洜缂栫爜', dataIndex: 'reason_code' },
+      { title: '鍘熷洜鍚嶇О', dataIndex: 'label' },
       {
-        title: '分类',
+        title: '鍒嗙被',
         dataIndex: 'category',
         render: (value?: string | null) => value || '-'
       },
       {
-        title: '排序',
+        title: '鎺掑簭',
         dataIndex: 'sort_order'
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (value) =>
-          value === 'DISABLED' ? <Tag color="red">停用</Tag> : <Tag color="green">启用</Tag>
+          value === 'DISABLED' ? <Tag color="red">鍋滅敤</Tag> : <Tag color="green">鍚敤</Tag>
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -415,7 +415,7 @@ export const AfterSalesSettingsPage = () => {
               编辑
             </Button>
             <Popconfirm
-              title="确认删除该原因？"
+              title="确认删除璇ュ師鍥狅紵"
               okText="删除"
               cancelText="取消"
               onConfirm={() => handleDeleteReason(record.reason_code)}
@@ -440,29 +440,29 @@ export const AfterSalesSettingsPage = () => {
   const ruleColumns = useMemo<ColumnsType<AfterSalesQualityRule>>(
     () => [
       {
-        title: '售后类型',
+        title: '售后绫诲瀷',
         dataIndex: 'after_sales_type',
         render: (value) =>
           afterSalesTypeOptions.find((opt) => opt.value === value)?.label || value
       },
       {
-        title: '质检结论',
+        title: '质检缁撹',
         dataIndex: 'result_code',
         render: (value) =>
           qualityResultOptions.find((opt) => opt.value === value)?.label || value
       },
       {
-        title: '排序',
+        title: '鎺掑簭',
         dataIndex: 'sort_order'
       },
       {
-        title: '状态',
+        title: 'Status',
         dataIndex: 'status',
         render: (value) =>
-          value === 'DISABLED' ? <Tag color="red">停用</Tag> : <Tag color="green">启用</Tag>
+          value === 'DISABLED' ? <Tag color="red">鍋滅敤</Tag> : <Tag color="green">鍚敤</Tag>
       },
       {
-        title: '操作',
+        title: '鎿嶄綔',
         key: 'actions',
         render: (_, record) => (
           <Space>
@@ -474,7 +474,7 @@ export const AfterSalesSettingsPage = () => {
               编辑
             </Button>
             <Popconfirm
-              title="确认删除该规则？"
+              title="确认删除璇ヨ鍒欙紵"
               okText="删除"
               cancelText="取消"
               onConfirm={() => handleDeleteRule(record.rule_id)}
@@ -499,10 +499,10 @@ export const AfterSalesSettingsPage = () => {
   return (
     <>
       <UiModule07SettingsLayout
-        title={<span data-testid="after-sales-settings-title">售后设置</span>}
+        title={<span data-testid="after-sales-settings-title">售后璁剧疆</span>}
       >
-        <UiModule07SettingsSection title="售后自动下载">
-          <ServerTable<SalesShopConfig>
+        <UiModule07SettingsSection title="售后鑷姩下载">
+          <UiModule03MainTableSection<SalesShopConfig>
             rowKey="shop_id"
             columns={columns}
             data={shopQueryResult.data?.items ?? []}
@@ -517,7 +517,7 @@ export const AfterSalesSettingsPage = () => {
             columnSettingsKey="after-sales.settings.shop.columns"
           />
         </UiModule07SettingsSection>
-        <UiModule07SettingsSection title="退货入库联动">
+        <UiModule07SettingsSection title="Return Inbound Link">
           <Space align="center" size={12}>
             <Switch
               checked={returnInboundLink}
@@ -526,34 +526,34 @@ export const AfterSalesSettingsPage = () => {
               disabled={!canWriteSettings}
             />
             <Typography.Text>
-              {returnInboundLink ? '已开启退货入库联动' : '已关闭退货入库联动'}
+              {returnInboundLink ? 'Return-inbound link enabled' : 'Return-inbound link disabled'}
             </Typography.Text>
           </Space>
           <Typography.Text type="secondary">
-            开启后，售后收货会自动生成退货入库单并同步库存。
+            寮€鍚悗锛屽敭鍚庢敹璐т細鑷姩鐢熸垚閫€璐у叆搴撳崟骞跺悓姝ュ簱瀛樸€?
           </Typography.Text>
         </UiModule07SettingsSection>
         <UiModule07SettingsSection
-          title="售后原因字典"
+          title="售后鍘熷洜瀛楀吀"
           actions={
             <Button
               type="primary"
               disabled={!canWriteAfterSales}
               onClick={() => openReasonDrawer()}
             >
-              新增原因
+              鏂板鍘熷洜
             </Button>
           }
         >
-          <ServerTable<AfterSalesReason>
+          <UiModule03MainTableSection<AfterSalesReason>
             rowKey="reason_code"
             columns={reasonColumns}
             data={reasonQueryResult.data?.items ?? []}
             loading={reasonQueryResult.isFetching}
             error={reasonQueryResult.error}
             onRetry={() => reasonQueryResult.refetch()}
-            errorTitle="售后原因加载失败"
-            emptyText="暂无售后原因"
+            errorTitle="售后鍘熷洜加载失败"
+            emptyText="暂无售后鍘熷洜"
             total={reasonQueryResult.data?.total ?? 0}
             pagination={reasonPagination}
             onPaginationChange={setReasonPagination}
@@ -568,11 +568,11 @@ export const AfterSalesSettingsPage = () => {
               disabled={!canWriteAfterSales}
               onClick={() => openRuleDrawer()}
             >
-              新增规则
+              鏂板规则
             </Button>
           }
         >
-          <ServerTable<AfterSalesQualityRule>
+          <UiModule03MainTableSection<AfterSalesQualityRule>
             rowKey="rule_id"
             columns={ruleColumns}
             data={ruleQueryResult.data?.items ?? []}
@@ -589,11 +589,11 @@ export const AfterSalesSettingsPage = () => {
         </UiModule07SettingsSection>
       </UiModule07SettingsLayout>
       <Drawer
-        title={editingReason ? '编辑售后原因' : '新增售后原因'}
+        title={editingReason ? '编辑售后鍘熷洜' : '鏂板售后鍘熷洜'}
         open={reasonDrawerOpen}
         onClose={() => setReasonDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setReasonDrawerOpen(false)}>取消</Button>
@@ -606,35 +606,35 @@ export const AfterSalesSettingsPage = () => {
         <Form form={reasonForm} layout="vertical">
           <Form.Item
             name="reason_code"
-            label="原因编码"
-            rules={[{ required: !editingReason, message: '请输入原因编码' }]}
+            label="鍘熷洜缂栫爜"
+            rules={[{ required: !editingReason, message: 'Please enter reason code' }]}
           >
-            <Input disabled={Boolean(editingReason)} placeholder="例如：DEFECT" />
+            <Input disabled={Boolean(editingReason)} placeholder="渚嬪锛欴EFECT" />
           </Form.Item>
           <Form.Item
             name="label"
-            label="原因名称"
-            rules={[{ required: true, message: '请输入原因名称' }]}
+            label="鍘熷洜鍚嶇О"
+            rules={[{ required: true, message: 'Please enter reason label' }]}
           >
-            <Input placeholder="例如：商品破损" />
+            <Input placeholder="e.g. Damaged item" />
           </Form.Item>
-          <Form.Item name="category" label="分类">
-            <Input placeholder="例如：质量问题" />
+          <Form.Item name="category" label="鍒嗙被">
+            <Input placeholder="e.g. Quality issue" />
           </Form.Item>
-          <Form.Item name="sort_order" label="排序">
+          <Form.Item name="sort_order" label="鎺掑簭">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="ACTIVE">
+          <Form.Item name="status" label="Status" initialValue="ACTIVE">
             <Select options={statusOptions} />
           </Form.Item>
         </Form>
       </Drawer>
       <Drawer
-        title={editingRule ? '编辑质检规则' : '新增质检规则'}
+        title={editingRule ? '编辑质检规则' : '鏂板质检规则'}
         open={ruleDrawerOpen}
         onClose={() => setRuleDrawerOpen(false)}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setRuleDrawerOpen(false)}>取消</Button>
@@ -647,22 +647,22 @@ export const AfterSalesSettingsPage = () => {
         <Form form={ruleForm} layout="vertical">
           <Form.Item
             name="after_sales_type"
-            label="售后类型"
-            rules={[{ required: true, message: '请选择售后类型' }]}
+            label="售后绫诲瀷"
+            rules={[{ required: true, message: '璇烽€夋嫨售后绫诲瀷' }]}
           >
             <Select options={afterSalesTypeOptions} />
           </Form.Item>
           <Form.Item
             name="result_code"
-            label="质检结论"
-            rules={[{ required: true, message: '请选择质检结论' }]}
+            label="质检缁撹"
+            rules={[{ required: true, message: '璇烽€夋嫨质检缁撹' }]}
           >
             <Select options={qualityResultOptions} />
           </Form.Item>
-          <Form.Item name="sort_order" label="排序">
+          <Form.Item name="sort_order" label="鎺掑簭">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="ACTIVE">
+          <Form.Item name="status" label="Status" initialValue="ACTIVE">
             <Select options={statusOptions} />
           </Form.Item>
         </Form>
@@ -670,3 +670,4 @@ export const AfterSalesSettingsPage = () => {
     </>
   );
 };
+

@@ -1,35 +1,46 @@
-import { Space, Tag } from 'antd';
+import { Space } from 'antd';
 import type { ReactNode } from 'react';
 
-import { resolveBuiltinOrderTag } from '@/features/orderTags';
+import { resolveBuiltinOrderTag, type BuiltinOrderTag } from '@/features/orderTags';
 
 import './OrderTagBadges.css';
 
 type OrderTagBadgesProps = {
-  tags?: string[];
+  tags?: Array<string | BuiltinOrderTag>;
   emptyText?: ReactNode;
 };
 
 export const OrderTagBadges = ({ tags, emptyText = '-' }: OrderTagBadgesProps) => {
-  const normalized = (tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+  const normalized = (tags ?? [])
+    .map((tag) => (typeof tag === 'string' ? tag.trim() : tag))
+    .filter(Boolean);
   if (!normalized.length) {
     return <>{emptyText}</>;
   }
   return (
     <Space size={[4, 4]} wrap>
       {normalized.map((tag, index) => {
-        const meta = resolveBuiltinOrderTag(tag);
+        const meta = typeof tag === 'string' ? resolveBuiltinOrderTag(tag) : tag;
         if (meta) {
           return (
-            <Tag key={`${tag}-${index}`} color={meta.color} title={meta.name}>
+            <span
+              key={`${meta.key}-${index}`}
+              className="order-tag-badge order-tag-badge-builtin"
+              title={meta.name}
+              style={{
+                backgroundColor: meta.backgroundColor,
+                color: meta.textColor,
+              }}
+            >
               <span className={meta.codeClassName}>{meta.code}</span>
-            </Tag>
+            </span>
           );
         }
+        const rawTag = typeof tag === 'string' ? tag : tag.name;
         return (
-          <Tag key={`${tag}-${index}`} title={tag}>
-            {tag}
-          </Tag>
+          <span key={`${rawTag}-${index}`} className="order-tag-badge order-tag-badge-custom" title={rawTag}>
+            {rawTag}
+          </span>
         );
       })}
     </Space>

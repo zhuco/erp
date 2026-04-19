@@ -124,7 +124,7 @@ export const ProcurementPlansPage = () => {
     queryKey: ['procurement-plans', tenantId, query],
     queryFn: () => listProcurementPlans(tenantId, query),
     enabled: tenantReady,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const deleteMutation = useMutation({
