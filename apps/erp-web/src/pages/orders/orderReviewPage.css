@@ -241,7 +241,7 @@
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   color: #334155;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   line-height: 18px;
   white-space: nowrap;
   overflow: hidden;
@@ -271,6 +271,14 @@
 
 .order-review-main-grid-shell .order-review-main-header-center .ag-header-cell-label {
   justify-content: center;
+  padding: 0 2px;
+  gap: 2px;
+}
+
+.order-review-main-grid-shell .ag-header-cell-label,
+.order-review-main-grid-shell .ag-header-cell-comp-wrapper {
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
 .order-review-main-grid-shell .ag-root-wrapper {
@@ -429,7 +437,7 @@
 .order-review-native-timing {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   color: #64748b;
 }
 
@@ -438,6 +446,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-panel .ant-tabs {
@@ -461,6 +470,11 @@
   min-height: 24px;
   padding: 2px 0 !important;
   margin: 0 !important;
+}
+
+.order-review-left-ag-panel .ant-tabs-tab-btn {
+  font-size: var(--erp-font-size-body);
+  line-height: var(--erp-line-height);
 }
 
 .order-review-left-ag-panel .ant-tabs-content-holder,
@@ -521,12 +535,19 @@
   height: 100% !important;
 }
 
+.order-review-left-ag-grid-shell .ag-cell,
+.order-review-left-ag-grid-shell .ag-cell-value {
+  font-size: var(--erp-font-size-body);
+}
+
 .order-review-left-ag-row {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   min-width: 0;
+  font-size: var(--erp-font-size-body);
+  line-height: var(--erp-line-height);
 }
 
 .order-review-left-ag-toggle {
@@ -536,7 +557,7 @@
   width: 14px;
   min-width: 14px;
   color: #64748b;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-node-icon {
@@ -546,7 +567,7 @@
   width: 14px;
   min-width: 14px;
   color: #475569;
-  font-size: 13px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-node-icon.is-checked {
@@ -559,11 +580,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-check-mark {
   color: #0f62fe;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-count {
@@ -605,6 +627,10 @@
   border-radius: 8px;
   padding: 8px;
   background: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+}
+
+.order-review-left-ag-stats .ant-typography {
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-left-ag-stats-header {
@@ -681,12 +707,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   color: #334155;
 }
 
 .order-review-left-ag-stats-value {
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   font-weight: 600;
   color: #0f172a;
 }
@@ -949,12 +975,36 @@
   padding: 0 4px;
   background: #fff;
   color: #0f172a;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
+}
+
+.order-review-floating-filter-select.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 .order-review-floating-filter-select:focus-visible {
   border-color: #1677ff;
   box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.12);
+}
+
+.order-review-floating-filter-dropdown {
+  min-width: 180px;
+  max-width: 240px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+}
+
+.order-review-floating-filter-checkbox-group {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
 }
 
 .order-review-floating-filter-text-input {
@@ -966,7 +1016,7 @@
   padding: 0 6px;
   background: #fff;
   color: #0f172a;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-floating-filter-text-input:focus-visible {
@@ -983,7 +1033,7 @@
   padding: 0 6px;
   background: #fff;
   color: #0f172a;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   line-height: 20px;
   text-align: left;
   cursor: pointer;
@@ -1015,7 +1065,7 @@
   border-radius: 4px;
   background: #fff;
   color: #64748b;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   line-height: 20px;
   cursor: pointer;
   white-space: nowrap;
@@ -1125,7 +1175,7 @@
 .order-review-detail-loading,
 .order-review-detail-error {
   padding: 12px 0;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   color: #6b7280;
 }
 
@@ -1137,7 +1187,7 @@
 }
 
 .order-review-detail-notes {
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-edit-section {
@@ -1189,7 +1239,7 @@
 
 .order-review-edit-modal .ant-modal-title {
   line-height: 20px !important;
-  font-size: 14px !important;
+  font-size: var(--erp-font-size-title) !important;
   margin: 0 !important;
 }
 
@@ -1244,6 +1294,7 @@
 }
 
 .order-review-quick-settings-modal .ant-modal-title {
+  font-size: var(--erp-font-size-title);
   line-height: 20px;
 }
 
@@ -1354,6 +1405,11 @@
   border: 1px solid var(--erp-border-color);
   border-radius: 8px;
   background: var(--erp-bg-panel);
+  font-size: var(--erp-font-size-body);
+}
+
+.order-review-quick-filters .ant-typography {
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-quick-filters-header {
@@ -1399,7 +1455,7 @@
   text-align: left;
   height: 22px;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-quick-filter-button.ant-btn-text:not(:disabled):hover {
@@ -1508,7 +1564,7 @@
 
 .order-review-quick-sort-label {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 @media (max-width: 900px) {
@@ -1569,7 +1625,7 @@
 
 .order-review-match-summary {
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
   color: #6b7280;
   display: flex;
   flex-direction: column;

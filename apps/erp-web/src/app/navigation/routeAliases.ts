@@ -3,7 +3,16 @@ export type RouteAlias = {
   canonicalPath: string;
 };
 
-export const routeAliases: RouteAlias[] = [];
+export const routeAliases: RouteAlias[] = [
+  {
+    legacyPath: '/orders',
+    canonicalPath: '/sales/order-query',
+  },
+  {
+    legacyPath: '/orders/exceptions',
+    canonicalPath: '/orders/recheck',
+  },
+];
 
 const routeAliasMap = new Map(routeAliases.map((item) => [item.legacyPath, item.canonicalPath]));
 

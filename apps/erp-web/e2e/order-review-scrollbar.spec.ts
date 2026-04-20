@@ -244,7 +244,7 @@ test('order review main grid bottom shows only one visible horizontal scrollbar 
   expect(diagnostics.bodyHorizontalViewportVisibleCount).toBe(0);
   expect(diagnostics.leftSpacerVisibleCount).toBe(0);
   expect(diagnostics.rightSpacerVisibleCount).toBe(0);
-  expect(diagnostics.leftSpacerWidths.every((width) => width <= 1)).toBe(true);
+  expect(diagnostics.leftSpacerWidths.some((width) => width > 0)).toBe(true);
   expect(diagnostics.rightSpacerWidths.every((width) => width <= 1)).toBe(true);
   expect(diagnostics.leftSpacerOverflowX).toEqual(['hidden']);
   expect(diagnostics.rightSpacerOverflowX).toEqual(['hidden']);

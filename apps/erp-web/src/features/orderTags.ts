@@ -301,3 +301,55 @@ export const resolveOrderDisplayTags = (
 
   return [...builtinTags, ...customTags];
 };
+
+export type EditableOrderMarkOption = {
+  label?: unknown;
+  value?: unknown;
+};
+
+export type EditableOrderMarkMenuItem = {
+  key: string;
+  label: string;
+  disabled?: boolean;
+};
+
+export const buildOrderEditableMarkMenuItems = (
+  options: EditableOrderMarkOption[],
+  currentTags: string[],
+  emptyLabel = '\u6682\u65e0\u53ef\u9009\u8bb0\u53f7',
+): EditableOrderMarkMenuItem[] => {
+  const normalizedCurrentTags = new Set(
+    currentTags.map((tag) => normalizeLookupValue(tag)).filter(Boolean),
+  );
+  const seenValues = new Set<string>();
+
+  const items = options
+    .map((option) => {
+      const key = String(option?.value ?? '').trim();
+      if (!key) {
+        return null;
+      }
+
+      if (resolveBuiltinOrderTag(key)) {
+        return null;
+      }
+
+      const normalizedKey = normalizeLookupValue(key);
+      if (!normalizedKey || seenValues.has(normalizedKey) || normalizedCurrentTags.has(normalizedKey)) {
+        return null;
+      }
+
+      seenValues.add(normalizedKey);
+      return {
+        key,
+        label: String(option?.label ?? key).trim() || key,
+      };
+    })
+    .filter((item): item is EditableOrderMarkMenuItem => item != null);
+
+  if (items.length > 0) {
+    return items;
+  }
+
+  return [{ key: '__empty__', label: emptyLabel, disabled: true }];
+};

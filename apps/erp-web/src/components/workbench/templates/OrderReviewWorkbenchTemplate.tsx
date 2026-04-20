@@ -4,8 +4,10 @@ import type { TablePaginationConfig } from 'antd';
 import type { MutableRefObject, ReactNode, Ref } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { useWorkbenchPanelsOptional } from '@/app/layout/workbenchPanels';
+import { useWorkbenchLayoutController } from '@/components/page-templates/workbench/useWorkbenchLayoutController';
 import { UiModule03TableFooter } from '@/components/ui-modules';
+
+import { readWorkbenchViewStateCache, writeWorkbenchViewStateCache } from './workbenchViewStateCache';
 
 export type OrderReviewWorkbenchTemplateProps = {
   pageTestId?: string;
@@ -16,6 +18,9 @@ export type OrderReviewWorkbenchTemplateProps = {
   toolbarRight?: ReactNode;
   header?: ReactNode;
   actionBar?: ReactNode;
+  leftPanel?: ReactNode;
+  leftPanelVisible?: boolean;
+  leftPanelSyncKey?: string | number;
   tableContainerRef?: Ref<HTMLDivElement>;
   tableClassName?: string;
   tableContent: ReactNode;
@@ -36,6 +41,7 @@ export type OrderReviewWorkbenchTemplateProps = {
   rightPanelWidth?: number;
   bottomPanelHeight?: number;
   overlays?: ReactNode;
+  stateCacheKey?: string;
 };
 
 const pageShellStyle = {
@@ -48,6 +54,27 @@ const pageShellStyle = {
   height: '100%',
 } as const;
 
+const verticalScrollSelectors = ['.ag-body-viewport', '.ag-center-cols-viewport', '.ant-table-body'];
+const horizontalScrollSelectors = [
+  '.ag-body-horizontal-scroll-viewport',
+  '.ag-center-cols-viewport',
+  '.ant-table-body',
+  '.ant-table-content',
+];
+
+const resolveScrollTarget = (container: HTMLElement | null, selectors: string[]) => {
+  if (!container) {
+    return null;
+  }
+  for (const selector of selectors) {
+    const element = container.querySelector<HTMLElement>(selector);
+    if (element) {
+      return element;
+    }
+  }
+  return null;
+};
+
 export const OrderReviewWorkbenchTemplate = ({
   pageTestId = 'order-review-page',
   className = 'order-review-page',
@@ -57,6 +84,9 @@ export const OrderReviewWorkbenchTemplate = ({
   toolbarRight,
   header,
   actionBar,
+  leftPanel,
+  leftPanelVisible,
+  leftPanelSyncKey,
   tableContainerRef,
   tableClassName = 'order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar',
   tableContent,
@@ -77,8 +107,8 @@ export const OrderReviewWorkbenchTemplate = ({
   rightPanelWidth,
   bottomPanelHeight,
   overlays,
+  stateCacheKey,
 }: OrderReviewWorkbenchTemplateProps) => {
-  const workbenchPanels = useWorkbenchPanelsOptional();
   const internalTableContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleTableContainerRef = useCallback(
@@ -113,6 +143,21 @@ export const OrderReviewWorkbenchTemplate = ({
     [bottomPanel, shouldShowBottomPanel],
   );
 
+  useWorkbenchLayoutController({
+    leftPanel,
+    leftPanelVisible,
+    leftPanelSyncKey,
+    leftPanelWidth,
+    rightPanel,
+    rightPanelVisible,
+    rightPanelSyncKey,
+    rightPanelWidth,
+    bottomPanel: wrappedBottomPanel,
+    bottomPanelVisible: shouldShowBottomPanel,
+    bottomPanelSyncKey,
+    bottomPanelHeight,
+  });
+
   const hasToolbarSlots = Boolean(toolbarLeft || toolbarCenter || toolbarRight);
   const resolvedToolbar = toolbar ? (
     toolbar
@@ -123,6 +168,76 @@ export const OrderReviewWorkbenchTemplate = ({
       {toolbarRight ? <div className="order-workbench-toolbar-right">{toolbarRight}</div> : null}
     </div>
   ) : null;
+
+  useEffect(() => {
+    if (!stateCacheKey || typeof window === 'undefined') {
+      return;
+    }
+
+    const tableContainer = internalTableContainerRef.current;
+    if (!tableContainer) {
+      return;
+    }
+
+    const persistScrollState = () => {
+      const verticalTarget = resolveScrollTarget(tableContainer, verticalScrollSelectors);
+      const horizontalTarget = resolveScrollTarget(tableContainer, horizontalScrollSelectors);
+      writeWorkbenchViewStateCache(stateCacheKey, {
+        scroll: {
+          scrollTop: verticalTarget?.scrollTop ?? 0,
+          scrollLeft: horizontalTarget?.scrollLeft ?? 0,
+        },
+      });
+    };
+
+    const verticalTarget = resolveScrollTarget(tableContainer, verticalScrollSelectors);
+    const horizontalTarget = resolveScrollTarget(tableContainer, horizontalScrollSelectors);
+    verticalTarget?.addEventListener('scroll', persistScrollState, { passive: true });
+    if (horizontalTarget && horizontalTarget !== verticalTarget) {
+      horizontalTarget.addEventListener('scroll', persistScrollState, { passive: true });
+    }
+
+    return () => {
+      verticalTarget?.removeEventListener('scroll', persistScrollState);
+      if (horizontalTarget && horizontalTarget !== verticalTarget) {
+        horizontalTarget.removeEventListener('scroll', persistScrollState);
+      }
+    };
+  }, [stateCacheKey, footerSyncKey]);
+
+  useEffect(() => {
+    if (!stateCacheKey || typeof window === 'undefined') {
+      return;
+    }
+
+    const tableContainer = internalTableContainerRef.current;
+    if (!tableContainer) {
+      return;
+    }
+
+    const persistedScroll = readWorkbenchViewStateCache(stateCacheKey).scroll;
+    if (!persistedScroll) {
+      return;
+    }
+
+    let frameId = 0;
+    const restoreScroll = () => {
+      const verticalTarget = resolveScrollTarget(tableContainer, verticalScrollSelectors);
+      const horizontalTarget = resolveScrollTarget(tableContainer, horizontalScrollSelectors);
+
+      if (verticalTarget && persistedScroll.scrollTop != null) {
+        verticalTarget.scrollTop = persistedScroll.scrollTop;
+      }
+      if (horizontalTarget && persistedScroll.scrollLeft != null) {
+        horizontalTarget.scrollLeft = persistedScroll.scrollLeft;
+      }
+    };
+
+    frameId = window.requestAnimationFrame(restoreScroll);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [footerSyncKey, stateCacheKey]);
 
   const resolvedTableFooter = useMemo<ReactNode>(() => {
     if (tableFooter !== undefined) {
@@ -160,52 +275,6 @@ export const OrderReviewWorkbenchTemplate = ({
     .filter(Boolean)
     .join(' ');
 
-  useEffect(() => {
-    if (!workbenchPanels) {
-      return;
-    }
-    const shouldShow = Boolean(rightPanel) && rightPanelVisible;
-    workbenchPanels.setRightPanel(shouldShow ? rightPanel : undefined);
-    workbenchPanels.setRightPanelVisible(shouldShow);
-    return () => {
-      workbenchPanels.setRightPanel(undefined);
-      workbenchPanels.setRightPanelVisible(false);
-    };
-  }, [rightPanel, rightPanelSyncKey, rightPanelVisible, workbenchPanels]);
-
-  useEffect(() => {
-    if (!workbenchPanels) {
-      return;
-    }
-    workbenchPanels.setBottomPanel(wrappedBottomPanel);
-    workbenchPanels.setBottomPanelVisible(Boolean(wrappedBottomPanel));
-    return () => {
-      workbenchPanels.setBottomPanel(undefined);
-      workbenchPanels.setBottomPanelVisible(false);
-    };
-  }, [bottomPanelSyncKey, workbenchPanels, wrappedBottomPanel]);
-
-  useEffect(() => {
-    if (!workbenchPanels || leftPanelWidth == null) {
-      return;
-    }
-    workbenchPanels.setLeftPanelWidth(leftPanelWidth);
-  }, [leftPanelWidth, workbenchPanels]);
-
-  useEffect(() => {
-    if (!workbenchPanels || rightPanelWidth == null) {
-      return;
-    }
-    workbenchPanels.setRightPanelWidth(rightPanelWidth);
-  }, [rightPanelWidth, workbenchPanels]);
-
-  useEffect(() => {
-    if (!workbenchPanels || bottomPanelHeight == null) {
-      return;
-    }
-    workbenchPanels.setBottomPanelHeight(bottomPanelHeight);
-  }, [bottomPanelHeight, workbenchPanels]);
-
   return (
     <div data-testid={pageTestId} style={pageShellStyle}>
       <div className={['order-workbench-page', className].filter(Boolean).join(' ')}>
@@ -214,7 +283,7 @@ export const OrderReviewWorkbenchTemplate = ({
           <div className="order-workbench-main">
             {header ? <div className="order-workbench-header">{header}</div> : null}
             <div className={resolvedTableClassName} ref={handleTableContainerRef}>
-              {tableContent}
+              <div className="order-workbench-table-content">{tableContent}</div>
               {resolvedTableFooter}
             </div>
             {actionBar ? <div className="order-workbench-action">{actionBar}</div> : null}

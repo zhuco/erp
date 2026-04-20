@@ -8,16 +8,28 @@ import { RequestErrorToast } from '@/components/RequestErrorToast';
 import { FeatureGateProvider } from '@/features/featureGate';
 import { TenantProvider } from '@/features/tenant';
 import { useUiSettingsStore } from '@/features/uiSettings';
+import { resolveTypographyScale } from '@/styles/typography';
 
 import { queryClient } from './queryClient';
 
 export const AppProviders = ({ children }: { children: ReactNode }) => {
   const themeMode = useUiSettingsStore((state) => state.themeMode);
   const denseMode = useUiSettingsStore((state) => state.denseMode);
+  const typographyScale = useMemo(() => resolveTypographyScale(denseMode), [denseMode]);
 
   useEffect(() => {
     document.body.classList.toggle('erp-dense', denseMode);
   }, [denseMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    root.style.setProperty('--erp-font-size-body', `${typographyScale.body}px`);
+    root.style.setProperty('--erp-font-size-body-strong', `${typographyScale.bodyStrong}px`);
+    root.style.setProperty('--erp-font-size-title', `${typographyScale.title}px`);
+    root.style.setProperty('--erp-font-size-title-display', `${typographyScale.titleDisplay}px`);
+    root.style.setProperty('--erp-font-size-base', `${typographyScale.body}px`);
+  }, [typographyScale]);
 
   useEffect(() => {
     document.body.dataset.theme = themeMode;
@@ -26,7 +38,7 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
   const themeTokens = useMemo(
     () => {
       const baseTokens = {
-        fontSize: denseMode ? 12 : 14,
+        fontSize: typographyScale.body,
         lineHeight: denseMode ? 1.4 : 1.6,
         borderRadius: denseMode ? 6 : 8,
         padding: denseMode ? 8 : 12,
@@ -91,7 +103,7 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
         colorFillAlter: '#EEF2F6'
       };
     },
-    [denseMode, themeMode]
+    [denseMode, themeMode, typographyScale.body]
   );
 
   return (

@@ -7,6 +7,28 @@ import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { buildOrderManagementColumns } from './orderManagementColumns';
 
 describe('buildOrderManagementColumns', () => {
+  it('renames the tag column to 记号', () => {
+    const columns = buildOrderManagementColumns({
+      rowOffset: 0,
+      orderStatusMeta: {},
+      formatCurrency: () => '楼0.00',
+      formatDateTime: () => '-',
+      resolveOrderNo: () => '-',
+      resolveShopName: () => '-',
+      resolveWarehouseName: () => '-',
+      resolveItemSummary: () => '-',
+      resolveItemQuantity: () => '-',
+      resolveReceiverAddress: () => '-',
+      resolveRemark: () => '-',
+      resolveOrderSource: () => '-',
+      resolveLogisticsCompany: () => '-',
+      resolveTags: () => '-',
+    });
+
+    const markColumn = columns.find((column) => column.key === 'tags');
+    expect(markColumn?.title).toBe('记号');
+  });
+
   it('renders standardized builtin mark badges in the exceptions column', () => {
     const columns = buildOrderManagementColumns({
       rowOffset: 0,

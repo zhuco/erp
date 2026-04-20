@@ -20,14 +20,22 @@ export const money = (value?: number | null) =>
 export const moneyValue = (value?: number | null) =>
   (value ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export const formatDateTime = (value?: string | null) => {
+const formatDateTimeByPattern = (value: string | null | undefined, pattern: string) => {
   const normalized = String(value ?? '').trim();
   if (!normalized) return '-';
   const formatted = dayjs(normalized);
   if (!formatted.isValid()) {
     return normalized;
   }
-  return formatted.format('YYYY-MM-DD HH:mm');
+  return formatted.format(pattern);
+};
+
+export const formatDateTime = (value?: string | null) => {
+  return formatDateTimeByPattern(value, 'YYYY-MM-DD HH:mm');
+};
+
+export const formatDateTimeSeconds = (value?: string | null) => {
+  return formatDateTimeByPattern(value, 'YYYY-MM-DD HH:mm:ss');
 };
 
 export const platformLabel = (value: string) => {

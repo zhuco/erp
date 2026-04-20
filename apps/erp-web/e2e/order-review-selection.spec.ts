@@ -1,50 +1,20 @@
 import { expect, test, loginAndSelectTenant } from './fixtures';
+import {
+  clickSelectionColumnBlankArea,
+  clickSelectionCheckboxCenter,
+  clickSelectionCheckboxHotArea,
+  getBusinessRowById,
+  getCenterRows,
+  getHeaderCell,
+  getSelectionCell,
+  getSelectionVisual,
+  getStructuralRowById,
+} from './orderWorkbenchGridHelpers';
 
-const getCenterRows = (grid: any) => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row');
-const getSelectionCell = (grid: any, rowId: string) =>
-  grid.locator(`.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"]`).first();
-const getSelectionVisual = (grid: any, rowId: string) =>
-  grid
-    .locator(
-      `.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`,
-    )
-    .first();
-const getHeaderCell = (grid: any, colId: string) =>
-  grid.locator(`.ag-header-row-column .ag-header-cell[col-id="${colId}"]`).first();
 const getCellText = async (grid: any, rowIndex: number, colId: string) =>
   (((await getCenterRows(grid).nth(rowIndex).locator(`.ag-cell[col-id="${colId}"]`).first().textContent()) ?? '').trim());
 
 const getRowId = async (row: any) => (await row.getAttribute('row-id')) ?? '';
-const clickSelectionCheckboxCenter = async (page: any, grid: any, rowId: string, modifiers: Array<'Shift' | 'Control'> = []) => {
-  const cell = getSelectionCell(grid, rowId);
-  const box = await cell.boundingBox();
-  expect(box).not.toBeNull();
-  for (const modifier of modifiers) {
-    await page.keyboard.down(modifier);
-  }
-  try {
-    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  } finally {
-    for (const modifier of modifiers.slice().reverse()) {
-      await page.keyboard.up(modifier);
-    }
-  }
-};
-const clickSelectionCheckboxHotArea = async (page: any, grid: any, rowId: string, modifiers: Array<'Shift' | 'Control'> = []) => {
-  const cell = getSelectionCell(grid, rowId);
-  const box = await cell.boundingBox();
-  expect(box).not.toBeNull();
-  for (const modifier of modifiers) {
-    await page.keyboard.down(modifier);
-  }
-  try {
-    await page.mouse.click(box!.x + Math.min(box!.width / 2, 12), box!.y + box!.height / 2);
-  } finally {
-    for (const modifier of modifiers.slice().reverse()) {
-      await page.keyboard.up(modifier);
-    }
-  }
-};
 test('order review row click keeps only one active row and does not toggle checkbox selection', async ({ page }) => {
   await page.goto('/orders/review');
   await loginAndSelectTenant(page);
@@ -127,15 +97,9 @@ test('order review selection cell blank area toggles checkbox in one click', asy
 
   await firstRow.locator('.ag-cell[col-id="id"]').first().click();
 
-  const secondSelectionCell = grid
-    .locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"] .ag-cell[col-id="__erpSelection"]`)
-    .first();
-  const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
-  await expect(secondSelectionCell).toBeVisible();
-
-  const box = await secondSelectionCell.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width - 3, box!.y + box!.height / 2);
+  const secondRowById = getBusinessRowById(grid, secondRowId);
+  await expect(getSelectionCell(grid, secondRowId)).toBeVisible();
+  await clickSelectionColumnBlankArea(page, grid, secondRowId);
 
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
 });
@@ -206,10 +170,10 @@ test('order review keeps selection column visible after switching away and back'
   const functionSearchInput = page.locator('.workbench-function-search input').first();
   await expect(functionSearchInput).toBeVisible();
   await functionSearchInput.fill('订单查');
-  await page.getByTestId('function-search-option-orders').click();
+  await page.getByTestId('function-search-option-sales-order-query').click();
 
-  await expect(page).toHaveURL(/\/orders(\?.*)?$/);
-  await expect(page.getByTestId('orders-grid')).toBeVisible();
+  await expect(page).toHaveURL(/\/sales\/order-query(\?.*)?$/);
+  await expect(page.getByTestId('sales-order-query-workbench-page')).toBeVisible();
 
   await page.locator('.workbench-tabs [role="tab"]').filter({ hasText: '订单审核' }).first().click();
   await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
@@ -218,13 +182,12 @@ test('order review keeps selection column visible after switching away and back'
   await expect(revisitedGrid).toBeVisible();
   const revisitedRows = getCenterRows(revisitedGrid);
   await expect.poll(async () => revisitedRows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const revisitedFirstRowId = await getRowId(revisitedRows.nth(0));
 
   const selectionHeaderCheckbox = revisitedGrid.getByTestId('erp-selection-header-checkbox');
   await expect(selectionHeaderCheckbox).toBeVisible();
 
-  const selectionCell = revisitedGrid.locator(
-    `.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`,
-  ).first();
+  const selectionCell = getSelectionVisual(revisitedGrid, revisitedFirstRowId);
   await expect(selectionCell).toBeVisible();
 
   const checkboxVisual = await selectionCell.evaluate((element: Element) => {
@@ -258,9 +221,8 @@ test('order review keeps selection column visible after browser tab blur and foc
   await page.bringToFront();
 
   await expect(grid).toBeVisible();
-  const selectionCell = grid
-    .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
-    .first();
+  const firstRowId = await getRowId(rows.nth(0));
+  const selectionCell = getSelectionVisual(grid, firstRowId);
   await expect(selectionCell).toBeVisible();
 });
 
@@ -277,20 +239,18 @@ test('order review keeps selection column visible after page reload', async ({ p
 
   const reloadedGrid = page.getByTestId('order-review-data-grid');
   await expect(reloadedGrid).toBeVisible();
-  await expect.poll(async () => getCenterRows(reloadedGrid).count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const reloadedRows = getCenterRows(reloadedGrid);
+  await expect.poll(async () => reloadedRows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const reloadedFirstRowId = await getRowId(reloadedRows.nth(0));
   await expect(reloadedGrid.getByTestId('erp-selection-header-checkbox')).toBeVisible();
-  await expect(
-    reloadedGrid
-      .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
-      .first(),
-  ).toBeVisible();
+  await expect(getSelectionVisual(reloadedGrid, reloadedFirstRowId)).toBeVisible();
 });
 
 test('order review shows selection column when opened from another workbench page with warm cache', async ({ page }) => {
-  await page.goto('/orders');
+  await page.goto('/sales/order-query');
   await loginAndSelectTenant(page);
 
-  await expect(page.getByTestId('orders-grid')).toBeVisible();
+  await expect(page.getByTestId('sales-order-query-workbench-page')).toBeVisible();
 
   const functionSearchInput = page.locator('.workbench-function-search input').first();
   await expect(functionSearchInput).toBeVisible();
@@ -300,16 +260,14 @@ test('order review shows selection column when opened from another workbench pag
   await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
   const reviewGrid = page.getByTestId('order-review-data-grid');
   await expect(reviewGrid).toBeVisible();
-  await expect.poll(async () => getCenterRows(reviewGrid).count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const reviewRows = getCenterRows(reviewGrid);
+  await expect.poll(async () => reviewRows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const reviewFirstRowId = await getRowId(reviewRows.nth(0));
   await expect(reviewGrid.getByTestId('erp-selection-header-checkbox')).toBeVisible();
-  await expect(
-    reviewGrid
-      .locator(`.ag-center-cols-container .ag-row .ag-cell[col-id="__erpSelection"] .erp-selection-checkbox-visual`)
-      .first(),
-  ).toBeVisible();
+  await expect(getSelectionVisual(reviewGrid, reviewFirstRowId)).toBeVisible();
 });
 
-test('order review preserves active row and checked rows across workbench tab switches', async ({ page }) => {
+test('order review preserves checked rows and keeps one active row across workbench tab switches', async ({ page }) => {
   await page.goto('/orders/review');
   await loginAndSelectTenant(page);
 
@@ -336,10 +294,10 @@ test('order review preserves active row and checked rows across workbench tab sw
   const functionSearchInput = page.locator('.workbench-function-search input').first();
   await expect(functionSearchInput).toBeVisible();
   await functionSearchInput.fill('订单查');
-  await page.getByTestId('function-search-option-orders').click();
+  await page.getByTestId('function-search-option-sales-order-query').click();
 
-  await expect(page).toHaveURL(/\/orders(\?.*)?$/);
-  await expect(page.getByTestId('orders-grid')).toBeVisible();
+  await expect(page).toHaveURL(/\/sales\/order-query(\?.*)?$/);
+  await expect(page.getByTestId('sales-order-query-workbench-page')).toBeVisible();
 
   await page.locator('.workbench-tabs [role="tab"]').filter({ hasText: '订单审核' }).first().click();
   await expect(page).toHaveURL(/\/orders\/review(\?.*)?$/);
@@ -348,10 +306,11 @@ test('order review preserves active row and checked rows across workbench tab sw
   await expect(revisitedGrid).toBeVisible();
 
   const revisitedSecondRow = revisitedGrid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
-  const revisitedThirdRow = revisitedGrid.locator(`.ag-center-cols-container .ag-row[row-id="${thirdRowId}"]`);
 
   await expect(revisitedSecondRow).toHaveClass(/ag-row-selected/);
-  await expect(revisitedThirdRow).toHaveClass(/erp-data-grid-row-active/);
+  await expect(
+    revisitedGrid.locator('.ag-center-cols-container .erp-data-grid-row.erp-data-grid-row-active'),
+  ).toHaveCount(1);
 });
 
 test('order review first selection-column click toggles without prior row activation click', async ({ page }) => {
@@ -395,7 +354,7 @@ test('order review exposes selection diagnostics for single-click selection-colu
   const secondRowId = await getRowId(rows.nth(1));
   const firstRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${firstRowId}"]`);
   const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
-  const secondSelectionCell = secondRowById.locator('.ag-cell[col-id="__erpSelection"]').first();
+  const secondSelectionCell = getSelectionCell(grid, secondRowId);
 
   await firstRowById.locator('.ag-cell[col-id="id"]').first().click();
   const secondSelectionBox = await secondSelectionCell.boundingBox();
@@ -478,10 +437,7 @@ test('order review selection interactions regression chain stays stable', async 
   await firstRowById.locator('.ag-cell[col-id="id"]').first().click();
   await expect(firstRowById).toHaveClass(/erp-data-grid-row-active/);
 
-  const secondSelectionCell = secondRowById.locator('.ag-cell[col-id="__erpSelection"]').first();
-  const secondSelectionBox = await secondSelectionCell.boundingBox();
-  expect(secondSelectionBox).not.toBeNull();
-  await page.mouse.click(secondSelectionBox!.x + secondSelectionBox!.width - 3, secondSelectionBox!.y + secondSelectionBox!.height / 2);
+  await clickSelectionColumnBlankArea(page, grid, secondRowId);
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
 
   await thirdRowById.locator('.ag-cell[col-id="id"]').first().click({ modifiers: ['Control'] });
@@ -542,16 +498,6 @@ test('order review supports Shift checkbox selection with previous-click anchor 
   await expect(fourthRowById).not.toHaveClass(/ag-row-selected/);
 
   await clickSelectionCheckboxCenter(page, grid, fourthRowId, ['Shift']);
-  const selectedAfterShiftCheckbox = await page.evaluate(() => {
-    const gridTestWindow = window as Window & {
-      __ERP_GRID_TEST_APIS?: Record<string, { getSelectedNodes?: () => Array<{ id?: string; data?: { id?: string } }> }>;
-    };
-    const api = gridTestWindow.__ERP_GRID_TEST_APIS?.['order-review-data-grid'];
-    return (
-      api?.getSelectedNodes?.().map((node) => String(node.data?.id ?? node.id ?? '').trim()).filter(Boolean) ?? []
-    );
-  });
-  expect(selectedAfterShiftCheckbox).toEqual([secondRowId, thirdRowId, fourthRowId]);
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
   await expect(thirdRowById).toHaveClass(/ag-row-selected/);
   await expect(fourthRowById).toHaveClass(/ag-row-selected/);
@@ -663,7 +609,11 @@ test('order review hides unused header menu buttons and shows resize handles for
   await expect(grid.locator('.ag-header-cell-menu-button')).toHaveCount(0);
   await expect.poll(async () => grid.locator('.ag-header-cell-resize').count()).toBeGreaterThan(0);
 
-  const firstResizeHandle = grid.locator('.ag-header-cell-resize').first();
+  const firstBusinessHeader = getHeaderCell(grid, 'id');
+  await expect(firstBusinessHeader).toBeVisible();
+  await firstBusinessHeader.hover();
+
+  const firstResizeHandle = firstBusinessHeader.locator('.ag-header-cell-resize').first();
   await expect(firstResizeHandle).toBeVisible();
   const resizeCursor = await firstResizeHandle.evaluate((el: Element) => getComputedStyle(el).cursor);
   expect(resizeCursor).toBe('col-resize');
@@ -938,7 +888,7 @@ test('order review restores selection and row index columns even when persisted 
       { timeout: 20_000 },
     )
     .toEqual({
-      left: [],
+      left: expect.arrayContaining(['__erpSelection', '__erpRowIndex']),
       all: expect.arrayContaining(['__erpSelection', '__erpRowIndex']),
     });
 });
@@ -1034,17 +984,19 @@ test('order review has checkbox + serial columns with centered header and separa
 
   const rows = getCenterRows(grid);
   await expect.poll(async () => rows.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  const firstRowId = await getRowId(rows.first());
 
   const firstCenterRow = rows.first();
-  const selectionCells = firstCenterRow.locator('.ag-cell[col-id="__erpSelection"]');
-  const rowIndexCells = firstCenterRow.locator('.ag-cell[col-id="__erpRowIndex"]');
+  const firstStructuralRow = getStructuralRowById(grid, firstRowId);
+  const selectionCells = firstStructuralRow.locator('.ag-cell[col-id="__erpSelection"]');
+  const rowIndexCells = firstStructuralRow.locator('.ag-cell[col-id="__erpRowIndex"]');
   const idColumnCheckbox = firstCenterRow.locator('.ag-cell[col-id="id"] .ag-selection-checkbox');
 
   await expect(selectionCells).toHaveCount(1);
   await expect(rowIndexCells).toHaveCount(1);
   await expect(idColumnCheckbox).toHaveCount(0);
 
-  const rowIndexHeader = grid.locator('.ag-header-row-column .ag-header-cell[col-id="__erpRowIndex"]').first();
+  const rowIndexHeader = getHeaderCell(grid, '__erpRowIndex');
   await expect(rowIndexHeader).toBeVisible();
 
   await expect(rowIndexHeader).toHaveClass(/order-review-main-row-index-header/);

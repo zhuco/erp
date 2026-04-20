@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -84,5 +86,12 @@ describe('OrderReviewWorkbenchToolbarTemplate', () => {
     expect(element.props.exporting).toBe(true);
     expect(element.props.onSearch).toBe(onSearch);
     expect(element.props.onSearchChange).toBe(onSearchChange);
+  });
+
+  it('keeps the shared toolbar vertically compact with 2px breathing room', () => {
+    const css = readFileSync(resolve(__dirname, 'OrderReviewWorkbenchTemplate.css'), 'utf8');
+
+    expect(css).toContain('.order-workbench-toolbar {');
+    expect(css).toContain('padding-block: 2px;');
   });
 });

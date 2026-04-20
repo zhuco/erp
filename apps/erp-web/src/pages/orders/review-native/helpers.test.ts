@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveOrderActionId, resolveOrderRowKey } from './helpers';
 import type { OrderSummary } from '@/api/orders';
+
+import { formatDateTimeSeconds, resolveOrderActionId, resolveOrderRowKey } from './helpers';
 
 const asOrderSummary = (value: Partial<OrderSummary>): OrderSummary => value as OrderSummary;
 
@@ -25,5 +26,14 @@ describe('order review helpers null-safety', () => {
       created_at: '2026-04-16T00:00:00.000Z',
     });
     expect(resolveOrderRowKey(record)).toBe('ORDER-001');
+  });
+
+  it('formatDateTimeSeconds formats timestamps with seconds precision', () => {
+    expect(formatDateTimeSeconds('2026-01-10T09:47:38+08:00')).toBe('2026-01-10 09:47:38');
+  });
+
+  it('formatDateTimeSeconds preserves invalid input and handles blank values', () => {
+    expect(formatDateTimeSeconds('')).toBe('-');
+    expect(formatDateTimeSeconds('not-a-date')).toBe('not-a-date');
   });
 });

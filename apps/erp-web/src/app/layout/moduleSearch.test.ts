@@ -11,21 +11,25 @@ import {
 } from './moduleSearch';
 
 describe('moduleSearch', () => {
-  it('only indexes the five preserved entry points', () => {
+  it('only indexes the approved sales query and workbench entry points', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
 
     expect(entries.map((entry) => entry.path)).toEqual([
       '/dashboard',
       '/channels',
+      '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',
     ]);
   });
 
-  it('supports common order-review aliases and direct matching for the remaining pages', () => {
+  it('supports direct matching for sales query and the existing workbench pages', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
 
+    expect(searchFunctionEntries(entries, '订单查询')[0]).toMatchObject({
+      path: '/sales/order-query',
+    });
     expect(searchFunctionEntries(entries, '单审')[0]).toMatchObject({
       path: '/orders/review',
     });
@@ -40,13 +44,13 @@ describe('moduleSearch', () => {
   it('ignores removed pages when building recent and common recommendations', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
     const recommendations = buildFunctionRecommendations(entries, {
-      recentPaths: ['/orders/review', '/orders', '/channels'],
+      recentPaths: ['/sales/order-query', '/orders', '/channels'],
       shortcutPaths: ['/sales/settings', '/integrations/center'],
     });
 
     expect(recommendations).toEqual([
       expect.objectContaining({
-        path: '/orders/review',
+        path: '/sales/order-query',
         source: 'recent',
       }),
       expect.objectContaining({
@@ -63,8 +67,14 @@ describe('moduleSearch', () => {
   it('groups the reduced results by their surviving top-level modules', () => {
     const groups = groupFunctionEntriesByModule([
       {
+        path: '/sales/order-query',
+        name: '订单查询',
+        moduleName: '销售',
+        groupName: '订单中心',
+      },
+      {
         path: '/orders/review',
-        name: '审核订单',
+        name: '订单审核',
         moduleName: '销售',
         groupName: '订单中心',
       },
@@ -84,7 +94,11 @@ describe('moduleSearch', () => {
     expect(groups[0]).toMatchObject({
       label: '销售',
     });
-    expect(groups[0]?.items.map((item) => item.path)).toEqual(['/orders/review', '/orders/recheck']);
+    expect(groups[0]?.items.map((item) => item.path)).toEqual([
+      '/sales/order-query',
+      '/orders/review',
+      '/orders/recheck',
+    ]);
     expect(groups[1]).toMatchObject({
       label: '渠道',
     });
@@ -94,8 +108,8 @@ describe('moduleSearch', () => {
   it('groups recommendations by source for the reduced navigation shell', () => {
     const groups = groupFunctionRecommendationsBySource([
       {
-        path: '/orders/review',
-        name: '审核订单',
+        path: '/sales/order-query',
+        name: '订单查询',
         moduleName: '销售',
         groupName: '订单中心',
         source: 'recent',
@@ -111,7 +125,7 @@ describe('moduleSearch', () => {
     expect(groups).toEqual([
       expect.objectContaining({
         label: '最近使用',
-        items: [expect.objectContaining({ path: '/orders/review' })],
+        items: [expect.objectContaining({ path: '/sales/order-query' })],
       }),
       expect.objectContaining({
         label: '常用功能',
@@ -122,10 +136,10 @@ describe('moduleSearch', () => {
 
   it('keeps recent function paths deduplicated and ordered by latest visit', () => {
     expect(
-      mergeRecentFunctionPaths(['/channels', '/dashboard', '/orders/review'], '/dashboard', 3),
-    ).toEqual(['/dashboard', '/channels', '/orders/review']);
+      mergeRecentFunctionPaths(['/channels', '/dashboard', '/sales/order-query'], '/dashboard', 3),
+    ).toEqual(['/dashboard', '/channels', '/sales/order-query']);
     expect(
-      mergeRecentFunctionPaths(['/channels', '/dashboard'], '/orders/recheck', 2),
-    ).toEqual(['/orders/recheck', '/channels']);
+      mergeRecentFunctionPaths(['/channels', '/dashboard'], '/sales/order-query', 2),
+    ).toEqual(['/sales/order-query', '/channels']);
   });
 });

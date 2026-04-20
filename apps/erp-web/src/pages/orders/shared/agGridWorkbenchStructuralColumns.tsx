@@ -1,15 +1,26 @@
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useLayoutEffect, useRef } from 'react';
+
+import { WorkbenchColumnSettingsFloatingControl } from '@/components/page-templates';
 
 import { AgGridSelectionHeaderCheckbox } from './AgGridSelectionHeaderCheckbox';
 import './agGridWorkbenchStructuralColumns.css';
 
 export const ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS = new Set(['__erpSelection', '__erpRowIndex']);
 
+export type WorkbenchSourceRowIndexed = {
+  __erpSourceRowIndex: number;
+};
+
 type BuildAgGridWorkbenchStructuralColDefsOptions = {
+  onOpenColumnSettings?: () => void;
   onToggleAllSelection: () => void;
   rowIndexHeaderName?: string;
   pinLeft?: boolean;
 };
+
+const WORKBENCH_SELECTION_COLUMN_WIDTH = 24;
+const WORKBENCH_ROW_INDEX_COLUMN_WIDTH = 40;
 
 const renderSelectionCheckbox = <TRow,>(params: ICellRendererParams<TRow>) => {
   const rowNode = params.node;
@@ -27,31 +38,100 @@ const renderSelectionCheckbox = <TRow,>(params: ICellRendererParams<TRow>) => {
   );
 };
 
-const resolveSourceRowIndex = (rowNode: { rowIndex?: number | null; sourceRowIndex?: number | null } | null | undefined) => {
-  const sourceRowIndex =
-    typeof rowNode?.sourceRowIndex === 'number' && Number.isFinite(rowNode.sourceRowIndex)
-      ? rowNode.sourceRowIndex
-      : null;
-  if (sourceRowIndex != null && sourceRowIndex >= 0) {
-    return sourceRowIndex;
-  }
+const readWorkbenchSourceRowIndex = (rowData: unknown) => {
+  const value = (rowData as { __erpSourceRowIndex?: unknown } | null | undefined)?.__erpSourceRowIndex;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+};
+
+export const attachWorkbenchSourceRowIndex = <TRow extends object>(
+  rows: TRow[],
+): Array<TRow & WorkbenchSourceRowIndexed> =>
+  rows.map((row, index) => {
+    const existingIndex = readWorkbenchSourceRowIndex(row);
+    return {
+      ...(row as TRow),
+      __erpSourceRowIndex: existingIndex ?? index,
+    };
+  });
+
+const resolveDisplayedRowIndex = (rowNode: { rowIndex?: number | null } | null | undefined) => {
   const displayedRowIndex =
     typeof rowNode?.rowIndex === 'number' && Number.isFinite(rowNode.rowIndex) ? rowNode.rowIndex : 0;
   return Math.max(0, displayedRowIndex);
 };
 
+const resolveDisplayedRowIndexText = (
+  rowElement: Element | null,
+  rowNode: { rowIndex?: number | null } | null | undefined,
+) => {
+  const rawRowIndex = rowElement?.getAttribute('row-index');
+  const parsedRowIndex = Number(rawRowIndex);
+  if (Number.isFinite(parsedRowIndex) && parsedRowIndex >= 0) {
+    return String(parsedRowIndex + 1);
+  }
+  return String(resolveDisplayedRowIndex(rowNode) + 1);
+};
+
+const WorkbenchRowIndexCell = <TRow,>(params: ICellRendererParams<TRow>) => {
+  const valueRef = useRef<HTMLSpanElement | null>(null);
+
+  useLayoutEffect(() => {
+    const target = valueRef.current;
+    if (!target) {
+      return;
+    }
+
+    const rowElement = target.closest('.ag-row');
+    const updateText = () => {
+      if (!valueRef.current) {
+        return;
+      }
+      valueRef.current.textContent = resolveDisplayedRowIndexText(rowElement, params.node);
+    };
+
+    updateText();
+
+    if (!(rowElement instanceof HTMLElement)) {
+      return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.some((mutation) => mutation.type === 'attributes' && mutation.attributeName === 'row-index')) {
+        updateText();
+      }
+    });
+
+    observer.observe(rowElement, {
+      attributes: true,
+      attributeFilter: ['row-index'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [params.node]);
+
+  return (
+    <span ref={valueRef} className="order-workbench-row-index-value">
+      {resolveDisplayedRowIndex(params.node) + 1}
+    </span>
+  );
+};
+
 export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
+  onOpenColumnSettings,
   onToggleAllSelection,
-  rowIndexHeaderName = '',
+  rowIndexHeaderName = '\u5e8f',
   pinLeft = false,
 }: BuildAgGridWorkbenchStructuralColDefsOptions): ColDef<TRow>[] => [
   {
     colId: '__erpSelection',
     headerName: '',
-    width: 36,
-    minWidth: 28,
-    maxWidth: 44,
-    resizable: true,
+    width: WORKBENCH_SELECTION_COLUMN_WIDTH,
+    minWidth: WORKBENCH_SELECTION_COLUMN_WIDTH,
+    maxWidth: WORKBENCH_SELECTION_COLUMN_WIDTH,
+    resizable: false,
+    suppressSizeToFit: true,
     sortable: false,
     filter: false,
     ...(pinLeft
@@ -75,12 +155,24 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
   {
     colId: '__erpRowIndex',
     headerName: rowIndexHeaderName,
-    width: 48,
-    minWidth: 38,
-    maxWidth: 58,
+    width: WORKBENCH_ROW_INDEX_COLUMN_WIDTH,
+    minWidth: WORKBENCH_ROW_INDEX_COLUMN_WIDTH,
+    maxWidth: WORKBENCH_ROW_INDEX_COLUMN_WIDTH,
     sortable: false,
-    filter: 'agNumberColumnFilter',
-    resizable: true,
+    suppressCellFlash: true,
+    suppressSizeToFit: true,
+    volatile: true,
+    filter: 'agTextColumnFilter',
+    resizable: false,
+    floatingFilterComponent: WorkbenchColumnSettingsFloatingControl,
+    floatingFilterComponentParams: {
+      ariaLabel: '\u5217\u8bbe\u7f6e',
+      buttonLabel: '',
+      onOpenColumnSettings,
+      testId: 'workbench-column-settings-trigger',
+      controlClassName: 'workbench-column-settings-floating-control--row-index',
+      buttonClassName: 'workbench-column-settings-floating-button--row-index',
+    },
     ...(pinLeft
       ? {
           pinned: 'left' as const,
@@ -89,13 +181,15 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
           suppressMovable: true,
         }
       : {}),
-    valueGetter: (params) => resolveSourceRowIndex(params.node as { rowIndex?: number | null; sourceRowIndex?: number | null }) + 1,
+    cellRenderer: WorkbenchRowIndexCell,
+    valueGetter: (params) => resolveDisplayedRowIndex(params.node as { rowIndex?: number | null }) + 1,
     comparator: (_left, _right, nodeA, nodeB) => {
-      const leftIndex = resolveSourceRowIndex(nodeA as { rowIndex?: number | null; sourceRowIndex?: number | null });
-      const rightIndex = resolveSourceRowIndex(nodeB as { rowIndex?: number | null; sourceRowIndex?: number | null });
+      const leftIndex = resolveDisplayedRowIndex(nodeA as { rowIndex?: number | null });
+      const rightIndex = resolveDisplayedRowIndex(nodeB as { rowIndex?: number | null });
       return leftIndex - rightIndex;
     },
-    headerClass: 'order-review-main-header-center order-review-main-row-index-header',
-    cellClass: 'order-review-main-row-index-cell',
+    headerClass:
+      'order-review-main-header-center order-review-main-row-index-header order-workbench-row-index-header-centered',
+    cellClass: 'order-review-main-row-index-cell order-workbench-row-index-cell-centered',
   },
 ];

@@ -1,5 +1,9 @@
 :root {
-  --erp-font-size-base: 14px;
+  --erp-font-size-body: 12.8px;
+  --erp-font-size-body-strong: 12.8px;
+  --erp-font-size-title: 15px;
+  --erp-font-size-title-display: 18px;
+  --erp-font-size-base: var(--erp-font-size-body);
   --erp-line-height: 1.6;
   --erp-gap-sm: 8px;
   --erp-gap-md: 12px;
@@ -98,7 +102,11 @@ body {
 }
 
 .erp-dense {
-  --erp-font-size-base: 12px;
+  --erp-font-size-body: 12px;
+  --erp-font-size-body-strong: 12px;
+  --erp-font-size-title: 14px;
+  --erp-font-size-title-display: 16px;
+  --erp-font-size-base: var(--erp-font-size-body);
   --erp-line-height: 1.4;
   --erp-gap-sm: 6px;
   --erp-gap-md: 10px;

@@ -16,6 +16,11 @@
   background: var(--erp-bg-panel);
 }
 
+.order-review-bottom-scrollbar-row-hidden,
+.order-workbench-bottom-scrollbar-row-hidden {
+  display: none;
+}
+
 .order-review-bottom-scrollbar,
 .order-workbench-bottom-scrollbar {
   flex: 1 1 auto;

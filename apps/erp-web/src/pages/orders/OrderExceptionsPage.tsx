@@ -21,22 +21,35 @@ import {
   type OrderExceptionDetail,
   type OrderExceptionSummary,
 } from '@/api/orders';
-import { listOrderTagDefinitions } from '@/api/orderTagDefinitions';
+import {
+  createOrderTagDefinition,
+  deleteOrderTagDefinition,
+  listOrderTagDefinitions,
+} from '@/api/orderTagDefinitions';
+import { listShipments } from '@/api/shipments';
 import { listWarehouses } from '@/api/warehouses';
 import {
-  WorkbenchDetailPanelTemplate,
   WorkbenchPageTemplate,
   WorkbenchRecordEditorDialog,
+  useWorkbenchInteractionController,
   useWorkbenchSavedViewState,
+  useWorkbenchSelectionController,
+  useWorkbenchViewStateController,
   useWorkbenchRecordEditor,
   WorkbenchToolbar,
   useWorkbenchTablePagination,
 } from '@/components/page-templates';
 import { UiModule03ContextMenu } from '@/components/ui-modules';
 import { auditStatusLabels, exceptionStatusLabels } from '@/features/oms-wms-main-chain/statuses';
-import { resolveOrderDisplayTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
+import {
+  buildOrderExceptionDisplayTagRecord,
+  extractOrderExceptionExplicitTags,
+  resolveOrderExceptionDetailPackage,
+  resolveOrderExceptionDisplayTags,
+} from './exceptions-native/orderExceptionDisplayTags';
+import { OrderExceptionsScreenFilterForm } from './exceptions-native/OrderExceptionsScreenFilterForm';
 import { buildCourierOptionLabel, resolveCourierOptionValue } from './shared/courierDisplay';
 import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';
 import {
@@ -48,12 +61,16 @@ import {
   toOrderWorkbenchGoodsRows,
   type OrderWorkbenchGoodsRow,
 } from './shared/orderWorkbenchGoodsRows';
+import {
+  resolveOrderWorkbenchDetailItems,
+  resolveOrderWorkbenchFeeRows,
+  resolveOrderWorkbenchPlatformOrderRows,
+  resolveOrderWorkbenchShipmentRows,
+} from './shared/orderWorkbenchDetailData';
 
 import { toOrderExceptionsGridRows } from './exceptions-native/orderExceptionsGridRows';
 import {
-  filterOrderExceptionSelectionKeys,
   findOrderExceptionRowIndex,
-  resolveNextOrderExceptionActiveKey,
   resolveOrderExceptionRowKey,
 } from './exceptions-native/orderExceptionsRowKey';
 import {
@@ -61,13 +78,24 @@ import {
   filterOrderExceptionsByColumnFilters,
   hasOrderExceptionsMainGridColumnFilters,
   hasSameOrderExceptionsMainGridColumnFilters,
+  resolveOrderExceptionSlaStatus,
+  resolveOrderExceptionSlaStatusLabel,
   resolveSingleOrderExceptionsColumnFilters,
   type OrderExceptionsColumnFilters,
 } from './exceptions-native/OrderExceptionsGridFilters';
 import type { OrderExceptionsLeftFilters } from './exceptions-native/orderExceptionsLeftInteractions';
+import {
+  buildOrderExceptionsScreenFilterOptions,
+  createOrderExceptionsScreenFilterState,
+  filterOrderExceptionsByScreenFilters,
+  hasOrderExceptionsScreenFilters,
+  normalizeOrderExceptionsScreenFilterState,
+  type OrderExceptionsScreenFilterState,
+} from './exceptions-native/orderExceptionsScreenFilters';
 import { useOrderExceptionsLeftModule } from './exceptions-native/useOrderExceptionsLeftModule';
 import { OrderReviewBottomPanel } from './review-native/OrderReviewBottomPanel';
-import { defaultPageSize, pageSizeOptions } from './review-native/helpers';
+import { OrderReviewDetailPanel } from './review-native/OrderReviewDetailPanel';
+import { defaultPageSize, pageSizeOptions, platformLabel } from './review-native/helpers';
 import { exportOrderReviewGridAsExcel, printOrderReviewGrid } from './review-native/orderReviewGridActions';
 
 const overdueThresholdMinutes = 15;
@@ -79,12 +107,6 @@ type OrderExceptionsPageProps = {
 };
 
 type DetailSelectOption = NonNullable<SelectProps['options']>;
-
-type ContextMenuState<T> = {
-  open: boolean;
-  position: { x: number; y: number } | null;
-  row: T | null;
-};
 
 const formatCurrency = (value?: number | null) => (value == null ? '-' : `¥${(value / 100).toFixed(2)}`);
 
@@ -240,8 +262,12 @@ type OrderExceptionsSavedViewState = {
   quickFilterExpanded?: boolean;
   columnFilters?: OrderExceptionsColumnFilters;
   leftFilters?: OrderExceptionsLeftFilters;
+  screenFiltersDraft?: OrderExceptionsScreenFilterState;
+  screenFiltersApplied?: OrderExceptionsScreenFilterState;
   selectedRowKeys?: string[];
-  focusedOrderKey?: string | null;
+  focusedRowKey?: string | null;
+  activeRowKey?: string | null;
+  selectionAnchorKey?: string | null;
   activeOrderId?: string | null;
 };
 
@@ -298,32 +324,23 @@ const normalizePersistedOrderExceptionsLeftFilters = (
   };
 };
 
+const normalizePersistedOrderExceptionsScreenFilters = (
+  value: unknown,
+): OrderExceptionsScreenFilterState => {
+  if (!value || typeof value !== 'object') {
+    return createOrderExceptionsScreenFilterState();
+  }
+
+  return normalizeOrderExceptionsScreenFilterState(
+    value as Partial<OrderExceptionsScreenFilterState>,
+  );
+};
+
 export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps = {}) => {
   const tenantId = useTenantId();
   const userId = useSessionStore((state) => state.userId);
   const userName = useSessionStore((state) => state.userName);
   const queryClient = useQueryClient();
-
-  const [keywordInput, setKeywordInput] = useState('');
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const deferredKeyword = useDeferredValue(searchKeyword.trim());
-  const [quickFilterExpanded, setQuickFilterExpanded] = useState(true);
-  const [columnFilters, setColumnFilters] = useState<OrderExceptionsColumnFilters>({});
-  const [leftFilters, setLeftFilters] = useState<OrderExceptionsLeftFilters>({});
-  const { pagination, setPagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
-    defaultPageSize,
-    pageSizeOptions,
-  });
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
-  const fetchStartedAtRef = useRef<number | null>(null);
-  const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
-  const [mainContextMenu, setMainContextMenu] = useState<ContextMenuState<OrderExceptionSummary>>({
-    open: false,
-    position: null,
-    row: null,
-  });
   const exceptionsSavedViewKey = useMemo(() => {
     if (!tenantId) {
       return '';
@@ -331,55 +348,42 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
     return `orders.exceptions.savedView.v1.${mode}.${tenantId}.${normalizedUserId}`;
   }, [mode, tenantId, userId]);
+  const exceptionsPaginationStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.exceptions.pagination.v1.${mode}.${tenantId}.${normalizedUserId}`;
+  }, [mode, tenantId, userId]);
+  const exceptionsWorkbenchStateCacheKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.exceptions.workbenchState.v1.${mode}.${tenantId}.${normalizedUserId}`;
+  }, [mode, tenantId, userId]);
+
+  const [keywordInput, setKeywordInput] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const deferredKeyword = useDeferredValue(searchKeyword.trim());
+  const [quickFilterExpanded, setQuickFilterExpanded] = useState(true);
+  const [columnFilters, setColumnFilters] = useState<OrderExceptionsColumnFilters>({});
+  const [leftFilters, setLeftFilters] = useState<OrderExceptionsLeftFilters>({});
+  const [screenFiltersDraft, setScreenFiltersDraft] = useState<OrderExceptionsScreenFilterState>(() =>
+    createOrderExceptionsScreenFilterState(),
+  );
+  const [screenFiltersApplied, setScreenFiltersApplied] = useState<OrderExceptionsScreenFilterState>(() =>
+    createOrderExceptionsScreenFilterState(),
+  );
+  const { pagination, setPagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
+    defaultPageSize,
+    pageSizeOptions,
+    storageKey: exceptionsPaginationStorageKey,
+  });
+  const fetchStartedAtRef = useRef<number | null>(null);
+  const [lastFetchDurationMs, setLastFetchDurationMs] = useState<number | null>(null);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderExceptionSummary> | null>(null);
-
-  const hydrateExceptionsSavedView = useCallback((parsed: OrderExceptionsSavedViewState) => {
-    if (typeof parsed.keywordInput === 'string') {
-      setKeywordInput(parsed.keywordInput);
-    }
-    if (typeof parsed.searchKeyword === 'string') {
-      setSearchKeyword(parsed.searchKeyword);
-    }
-    if (typeof parsed.quickFilterExpanded === 'boolean') {
-      setQuickFilterExpanded(parsed.quickFilterExpanded);
-    }
-    if (parsed.columnFilters) {
-      setColumnFilters(normalizePersistedOrderExceptionsColumnFilters(parsed.columnFilters));
-    }
-    if (parsed.leftFilters) {
-      setLeftFilters(normalizePersistedOrderExceptionsLeftFilters(parsed.leftFilters));
-    }
-    if (Object.prototype.hasOwnProperty.call(parsed, 'selectedRowKeys')) {
-      setSelectedRowKeys(normalizePersistedStringArray(parsed.selectedRowKeys) ?? []);
-    }
-    if (Object.prototype.hasOwnProperty.call(parsed, 'focusedOrderKey')) {
-      setFocusedOrderKey(normalizePersistedNullableString(parsed.focusedOrderKey));
-    }
-    if (Object.prototype.hasOwnProperty.call(parsed, 'activeOrderId')) {
-      setActiveOrderId(normalizePersistedNullableString(parsed.activeOrderId));
-    }
-  }, []);
-
-  const serializeExceptionsSavedView = useCallback(
-    (): OrderExceptionsSavedViewState => ({
-      keywordInput,
-      searchKeyword,
-      quickFilterExpanded,
-      columnFilters,
-      leftFilters,
-      selectedRowKeys: selectedRowKeys.map((item) => String(item)),
-      focusedOrderKey,
-      activeOrderId,
-    }),
-    [activeOrderId, columnFilters, focusedOrderKey, keywordInput, leftFilters, quickFilterExpanded, searchKeyword, selectedRowKeys],
-  );
-
-  useWorkbenchSavedViewState<OrderExceptionsSavedViewState>({
-    storageKey: exceptionsSavedViewKey,
-    hydrate: hydrateExceptionsSavedView,
-    serialize: serializeExceptionsSavedView,
-  });
 
   const exceptionQuery = useQuery({
     queryKey: ['order-exceptions', tenantId, deferredKeyword],
@@ -425,8 +429,111 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     }
     setColumnFilters((previous) => clearOrderExceptionsMainGridColumnFilters(previous));
   }, [columnFilters]);
-  const { filteredRows: leftFilteredRows } = useOrderExceptionsLeftModule({
-    rows,
+  const updateScreenFilter = useCallback(
+    <K extends keyof OrderExceptionsScreenFilterState>(
+      key: K,
+      value: OrderExceptionsScreenFilterState[K],
+    ) => {
+      setScreenFiltersDraft((previous) => ({
+        ...previous,
+        [key]: value,
+      }));
+    },
+    [],
+  );
+  const applyScreenFilters = useCallback(() => {
+    const next = normalizeOrderExceptionsScreenFilterState(screenFiltersDraft);
+    setScreenFiltersDraft(next);
+    setScreenFiltersApplied(next);
+    setKeywordInput(next.orderQuery);
+    setSearchKeyword(next.orderQuery);
+    resetPagination();
+  }, [resetPagination, screenFiltersDraft]);
+  const resetScreenFilters = useCallback(() => {
+    const next = createOrderExceptionsScreenFilterState();
+    setScreenFiltersDraft(next);
+    setScreenFiltersApplied(next);
+    setKeywordInput('');
+    setSearchKeyword('');
+    resetPagination();
+  }, [resetPagination]);
+  const screenPlatformOptions = useMemo(
+    () => buildOrderExceptionsScreenFilterOptions(rows.map((row) => row.platform), platformLabel),
+    [rows],
+  );
+  const screenShopOptions = useMemo(
+    () => buildOrderExceptionsScreenFilterOptions(rows.map((row) => row.shop_id)),
+    [rows],
+  );
+  const screenAuditStatusOptions = useMemo(
+    () =>
+      buildOrderExceptionsScreenFilterOptions(rows.map((row) => String(row.audit_status ?? '')), resolveAuditLabel),
+    [rows],
+  );
+  const screenExceptionStatusOptions = useMemo(
+    () =>
+      buildOrderExceptionsScreenFilterOptions(
+        rows.map((row) => String(row.exception_status ?? '')),
+        resolveExceptionLabel,
+      ),
+    [rows],
+  );
+  const screenSlaStatusOptions = useMemo(
+    () =>
+      buildOrderExceptionsScreenFilterOptions(
+        rows.map((row) => resolveOrderExceptionSlaStatus(row)),
+        resolveOrderExceptionSlaStatusLabel,
+      ),
+    [rows],
+  );
+  const screenWarehouseOptions = useMemo(
+    () => buildOrderExceptionsScreenFilterOptions(rows.map((row) => row.target_warehouse_id)),
+    [rows],
+  );
+  const screenAssigneeOptions = useMemo(
+    () => buildOrderExceptionsScreenFilterOptions(rows.map((row) => row.assignee_name)),
+    [rows],
+  );
+  const hasScreenFilterActive = useMemo(
+    () => hasOrderExceptionsScreenFilters(screenFiltersApplied),
+    [screenFiltersApplied],
+  );
+  const screenFilteredRows = useMemo(
+    () => filterOrderExceptionsByScreenFilters(rows, screenFiltersApplied),
+    [rows, screenFiltersApplied],
+  );
+  const screenContent = useMemo(
+    () => (
+      <OrderExceptionsScreenFilterForm
+        value={screenFiltersDraft}
+        platformOptions={screenPlatformOptions}
+        shopOptions={screenShopOptions}
+        auditStatusOptions={screenAuditStatusOptions}
+        exceptionStatusOptions={screenExceptionStatusOptions}
+        slaStatusOptions={screenSlaStatusOptions}
+        warehouseOptions={screenWarehouseOptions}
+        assigneeOptions={screenAssigneeOptions}
+        onFieldChange={updateScreenFilter}
+        onApply={applyScreenFilters}
+        onReset={resetScreenFilters}
+      />
+    ),
+    [
+      applyScreenFilters,
+      resetScreenFilters,
+      screenAssigneeOptions,
+      screenAuditStatusOptions,
+      screenExceptionStatusOptions,
+      screenFiltersDraft,
+      screenPlatformOptions,
+      screenShopOptions,
+      screenSlaStatusOptions,
+      screenWarehouseOptions,
+      updateScreenFilter,
+    ],
+  );
+  const { filteredRows: leftFilteredRows, leftPanel } = useOrderExceptionsLeftModule({
+    rows: screenFilteredRows,
     currentUserId: userId,
     isFetching: exceptionQuery.isFetching,
     overdueThresholdMinutes,
@@ -435,6 +542,8 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     filters: leftFilters,
     onFiltersChange: handleLeftFiltersChange,
     onBeforeLeafFilterApply: handleBeforeLeftLeafFilterApply,
+    screenContent,
+    hasScreenFilterActive,
   });
   const filteredRows = useMemo(
     () => filterOrderExceptionsByColumnFilters(leftFilteredRows, columnFilters),
@@ -473,7 +582,127 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     const start = Math.max(0, (resolvedCurrentPage - 1) * resolvedPageSize);
     return displayRows.slice(start, start + resolvedPageSize);
   }, [displayRows, resolvedCurrentPage, resolvedPageSize]);
-  const activeRow = pagedRows.find((item) => resolveOrderExceptionRowKey(item) === activeOrderId) ?? null;
+  const {
+    activeRow,
+    activeRowKey: activeOrderId,
+    focusedRowKey: focusedOrderKey,
+    selectedRowKeys,
+    setActiveRowKey: setActiveOrderId,
+    setFocusedRowKey: setFocusedOrderKey,
+    setSelectedRowKeys,
+    setSelectionAnchorKey,
+    selectionState,
+  } = useWorkbenchSelectionController<OrderExceptionSummary>({
+    rows: pagedRows,
+    selectionRows: displayRows,
+    loading: mainGridLoading,
+    resolveRowKey: resolveOrderExceptionRowKey,
+  });
+
+  const { hydrateViewState: hydrateStandardViewState, serializeViewState: serializeStandardViewState } =
+    useWorkbenchViewStateController<
+      Pick<
+        OrderExceptionsSavedViewState,
+        | 'keywordInput'
+        | 'searchKeyword'
+        | 'quickFilterExpanded'
+        | 'columnFilters'
+        | 'leftFilters'
+        | 'screenFiltersDraft'
+        | 'screenFiltersApplied'
+      >
+    >({
+      extraState: {
+        keywordInput,
+        searchKeyword,
+        quickFilterExpanded,
+        columnFilters,
+        leftFilters,
+        screenFiltersDraft,
+        screenFiltersApplied,
+      },
+      extraStateKeys: [
+        'keywordInput',
+        'searchKeyword',
+        'quickFilterExpanded',
+        'columnFilters',
+        'leftFilters',
+        'screenFiltersDraft',
+        'screenFiltersApplied',
+      ],
+      selectionState,
+      onHydrateExtraState: (parsed) => {
+        if (typeof parsed.keywordInput === 'string') {
+          setKeywordInput(parsed.keywordInput);
+        }
+        if (typeof parsed.searchKeyword === 'string') {
+          setSearchKeyword(parsed.searchKeyword);
+        }
+        if (typeof parsed.quickFilterExpanded === 'boolean') {
+          setQuickFilterExpanded(parsed.quickFilterExpanded);
+        }
+        if (parsed.columnFilters) {
+          setColumnFilters(normalizePersistedOrderExceptionsColumnFilters(parsed.columnFilters));
+        }
+        if (parsed.leftFilters) {
+          setLeftFilters(normalizePersistedOrderExceptionsLeftFilters(parsed.leftFilters));
+        }
+        if (parsed.screenFiltersDraft) {
+          setScreenFiltersDraft(
+            normalizePersistedOrderExceptionsScreenFilters(parsed.screenFiltersDraft),
+          );
+        }
+        if (parsed.screenFiltersApplied) {
+          setScreenFiltersApplied(
+            normalizePersistedOrderExceptionsScreenFilters(parsed.screenFiltersApplied),
+          );
+        }
+      },
+      onHydrateSelectionState: (parsed) => {
+        if (Object.prototype.hasOwnProperty.call(parsed, 'selectedRowKeys')) {
+          setSelectedRowKeys(normalizePersistedStringArray(parsed.selectedRowKeys) ?? []);
+        }
+        if (Object.prototype.hasOwnProperty.call(parsed, 'focusedRowKey')) {
+          setFocusedOrderKey(normalizePersistedNullableString(parsed.focusedRowKey));
+        }
+        if (Object.prototype.hasOwnProperty.call(parsed, 'selectionAnchorKey')) {
+          setSelectionAnchorKey(normalizePersistedNullableString(parsed.selectionAnchorKey));
+        }
+        if (Object.prototype.hasOwnProperty.call(parsed, 'activeRowKey')) {
+          setActiveOrderId(normalizePersistedNullableString(parsed.activeRowKey));
+        }
+      },
+    });
+
+  const hydrateExceptionsSavedView = useCallback(
+    (parsed: OrderExceptionsSavedViewState) => {
+      const legacyActiveRowKey =
+        Object.prototype.hasOwnProperty.call(parsed, 'activeOrderId') &&
+        !Object.prototype.hasOwnProperty.call(parsed, 'activeRowKey')
+          ? normalizePersistedNullableString(parsed.activeOrderId)
+          : undefined;
+
+      hydrateStandardViewState({
+        ...parsed,
+        activeRowKey:
+          Object.prototype.hasOwnProperty.call(parsed, 'activeRowKey') || legacyActiveRowKey == null
+            ? parsed.activeRowKey
+            : legacyActiveRowKey,
+      });
+    },
+    [hydrateStandardViewState],
+  );
+
+  const serializeExceptionsSavedView = useCallback(
+    (): OrderExceptionsSavedViewState => serializeStandardViewState(),
+    [serializeStandardViewState],
+  );
+
+  useWorkbenchSavedViewState<OrderExceptionsSavedViewState>({
+    storageKey: exceptionsSavedViewKey,
+    hydrate: hydrateExceptionsSavedView,
+    serialize: serializeExceptionsSavedView,
+  });
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(displayRows.length / resolvedPageSize));
@@ -487,28 +716,6 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       pageSizeOptions,
     }));
   }, [displayRows.length, resolvedCurrentPage, resolvedPageSize]);
-
-  useEffect(() => {
-    if (displayRows.length === 0) {
-      if (mainGridLoading) {
-        return;
-      }
-      setSelectedRowKeys([]);
-      setActiveOrderId(null);
-      setFocusedOrderKey(null);
-      return;
-    }
-
-    setSelectedRowKeys((current) => filterOrderExceptionSelectionKeys(displayRows, current));
-
-    setActiveOrderId((current) => {
-      return resolveNextOrderExceptionActiveKey(pagedRows, current);
-    });
-
-    setFocusedOrderKey((current) => {
-      return resolveNextOrderExceptionActiveKey(pagedRows, current);
-    });
-  }, [displayRows, mainGridLoading, pagedRows]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -548,6 +755,30 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       });
     });
   }, [activeOrderId, pagedRows, queryClient, tenantId]);
+
+  const pagedRowsForGrid = useMemo(
+    () =>
+      pagedRows.map((row) => {
+        const cachedDetail =
+          row.order_id === activeOrderId
+            ? detailQuery.data ?? null
+            : tenantId
+              ? (queryClient.getQueryData([
+                  'order-exception-detail',
+                  tenantId,
+                  row.order_id,
+                ]) as OrderExceptionDetail | undefined)
+              : undefined;
+        if (!cachedDetail) {
+          return row;
+        }
+        return {
+          ...row,
+          ...buildOrderExceptionDisplayTagRecord(row, cachedDetail),
+        };
+      }),
+    [activeOrderId, detailQuery.data, pagedRows, queryClient, tenantId],
+  );
 
   const workbenchRecordEditor = useWorkbenchRecordEditor<
     OrderExceptionSummary,
@@ -590,19 +821,20 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     [workbenchRecordEditor.draft],
   );
 
-  const detailPackage = (detailQuery.data?.order ?? null) as
-    | {
-        order?: Record<string, unknown> | null;
-        items?: Record<string, unknown>[];
-        tags?: Array<{ tag?: string | null }>;
-      }
-    | null;
+  const detailPackage = useMemo(
+    () => resolveOrderExceptionDetailPackage(detailQuery.data),
+    [detailQuery.data],
+  );
   const detailOrder = (detailPackage?.order ?? null) as Record<string, unknown> | null;
   const detailOrderId = String(detailOrder?.id ?? activeOrderId ?? '').trim();
   const detailLoadedId = detailOrderId;
+  const detailItems = useMemo(
+    () => resolveOrderWorkbenchDetailItems(detailPackage),
+    [detailPackage],
+  );
   const goodsRows = useMemo(
-    () => toOrderWorkbenchGoodsRows((detailPackage?.items ?? []) as Record<string, unknown>[]),
-    [detailPackage?.items],
+    () => toOrderWorkbenchGoodsRows(detailItems),
+    [detailItems],
   );
   const logRows = useMemo(
     () =>
@@ -644,6 +876,8 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     enabled: Boolean(tenantId),
     staleTime: 60_000,
   });
+
+  const orderTagDefinitions = orderTagDefinitionsQuery.data?.items ?? [];
 
   const warehouseQuery = useQuery({
     queryKey: ['warehouses', tenantId, 'order-exceptions'],
@@ -696,19 +930,16 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
 
   const orderTagOptions = useMemo<DetailSelectOption>(
     () =>
-      (orderTagDefinitionsQuery.data?.items ?? []).map((tag) => ({
+      orderTagDefinitions.map((tag) => ({
         label: tag.name,
         value: tag.name,
       })),
-    [orderTagDefinitionsQuery.data?.items],
+    [orderTagDefinitions],
   );
 
   const explicitOrderTags = useMemo(
-    () =>
-      (detailPackage?.tags ?? [])
-        .map((item) => String(item.tag ?? '').trim())
-        .filter(Boolean),
-    [detailPackage?.tags],
+    () => extractOrderExceptionExplicitTags(detailQuery.data),
+    [detailQuery.data],
   );
 
   const normalizedOrderTags = useMemo(
@@ -717,33 +948,39 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   );
 
   const displayOrderTags = useMemo(
-    () =>
-      resolveOrderDisplayTags({
-        ...(detailOrder ?? {}),
-        ...(activeRow ?? {}),
-        blocking_reason: detailQuery.data?.blocking_reason ?? activeRow?.blocking_reason ?? null,
-        latest_action: detailQuery.data?.latest_action ?? activeRow?.latest_action ?? null,
-        tags: normalizedOrderTags,
-      }),
-    [activeRow, detailOrder, detailQuery.data?.blocking_reason, detailQuery.data?.latest_action, normalizedOrderTags],
+    () => resolveOrderExceptionDisplayTags(activeRow, detailQuery.data),
+    [activeRow, detailQuery.data],
   );
 
-  const tagMenuItems = useMemo<NonNullable<MenuProps['items']>>(() => {
-    const items = orderTagOptions
-      .map((option) => {
-        const key = String(option?.value ?? '').trim();
-        if (!key) return null;
-        return {
-          key,
-          label: String(option?.label ?? key).trim() || key,
-        };
-      })
-      .filter((item): item is { key: string; label: string } => item != null);
-    if (items.length > 0) {
-      return items;
-    }
-    return [{ key: '__empty__', label: '暂无订单记号', disabled: true }];
-  }, [orderTagOptions]);
+  const shipmentsQuery = useQuery({
+    queryKey: ['shipments', tenantId, 'order-exceptions', detailOrder?.platform_order_id ?? ''],
+    queryFn: () =>
+      listShipments(tenantId, {
+        platform_order_id: String(detailOrder?.platform_order_id ?? '').trim(),
+        limit: 50,
+      }),
+    enabled: Boolean(tenantId && String(detailOrder?.platform_order_id ?? '').trim()),
+    staleTime: 60_000,
+  });
+
+  const platformOrderRows = useMemo(
+    () => resolveOrderWorkbenchPlatformOrderRows(detailPackage as Record<string, unknown> | null | undefined),
+    [detailPackage],
+  );
+
+  const shipmentRows = useMemo(
+    () =>
+      resolveOrderWorkbenchShipmentRows(
+        detailPackage as Record<string, unknown> | null | undefined,
+        shipmentsQuery.data?.items ?? [],
+      ),
+    [detailPackage, shipmentsQuery.data?.items],
+  );
+
+  const feeRows = useMemo(
+    () => resolveOrderWorkbenchFeeRows(detailPackage as Record<string, unknown> | null | undefined),
+    [detailPackage],
+  );
 
   const detailSelectDisabled = !detailOrderId;
 
@@ -817,11 +1054,6 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   const handleApplyOrderTags = useCallback(
     async (tags: string[]) => {
       const normalizedTags = Array.from(new Set(tags.map((item) => item.trim()).filter(Boolean)));
-      if (!normalizedTags.length) {
-        message.warning('请至少选择一个订单记号');
-        return false;
-      }
-
       if (!tenantId || !detailOrderId) {
         message.warning('请先选中订单');
         return false;
@@ -830,7 +1062,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       setOrderTagsApplying(true);
       try {
         await addOrderTags(tenantId, detailOrderId, normalizedTags);
-        message.success('订单记号已应用');
+        message.success(normalizedTags.length > 0 ? '订单记号已应用' : '订单记号已清空');
         await Promise.all([refreshExceptions(), detailQuery.refetch()]);
         return true;
       } catch (error) {
@@ -843,15 +1075,51 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     [detailOrderId, detailQuery, refreshExceptions, tenantId],
   );
 
-  const handleMarkSelect = useCallback(
-    (tagValue: string) => {
-      const normalized = String(tagValue ?? '').trim();
-      if (!normalized || detailSelectDisabled || orderTagsApplying) {
-        return;
+  const handleRefreshOrderTagDefinitions = useCallback(async () => {
+    if (!tenantId) {
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['order-tag-definitions', tenantId] });
+    await orderTagDefinitionsQuery.refetch();
+  }, [orderTagDefinitionsQuery, queryClient, tenantId]);
+
+  const handleCreateOrderTagDefinition = useCallback(
+    async (name: string) => {
+      const normalized = String(name ?? '').trim();
+      if (!tenantId || !normalized) {
+        message.warning('请输入记号名称');
+        return false;
       }
-      void handleApplyOrderTags([...normalizedOrderTags, normalized]);
+      try {
+        await createOrderTagDefinition(tenantId, { name: normalized });
+        message.success('订单记号已创建');
+        await handleRefreshOrderTagDefinitions();
+        return true;
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '创建订单记号失败');
+        return false;
+      }
     },
-    [detailSelectDisabled, handleApplyOrderTags, normalizedOrderTags, orderTagsApplying],
+    [handleRefreshOrderTagDefinitions, tenantId],
+  );
+
+  const handleDeleteOrderTagDefinition = useCallback(
+    async (tagId: string) => {
+      const normalized = String(tagId ?? '').trim();
+      if (!tenantId || !normalized) {
+        return false;
+      }
+      try {
+        await deleteOrderTagDefinition(tenantId, normalized);
+        message.success('订单记号已删除');
+        await handleRefreshOrderTagDefinitions();
+        return true;
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '删除订单记号失败');
+        return false;
+      }
+    },
+    [handleRefreshOrderTagDefinitions, tenantId],
   );
 
   const persistGoodsRows = useCallback(
@@ -923,6 +1191,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       setSelectedRowKeys(failedOrderIds);
       setActiveOrderId(failedOrderIds[0] ?? null);
       setFocusedOrderKey(failedOrderIds[0] ?? null);
+      setSelectionAnchorKey(failedOrderIds[0] ?? null);
       await refreshExceptions();
     },
     onError: () => {
@@ -994,6 +1263,72 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
     [resetPagination],
   );
 
+  const handleMainSelectionChange = useCallback(
+    (keys: Key[]) => {
+      const normalizedKeys = Array.from(
+        new Set(
+          keys
+            .map((item) => String(item ?? '').trim())
+            .filter(Boolean),
+        ),
+      );
+
+      setSelectedRowKeys(normalizedKeys);
+      setSelectionAnchorKey((current) => {
+        if (!normalizedKeys.length) {
+          return null;
+        }
+        if (current && normalizedKeys.includes(current)) {
+          return current;
+        }
+        return normalizedKeys[0] ?? null;
+      });
+    },
+    [setSelectedRowKeys, setSelectionAnchorKey],
+  );
+  const handleMainRowActive = useCallback(
+    (record: OrderExceptionSummary) => {
+      const rowKey = resolveOrderExceptionRowKey(record) || null;
+      setActiveOrderId(rowKey);
+      setSelectionAnchorKey(rowKey);
+    },
+    [setSelectionAnchorKey],
+  );
+  const handleMainRowDoubleClick = useCallback(
+    (record: OrderExceptionSummary) => {
+      const orderId = String(record.order_id ?? '').trim();
+      if (!orderId) {
+        message.warning('订单ID为空，无法打开编辑页');
+        return;
+      }
+      const rowKey = resolveOrderExceptionRowKey(record) || orderId;
+      setActiveOrderId(rowKey);
+      setFocusedOrderKey(rowKey);
+      setSelectionAnchorKey(rowKey);
+      void workbenchRecordEditor.openEditor(record).catch((error) => {
+        message.error(error instanceof Error ? error.message : '打开订单编辑窗口失败');
+      });
+    },
+    [setSelectionAnchorKey, workbenchRecordEditor],
+  );
+  const handleMainFocus = useCallback((record: OrderExceptionSummary) => {
+    setFocusedOrderKey(resolveOrderExceptionRowKey(record) || null);
+  }, []);
+  const handleToolbarSearch = useCallback(() => {
+    const nextKeyword = keywordInput.trim();
+    setKeywordInput(nextKeyword);
+    setSearchKeyword(nextKeyword);
+    setScreenFiltersDraft((previous) => ({ ...previous, orderQuery: nextKeyword }));
+    setScreenFiltersApplied((previous) => ({ ...previous, orderQuery: nextKeyword }));
+    resetPagination();
+  }, [keywordInput, resetPagination]);
+
+  const {
+    closeContextMenu,
+    contextMenuState: mainContextMenu,
+    openContextMenu,
+  } = useWorkbenchInteractionController<OrderExceptionSummary>();
+
   const handleMainContextMenu = useCallback(
     (record: OrderExceptionSummary, event: MouseEvent) => {
       const rowKey = String(record.order_id ?? '').trim() || null;
@@ -1001,14 +1336,11 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       setFocusedOrderKey(rowKey);
       if (rowKey && !selectedRowKeys.some((item) => String(item) === rowKey)) {
         setSelectedRowKeys([rowKey]);
+        setSelectionAnchorKey(rowKey);
       }
-      setMainContextMenu({
-        open: true,
-        position: { x: event.clientX, y: event.clientY },
-        row: record,
-      });
+      openContextMenu(record, event);
     },
-    [selectedRowKeys],
+    [openContextMenu, selectedRowKeys, setSelectionAnchorKey],
   );
 
   const mainContextMenuConfig = useMemo<MenuProps>(
@@ -1034,40 +1366,47 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
         }
         if (key === 'clear-selection') {
           setSelectedRowKeys([]);
+          setSelectionAnchorKey(null);
         }
-        setMainContextMenu({ open: false, position: null, row: null });
+        closeContextMenu();
       },
     }),
-    [mainContextMenu.row],
+    [closeContextMenu, mainContextMenu.row, setSelectionAnchorKey],
   );
 
   const rightPanel = useMemo(
     () => (
-      <div className="order-exceptions-detail-panel" data-testid="order-exceptions-detail-panel">
+      <div className="order-exceptions-detail-stack" data-testid="order-exceptions-detail-panel">
         {activeRow ? (
-      <WorkbenchDetailPanelTemplate
-            detailError={detailQuery.error}
+          <OrderReviewDetailPanel
+            detailOrder={{
+              ...(detailOrder ?? {}),
+              id: detailOrderId || resolveOrderExceptionRowKey(activeRow) || undefined,
+              platform: String(detailOrder?.platform ?? activeRow.platform ?? '') || undefined,
+              shop_id: String(detailOrder?.shop_id ?? activeRow.shop_id ?? '') || undefined,
+              receiver_name: String(detailOrder?.receiver_name ?? activeRow.receiver_name ?? '') || undefined,
+              receiver_phone: String(detailOrder?.receiver_phone ?? '') || undefined,
+              total_amount_cent: Number(detailOrder?.total_amount_cent ?? activeRow.total_amount_cent ?? 0),
+            }}
+            error={detailQuery.error}
             detailLoadedId={detailLoadedId}
-            orderId={detailOrderId || resolveOrderExceptionRowKey(activeRow)}
-            platformOrderId={String(detailOrder?.platform_order_id ?? '') || undefined}
-            platformText={String(detailOrder?.platform ?? activeRow.platform ?? '') || undefined}
-            shopId={String(detailOrder?.shop_id ?? activeRow.shop_id ?? '') || undefined}
-            receiverName={String(detailOrder?.receiver_name ?? activeRow.receiver_name ?? '') || undefined}
-            receiverPhone={String(detailOrder?.receiver_phone ?? '') || undefined}
-            logisticsCompany={detailLogisticsCompany}
-            warehouseId={detailWarehouseId}
-            totalAmountText={formatCurrency(Number(detailOrder?.total_amount_cent ?? activeRow.total_amount_cent ?? 0))}
-            courierOptions={mergedCourierOptions}
             warehouseOptions={mergedWarehouseOptions}
-            logisticsUpdating={detailUpdatingField === 'logistics'}
+            courierOptions={mergedCourierOptions}
+            detailWarehouseId={detailWarehouseId}
+            detailLogisticsCompany={detailLogisticsCompany}
             warehouseUpdating={detailUpdatingField === 'warehouse'}
-            detailSelectDisabled={detailSelectDisabled}
-            orderTagsApplying={orderTagsApplying}
-            markTags={displayOrderTags}
-            markMenuItems={tagMenuItems}
-            onMarkSelect={handleMarkSelect}
-            onLogisticsChange={handleDetailLogisticsChange}
+            logisticsUpdating={detailUpdatingField === 'logistics'}
             onWarehouseChange={handleDetailWarehouseChange}
+            onLogisticsChange={handleDetailLogisticsChange}
+            orderTagDefinitions={orderTagDefinitions}
+            orderTagOptions={orderTagOptions}
+            currentOrderTags={normalizedOrderTags}
+            orderTagsApplying={orderTagsApplying}
+            onApplyOrderTags={handleApplyOrderTags}
+            onCreateOrderTagDefinition={handleCreateOrderTagDefinition}
+            onDeleteOrderTagDefinition={handleDeleteOrderTagDefinition}
+            onRefreshOrderTagDefinitions={handleRefreshOrderTagDefinitions}
+            displayOrderTags={displayOrderTags}
           />
         ) : null}
         {renderDetailContent(activeRow, detailQuery.data, detailQuery.isLoading)}
@@ -1085,14 +1424,76 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       detailSelectDisabled,
       detailUpdatingField,
       detailWarehouseId,
+      displayOrderTags,
+      handleApplyOrderTags,
+      handleCreateOrderTagDefinition,
+      handleDeleteOrderTagDefinition,
       handleDetailLogisticsChange,
       handleDetailWarehouseChange,
-      handleMarkSelect,
+      handleRefreshOrderTagDefinitions,
       mergedCourierOptions,
       mergedWarehouseOptions,
-      displayOrderTags,
+      normalizedOrderTags,
+      orderTagDefinitions,
+      orderTagOptions,
       orderTagsApplying,
-      tagMenuItems,
+    ],
+  );
+
+  const rightPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        activeOrderId,
+        detailLoadedId,
+        detailOrderId,
+        platform: String(detailOrder?.platform ?? activeRow?.platform ?? ''),
+        platformOrderId: String(detailOrder?.platform_order_id ?? ''),
+        shopId: String(detailOrder?.shop_id ?? activeRow?.shop_id ?? ''),
+        receiverName: String(detailOrder?.receiver_name ?? activeRow?.receiver_name ?? ''),
+        receiverPhone: String(detailOrder?.receiver_phone ?? ''),
+        totalAmountCent: detailOrder?.total_amount_cent ?? activeRow?.total_amount_cent ?? null,
+        detailWarehouseId: detailWarehouseId ?? '',
+        detailLogisticsCompany: detailLogisticsCompany ?? '',
+        detailUpdatingField: detailUpdatingField ?? '',
+        orderTagsApplying,
+        displayOrderTags,
+        orderTagDefinitions: orderTagDefinitions.map((item) => `${item.tag_id}:${item.name}`),
+        orderTagOptions: orderTagOptions.map((option) => String(option.value ?? '')),
+        warehouseOptions: mergedWarehouseOptions.map((option) => String(option.value ?? '')),
+        courierOptions: mergedCourierOptions.map((option) => String(option.value ?? '')),
+        detailError:
+          detailQuery.error instanceof Error
+            ? detailQuery.error.message
+            : detailQuery.error
+              ? 'error'
+              : '',
+      }),
+    [
+      activeOrderId,
+      activeRow?.platform,
+      activeRow?.receiver_name,
+      activeRow?.shop_id,
+      activeRow?.total_amount_cent,
+      courierQuery.data?.items,
+      detailLoadedId,
+      detailLogisticsCompany,
+      detailOrder?.platform,
+      detailOrder?.platform_order_id,
+      detailOrder?.receiver_name,
+      detailOrder?.receiver_phone,
+      detailOrder?.shop_id,
+      detailOrder?.total_amount_cent,
+      detailOrderId,
+      detailQuery.error,
+      detailUpdatingField,
+      detailWarehouseId,
+      displayOrderTags,
+      mergedCourierOptions,
+      mergedWarehouseOptions,
+      orderTagDefinitions,
+      orderTagOptions,
+      orderTagsApplying,
+      warehouseQuery.data?.items,
     ],
   );
 
@@ -1102,20 +1503,51 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
         activeOrderId={detailOrderId || 'none'}
         goodsRows={goodsRowsState}
         logRows={logRows}
+        platformOrderRows={platformOrderRows}
+        shipmentRows={shipmentRows}
+        feeRows={feeRows}
         goodsSaving={goodsSaving}
         onPersistGoodsRows={persistGoodsRows}
       />
     ),
-    [detailOrderId, goodsRowsState, goodsSaving, logRows, persistGoodsRows],
+    [detailOrderId, feeRows, goodsRowsState, goodsSaving, logRows, persistGoodsRows, platformOrderRows, shipmentRows],
+  );
+
+  const bottomPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        activeOrderId,
+        detailOrderId,
+        goodsSaving,
+        goodsRows: goodsRowsState.map((row) => ({
+          key: row.__localKey,
+          id: row.id ?? '',
+          title: row.title ?? '',
+          quantity: row.quantity ?? null,
+          priceCent: row.price_cent ?? null,
+        })),
+        logRows: logRows.map((row, index) => ({
+          index,
+          createdAt: String(row.created_at ?? ''),
+          action: String(row.action ?? ''),
+          operator: String(row.operator ?? ''),
+          detail: String(row.detail ?? ''),
+        })),
+        platformOrderRows,
+        shipmentRows,
+        feeRows,
+      }),
+    [activeOrderId, detailOrderId, feeRows, goodsRowsState, goodsSaving, logRows, platformOrderRows, shipmentRows],
   );
 
   const toolbar = (
-      <WorkbenchToolbar
-      className="order-exceptions-toolbar"
+    <WorkbenchToolbar
+      className="order-review-toolbar order-exceptions-toolbar"
       leftContent={
-        <div className="order-exceptions-toolbar-left">
+        <>
           <Button
             data-testid="order-exceptions-resolve-action"
+            size="small"
             type="primary"
             loading={resolveMutation.isPending}
             onClick={() => {
@@ -1130,6 +1562,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
             复核
           </Button>
           <Button
+            size="small"
             icon={<ReloadOutlined />}
             loading={exceptionQuery.isFetching && !exceptionQuery.isLoading}
             onClick={() => {
@@ -1141,15 +1574,14 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
           <Button size="small" onClick={() => setQuickFilterExpanded((prev) => !prev)}>
             {quickFilterExpanded ? '收起列筛选' : '展开列筛选'}
           </Button>
-        </div>
+        </>
       }
       searchValue={keywordInput}
       onSearchChange={setKeywordInput}
-      onSearch={() => {
-        setSearchKeyword(keywordInput.trim());
-        resetPagination();
-      }}
+      onSearch={handleToolbarSearch}
       searchPlaceholder="搜索订单号/收件人/阻断原因"
+      searchInputClassName="order-review-toolbar-search"
+      searchButtonClassName="order-review-toolbar-search-trigger"
       searchInputTestId="order-exceptions-search-input"
       searchButtonTestId="order-exceptions-search-trigger"
       searchButtonAriaLabel="查询"
@@ -1173,55 +1605,38 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
   );
 
   const mainContent = (
-      <WorkbenchPageTemplate
+    <WorkbenchPageTemplate
       pageTestId="order-exceptions-page"
-      className="order-exceptions-page"
+      className="order-review-page order-exceptions-page"
+      leftPanel={leftPanel}
       toolbar={toolbar}
       tableContainerRef={tableRef}
-      tableClassName="order-exceptions-grid-panel order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
+      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
-        <div className="order-exceptions-main-stack">
-          <div className="order-exceptions-grid-main order-review-grid-main">
-            <OrderWorkbenchMainGridEntry
-              variant="recheck"
-              rows={pagedRows}
-              filterOptionRows={leftFilteredRows}
-              quickFilterExpanded={quickFilterExpanded}
-              columnFilters={columnFilters}
-              selectedRowKeys={selectedRowKeys}
-              focusedOrderKey={focusedOrderKey}
-              onGridApiChange={handleMainGridApiChange}
-              onColumnFiltersChange={handleMainGridColumnFiltersChange}
-              onSelectionChange={setSelectedRowKeys}
-              onRowActive={(record) => {
-                setActiveOrderId(resolveOrderExceptionRowKey(record) || null);
-              }}
-              onRowDoubleClick={(record) => {
-                const orderId = String(record.order_id ?? '').trim();
-                if (!orderId) {
-                  message.warning('订单ID为空，无法打开编辑页');
-                  return;
-                }
-                const rowKey = resolveOrderExceptionRowKey(record) || orderId;
-                setActiveOrderId(rowKey);
-                setFocusedOrderKey(rowKey);
-                void workbenchRecordEditor.openEditor(record).catch((error) => {
-                  message.error(error instanceof Error ? error.message : '打开订单编辑窗口失败');
-                });
-              }}
-              onFocus={(record) => {
-                setFocusedOrderKey(resolveOrderExceptionRowKey(record) || null);
-              }}
-              onContextMenu={handleMainContextMenu}
-              resolveAuditLabel={resolveAuditLabel}
-              resolveExceptionLabel={resolveExceptionLabel}
-              loading={mainGridLoading}
-              error={exceptionQuery.error}
-              onRetry={() => {
-                void exceptionQuery.refetch();
-              }}
-            />
-          </div>
+        <div className="order-review-grid-main">
+          <OrderWorkbenchMainGridEntry
+            variant="recheck"
+            rows={pagedRowsForGrid}
+            filterOptionRows={leftFilteredRows}
+            quickFilterExpanded={quickFilterExpanded}
+            columnFilters={columnFilters}
+            selectedRowKeys={selectedRowKeys}
+            focusedOrderKey={focusedOrderKey}
+            onGridApiChange={handleMainGridApiChange}
+            onColumnFiltersChange={handleMainGridColumnFiltersChange}
+            onSelectionChange={handleMainSelectionChange}
+            onRowActive={handleMainRowActive}
+            onRowDoubleClick={handleMainRowDoubleClick}
+            onFocus={handleMainFocus}
+            onContextMenu={handleMainContextMenu}
+            resolveAuditLabel={resolveAuditLabel}
+            resolveExceptionLabel={resolveExceptionLabel}
+            loading={mainGridLoading}
+            error={exceptionQuery.error}
+            onRetry={() => {
+              void exceptionQuery.refetch();
+            }}
+          />
         </div>
       }
       footerSyncKey={`order-exceptions-${displayRows.length}-${resolvedCurrentPage}-${resolvedPageSize}`}
@@ -1229,9 +1644,12 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       total={displayRows.length}
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
+      stateCacheKey={exceptionsWorkbenchStateCacheKey}
       showFooterScrollbarRow={true}
       rightPanel={rightPanel}
+      rightPanelSyncKey={rightPanelSyncKey}
       bottomPanel={bottomPanel}
+      bottomPanelSyncKey={bottomPanelSyncKey}
       overlays={
         <>
           <WorkbenchRecordEditorDialog
@@ -1265,7 +1683,7 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
             open={mainContextMenu.open}
             position={mainContextMenu.position}
             menu={mainContextMenuConfig}
-            onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
+            onClose={closeContextMenu}
           />
         </>
       }

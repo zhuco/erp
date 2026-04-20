@@ -19,7 +19,7 @@
 }
 
 .workbench-list-page .order-workbench-toolbar .ant-typography {
-  font-size: 16px;
+  font-size: var(--erp-font-size-title);
   line-height: 1.4;
 }
 
@@ -127,7 +127,7 @@
 .workbench-left-placeholder,
 .workbench-bottom-placeholder {
   padding: 8px 4px;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .workbench-left-tabs .ant-tabs-nav {

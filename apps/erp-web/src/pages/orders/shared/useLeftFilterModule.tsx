@@ -1,7 +1,6 @@
 import type { CellClickedEvent } from 'ag-grid-community';
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -9,7 +8,6 @@ import {
   type SetStateAction,
 } from 'react';
 
-import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import type { UiModule08OrderReviewLeftRenderRow } from '@/components/ui-modules';
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { flattenAgLeftTree } from '@/pages/orders/orderReviewAgLeftModel';
@@ -55,6 +53,7 @@ type UseLeftFilterModuleResult<TRow, TFilters> = {
   hasManualFilterActive: boolean;
   filters: TFilters;
   setFilters: LeftFilterSetState<TFilters>;
+  leftPanel: ReactNode;
 };
 
 const resolveNextState = <TState,>(prev: TState, action: SetStateAction<TState>) =>
@@ -101,7 +100,7 @@ export const useLeftFilterModule = <TRow, TFilters>({
   filters: controlledFilters,
   onFiltersChange,
   initialExpandedKeys,
-  leftPanelWidth,
+  leftPanelWidth: _leftPanelWidth,
   emptyRowLabel = '无匹配项',
   hasManualFilter,
   filterRows,
@@ -111,8 +110,6 @@ export const useLeftFilterModule = <TRow, TFilters>({
   renderPanel,
   onBeforeLeafFilterApply,
 }: UseLeftFilterModuleOptions<TRow, TFilters>): UseLeftFilterModuleResult<TRow, TFilters> => {
-  const { setLeftPanel, setLeftPanelVisible, setLeftPanelWidth, setLeftPanelCollapsed } =
-    useWorkbenchPanels();
   const [leftTab, setLeftTab] = useState<LeftTab>('filter');
   const [leftExpanded, setLeftExpanded] = useState<Set<string>>(() => new Set(initialExpandedKeys));
 
@@ -178,28 +175,11 @@ export const useLeftFilterModule = <TRow, TFilters>({
     [hasManualFilterActive, leftRowsForRender, leftTab, onLeftRowClick, renderPanel],
   );
 
-  useEffect(() => {
-    if (leftPanelWidth != null) {
-      setLeftPanelWidth(leftPanelWidth);
-    }
-    return () => {
-      setLeftPanel(undefined);
-      setLeftPanelVisible(false);
-    };
-  }, [leftPanelWidth, setLeftPanel, setLeftPanelVisible, setLeftPanelWidth]);
-
-  useEffect(() => {
-    if (typeof setLeftPanelCollapsed === 'function') {
-      setLeftPanelCollapsed(false);
-    }
-    setLeftPanelVisible(true);
-    setLeftPanel(leftPanel);
-  }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
-
   return {
     filteredRows,
     hasManualFilterActive,
     filters,
     setFilters,
+    leftPanel,
   };
 };

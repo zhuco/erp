@@ -16,7 +16,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { MenuProps, TablePaginationConfig } from 'antd';
+import type { MenuProps } from 'antd';
 import dayjs from 'dayjs';
 import {
   useCallback,
@@ -49,10 +49,13 @@ import {
 import {
   WorkbenchPageTemplate,
   WorkbenchToolbar,
+  useWorkbenchSavedViewState,
+  useWorkbenchTablePagination,
 } from '@/components/page-templates';
 import type { PlatformCode } from '@/features/platform';
 import { platformOptions, platformValues } from '@/features/platform';
 import { useCan } from '@/features/rbac';
+import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { OrderReviewLeftPanel } from '@/pages/orders/review-native/OrderReviewLeftPanel';
@@ -100,6 +103,13 @@ type ShopContextMenuState = {
   open: boolean;
   position: { x: number; y: number } | null;
   shop: Shop | null;
+};
+
+type ChannelsWorkbenchSavedViewState = {
+  searchInput?: string;
+  searchKeyword?: string;
+  selectedRowKeys?: string[];
+  focusedOrderKey?: string | null;
 };
 
 const shopStatusOptions: Array<{ label: string; value: ShopStatusFilter }> = [
@@ -201,6 +211,10 @@ const EMPTY_SHOP_WORKBENCH_FILTERS: ShopWorkbenchFilters = {};
 
 const normalizeStringArray = (value?: string[]) =>
   value ? Array.from(new Set(value.map((item) => item.trim()).filter(Boolean))) : [];
+const normalizeNullableString = (value: unknown) => {
+  const nextValue = String(value ?? '').trim();
+  return nextValue || null;
+};
 
 const resolveConicGradientBackground = (segments: Array<{ ratio: number; color: string }>) => {
   if (segments.length === 0) {
@@ -261,6 +275,7 @@ const mapShopToOrderSummary = (shop: Shop): OrderSummary => {
 
 export const ChannelsPage = () => {
   const tenantId = useTenantId();
+  const userId = useSessionStore((state) => state.userId);
   const canWrite = useCan('shops.write');
   const navigate = useNavigate();
   const location = useLocation();
@@ -282,9 +297,31 @@ export const ChannelsPage = () => {
   });
   const [reviewColumnFilters, setReviewColumnFilters] = useState<OrderReviewMainColumnFilters>({});
   const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 20,
+  const channelsSavedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `channels.workbench.savedView.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const channelsPaginationStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `channels.workbench.pagination.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const channelsWorkbenchStateCacheKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `channels.workbench.state.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const { pagination, setPagination } = useWorkbenchTablePagination({
+    defaultPageSize: 20,
+    pageSizeOptions: ['20', '50', '100', '200'],
+    storageKey: channelsPaginationStorageKey,
   });
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
@@ -391,6 +428,37 @@ export const ChannelsPage = () => {
       { replace: true },
     );
   }, [callbackMutation, callbackState, location.pathname, location.search, navigate]);
+
+  const hydrateChannelsSavedView = useCallback((savedView: ChannelsWorkbenchSavedViewState) => {
+    if (typeof savedView.searchInput === 'string') {
+      setSearchInput(savedView.searchInput);
+    }
+    if (typeof savedView.searchKeyword === 'string') {
+      setSearchKeyword(savedView.searchKeyword);
+    }
+    if (Object.prototype.hasOwnProperty.call(savedView, 'selectedRowKeys')) {
+      setSelectedRowKeys(normalizeStringArray(savedView.selectedRowKeys));
+    }
+    if (Object.prototype.hasOwnProperty.call(savedView, 'focusedOrderKey')) {
+      setFocusedOrderKey(normalizeNullableString(savedView.focusedOrderKey));
+    }
+  }, []);
+
+  const serializeChannelsSavedView = useCallback(
+    (): ChannelsWorkbenchSavedViewState => ({
+      searchInput,
+      searchKeyword,
+      selectedRowKeys: selectedRowKeys.map((item) => String(item)),
+      focusedOrderKey,
+    }),
+    [focusedOrderKey, searchInput, searchKeyword, selectedRowKeys],
+  );
+
+  useWorkbenchSavedViewState<ChannelsWorkbenchSavedViewState>({
+    storageKey: channelsSavedViewKey,
+    hydrate: hydrateChannelsSavedView,
+    serialize: serializeChannelsSavedView,
+  });
 
   const sourceItems = shopsQuery.data?.items ?? EMPTY_SHOP_ITEMS;
 
@@ -1464,6 +1532,7 @@ export const ChannelsPage = () => {
       total={filteredItems.length}
       pagination={pagination}
       onPaginationChange={setPagination}
+      stateCacheKey={channelsWorkbenchStateCacheKey}
       showFooterScrollbarRow={true}
       rightPanel={rightPanel}
       rightPanelSyncKey={rightPanelSyncKey}

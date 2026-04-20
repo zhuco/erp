@@ -7,6 +7,7 @@ describe('WorkbenchLayout reduced UI shell', () => {
     expect(isReducedUiPathAllowed('/')).toBe(true);
     expect(isReducedUiPathAllowed('/dashboard')).toBe(true);
     expect(isReducedUiPathAllowed('/channels')).toBe(true);
+    expect(isReducedUiPathAllowed('/sales/order-query')).toBe(true);
     expect(isReducedUiPathAllowed('/orders/review')).toBe(true);
     expect(isReducedUiPathAllowed('/orders/recheck')).toBe(true);
     expect(isReducedUiPathAllowed('/sales/settings')).toBe(true);

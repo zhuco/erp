@@ -60,7 +60,7 @@ import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { PlatformTag } from '@/components/PlatformTag';
 import { buildOrderQuickFilterCells } from '@/components/ErpDataGrid';
 import type { ErpDataGridNextColumn } from '@/components/ErpDataGridNext';
-import { resolveOrderDisplayTags } from '@/features/orderTags';
+import { buildOrderEditableMarkMenuItems, resolveOrderDisplayTags } from '@/features/orderTags';
 import {
   OrderReviewWorkbenchTemplate,
   useWorkbenchSavedViewState,
@@ -897,23 +897,8 @@ export const OrderQueryPage = ({
   );
 
   const tagMenuItems = useMemo<NonNullable<MenuProps['items']>>(
-    () => {
-      const items = orderTagOptions
-        .map((option) => {
-          const key = String(option?.value ?? '').trim();
-          if (!key) return null;
-          return {
-            key,
-            label: String(option?.label ?? key).trim() || key,
-          };
-        })
-        .filter((item): item is { key: string; label: string } => item != null);
-      if (items.length > 0) {
-        return items;
-      }
-      return [{ key: '__empty__', label: '暂无可选标记', disabled: true }];
-    },
-    [orderTagOptions],
+    () => buildOrderEditableMarkMenuItems(orderTagOptions, normalizedOrderTags),
+    [normalizedOrderTags, orderTagOptions],
   );
 
   const detailSelectDisabled = !String(detailOrder?.id ?? activeOrder?.id ?? '').trim();
@@ -1638,7 +1623,12 @@ export const OrderQueryPage = ({
       const detail = detailMap.get(record.id);
       const extra = record as OrderSummary & OrderSummaryExtras & { tags?: string[] };
       const tags = extra.tags ?? detail?.tags?.map((tag) => tag.tag) ?? [];
-      return <OrderTagBadges tags={resolveOrderDisplayTags({ ...(detail?.order ?? {}), ...record, tags })} />;
+      return (
+        <OrderTagBadges
+          tags={resolveOrderDisplayTags({ ...(detail?.order ?? {}), ...record, tags })}
+          emptyText={null}
+        />
+      );
     };
 
     return buildOrderManagementColumns({
@@ -1660,7 +1650,7 @@ export const OrderQueryPage = ({
       resolveEstimatedPostage,
       resolveEstimatedProfit,
       resolveEstimatedProfitRate,
-      includeExceptions: true,
+      includeExceptions: false,
       includeTrackingNo: true,
       includeActions: true,
       onViewDetail: (record) => navigate(`/orders/${record.id}`),

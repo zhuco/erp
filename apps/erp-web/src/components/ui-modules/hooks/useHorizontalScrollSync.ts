@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type HorizontalScrollSyncOptions = {
   containerRef: RefObject<HTMLElement | null>;
@@ -10,15 +10,19 @@ type HorizontalScrollSyncOptions = {
 type HorizontalScrollSyncResult = {
   scrollBarRef: RefObject<HTMLDivElement>;
   scrollInnerRef: RefObject<HTMLDivElement>;
+  hasHorizontalOverflow: boolean;
 };
 
 const defaultSelectors = [
-  '.ag-body-horizontal-scroll-viewport',
   '.ag-center-cols-viewport',
   '.ag-body-viewport',
+  '.ag-body-horizontal-scroll-viewport',
   '.ant-table-body',
   '.ant-table-content',
 ];
+const HORIZONTAL_OVERFLOW_TOLERANCE_PX = 8;
+const isElementMeasurable = (element: HTMLElement) =>
+  element.clientWidth > 0 && element.getClientRects().length > 0;
 
 const resolveTableContent = (container: HTMLElement, selectors: string[]) => {
   for (const selector of selectors) {
@@ -37,6 +41,7 @@ export const useHorizontalScrollSync = ({
 }: HorizontalScrollSyncOptions): HorizontalScrollSyncResult => {
   const scrollBarRef = useRef<HTMLDivElement | null>(null);
   const scrollInnerRef = useRef<HTMLDivElement | null>(null);
+  const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false);
   const ignoreTableScrollRef = useRef(false);
   const ignoreBarScrollRef = useRef(false);
   const barDraggingRef = useRef(false);
@@ -62,6 +67,12 @@ export const useHorizontalScrollSync = ({
     if (!container || !scrollBar || !scrollInner) {
       return;
     }
+
+    if (scrollInner.style.width !== '0px') {
+      scrollInner.style.width = '0px';
+    }
+    setHasHorizontalOverflow(false);
+    lastMetricsRef.current = { scrollWidth: 0, clientWidth: 0, scrollLeft: 0 };
 
     let frameId: number | null = null;
 
@@ -95,12 +106,27 @@ export const useHorizontalScrollSync = ({
 
     const updateWidth = (tableContent: HTMLElement) => {
       if (!tableContent.isConnected) {
+        if (scrollInner.style.width !== '0px') {
+          scrollInner.style.width = '0px';
+        }
+        setHasHorizontalOverflow(false);
+        scheduleAttach();
+        return;
+      }
+      if (!isElementMeasurable(tableContent)) {
+        if (scrollInner.style.width !== '0px') {
+          scrollInner.style.width = '0px';
+        }
+        setHasHorizontalOverflow(false);
+        lastMetricsRef.current = { scrollWidth: 0, clientWidth: 0, scrollLeft: 0 };
         scheduleAttach();
         return;
       }
       const scrollWidth = tableContent.scrollWidth;
       const clientWidth = tableContent.clientWidth;
       const scrollLeft = tableContent.scrollLeft;
+      const nextHasHorizontalOverflow =
+        scrollWidth - clientWidth > HORIZONTAL_OVERFLOW_TOLERANCE_PX;
       const lastMetrics = lastMetricsRef.current;
       if (lastMetrics.scrollWidth !== scrollWidth || lastMetrics.clientWidth !== clientWidth) {
         const nextWidth = `${scrollWidth}px`;
@@ -108,6 +134,9 @@ export const useHorizontalScrollSync = ({
           scrollInner.style.width = nextWidth;
         }
       }
+      setHasHorizontalOverflow((current) =>
+        current === nextHasHorizontalOverflow ? current : nextHasHorizontalOverflow,
+      );
       if (lastMetrics.scrollLeft !== scrollLeft && scrollBar.scrollLeft !== scrollLeft) {
         ignoreBarScrollRef.current = true;
         scrollBar.scrollLeft = scrollLeft;
@@ -128,6 +157,10 @@ export const useHorizontalScrollSync = ({
     const attachToTable = () => {
       const tableContent = resolveTableContent(container, resolvedSelectors);
       if (!tableContent) {
+        if (scrollInner.style.width !== '0px') {
+          scrollInner.style.width = '0px';
+        }
+        setHasHorizontalOverflow(false);
         return;
       }
       if (tableContentRef.current === tableContent) {
@@ -251,7 +284,11 @@ export const useHorizontalScrollSync = ({
         : new MutationObserver(() => {
             scheduleAttach();
           });
-    mutationObserver?.observe(container, { childList: true, subtree: false });
+    mutationObserver?.observe(container, {
+      childList: true,
+      attributes: true,
+      subtree: true,
+    });
     window.addEventListener('resize', handleWindowResize);
 
     return () => {
@@ -281,5 +318,5 @@ export const useHorizontalScrollSync = ({
     };
   }, [containerRef, resolvedSelectors, syncKey]);
 
-  return { scrollBarRef, scrollInnerRef };
+  return { scrollBarRef, scrollInnerRef, hasHorizontalOverflow };
 };

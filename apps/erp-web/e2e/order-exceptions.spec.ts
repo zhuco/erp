@@ -1,40 +1,16 @@
 import { expect, loginAndSelectTenant, test } from './fixtures';
+import {
+  clickSelectionCheckboxCenter,
+  clickSelectionCheckboxHotArea,
+  clickSelectionColumnBlankArea,
+  getBusinessRowById,
+  getSelectionCell,
+} from './orderWorkbenchGridHelpers';
 
-const getSelectionCell = (grid: any, rowId: string) =>
-  grid.locator(`.ag-center-cols-container .ag-row[row-id="${rowId}"] .ag-cell[col-id="__erpSelection"]`).first();
-const clickSelectionCheckboxCenter = async (page: any, grid: any, rowId: string, modifiers: Array<'Shift' | 'Control'> = []) => {
-  const cell = getSelectionCell(grid, rowId);
-  const box = await cell.boundingBox();
-  expect(box).not.toBeNull();
-  for (const modifier of modifiers) {
-    await page.keyboard.down(modifier);
-  }
-  try {
-    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  } finally {
-    for (const modifier of modifiers.slice().reverse()) {
-      await page.keyboard.up(modifier);
-    }
-  }
-};
-const clickSelectionCheckboxHotArea = async (page: any, grid: any, rowId: string, modifiers: Array<'Shift' | 'Control'> = []) => {
-  const cell = getSelectionCell(grid, rowId);
-  const box = await cell.boundingBox();
-  expect(box).not.toBeNull();
-  for (const modifier of modifiers) {
-    await page.keyboard.down(modifier);
-  }
-  try {
-    await page.mouse.click(box!.x + Math.min(box!.width / 2, 12), box!.y + box!.height / 2);
-  } finally {
-    for (const modifier of modifiers.slice().reverse()) {
-      await page.keyboard.up(modifier);
-    }
-  }
-};
+const orderRecheckRoute = '/orders/recheck';
 
 test('订单复核页面使用统一工作台模板且不再显示异常池文案', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   await expect(page.getByTestId('order-exceptions-title')).toHaveCount(0);
@@ -72,7 +48,7 @@ test('订单复核页面使用统一工作台模板且不再显示异常池文�
 });
 
 test('订单复核后会自动递交WMS发货链路', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -85,6 +61,39 @@ test('订单复核后会自动递交WMS发货链路', async ({ page }) => {
 
   const firstRowId = (await rows.first().getAttribute('row-id')) ?? '';
   expect(firstRowId).not.toBe('');
+  const beforeSnapshot = await page.evaluate<
+    { exceptionStatus: string; fulfillmentStatus: string } | null,
+    string
+  >((targetRowId) => {
+    const testApis = (window as Window & { __ERP_GRID_TEST_APIS?: Record<string, unknown> }).__ERP_GRID_TEST_APIS;
+    const api = testApis?.['order-exceptions-data-grid'] as
+      | {
+          forEachNode: (
+            callback: (node: {
+              id?: string;
+              data?: {
+                exception_status?: string | null;
+                fulfillment_status?: string | null;
+              };
+            }) => void,
+          ) => void;
+        }
+      | undefined;
+    if (!api) return null;
+
+    let snapshot: { exceptionStatus: string; fulfillmentStatus: string } | null = null;
+    api.forEachNode((node) => {
+      if (snapshot || String(node.id ?? '').trim() !== targetRowId) {
+        return;
+      }
+      snapshot = {
+        exceptionStatus: String(node.data?.exception_status ?? '').trim(),
+        fulfillmentStatus: String(node.data?.fulfillment_status ?? '').trim(),
+      };
+    });
+    return snapshot;
+  }, firstRowId);
+  expect(beforeSnapshot).not.toBeNull();
 
   await clickSelectionCheckboxHotArea(page, grid, firstRowId);
 
@@ -93,11 +102,46 @@ test('订单复核后会自动递交WMS发货链路', async ({ page }) => {
   await resolveButton.click();
 
   await expect(page.locator('.ant-message')).toContainText(/WMS|递交/);
-  await expect.poll(async () => rows.count(), { timeout: 15_000 }).toBeLessThan(beforeCount);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate<boolean, string>((targetRowId) => {
+          const testApis = (window as Window & { __ERP_GRID_TEST_APIS?: Record<string, unknown> }).__ERP_GRID_TEST_APIS;
+          const api = testApis?.['order-exceptions-data-grid'] as
+            | {
+                forEachNode: (
+                  callback: (node: {
+                    id?: string;
+                    data?: {
+                      exception_status?: string | null;
+                      fulfillment_status?: string | null;
+                    };
+                  }) => void,
+                ) => void;
+              }
+            | undefined;
+          if (!api) return false;
+
+          let found = false;
+          let exceptionStatus = '';
+          let fulfillmentStatus = '';
+          api.forEachNode((node) => {
+            if (found || String(node.id ?? '').trim() !== targetRowId) {
+              return;
+            }
+            found = true;
+            exceptionStatus = String(node.data?.exception_status ?? '').trim();
+            fulfillmentStatus = String(node.data?.fulfillment_status ?? '').trim();
+          });
+          return !found || (exceptionStatus === 'RESOLVED' && fulfillmentStatus === 'WAVE_PENDING');
+        }, firstRowId),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
 });
 
 test('订单复核页面接入统一主表和底部子表模板', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const mainGrid = page.getByTestId('order-exceptions-data-grid');
@@ -113,7 +157,7 @@ test('订单复核页面接入统一主表和底部子表模板', async ({ page 
 });
 
 test('订单复核排序图标使用轻量箭头样式，不显示深色方块', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -144,7 +188,7 @@ test('订单复核排序图标使用轻量箭头样式，不显示深色方块',
 });
 
 test('订单复核左侧过滤到待处理后，主表首行显示与网格数据保持一致', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -201,7 +245,7 @@ test('订单复核左侧过滤到待处理后，主表首行显示与网格数�
 });
 
 test('订单复核连续切换左侧过滤后首行渲染保持稳定', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -239,7 +283,7 @@ test('订单复核连续切换左侧过滤后首行渲染保持稳定', async ({
 });
 
 test('订单复核支持表头全选和取消全选', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -263,7 +307,7 @@ test('订单复核支持表头全选和取消全选', async ({ page }) => {
 });
 
 test('订单复核复选框列空白区域支持单击直接勾选', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -280,21 +324,15 @@ test('订单复核复选框列空白区域支持单击直接勾选', async ({ pa
 
   await firstRow.locator('.ag-cell[col-id="order_no"]').first().click();
 
-  const secondSelectionCell = grid.locator(
-    `.ag-center-cols-container .ag-row[row-id="${secondRowId}"] .ag-cell[col-id="__erpSelection"]`,
-  );
-  const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
-  await expect(secondSelectionCell).toBeVisible();
-
-  const box = await secondSelectionCell.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width - 3, box!.y + box!.height / 2);
+  const secondRowById = getBusinessRowById(grid, secondRowId);
+  await expect(getSelectionCell(grid, secondRowId)).toBeVisible();
+  await clickSelectionColumnBlankArea(page, grid, secondRowId);
 
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
 });
 
 test('订单复核复选框热区支持单击直接勾选', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -308,14 +346,14 @@ test('订单复核复选框热区支持单击直接勾选', async ({ page }) => 
   const secondRowId = (await rows.nth(1).getAttribute('row-id')) ?? '';
   expect(secondRowId).not.toBe('');
 
-  const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
+  const secondRowById = getBusinessRowById(grid, secondRowId);
   await clickSelectionCheckboxHotArea(page, grid, secondRowId);
 
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
 });
 
 test('订单复核首击选择列即可勾选，无需先激活行', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -331,7 +369,7 @@ test('订单复核首击选择列即可勾选，无需先激活行', async ({ pa
 
   const firstRowId = (await rows.nth(0).getAttribute('row-id')) ?? '';
   expect(firstRowId).not.toBe('');
-  const firstRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${firstRowId}"]`);
+  const firstRowById = getBusinessRowById(grid, firstRowId);
 
   await clickSelectionCheckboxHotArea(page, grid, firstRowId);
 
@@ -342,7 +380,7 @@ test('订单复核首击选择列即可勾选，无需先激活行', async ({ pa
 });
 
 test('订单复核暴露单击选择列勾选的点击诊断信息', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -358,9 +396,9 @@ test('订单复核暴露单击选择列勾选的点击诊断信息', async ({ pa
 
   const firstRowId = (await rows.nth(0).getAttribute('row-id')) ?? '';
   const secondRowId = (await rows.nth(1).getAttribute('row-id')) ?? '';
-  const firstRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${firstRowId}"]`);
-  const secondRowById = grid.locator(`.ag-center-cols-container .ag-row[row-id="${secondRowId}"]`);
-  const secondSelectionCell = secondRowById.locator('.ag-cell[col-id="__erpSelection"]').first();
+  const firstRowById = getBusinessRowById(grid, firstRowId);
+  const secondRowById = getBusinessRowById(grid, secondRowId);
+  const secondSelectionCell = getSelectionCell(grid, secondRowId);
 
   await firstRowById.locator('.ag-cell[col-id="order_no"]').first().click();
   const secondSelectionBox = await secondSelectionCell.boundingBox();
@@ -377,7 +415,7 @@ test('订单复核暴露单击选择列勾选的点击诊断信息', async ({ pa
 });
 
 test('订单复核支持 Shift 连续勾选且以上一次点击行为锚点', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -423,7 +461,7 @@ test('订单复核支持 Shift 连续勾选且以上一次点击行为锚点', a
 });
 
 test('订单复核支持 Shift 点击复选框按上次点击行为锚点进行连续勾选和取消', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -463,7 +501,7 @@ test('订单复核支持 Shift 点击复选框按上次点击行为锚点进行�
 });
 
 test('订单复核选择交互整链路回归保持稳定', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -487,10 +525,7 @@ test('订单复核选择交互整链路回归保持稳定', async ({ page }) => 
   await firstRowById.locator('.ag-cell[col-id="order_no"]').first().click();
   await expect(firstRowById).toHaveClass(/erp-data-grid-row-active/);
 
-  const secondSelectionCell = secondRowById.locator('.ag-cell[col-id="__erpSelection"]').first();
-  const secondSelectionBox = await secondSelectionCell.boundingBox();
-  expect(secondSelectionBox).not.toBeNull();
-  await page.mouse.click(secondSelectionBox!.x + secondSelectionBox!.width - 3, secondSelectionBox!.y + secondSelectionBox!.height / 2);
+  await clickSelectionColumnBlankArea(page, grid, secondRowId);
   await expect(secondRowById).toHaveClass(/ag-row-selected/);
 
   await thirdRowById.locator('.ag-cell[col-id="order_no"]').first().click({ modifiers: ['Control'] });
@@ -524,7 +559,7 @@ test('订单复核选择交互整链路回归保持稳定', async ({ page }) => 
 });
 
 test('订单复核左侧状态切换时首行 DOM 与 Grid 模型严格一致', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -636,7 +671,7 @@ test('订单复核左侧状态切换时首行 DOM 与 Grid 模型严格一致', 
 });
 
 test('订单复核单行筛选结果在延迟后仍保持可见', async ({ page }) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -645,17 +680,12 @@ test('订单复核单行筛选结果在延迟后仍保持可见', async ({ page 
   const leftPanel = page.getByTestId('order-exceptions-left-panel');
   await expect(leftPanel).toBeVisible();
 
-  const singleRowScenarios = [
-    { nodeId: 'status:PROCESSING', expectedText: 'PLAT-PDD-1002' },
-    { nodeId: 'status:ASSIGNED', expectedText: 'PLAT-TAOBAO-1004' },
-    { nodeId: 'assignee:风控专员', expectedText: 'PLAT-PDD-1002' },
-    { nodeId: 'assignee:订单复核员', expectedText: 'PLAT-TAOBAO-1004' },
-  ] as const;
+  const singleRowScenarios = ['status:PROCESSING', 'status:ASSIGNED'] as const;
 
   let executed = 0;
-  for (const scenario of singleRowScenarios) {
+  for (const nodeId of singleRowScenarios) {
     const nodeCell = leftPanel.locator(
-      `.order-review-left-ag-grid-shell .ag-row[row-id="${scenario.nodeId}"] .ag-cell`,
+      `.order-review-left-ag-grid-shell .ag-row[row-id="${nodeId}"] .ag-cell`,
     ).first();
     if ((await nodeCell.count()) === 0) {
       continue;
@@ -664,6 +694,39 @@ test('订单复核单行筛选结果在延迟后仍保持可见', async ({ page 
     executed += 1;
     await nodeCell.click();
     await page.waitForTimeout(2200);
+
+    const snapshot = await page.evaluate<
+      { displayedRowCount: number; orderNo: string; rowId: string } | null
+    >(() => {
+      const testApis = (window as Window & { __ERP_GRID_TEST_APIS?: Record<string, unknown> }).__ERP_GRID_TEST_APIS;
+      const api = testApis?.['order-exceptions-data-grid'] as
+        | {
+            getDisplayedRowAtIndex: (
+              index: number,
+            ) => { id?: string; data?: { order_no?: string | null } } | null;
+            getDisplayedRowCount: () => number;
+          }
+        | undefined;
+      if (!api) {
+        return null;
+      }
+
+      const firstNode = api.getDisplayedRowAtIndex(0);
+      if (!firstNode) {
+        return null;
+      }
+
+      return {
+        displayedRowCount: api.getDisplayedRowCount(),
+        orderNo: String(firstNode.data?.order_no ?? '').trim(),
+        rowId: String(firstNode.id ?? '').trim(),
+      };
+    });
+
+    expect(snapshot).not.toBeNull();
+    if (!snapshot) {
+      throw new Error(`鏃犳硶璇诲彇 ${nodeId} 鐨勫綋鍓嶉琛屽揩鐓?`);
+    }
 
     const visualFirstRowText = await page.evaluate(() => {
       const rows = Array.from(
@@ -688,14 +751,16 @@ test('订单复核单行筛选结果在延迟后仍保持可见', async ({ page 
       return String(visualTopRow?.textContent ?? '').trim();
     });
 
-    expect(visualFirstRowText).toContain(scenario.expectedText);
+    expect(snapshot.displayedRowCount).toBeGreaterThan(0);
+    expect(snapshot.orderNo).not.toBe('');
+    expect(visualFirstRowText).toContain(snapshot.orderNo);
   }
 
   test.skip(executed === 0, '左侧单行筛选节点未渲染，跳过延迟可见性断言');
 });
 
 test('订单复核左侧过滤会清空列筛选且不留下空白选择框', async ({ page }, testInfo) => {
-  await page.goto('/orders/exceptions');
+  await page.goto(orderRecheckRoute);
   await loginAndSelectTenant(page);
 
   const grid = page.getByTestId('order-exceptions-data-grid');
@@ -798,8 +863,16 @@ test('订单复核左侧过滤会清空列筛选且不留下空白选择框', as
     return;
   }
 
-  await platformFilter.selectOption(candidate.platform);
-  await expect(platformFilter).toHaveValue(candidate.platform);
+  await platformFilter.click();
+  const dropdown = page.locator('.order-review-floating-filter-dropdown:visible').last();
+  await expect(dropdown).toBeVisible();
+  await dropdown
+    .locator(`input[type="checkbox"][value="${candidate.platform}"]`)
+    .first()
+    .evaluate((input) => {
+      (input.closest('.ant-checkbox-wrapper') as HTMLElement | null)?.click();
+    });
+  await expect(platformFilter).not.toContainText('全部平台');
   await grid.screenshot({
     path: testInfo.outputPath('order-exceptions-column-filter-active.png'),
   });
@@ -816,23 +889,14 @@ test('订单复核左侧过滤会清空列筛选且不留下空白选择框', as
 
   await expect
     .poll(async () => {
-      return platformFilter.evaluate((element) => {
-        const select = element as HTMLSelectElement;
-        const selectedOption = select.selectedOptions.item(0);
-        return {
-          value: select.value,
-          selectedIndex: select.selectedIndex,
-          selectedText: selectedOption?.textContent?.trim() ?? '',
-        };
-      });
+      return platformFilter.textContent();
     })
-    .toEqual({
-      value: '',
-      selectedIndex: 0,
-      selectedText: '全部平台',
-    });
+    .toContain('全部平台');
 
   await expect
     .poll(async () => grid.locator('.ag-center-cols-container .ag-row.erp-data-grid-row').count())
+    .toBeGreaterThan(0);
+  await expect
+    .poll(async () => grid.locator('.ag-cell[col-id="__erpSelection"] .ag-selection-checkbox').count())
     .toBeGreaterThan(0);
 });

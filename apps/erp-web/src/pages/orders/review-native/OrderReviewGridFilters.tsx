@@ -1,4 +1,4 @@
-import { DatePicker } from 'antd';
+import { Button, Checkbox, DatePicker, Dropdown, Space } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import type { DateFilterModel, FilterModel } from 'ag-grid-community';
@@ -40,15 +40,21 @@ type DateRangeFloatingFilterProps = CustomFloatingFilterProps & {
 const normalizeKeyword = (value: string | undefined) => value?.trim() ?? '';
 const normalizeDateInput = (value: string | undefined) => value?.trim() ?? '';
 
-const readSetValue = (model: unknown) => {
+const normalizeSetValues = (values: string[] | null | undefined) =>
+  Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean),
+    ),
+  );
+
+const readSetValues = (model: unknown) => {
   if (!model || typeof model !== 'object' || !('values' in model)) {
-    return '';
+    return [] as string[];
   }
   const values = (model as { values?: unknown }).values;
-  if (!Array.isArray(values) || values.length === 0) {
-    return '';
-  }
-  return String(values[0] ?? '').trim();
+  return Array.isArray(values) ? normalizeSetValues(values as string[]) : [];
 };
 
 const readTextValue = (model: unknown) => {
@@ -96,8 +102,19 @@ const orderDateRange = (from: string, to: string) => {
     : ([normalizedFrom, normalizedTo] as const);
 };
 
-const normalizeSetModel = (value: string): SetFilterModel =>
-  value ? { filterType: 'set', values: [value] } : null;
+const normalizeSetModel = (values: string[] | null | undefined): SetFilterModel => {
+  const normalizedValues = normalizeSetValues(values);
+  return normalizedValues.length > 0 ? { filterType: 'set', values: normalizedValues } : null;
+};
+
+const areSameStringCollections = (left: string[] | undefined, right: string[] | undefined) => {
+  const normalizedLeft = normalizeSetValues(left).slice().sort();
+  const normalizedRight = normalizeSetValues(right).slice().sort();
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false;
+  }
+  return normalizedLeft.every((value, index) => value === normalizedRight[index]);
+};
 
 const normalizeTextModel = (value: string): TextFilterModel =>
   value ? { filterType: 'text', type: 'contains', filter: value } : null;
@@ -144,19 +161,19 @@ export const hasMainGridKeywordColumnFilters = hasMainGridColumnFilters;
 export const buildMainGridFilterModel = (filters: ColumnFilters): FilterModel => {
   const nextModel: FilterModel = {};
 
-  const platformValue = String(filters.platform?.[0] ?? '').trim();
-  if (platformValue) {
-    nextModel.platform = normalizeSetModel(platformValue);
+  const platformValues = normalizeSetValues(filters.platform);
+  if (platformValues.length > 0) {
+    nextModel.platform = normalizeSetModel(platformValues);
   }
 
-  const shopValue = String(filters.shopId?.[0] ?? '').trim();
-  if (shopValue) {
-    nextModel.shop_id = normalizeSetModel(shopValue);
+  const shopValues = normalizeSetValues(filters.shopId);
+  if (shopValues.length > 0) {
+    nextModel.shop_id = normalizeSetModel(shopValues);
   }
 
-  const logisticsValue = String(filters.logisticsCompany?.[0] ?? '').trim();
-  if (logisticsValue) {
-    nextModel.logistics_company = normalizeSetModel(logisticsValue);
+  const logisticsValues = normalizeSetValues(filters.logisticsCompany);
+  if (logisticsValues.length > 0) {
+    nextModel.logistics_company = normalizeSetModel(logisticsValues);
   }
 
   const orderIdKeyword = normalizeKeyword(filters.orderIdKeyword);
@@ -192,16 +209,16 @@ export const buildMainGridFilterModel = (filters: ColumnFilters): FilterModel =>
 
 export const extractMainGridColumnFilters = (model: FilterModel | null | undefined) => ({
   platform: (() => {
-    const value = readSetValue(model?.platform);
-    return value ? [value] : undefined;
+    const values = readSetValues(model?.platform);
+    return values.length > 0 ? values : undefined;
   })(),
   shopId: (() => {
-    const value = readSetValue(model?.shop_id);
-    return value ? [value] : undefined;
+    const values = readSetValues(model?.shop_id);
+    return values.length > 0 ? values : undefined;
   })(),
   logisticsCompany: (() => {
-    const value = readSetValue(model?.logistics_company);
-    return value ? [value] : undefined;
+    const values = readSetValues(model?.logistics_company);
+    return values.length > 0 ? values : undefined;
   })(),
   orderIdKeyword: readTextValue(model?.id) || undefined,
   platformOrderIdKeyword: readTextValue(model?.platform_order_id) || undefined,
@@ -212,9 +229,9 @@ export const extractMainGridColumnFilters = (model: FilterModel | null | undefin
 });
 
 export const hasSameMainGridColumnFilters = (left: ColumnFilters, right: ColumnFilters) =>
-  String(left.platform?.[0] ?? '').trim() === String(right.platform?.[0] ?? '').trim() &&
-  String(left.shopId?.[0] ?? '').trim() === String(right.shopId?.[0] ?? '').trim() &&
-  String(left.logisticsCompany?.[0] ?? '').trim() === String(right.logisticsCompany?.[0] ?? '').trim() &&
+  areSameStringCollections(left.platform, right.platform) &&
+  areSameStringCollections(left.shopId, right.shopId) &&
+  areSameStringCollections(left.logisticsCompany, right.logisticsCompany) &&
   normalizeKeyword(left.orderIdKeyword) === normalizeKeyword(right.orderIdKeyword) &&
   normalizeKeyword(left.platformOrderIdKeyword) === normalizeKeyword(right.platformOrderIdKeyword) &&
   normalizeKeyword(left.receiverNameKeyword) === normalizeKeyword(right.receiverNameKeyword) &&
@@ -229,7 +246,7 @@ export const OrderReviewSetFloatingFilter = ({
   emptyLabel = '全部',
   testId,
 }: SelectFloatingFilterProps) => {
-  const value = readSetValue(model);
+  const selectedValues = readSetValues(model);
 
   const normalizedOptions = useMemo(
     () =>
@@ -246,6 +263,22 @@ export const OrderReviewSetFloatingFilter = ({
       ),
     [options],
   );
+  const selectedLabelMap = useMemo(
+    () => new Map(normalizedOptions.map((option) => [option.value, option.label || option.value])),
+    [normalizedOptions],
+  );
+  const selectedLabelText =
+    selectedValues.length === 0
+      ? emptyLabel
+      : selectedValues.length === 1
+        ? selectedLabelMap.get(selectedValues[0]!) ?? selectedValues[0]!
+        : `${selectedValues.length}项`;
+  const allChecked = normalizedOptions.length > 0 && selectedValues.length === normalizedOptions.length;
+  const indeterminate = selectedValues.length > 0 && !allChecked;
+
+  const updateValues = (nextValues: string[]) => {
+    onModelChange(normalizeSetModel(nextValues));
+  };
 
   return (
     <div
@@ -253,22 +286,52 @@ export const OrderReviewSetFloatingFilter = ({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <select
-        className="order-review-floating-filter-select"
-        data-testid={testId}
-        value={value}
-        aria-label={testId}
-        onChange={(event) => {
-          onModelChange(normalizeSetModel(String(event.target.value ?? '').trim()));
-        }}
+      <Dropdown
+        trigger={['click']}
+        dropdownRender={() => (
+          <div
+            className="order-review-floating-filter-dropdown"
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <Checkbox
+              indeterminate={indeterminate}
+              checked={allChecked}
+              onChange={(event) => {
+                updateValues(
+                  event.target.checked ? normalizedOptions.map((option) => option.value) : [],
+                );
+              }}
+            >
+              全部
+            </Checkbox>
+            <Checkbox.Group
+              className="order-review-floating-filter-checkbox-group"
+              value={selectedValues}
+              onChange={(values) => {
+                updateValues(values.map((value) => String(value)));
+              }}
+            >
+              <Space direction="vertical" size={4}>
+                {normalizedOptions.map((option) => (
+                  <Checkbox key={option.value} value={option.value}>
+                    {option.label || option.value}
+                  </Checkbox>
+                ))}
+              </Space>
+            </Checkbox.Group>
+          </div>
+        )}
       >
-        <option value="">{emptyLabel}</option>
-        {normalizedOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label || option.value}
-          </option>
-        ))}
-      </select>
+        <Button
+          size="small"
+          className="order-review-floating-filter-select"
+          data-testid={testId}
+          aria-label={testId}
+        >
+          {selectedLabelText}
+        </Button>
+      </Dropdown>
     </div>
   );
 };

@@ -32,7 +32,7 @@ const dashboardWorkbenchTemplates: DashboardWorkbenchTemplate[] = [
     priority: 10,
     focusTags: ['审核', '复核'],
     actions: [
-      { label: '进入审核订单', path: '/orders/review' },
+      { label: '进入订单审核', path: '/orders/review' },
       { label: '进入订单复核', path: '/orders/recheck' },
     ],
   },

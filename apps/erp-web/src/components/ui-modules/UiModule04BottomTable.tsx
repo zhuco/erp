@@ -19,7 +19,7 @@ export const UiModule04BottomTable = ({
   const verticalScrollRef = useRef<number | null>(null);
   const verticalTargetRef = useRef<HTMLElement | null>(null);
   const verticalCleanupRef = useRef<(() => void) | null>(null);
-  const { scrollBarRef, scrollInnerRef } = useHorizontalScrollSync({
+  const { scrollBarRef, scrollInnerRef, hasHorizontalOverflow } = useHorizontalScrollSync({
     containerRef,
     syncKey
   });
@@ -103,10 +103,20 @@ export const UiModule04BottomTable = ({
   ]
     .filter(Boolean)
     .join(' ');
+  const scrollbarRowClassName = [
+    'order-workbench-bottom-scrollbar-row',
+    'order-review-bottom-scrollbar-row',
+    !hasHorizontalOverflow ? 'order-workbench-bottom-scrollbar-row-hidden' : null
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className={rootClassName} ref={containerRef}>
-      <div className="order-workbench-bottom-scrollbar-row order-review-bottom-scrollbar-row">
+      <div
+        className={scrollbarRowClassName}
+        data-horizontal-overflow={hasHorizontalOverflow ? 'true' : 'false'}
+      >
         <div
           className="order-workbench-bottom-scrollbar order-review-bottom-scrollbar"
           ref={scrollBarRef}

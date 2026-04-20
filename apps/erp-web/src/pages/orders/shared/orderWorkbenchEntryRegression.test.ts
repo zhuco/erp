@@ -27,6 +27,10 @@ describe('order workbench shared entry regression', () => {
     const reviewPage = readRepoFile('apps/erp-web/src/pages/orders/OrderReviewPage.tsx');
     const exceptionsPage = readRepoFile('apps/erp-web/src/pages/orders/OrderExceptionsPage.tsx');
     const ordersPage = readRepoFile('apps/erp-web/src/pages/orders/OrderQueryPage.tsx');
+    const sharedEntry = readRepoFile('apps/erp-web/src/pages/orders/shared/OrderWorkbenchMainGridEntry.tsx');
+    const salesQueryPage = readRepoFile(
+      'apps/erp-web/src/pages/sales/SalesOrderQueryWorkbenchPage.tsx',
+    );
 
     expect(reviewPage).toContain("import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';");
     expect(reviewPage).toContain('<OrderWorkbenchMainGridEntry');
@@ -41,6 +45,13 @@ describe('order workbench shared entry regression', () => {
     expect(ordersPage).toContain("import { OrderWorkbenchMainGridEntry } from './shared/OrderWorkbenchMainGridEntry';");
     expect(ordersPage).toContain('<OrderWorkbenchMainGridEntry');
     expect(ordersPage).not.toContain("import { ErpDataGridNext, type ErpDataGridNextColumn } from '@/components/ErpDataGridNext';");
+
+    expect(sharedEntry).toContain("if (props.variant === 'recheck')");
+    expect(sharedEntry).toContain('return <OrderExceptionsMainGrid');
+    expect(sharedEntry).not.toContain('return <OrderReviewRecheckMainGrid');
+    expect(sharedEntry).toContain('return <ErpDataGridNext');
+
+    expect(salesQueryPage).toContain('OrderReviewQueryMainGrid');
   });
 
   it('keeps review and exceptions footer scrollbars visible and exports the native grid prop types for shared entry reuse', () => {
@@ -61,6 +72,7 @@ describe('order workbench shared entry regression', () => {
   it('persists focus and selection context in the review and recheck saved views', () => {
     const reviewPage = readRepoFile('apps/erp-web/src/pages/orders/OrderReviewPage.tsx');
     const exceptionsPage = readRepoFile('apps/erp-web/src/pages/orders/OrderExceptionsPage.tsx');
+    const channelsPage = readRepoFile('apps/erp-web/src/pages/channels/ChannelsPage.tsx');
 
     expect(reviewPage).toContain('selectedRowKeys?: string[];');
     expect(reviewPage).toContain('focusedOrderKey?: string | null;');
@@ -70,13 +82,27 @@ describe('order workbench shared entry regression', () => {
     expect(reviewPage).toContain('focusedOrderKey,');
     expect(reviewPage).toContain('selectionAnchorKey,');
     expect(reviewPage).toContain('activeOrderKey: resolveOrderRowKey(activeOrder)');
+    expect(reviewPage).toContain('storageKey: reviewPaginationStorageKey');
+    expect(reviewPage).toContain('stateCacheKey={reviewWorkbenchStateCacheKey}');
+    expect(reviewPage).toContain('if (!hasFullScopeColumnFilterActive) {');
 
     expect(exceptionsPage).toContain('selectedRowKeys?: string[];');
-    expect(exceptionsPage).toContain('focusedOrderKey?: string | null;');
+    expect(exceptionsPage).toContain('focusedRowKey?: string | null;');
     expect(exceptionsPage).toContain('activeOrderId?: string | null;');
-    expect(exceptionsPage).toContain('selectedRowKeys: selectedRowKeys.map((item) => String(item))');
-    expect(exceptionsPage).toContain('focusedOrderKey,');
+    expect(exceptionsPage).toContain('selectionState,');
+    expect(exceptionsPage).toContain('focusedRowKey: focusedOrderKey,');
     expect(exceptionsPage).toContain('activeOrderId,');
+    expect(exceptionsPage).toContain('storageKey: exceptionsPaginationStorageKey');
+    expect(exceptionsPage).toContain('stateCacheKey={exceptionsWorkbenchStateCacheKey}');
+    expect(exceptionsPage).toContain('const rightPanelSyncKey = useMemo(');
+    expect(exceptionsPage).toContain('const bottomPanelSyncKey = useMemo(');
+    expect(exceptionsPage).toContain('rightPanelSyncKey={rightPanelSyncKey}');
+    expect(exceptionsPage).toContain('bottomPanelSyncKey={bottomPanelSyncKey}');
+
+    expect(channelsPage).toContain('type ChannelsWorkbenchSavedViewState = {');
+    expect(channelsPage).toContain('selectedRowKeys?: string[];');
+    expect(channelsPage).toContain('storageKey: channelsPaginationStorageKey');
+    expect(channelsPage).toContain('stateCacheKey={channelsWorkbenchStateCacheKey}');
   });
 
   it('expands the recheck main grid with richer operational ERP columns', () => {

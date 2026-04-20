@@ -122,14 +122,25 @@ test('订单审核列筛选在标签切换后保持原有钩选（截图）', as
 
   const platformSelect = reviewGrid.getByTestId('order-review-floating-filter-platform');
   await expect(platformSelect).toBeVisible();
-  const selectedPlatform = await platformSelect.evaluate((element) => {
-    const select = element as HTMLSelectElement;
-    const candidate = Array.from(select.options).find((option) => option.value.trim().length > 0);
-    return candidate?.value ?? '';
+  const selectedPlatform = await page.evaluate(() => {
+    const testWindow = window as Window & {
+      __ERP_GRID_TEST_APIS?: Record<string, { getDisplayedRowAtIndex?: (index: number) => { data?: { platform?: string } } | null }>;
+    };
+    return String(
+      testWindow.__ERP_GRID_TEST_APIS?.['order-review-data-grid']?.getDisplayedRowAtIndex?.(0)?.data?.platform ?? '',
+    ).trim();
   });
   expect(selectedPlatform).not.toBe('');
-  await platformSelect.selectOption(selectedPlatform);
-  await expect(platformSelect).toHaveValue(selectedPlatform);
+  await platformSelect.click();
+  const dropdown = page.locator('.order-review-floating-filter-dropdown:visible').last();
+  await expect(dropdown).toBeVisible();
+  await dropdown
+    .locator(`input[type="checkbox"][value="${selectedPlatform}"]`)
+    .first()
+    .evaluate((input) => {
+      (input.closest('.ant-checkbox-wrapper') as HTMLElement | null)?.click();
+    });
+  await expect(platformSelect).not.toContainText('鍏ㄩ儴');
   await expect
     .poll(async () => {
       const model = await readGridFilterModel(page, 'order-review-data-grid');
@@ -175,7 +186,7 @@ test('订单审核列筛选在标签切换后保持原有钩选（截图）', as
     path: testInfo.outputPath('order-review-column-filter-before-tab-switch.png'),
   });
 
-  await page.goto('/orders/exceptions');
+  await page.goto('/orders/recheck');
   await loginAndSelectTenant(page);
   await expect(page.getByTestId('order-exceptions-data-grid')).toBeVisible();
 
@@ -194,8 +205,15 @@ test('订单审核列筛选在标签切换后保持原有钩选（截图）', as
   const revisitedPlatformOrderInput = revisitedGrid.getByTestId(
     'order-review-floating-filter-platform-order-id',
   );
-  await expect(revisitedPlatformSelect).toHaveValue(selectedPlatform);
+  await expect(revisitedPlatformSelect).not.toContainText('鍏ㄩ儴');
   await expect(revisitedPlatformOrderInput).toHaveValue(targetPlatformOrderId);
+  await expect
+    .poll(async () => {
+      const model = await readGridFilterModel(page, 'order-review-data-grid');
+      const platformFilter = (model as Record<string, { values?: string[] }> | null)?.platform;
+      return String(platformFilter?.values?.[0] ?? '');
+    })
+    .toBe(selectedPlatform);
 
   await revisitedGrid.screenshot({
     path: testInfo.outputPath('order-review-column-filter-after-tab-switch.png'),

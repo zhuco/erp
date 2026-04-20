@@ -17,7 +17,7 @@ type UiModule07SettingsSectionProps = {
 };
 
 export const UiModule07SettingsLayout = ({ title, children }: UiModule07SettingsLayoutProps) => (
-  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+  <Space direction="vertical" size={16} style={{ width: '100%' }} className="ui-module-07-settings-layout">
     {title ? (
       <Typography.Title level={3} className="ui-module-07-layout-title">
         {title}
@@ -35,7 +35,7 @@ export const UiModule07SettingsSection = ({
   className
 }: UiModule07SettingsSectionProps) => (
   <Card className={className}>
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} style={{ width: '100%' }} className="ui-module-07-settings-section">
       <div className="ui-module-07-section-header">
         <div className="ui-module-07-section-title">
           <Typography.Title level={4}>{title}</Typography.Title>

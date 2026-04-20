@@ -6,20 +6,6 @@
   align-items: flex-start;
 }
 
-.order-exceptions-toolbar-left,
-.order-exceptions-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--erp-gap-sm);
-  flex-wrap: wrap;
-}
-
-.order-exceptions-page-title.ant-typography {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.2;
-}
-
 .order-exceptions-page .order-workbench-toolbar-search-input,
 .order-exceptions-page .order-workbench-toolbar-search-button {
   height: var(--erp-toolbar-control-height);
@@ -31,127 +17,29 @@
   line-height: var(--erp-toolbar-control-inner-height);
 }
 
-.order-exceptions-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--erp-gap-sm);
-}
-
-.order-exceptions-sla-board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--erp-gap-md);
-}
-
-.order-exceptions-sla-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 104px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--erp-border-color) 38%, transparent);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--erp-bg-panel) 92%, white 8%),
-      var(--erp-bg-panel)
-    );
-  box-shadow: 0 10px 24px rgba(var(--erp-color-primary-rgb), 0.05);
-}
-
-.order-exceptions-sla-card--warning {
-  border-color: color-mix(in srgb, var(--erp-color-warning) 55%, transparent);
-}
-
-.order-exceptions-sla-card--danger {
-  border-color: color-mix(in srgb, var(--erp-color-error) 65%, transparent);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--erp-color-error) 10%, var(--erp-bg-panel)),
-      var(--erp-bg-panel)
-    );
-}
-
-.order-exceptions-sla-label {
-  font-size: 12px;
-  color: var(--erp-text-secondary);
-}
-
-.order-exceptions-sla-value {
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 700;
-  color: var(--erp-color-primary);
-}
-
-.order-exceptions-sla-hint.ant-typography {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.order-exceptions-table-shell {
-  min-height: 0;
-}
-
-.order-exceptions-main-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--erp-gap-sm);
-  min-height: 0;
-  height: 100%;
-}
-
-.order-exceptions-grid-panel,
-.order-exceptions-detail-panel {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid color-mix(in srgb, var(--erp-border-color) 36%, transparent);
-  border-radius: 12px;
-  background: var(--erp-bg-panel);
-  box-shadow: 0 12px 32px rgba(var(--erp-color-primary-rgb), 0.05);
-}
-
-.order-exceptions-grid-panel {
-  flex: 1;
-  overflow: hidden;
-}
-
-.order-exceptions-grid-main {
-  flex: 1;
-  min-height: 0;
-}
-
 .order-exceptions-page .order-review-main-grid-shell {
   flex: 1;
   min-height: 0;
 }
 
-.order-exceptions-grid-panel .erp-data-grid-next {
+.order-exceptions-page .erp-data-grid-next {
   flex: 1;
   min-height: 360px;
 }
 
-.order-exceptions-grid-panel .erp-data-grid-next__table,
-.order-exceptions-grid-panel .erp-data-grid-next__body {
+.order-exceptions-page .erp-data-grid-next__table,
+.order-exceptions-page .erp-data-grid-next__body {
   min-height: 0;
 }
 
-.order-exceptions-detail-panel {
+.order-exceptions-detail-stack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
   overflow: auto;
   padding: 14px;
   gap: var(--erp-gap-sm);
-}
-
-.order-exceptions-left-screen-tip {
-  padding: 8px 6px;
-}
-
-.order-exceptions-left-screen-tip .ant-typography {
-  font-size: 12px;
-  line-height: 1.6;
 }
 
 .order-exceptions-detail-empty {
@@ -211,33 +99,8 @@
   gap: var(--erp-gap-sm);
 }
 
-.order-exceptions-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.35;
-}
-
-.order-exceptions-cell--primary {
-  font-weight: 600;
-}
-
-.order-exceptions-blocking-text {
-  color: var(--erp-text-color);
-}
-
 @media (max-width: 1280px) {
-  .order-exceptions-sla-board {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .order-exceptions-detail-panel {
+  .order-exceptions-detail-stack {
     max-height: 360px;
-  }
-}
-
-@media (max-width: 768px) {
-  .order-exceptions-sla-board {
-    grid-template-columns: 1fr;
   }
 }

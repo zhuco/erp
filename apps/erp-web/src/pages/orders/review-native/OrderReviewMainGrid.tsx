@@ -11,8 +11,10 @@ import type {
   GetRowIdParams,
   GridApi,
   GridReadyEvent,
+  ICellRendererParams,
   RowDoubleClickedEvent,
   SelectionChangedEvent,
+  SuppressKeyboardEventParams,
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -20,7 +22,12 @@ import { AgGridReact } from 'ag-grid-react';
 import type { OrderSummary } from '@/api/orders';
 import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
-import { applyWorkbenchGridColumnPolicy, sanitizeWorkbenchColumnState } from '@/components/page-templates';
+import {
+  applyWorkbenchGridColumnPolicy,
+  sanitizeWorkbenchColumnState,
+  useWorkbenchColumnSettings,
+  WorkbenchColumnSettingsDialog,
+} from '@/components/page-templates';
 import { resolveBuiltinOrderTag, resolveOrderBuiltinTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import {
@@ -47,7 +54,14 @@ import {
   buildAgGridWorkbenchStructuralColDefs,
   ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS,
 } from '../shared/agGridWorkbenchStructuralColumns';
-import { useAgGridWorkbenchSelection } from '../shared/useAgGridWorkbenchSelection';
+import {
+  ORDER_WORKBENCH_GRID_HEADER_HEIGHT,
+  ORDER_WORKBENCH_GRID_ROW_HEIGHT,
+} from '../shared/orderWorkbenchGridMetrics';
+import {
+  suppressAgGridSpaceKeyboardEvent,
+  useAgGridWorkbenchSelection,
+} from '../shared/useAgGridWorkbenchSelection';
 import { resolveSelectionDiagnosticsEnabled } from '../shared/selectionDiagnostics';
 import type { ColumnFilters } from './types';
 
@@ -62,6 +76,7 @@ type FilterOption = {
 
 type BuildOrderReviewMainGridColDefsOptions = {
   logisticsOptions: FilterOption[];
+  onOpenColumnSettings: () => void;
   onToggleAllSelection: () => void;
   platformFilterOptions: FilterOption[];
   shopOptions: FilterOption[];
@@ -190,7 +205,7 @@ const resolveOrderExceptionBadgesText = (record: OrderSummary) => {
       }),
   ];
   const merged = [...builtinTags, ...Array.from(new Set(fallbackTags.filter(Boolean)))];
-  return merged.length > 0 ? merged : ['-'];
+  return merged.length > 0 ? merged : [];
 };
 
 export type OrderReviewMainGridProps = {
@@ -281,6 +296,19 @@ export const OrderReviewMainGrid = ({
     targetApi.refreshCells({
       force: true,
       columns: ['__erpSelection'],
+    });
+  }, []);
+
+  const refreshRowIndexColumn = useCallback((api?: GridApi<OrderSummary> | null) => {
+    const targetApi = api ?? apiRef.current;
+    if (!targetApi) {
+      return;
+    }
+
+    targetApi.refreshCells({
+      force: false,
+      suppressFlash: true,
+      columns: ['__erpRowIndex'],
     });
   }, []);
 
@@ -500,6 +528,7 @@ export const OrderReviewMainGrid = ({
     handleGridMouseDownCapture,
     handleRowClicked,
     handleSpaceKeyDownCapture,
+    handleSpaceKeyUpCapture,
     selectionDiagnostic,
     selectionDiagnosticsEnabled,
   } = useAgGridWorkbenchSelection<OrderSummary>({
@@ -513,16 +542,49 @@ export const OrderReviewMainGrid = ({
     onFocus,
   });
 
+  const defaultColDef = useMemo<ColDef<OrderSummary>>(
+    () => buildOrderReviewMainGridDefaultColDef(quickFilterExpanded),
+    [quickFilterExpanded],
+  );
+  const columnStateStorageKey = useMemo(
+    () =>
+      buildAgGridColumnStateStorageKey({
+        columnSettingsKey: 'orders.review.main-grid',
+        tenantId,
+        userId,
+      }),
+    [tenantId, userId],
+  );
+
+  const {
+    applyDraft: applyColumnSettingsDraft,
+    closeDialog: closeColumnSettingsDialog,
+    items: columnSettingsItems,
+    open: columnSettingsOpen,
+    openDialog: openColumnSettingsDialog,
+    resetDraft: resetColumnSettingsDraft,
+    resetToDefault: resetColumnSettingsToDefault,
+    updateItem: updateColumnSettingsItem,
+  } = useWorkbenchColumnSettings<OrderSummary>({
+    columnStateStorageKey,
+    gridApi,
+    onColumnStateApplied: (api) => {
+      scheduleSelectionColumnRefresh(api);
+    },
+  });
+
   const colDefs = useMemo<ColDef<OrderSummary>[]>(
     () =>
       buildOrderReviewMainGridColDefs({
         logisticsOptions,
+        onOpenColumnSettings: openColumnSettingsDialog,
         onToggleAllSelection: () => {
           const api = apiRef.current;
           if (!api) return;
+          const headerChecked = rows.length > 0 && selectedInGridCount === rows.length;
           syncingSelectionRef.current = true;
           toggleAgGridHeaderSelection({
-            headerChecked: rows.length > 0 && selectedInGridCount === rows.length,
+            headerChecked,
             deselectAll: () => api.deselectAll(),
             forEachNodeAfterFilter: (callback) => {
               api.forEachNodeAfterFilter(callback);
@@ -544,25 +606,12 @@ export const OrderReviewMainGrid = ({
     [
       logisticsOptions,
       onSelectionChange,
+      openColumnSettingsDialog,
       platformFilterOptions,
       rows.length,
       selectedInGridCount,
       shopOptions,
     ],
-  );
-
-  const defaultColDef = useMemo<ColDef<OrderSummary>>(
-    () => buildOrderReviewMainGridDefaultColDef(quickFilterExpanded),
-    [quickFilterExpanded],
-  );
-  const columnStateStorageKey = useMemo(
-    () =>
-      buildAgGridColumnStateStorageKey({
-        columnSettingsKey: 'orders.review.main-grid',
-        tenantId,
-        userId,
-      }),
-    [tenantId, userId],
   );
 
   const getMainMenuItems = useCallback((params: GetMainMenuItemsParams<OrderSummary>) => {
@@ -572,6 +621,12 @@ export const OrderReviewMainGrid = ({
     }
     return Array.from(resolveAgGridMainMenuItems(colId));
   }, []);
+
+  const suppressKeyboardSpaceScroll = useCallback(
+    (params: SuppressKeyboardEventParams<OrderSummary>) =>
+      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
+    [],
+  );
 
   const schedulePersistColumnState = useCallback(
     (api?: GridApi<OrderSummary> | null) => {
@@ -699,10 +754,6 @@ export const OrderReviewMainGrid = ({
   );
 
   const handleColumnHeaderContextMenu = useCallback((event: ColumnHeaderContextMenuEvent<OrderSummary>) => {
-    const nativeEvent = event.event as MouseEvent | undefined;
-    nativeEvent?.preventDefault?.();
-    nativeEvent?.stopPropagation?.();
-
     const column = 'getColId' in event.column ? event.column : null;
     const colId = column?.getColId?.() ?? '';
     if (!column || !colId || mainGridStructuralColumnIds.has(colId)) {
@@ -727,7 +778,7 @@ export const OrderReviewMainGrid = ({
   );
 
   const getRowId = useCallback(
-    (params: GetRowIdParams<OrderSummary>) => resolveOrderRowKey(params.data) || `row-${params.rowIndex ?? 0}`,
+    (params: GetRowIdParams<OrderSummary>) => resolveOrderRowKey(params.data) || 'row-missing',
     [],
   );
 
@@ -736,9 +787,10 @@ export const OrderReviewMainGrid = ({
       if (!shouldResetViewportRef.current) {
         return;
       }
+      refreshRowIndexColumn(api);
+      scheduleSelectionColumnRefresh(api);
       shouldResetViewportRef.current = false;
       resetViewportToTop(api);
-      scheduleSelectionColumnRefresh(api);
       if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => {
           resetViewportToTop(api);
@@ -748,11 +800,12 @@ export const OrderReviewMainGrid = ({
         });
       }
     },
-    [resetViewportToTop, scheduleSelectionColumnRefresh],
+    [refreshRowIndexColumn, resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   const handleFirstDataRendered = useCallback(
     (api: GridApi<OrderSummary>) => {
+      refreshRowIndexColumn(api);
       resetViewportToTop(api);
       scheduleSelectionColumnRefresh(api);
       if (typeof window !== 'undefined') {
@@ -764,7 +817,7 @@ export const OrderReviewMainGrid = ({
         });
       }
     },
-    [resetViewportToTop, scheduleSelectionColumnRefresh],
+    [refreshRowIndexColumn, resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   return (
@@ -773,6 +826,7 @@ export const OrderReviewMainGrid = ({
       className="ag-theme-quartz order-review-main-grid-shell"
       data-testid="order-review-data-grid"
       onKeyDownCapture={handleSpaceKeyDownCapture}
+      onKeyUpCapture={handleSpaceKeyUpCapture}
       onMouseDownCapture={handleGridMouseDownCapture}
     >
       {error ? (
@@ -790,11 +844,11 @@ export const OrderReviewMainGrid = ({
           />
         </div>
       ) : (
-        <AgGridReact<OrderSummary>
-          theme="legacy"
-          rowData={rows}
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
+          <AgGridReact<OrderSummary>
+            theme="legacy"
+            rowData={rows}
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
           localeText={ERP_AG_GRID_LOCALE_TEXT_ZH_CN}
           getRowId={getRowId}
           rowSelection={{
@@ -807,8 +861,8 @@ export const OrderReviewMainGrid = ({
           suppressClickEdit
           singleClickEdit={false}
           readOnlyEdit
-          rowHeight={28}
-          headerHeight={32}
+          rowHeight={ORDER_WORKBENCH_GRID_ROW_HEIGHT}
+          headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}
           animateRows={false}
           cellSelection
           suppressContextMenu
@@ -819,7 +873,7 @@ export const OrderReviewMainGrid = ({
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
-          debounceVerticalScrollbar
+          suppressKeyboardEvent={suppressKeyboardSpaceScroll}
           getMainMenuItems={getMainMenuItems}
           onGridReady={(event: GridReadyEvent<OrderSummary>) => {
             apiRef.current = event.api;
@@ -898,18 +952,30 @@ export const OrderReviewMainGrid = ({
           }`}
         </div>
       ) : null}
+
+      <WorkbenchColumnSettingsDialog
+        open={columnSettingsOpen}
+        items={columnSettingsItems}
+        onCancel={closeColumnSettingsDialog}
+        onApply={applyColumnSettingsDraft}
+        onReset={resetColumnSettingsDraft}
+        onResetToDefault={resetColumnSettingsToDefault}
+        onUpdateItem={updateColumnSettingsItem}
+      />
     </div>
   );
 };
 
 export const buildOrderReviewMainGridColDefs = ({
   logisticsOptions,
+  onOpenColumnSettings,
   onToggleAllSelection,
   platformFilterOptions,
   shopOptions,
 }: BuildOrderReviewMainGridColDefsOptions): ColDef<OrderSummary>[] =>
   applyWorkbenchGridColumnPolicy([
       ...buildAgGridWorkbenchStructuralColDefs<OrderSummary>({
+        onOpenColumnSettings,
         onToggleAllSelection,
         pinLeft: true,
       }),
@@ -953,14 +1019,14 @@ export const buildOrderReviewMainGridColDefs = ({
       },
       {
         colId: 'exception_badges',
-        headerName: '标记/异常',
+        headerName: '记号',
         width: 228,
         minWidth: 120,
         sortable: true,
-        valueGetter: (params) => (params.data ? resolveOrderExceptionBadgesText(params.data) : ['-']),
-        cellRenderer: (params) => {
+        valueGetter: (params) => (params.data ? resolveOrderExceptionBadgesText(params.data) : []),
+        cellRenderer: (params: ICellRendererParams<OrderSummary, string[]>) => {
           const tags = Array.isArray(params.value) ? params.value : [];
-          return <OrderTagBadges tags={tags} emptyText="-" />;
+          return <OrderTagBadges tags={tags} emptyText={null} singleLine />;
         },
       },
       {

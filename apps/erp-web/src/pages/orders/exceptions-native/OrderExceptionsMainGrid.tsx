@@ -11,9 +11,11 @@ import type {
   GetRowIdParams,
   GridApi,
   GridReadyEvent,
+  ICellRendererParams,
   ModelUpdatedEvent,
   RowDoubleClickedEvent,
   SelectionChangedEvent,
+  SuppressKeyboardEventParams,
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -21,7 +23,12 @@ import { AgGridReact } from 'ag-grid-react';
 import type { OrderExceptionSummary } from '@/api/orders';
 import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpriseModules';
 import { OrderTagBadges } from '@/components/OrderTagBadges';
-import { applyWorkbenchGridColumnPolicy, sanitizeWorkbenchColumnState } from '@/components/page-templates';
+import {
+  applyWorkbenchGridColumnPolicy,
+  sanitizeWorkbenchColumnState,
+  useWorkbenchColumnSettings,
+  WorkbenchColumnSettingsDialog,
+} from '@/components/page-templates';
 import {
   buildAgGridApplyColumnState,
   buildAgGridColumnStateStorageKey,
@@ -48,7 +55,14 @@ import {
   buildAgGridWorkbenchStructuralColDefs,
   ORDER_WORKBENCH_STRUCTURAL_COLUMN_IDS,
 } from '@/pages/orders/shared/agGridWorkbenchStructuralColumns';
-import { useAgGridWorkbenchSelection } from '@/pages/orders/shared/useAgGridWorkbenchSelection';
+import {
+  ORDER_WORKBENCH_GRID_HEADER_HEIGHT,
+  ORDER_WORKBENCH_GRID_ROW_HEIGHT,
+} from '@/pages/orders/shared/orderWorkbenchGridMetrics';
+import {
+  suppressAgGridSpaceKeyboardEvent,
+  useAgGridWorkbenchSelection,
+} from '@/pages/orders/shared/useAgGridWorkbenchSelection';
 import { resolveSelectionDiagnosticsEnabled } from '@/pages/orders/shared/selectionDiagnostics';
 import {
   buildOrderExceptionsMainGridFilterModel,
@@ -77,6 +91,7 @@ type BuildOrderExceptionsMainGridColDefsOptions = {
   exceptionStatusOptions: FilterOption[];
   slaStatusOptions: FilterOption[];
   assigneeOptions: FilterOption[];
+  onOpenColumnSettings: () => void;
   onToggleAllSelection: () => void;
   resolveAuditLabel: (status?: string | null) => string;
   resolveExceptionLabel: (status?: string | null) => string;
@@ -205,6 +220,19 @@ export const OrderExceptionsMainGrid = ({
     targetApi.refreshCells({
       force: true,
       columns: ['__erpSelection'],
+    });
+  }, []);
+
+  const refreshRowIndexColumn = useCallback((api?: GridApi<OrderExceptionSummary> | null) => {
+    const targetApi = api ?? apiRef.current;
+    if (!targetApi) {
+      return;
+    }
+
+    targetApi.refreshCells({
+      force: false,
+      suppressFlash: true,
+      columns: ['__erpRowIndex'],
     });
   }, []);
 
@@ -488,6 +516,7 @@ export const OrderExceptionsMainGrid = ({
     handleGridMouseDownCapture,
     handleRowClicked,
     handleSpaceKeyDownCapture,
+    handleSpaceKeyUpCapture,
     selectionDiagnostic,
     selectionDiagnosticsEnabled,
   } = useAgGridWorkbenchSelection<OrderExceptionSummary>({
@@ -500,48 +529,6 @@ export const OrderExceptionsMainGrid = ({
     onRowActive,
     onFocus,
   });
-
-  const colDefs = useMemo<ColDef<OrderExceptionSummary>[]>(
-    () =>
-      buildOrderExceptionsMainGridColDefs({
-        platformOptions,
-        shopOptions,
-        warehouseOptions,
-        auditStatusOptions,
-        exceptionStatusOptions,
-        slaStatusOptions,
-        assigneeOptions,
-        onToggleAllSelection: () => {
-          const api = apiRef.current;
-          if (!api) return;
-          syncingSelectionRef.current = true;
-          toggleAgGridHeaderSelection({
-            headerChecked: rows.length > 0 && selectedInGridCount === rows.length,
-            deselectAll: () => api.deselectAll(),
-            forEachNodeAfterFilter: (callback) => {
-              api.forEachNodeAfterFilter(callback);
-            },
-          });
-          syncingSelectionRef.current = false;
-          emitSelectionKeys(api);
-        },
-        resolveAuditLabel,
-        resolveExceptionLabel,
-      }),
-    [
-      assigneeOptions,
-      auditStatusOptions,
-      exceptionStatusOptions,
-      platformOptions,
-      resolveAuditLabel,
-      resolveExceptionLabel,
-      rows.length,
-      slaStatusOptions,
-      selectedInGridCount,
-      shopOptions,
-      warehouseOptions,
-    ],
-  );
 
   const defaultColDef = useMemo<ColDef<OrderExceptionSummary>>(
     () => ({
@@ -568,6 +555,67 @@ export const OrderExceptionsMainGrid = ({
     [tenantId, userId],
   );
 
+  const {
+    applyDraft: applyColumnSettingsDraft,
+    closeDialog: closeColumnSettingsDialog,
+    items: columnSettingsItems,
+    open: columnSettingsOpen,
+    openDialog: openColumnSettingsDialog,
+    resetDraft: resetColumnSettingsDraft,
+    resetToDefault: resetColumnSettingsToDefault,
+    updateItem: updateColumnSettingsItem,
+  } = useWorkbenchColumnSettings<OrderExceptionSummary>({
+    columnStateStorageKey,
+    gridApi,
+    onColumnStateApplied: (api) => {
+      scheduleSelectionColumnRefresh(api);
+    },
+  });
+
+  const colDefs = useMemo<ColDef<OrderExceptionSummary>[]>(
+    () =>
+      buildOrderExceptionsMainGridColDefs({
+        platformOptions,
+        shopOptions,
+        warehouseOptions,
+        auditStatusOptions,
+        exceptionStatusOptions,
+        slaStatusOptions,
+        assigneeOptions,
+        onOpenColumnSettings: openColumnSettingsDialog,
+        onToggleAllSelection: () => {
+          const api = apiRef.current;
+          if (!api) return;
+          syncingSelectionRef.current = true;
+          toggleAgGridHeaderSelection({
+            headerChecked: rows.length > 0 && selectedInGridCount === rows.length,
+            deselectAll: () => api.deselectAll(),
+            forEachNodeAfterFilter: (callback) => {
+              api.forEachNodeAfterFilter(callback);
+            },
+          });
+          syncingSelectionRef.current = false;
+          emitSelectionKeys(api);
+        },
+        resolveAuditLabel,
+        resolveExceptionLabel,
+      }),
+    [
+      assigneeOptions,
+      auditStatusOptions,
+      exceptionStatusOptions,
+      openColumnSettingsDialog,
+      platformOptions,
+      resolveAuditLabel,
+      resolveExceptionLabel,
+      rows.length,
+      slaStatusOptions,
+      selectedInGridCount,
+      shopOptions,
+      warehouseOptions,
+    ],
+  );
+
   const getMainMenuItems = useCallback((params: GetMainMenuItemsParams<OrderExceptionSummary>) => {
     const colId = params.column?.getColId?.() ?? '';
     if (!colId || mainGridStructuralColumnIds.has(colId)) {
@@ -575,6 +623,12 @@ export const OrderExceptionsMainGrid = ({
     }
     return Array.from(resolveAgGridMainMenuItems(colId));
   }, []);
+
+  const suppressKeyboardSpaceScroll = useCallback(
+    (params: SuppressKeyboardEventParams<OrderExceptionSummary>) =>
+      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
+    [],
+  );
 
   const schedulePersistColumnState = useCallback(
     (api?: GridApi<OrderExceptionSummary> | null) => {
@@ -702,10 +756,6 @@ export const OrderExceptionsMainGrid = ({
   );
 
   const handleColumnHeaderContextMenu = useCallback((event: ColumnHeaderContextMenuEvent<OrderExceptionSummary>) => {
-    const nativeEvent = event.event as MouseEvent | undefined;
-    nativeEvent?.preventDefault?.();
-    nativeEvent?.stopPropagation?.();
-
     const column = 'getColId' in event.column ? event.column : null;
     const colId = column?.getColId?.() ?? '';
     if (!column || !colId || mainGridStructuralColumnIds.has(colId)) {
@@ -732,9 +782,10 @@ export const OrderExceptionsMainGrid = ({
       if (!shouldResetViewportRef.current) {
         return;
       }
+      refreshRowIndexColumn(event.api);
+      scheduleSelectionColumnRefresh(event.api);
       shouldResetViewportRef.current = false;
       resetViewportToTop(event.api);
-      scheduleSelectionColumnRefresh(event.api);
       if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => {
           resetViewportToTop(event.api);
@@ -744,11 +795,12 @@ export const OrderExceptionsMainGrid = ({
         });
       }
     },
-    [onDisplayedRowsChange, resetViewportToTop, scheduleSelectionColumnRefresh],
+    [onDisplayedRowsChange, refreshRowIndexColumn, resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   const handleFirstDataRendered = useCallback(
     (api: GridApi<OrderExceptionSummary>) => {
+      refreshRowIndexColumn(api);
       resetViewportToTop(api);
       scheduleSelectionColumnRefresh(api);
       if (typeof window !== 'undefined') {
@@ -760,7 +812,7 @@ export const OrderExceptionsMainGrid = ({
         });
       }
     },
-    [resetViewportToTop, scheduleSelectionColumnRefresh],
+    [refreshRowIndexColumn, resetViewportToTop, scheduleSelectionColumnRefresh],
   );
 
   const getRowId = useCallback((params: GetRowIdParams<OrderExceptionSummary>) => {
@@ -770,7 +822,7 @@ export const OrderExceptionsMainGrid = ({
       return stableRowId;
     }
 
-    return resolveOrderExceptionRowKey(params.data) || `row-${params.rowIndex ?? 0}`;
+    return resolveOrderExceptionRowKey(params.data) || 'row-missing';
   }, []);
 
   return (
@@ -779,6 +831,7 @@ export const OrderExceptionsMainGrid = ({
       className="ag-theme-quartz order-review-main-grid-shell"
       data-testid="order-exceptions-data-grid"
       onKeyDownCapture={handleSpaceKeyDownCapture}
+      onKeyUpCapture={handleSpaceKeyUpCapture}
       onMouseDownCapture={handleGridMouseDownCapture}
     >
       {error ? (
@@ -796,11 +849,11 @@ export const OrderExceptionsMainGrid = ({
           />
         </div>
       ) : (
-        <AgGridReact<OrderExceptionSummary>
-          theme="legacy"
-          rowData={rows}
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
+          <AgGridReact<OrderExceptionSummary>
+            theme="legacy"
+            rowData={rows}
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
           localeText={ERP_AG_GRID_LOCALE_TEXT_ZH_CN}
           getRowId={getRowId}
           rowSelection={{
@@ -813,8 +866,8 @@ export const OrderExceptionsMainGrid = ({
           suppressClickEdit
           singleClickEdit={false}
           readOnlyEdit
-          rowHeight={28}
-          headerHeight={32}
+          rowHeight={ORDER_WORKBENCH_GRID_ROW_HEIGHT}
+          headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}
           animateRows={false}
           cellSelection
           suppressContextMenu
@@ -825,7 +878,7 @@ export const OrderExceptionsMainGrid = ({
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
-          debounceVerticalScrollbar
+          suppressKeyboardEvent={suppressKeyboardSpaceScroll}
           getMainMenuItems={getMainMenuItems}
           onGridReady={(event: GridReadyEvent<OrderExceptionSummary>) => {
             apiRef.current = event.api;
@@ -903,6 +956,16 @@ export const OrderExceptionsMainGrid = ({
           }`}
         </div>
       ) : null}
+
+      <WorkbenchColumnSettingsDialog
+        open={columnSettingsOpen}
+        items={columnSettingsItems}
+        onCancel={closeColumnSettingsDialog}
+        onApply={applyColumnSettingsDraft}
+        onReset={resetColumnSettingsDraft}
+        onResetToDefault={resetColumnSettingsToDefault}
+        onUpdateItem={updateColumnSettingsItem}
+      />
     </div>
   );
 };
@@ -915,6 +978,7 @@ export const buildOrderExceptionsMainGridColDefs = ({
   exceptionStatusOptions,
   slaStatusOptions,
   assigneeOptions,
+  onOpenColumnSettings,
   onToggleAllSelection,
   resolveAuditLabel,
   resolveExceptionLabel,
@@ -922,6 +986,7 @@ export const buildOrderExceptionsMainGridColDefs = ({
   void slaStatusOptions;
   return applyWorkbenchGridColumnPolicy([
     ...buildAgGridWorkbenchStructuralColDefs<OrderExceptionSummary>({
+      onOpenColumnSettings,
       onToggleAllSelection,
       pinLeft: true,
     }),
@@ -987,8 +1052,8 @@ export const buildOrderExceptionsMainGridColDefs = ({
     width: 112,
     minWidth: 88,
     sortable: false,
-    cellRenderer: (params) =>
-      params.data ? <OrderTagBadges tags={resolveOrderDisplayTags(params.data)} emptyText="-" /> : '-',
+    cellRenderer: (params: ICellRendererParams<OrderExceptionSummary>) =>
+      params.data ? <OrderTagBadges tags={resolveOrderDisplayTags(params.data)} emptyText={null} singleLine /> : null,
   },
   {
     colId: 'receiver_name',

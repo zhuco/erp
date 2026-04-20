@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 
 import type { OrderExceptionSummary } from '@/api/orders';
 import type { UiModule08OrderReviewLeftStatsItem } from '@/components/ui-modules';
@@ -25,11 +25,14 @@ type UseOrderExceptionsLeftModuleOptions = {
   filters?: OrderExceptionsLeftFilters;
   onFiltersChange?: Dispatch<SetStateAction<OrderExceptionsLeftFilters>>;
   onBeforeLeafFilterApply?: () => void;
+  screenContent: ReactNode;
+  hasScreenFilterActive: boolean;
 };
 
 type UseOrderExceptionsLeftModuleResult = {
   filteredRows: OrderExceptionSummary[];
   hasManualLeftFilterActive: boolean;
+  leftPanel: ReactNode;
 };
 
 export const useOrderExceptionsLeftModule = ({
@@ -42,6 +45,8 @@ export const useOrderExceptionsLeftModule = ({
   filters,
   onFiltersChange,
   onBeforeLeafFilterApply,
+  screenContent,
+  hasScreenFilterActive,
 }: UseOrderExceptionsLeftModuleOptions): UseOrderExceptionsLeftModuleResult => {
   const nowTs = Date.now();
 
@@ -190,7 +195,13 @@ export const useOrderExceptionsLeftModule = ({
   }, [leftStatsItems]);
 
   const renderExceptionsLeftPanel = useCallback(
-    ({ leftTab, onLeftTabChange, leftRowsForRender, onLeftRowClick, hasManualFilterActive }: LeftFilterPanelProps) => (
+    ({
+      leftTab,
+      onLeftTabChange,
+      leftRowsForRender,
+      onLeftRowClick,
+      hasManualFilterActive,
+    }: LeftFilterPanelProps) => (
       <OrderExceptionsLeftPanel
         leftTab={leftTab}
         onLeftTabChange={onLeftTabChange}
@@ -199,14 +210,24 @@ export const useOrderExceptionsLeftModule = ({
         leftStatsItems={leftStatsItems}
         leftStatsPieBackground={leftStatsPieBackground}
         globalOrderTotal={rows.length}
-        isFetching={isFetching}
-        hasManualFilterActive={hasManualFilterActive}
+        statsScopeText={
+          isFetching
+            ? '统计更新中...'
+            : hasManualFilterActive && hasScreenFilterActive
+              ? '口径：筛选条件 + 左侧过滤后'
+              : hasManualFilterActive
+                ? '口径：左侧过滤后'
+                : hasScreenFilterActive
+              ? '口径：筛选条件后'
+              : '口径：待复核订单'
+        }
+        screenContent={screenContent}
       />
     ),
-    [isFetching, leftStatsItems, leftStatsPieBackground, rows.length],
+    [hasScreenFilterActive, isFetching, leftStatsItems, leftStatsPieBackground, rows.length, screenContent],
   );
 
-  const { filteredRows, hasManualFilterActive } = useLeftFilterModule<OrderExceptionSummary, OrderExceptionsLeftFilters>({
+  const { filteredRows, hasManualFilterActive, leftPanel } = useLeftFilterModule<OrderExceptionSummary, OrderExceptionsLeftFilters>({
     rows,
     defaultFilters: {},
     filters,
@@ -229,5 +250,6 @@ export const useOrderExceptionsLeftModule = ({
   return {
     filteredRows,
     hasManualLeftFilterActive: hasManualFilterActive,
+    leftPanel,
   };
 };

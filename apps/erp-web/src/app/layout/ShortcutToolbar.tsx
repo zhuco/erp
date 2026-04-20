@@ -28,6 +28,8 @@ import { flattenMenuItems } from '@/app/layout/menu';
 import { useFocusReturn } from '@/app/layout/useFocusReturn';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
+import './ShortcutToolbar.css';
+
 type ShortcutToolbarProps = {
   menuItems: AppMenuItem[];
 };
@@ -369,25 +371,19 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
 
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '4px 12px',
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <Typography.Text strong>快捷工具栏</Typography.Text>
-        <div style={{ flex: 1, overflowX: 'auto' }}>
+      <div className="shortcut-toolbar">
+        <Typography.Text strong className="shortcut-toolbar-title">
+          快捷工具栏
+        </Typography.Text>
+        <div className="shortcut-toolbar-scroller">
           {toolbarItems.length ? (
-            <Space size={8} style={{ whiteSpace: 'nowrap' }}>
+            <Space size={8} className="shortcut-toolbar-items">
               {toolbarItems.map((item) => (
                 <Button
                   key={item.path}
                   size="small"
                   onClick={() => navigate(item.path)}
+                  className="shortcut-toolbar-link"
                   data-testid={`shortcut-${item.path}`}
                 >
                   {item.name}
@@ -395,10 +391,12 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
               ))}
             </Space>
           ) : (
-            <Typography.Text type="secondary">暂无快捷入口</Typography.Text>
+            <Typography.Text type="secondary" className="shortcut-toolbar-empty">
+              暂无快捷入口
+            </Typography.Text>
           )}
         </div>
-        <Button size="small" onClick={openModal}>
+        <Button size="small" onClick={openModal} className="shortcut-toolbar-action">
           设置
         </Button>
       </div>

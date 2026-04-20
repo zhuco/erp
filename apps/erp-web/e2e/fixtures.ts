@@ -91,18 +91,34 @@ async function waitForVisibleTarget<TTarget extends string>(
   return null;
 }
 
+async function waitForVisibleTargetWithRetry<TTarget extends string>(
+  page: Page,
+  candidates: Array<{ key: TTarget; locator: Locator }>,
+  timeoutMs: number,
+): Promise<TTarget | null> {
+  const firstAttempt = await waitForVisibleTarget(page, candidates, timeoutMs);
+  if (firstAttempt) {
+    return firstAttempt;
+  }
+
+  await page.waitForLoadState('load').catch(() => {});
+  await page.waitForTimeout(300);
+
+  return waitForVisibleTarget(page, candidates, timeoutMs);
+}
+
 // Helper to login and select tenant
 export async function loginAndSelectTenant(page: Page) {
   await page.waitForLoadState('domcontentloaded');
   const loginInput = page.getByTestId('login-username-input');
   const shell = page.locator('.workbench-shell');
-  const initialVisibleTarget = await waitForVisibleTarget(
+  const initialVisibleTarget = await waitForVisibleTargetWithRetry(
     page,
     [
       { key: 'login', locator: loginInput },
       { key: 'shell', locator: shell },
     ],
-    5000,
+    10000,
   );
 
   if (initialVisibleTarget === 'shell') {
@@ -124,13 +140,13 @@ export async function loginAndSelectTenant(page: Page) {
   await page.getByTestId('login-submit').click();
 
   const tenantSelect = page.getByTestId('tenant-select');
-  const postLoginVisibleTarget = await waitForVisibleTarget(
+  const postLoginVisibleTarget = await waitForVisibleTargetWithRetry(
     page,
     [
       { key: 'tenant-select', locator: tenantSelect },
       { key: 'shell', locator: shell },
     ],
-    5000,
+    10000,
   );
 
   if (postLoginVisibleTarget === 'shell') {

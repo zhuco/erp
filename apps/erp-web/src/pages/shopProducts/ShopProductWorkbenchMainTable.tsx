@@ -19,7 +19,9 @@ import { ORDER_WORKBENCH_ENTERPRISE_MODULES } from '@/components/agGridEnterpris
 import { ERP_AG_GRID_LOCALE_TEXT_ZH_CN } from '@/components/agGridColumnState';
 import { PlatformTag } from '@/components/PlatformTag';
 import { buildOrderReviewMainGridDefaultColDef } from '@/pages/orders/review-native/OrderReviewMainGrid';
-import { buildAgGridWorkbenchStructuralColDefs } from '@/pages/orders/shared/agGridWorkbenchStructuralColumns';
+import {
+  buildAgGridWorkbenchStructuralColDefs,
+} from '@/pages/orders/shared/agGridWorkbenchStructuralColumns';
 import { toggleAgGridHeaderSelection } from '@/pages/orders/shared/agGridSelectionHelpers';
 import { useAgGridWorkbenchSelection } from '@/pages/orders/shared/useAgGridWorkbenchSelection';
 
@@ -239,12 +241,12 @@ export const ShopProductWorkbenchMainTable = ({
           emitSelectionKeys(api);
           refreshSelectionChrome(api);
         },
+        pinLeft: true,
       }),
       ...buildBusinessColDefs(shopNameResolver),
     ],
     [emitSelectionKeys, refreshSelectionChrome, rows.length, selectedInGridCount, shopNameResolver],
   );
-
   const defaultColDef = useMemo<ColDef<ShopProductSku>>(
     () => buildOrderReviewMainGridDefaultColDef(false),
     [],

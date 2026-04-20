@@ -7,6 +7,7 @@ describe('appMenuItems', () => {
     expect(flattenMenuItems(appMenuItems).map((item) => item.path)).toEqual([
       '/dashboard',
       '/channels',
+      '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',
@@ -27,9 +28,10 @@ describe('appMenuItems', () => {
     ]);
 
     const salesModule = appMenuItems.find((item) =>
-      flattenMenuItems([item]).some((leaf) => leaf.path === '/orders/review'),
+      flattenMenuItems([item]).some((leaf) => leaf.path === '/sales/order-query'),
     );
     expect(flattenMenuItems(salesModule ? [salesModule] : []).map((item) => item.path)).toEqual([
+      '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',

@@ -4,6 +4,7 @@ export const WORKBENCH_SELECTION_COLUMN_ID = '__erpSelection';
 export const WORKBENCH_SEQUENCE_COLUMN_ID = '__erpRowIndex';
 
 const workbenchStructuralColumnIds = new Set([WORKBENCH_SELECTION_COLUMN_ID, WORKBENCH_SEQUENCE_COLUMN_ID]);
+const workbenchStructuralColumnOrder = [WORKBENCH_SELECTION_COLUMN_ID, WORKBENCH_SEQUENCE_COLUMN_ID] as const;
 
 const numberFieldPattern = /(qty|count|amount|price|weight|rate|minute|version|index|total|number)$/i;
 const dateFieldPattern = /(date|time|_at|At)$/;
@@ -77,6 +78,13 @@ export const applyWorkbenchGridColumnPolicy = <TRow,>(colDefs: ColDef<TRow>[]): 
       ...colDef,
     };
 
+    if (isStructuralColumn) {
+      nextColDef.pinned = 'left';
+      nextColDef.lockPinned = true;
+      nextColDef.lockPosition = 'left';
+      nextColDef.suppressMovable = true;
+    }
+
     if (columnId === WORKBENCH_SEQUENCE_COLUMN_ID) {
       nextColDef.sortable = false;
     }
@@ -107,24 +115,36 @@ export const sanitizeWorkbenchColumnState = (states: ColumnState[] | null | unde
     return [];
   }
 
-  return states.map((state) => {
+  const normalizedStates = states.map((state) => {
     const columnId = String(state.colId ?? '').trim();
-    if (columnId !== WORKBENCH_SEQUENCE_COLUMN_ID) {
+    if (!workbenchStructuralColumnIds.has(columnId)) {
       return { ...state };
     }
 
     const nextState: ColumnState = {
       colId: columnId,
     };
-    if (typeof state.hide === 'boolean') {
-      nextState.hide = state.hide;
-    }
+    nextState.hide = false;
     if (typeof state.width === 'number' && state.width > 0) {
       nextState.width = state.width;
     }
-    if (state.pinned === 'left' || state.pinned === 'right') {
-      nextState.pinned = state.pinned;
-    }
+    nextState.pinned = 'left';
     return nextState;
   });
+
+  const structuralStateMap = new Map(
+    normalizedStates
+      .filter((state) => workbenchStructuralColumnIds.has(String(state.colId ?? '').trim()))
+      .map((state) => [String(state.colId ?? '').trim(), state]),
+  );
+  const businessStates = normalizedStates.filter(
+    (state) => !workbenchStructuralColumnIds.has(String(state.colId ?? '').trim()),
+  );
+
+  const structuralStates = workbenchStructuralColumnOrder.flatMap((columnId) => {
+    const state = structuralStateMap.get(columnId);
+    return state ? [state] : [];
+  });
+
+  return [...structuralStates, ...businessStates];
 };

@@ -1,106 +1,32 @@
-import { isValidElement } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-import { UiModule05DetailPanel } from './UiModule05DetailPanel';
-import { UiModule05OrderReviewRightPanelTemplate } from './UiModule05OrderReviewRightPanelTemplate';
-
-const findElement = (
-  node: ReactNode,
-  predicate: (element: ReactElement) => boolean,
-): ReactElement | null => {
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      const match = findElement(child, predicate);
-      if (match) {
-        return match;
-      }
-    }
-    return null;
-  }
-
-  if (!isValidElement(node)) {
-    return null;
-  }
-
-  if (predicate(node)) {
-    return node;
-  }
-
-  return findElement(node.props.children, predicate);
-};
-
-const collectText = (node: ReactNode): string[] => {
-  if (Array.isArray(node)) {
-    return node.flatMap((child) => collectText(child));
-  }
-  if (typeof node === 'string') {
-    return [node];
-  }
-  if (!isValidElement(node)) {
-    return [];
-  }
-  return collectText(node.props.children);
-};
+import { describe, expect, it } from 'vitest';
 
 describe('UiModule05OrderReviewRightPanelTemplate', () => {
-  it('renders expected Chinese labels and placeholders', () => {
-    const element = UiModule05OrderReviewRightPanelTemplate({
-      detailError: null,
-      detailLoadedId: 'ORDER-1',
-      orderId: 'ORDER-1',
-      platformOrderId: 'PLAT-1',
-      platformText: '淘宝',
-      shopId: 'SHOP-1',
-      receiverName: '张三',
-      receiverPhone: '13800138000',
-      logisticsCompany: '顺丰速运',
-      warehouseId: 'WH-DEFAULT',
-      totalAmountText: '¥12.30',
-      courierOptions: [{ label: '顺丰速运 (SF)', value: '顺丰速运' }],
-      warehouseOptions: [{ label: '默认仓', value: 'WH-DEFAULT' }],
-      logisticsUpdating: false,
-      warehouseUpdating: false,
-      detailSelectDisabled: false,
-      orderTagsApplying: false,
-      markTags: ['紧急'],
-      markMenuItems: [{ key: '紧急', label: '紧急' }],
-      onMarkSelect: vi.fn(),
-      onLogisticsChange: vi.fn(),
-      onWarehouseChange: vi.fn(),
-    });
+  it('upgrades the mark area to a unified compact popover-based manager', () => {
+    const source = readFileSync(resolve(__dirname, 'UiModule05OrderReviewRightPanelTemplate.tsx'), 'utf8');
+    const css = readFileSync(resolve(__dirname, 'UiModule05OrderReviewRightPanelTemplate.css'), 'utf8');
 
-    const detailPanel = findElement(
-      element,
-      (child) => child.type === UiModule05DetailPanel && Array.isArray(child.props.panels),
-    );
-    expect(detailPanel).not.toBeNull();
+    expect(source).toContain('Popover');
+    expect(source).toContain('管理记号');
+    expect(source).toContain('输入新记号');
+    expect(source).toContain('快捷添加');
+    expect(source).toContain('记号库');
+    expect(source).toContain('当前订单');
+    expect(source).toContain('ui-module-05-order-mark-manager-popover');
+    expect(source).toContain('destroyTooltipOnHide');
+    expect(source).toContain('onMarkRemove');
+    expect(source).toContain('onMarkCreate');
+    expect(source).toContain('onMarkDefinitionDelete');
+    expect(source).toContain('onMarkLibraryRefresh');
+    expect(css).toContain('.ui-module-05-order-mark-manager-popover');
+  });
 
-    const panels = (detailPanel?.props.panels ?? []) as Array<{
-      key: string;
-      label: string;
-      children: ReactNode;
-    }>;
+  it('keeps the inline mark badges single-line and without dash placeholders', () => {
+    const source = readFileSync(resolve(__dirname, 'UiModule05OrderReviewRightPanelTemplate.tsx'), 'utf8');
 
-    const marksPanel = panels.find((panel) => panel.key === 'marks');
-    const detailInfoPanel = panels.find((panel) => panel.key === 'detail');
-
-    expect(marksPanel?.label).toBe('订单记号');
-    expect(detailInfoPanel?.label).toBe('订单详情');
-
-    const marksText = collectText(marksPanel?.children ?? null);
-    expect(marksText).toContain('添加');
-
-    const logisticsSelect = findElement(
-      detailInfoPanel?.children ?? null,
-      (child) => child.props.placeholder === '选择物流公司',
-    );
-    const warehouseSelect = findElement(
-      detailInfoPanel?.children ?? null,
-      (child) => child.props.placeholder === '选择发货仓库',
-    );
-
-    expect(logisticsSelect).not.toBeNull();
-    expect(warehouseSelect).not.toBeNull();
+    expect(source).toContain('emptyText={null}');
+    expect(source).toContain('singleLine');
   });
 });

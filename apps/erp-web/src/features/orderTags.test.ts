@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildOrderEditableMarkMenuItems,
   builtinOrderTags,
   resolveOrderDisplayTags,
   resolveBuiltinOrderTag,
@@ -66,5 +67,27 @@ describe('orderTags builtin standard', () => {
     expect(
       tags.map((tag) => (typeof tag === 'string' ? tag : tag.key)),
     ).toEqual(['unmatched', 'frozen', 'presale', 'refund', '人工加急']);
+  });
+});
+
+describe('buildOrderEditableMarkMenuItems', () => {
+  it('keeps only custom marks that are not already attached to the current order', () => {
+    const items = buildOrderEditableMarkMenuItems(
+      [
+        { label: 'VIP', value: 'VIP' },
+        { label: 'Shortage', value: 'SHORTAGE' },
+        { label: 'Urgent', value: 'Urgent' },
+        { label: 'Urgent', value: 'Urgent' },
+      ],
+      ['Urgent'],
+    );
+
+    expect(items).toEqual([{ key: 'VIP', label: 'VIP' }]);
+  });
+
+  it('returns an empty-state menu item when there are no editable custom marks left', () => {
+    const items = buildOrderEditableMarkMenuItems([{ label: 'Split', value: 'ORDER_SPLIT' }], ['VIP']);
+
+    expect(items).toEqual([{ key: '__empty__', label: '暂无可选记号', disabled: true }]);
   });
 });

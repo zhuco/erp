@@ -33,7 +33,7 @@ export const LoginPage = () => {
   const from = (location.state as { from?: string } | undefined)?.from;
 
   const navigateToTarget = () => {
-    const target = from && from !== '/login' ? from : '/orders';
+    const target = from && from !== '/login' ? from : '/sales/order-query';
     navigate(target, { replace: true });
   };
 

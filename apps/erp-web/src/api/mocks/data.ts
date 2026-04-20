@@ -628,8 +628,9 @@ const buildOrder = (index: number): OrderSummary => {
   };
 };
 
-const BASE_MOCK_ORDER_COUNT = 72;
-const REVIEW_PENDING_MOCK_ORDER_COUNT = 120;
+const BASE_MOCK_ORDER_COUNT = 3710;
+const REVIEW_PENDING_MOCK_ORDER_COUNT = 1491;
+const ORDER_EXCEPTION_POOL_COUNT = 1100;
 let nextSpecialMockOrderSequence = BASE_MOCK_ORDER_COUNT + REVIEW_PENDING_MOCK_ORDER_COUNT + 1;
 const reserveSpecialMockOrderId = () => buildMockOrderNo(dayjs(), nextSpecialMockOrderSequence++);
 
@@ -1506,7 +1507,34 @@ const buildShipment = (index: number): ShipmentSummary => {
   };
 };
 
-const baseMockOrders = Array.from({ length: BASE_MOCK_ORDER_COUNT }, (_, index) => buildOrder(index));
+const baseMockOrders = Array.from({ length: BASE_MOCK_ORDER_COUNT }, (_, index) => {
+  const order = buildOrder(index);
+  const reviewStatus = index % 4 === 0 ? 'REJECTED' : 'PASSED';
+  const baseExceptionFlags = (order.exception_flags ?? []).filter((flag) => flag !== 'REVIEW_REJECTED');
+
+  return {
+    ...order,
+    oms_status:
+      reviewStatus === 'PASSED'
+        ? index % 3 === 0
+          ? 'PENDING_SHIPMENT'
+          : index % 3 === 1
+            ? 'ALLOCATED'
+            : 'SHIPPED'
+        : 'REVIEW_PENDING',
+    review_status: reviewStatus,
+    platform_status:
+      reviewStatus === 'PASSED'
+        ? index % 3 === 2
+          ? 'COMPLETED'
+          : 'SHIPPED'
+        : 'PENDING_SHIPMENT',
+    exception_flags:
+      reviewStatus === 'REJECTED'
+        ? Array.from(new Set([...baseExceptionFlags, 'REVIEW_REJECTED']))
+        : baseExceptionFlags,
+  };
+});
 const reviewPendingMockOrders = Array.from({ length: REVIEW_PENDING_MOCK_ORDER_COUNT }, (_, index) => {
   const order = buildOrder(index + baseMockOrders.length);
   const exceptionFlags = (order.exception_flags ?? []).filter(
@@ -1539,6 +1567,58 @@ const normalizedExceptionSeedOrderIds = mockOrders
 const fallbackExceptionSeedOrderId = normalizedExceptionSeedOrderIds[0] ?? mockOrders[0]?.id ?? 'DT-EXCEPTION-FALLBACK';
 const getExceptionSeedOrderId = (index: number) =>
   normalizedExceptionSeedOrderIds[index] ?? fallbackExceptionSeedOrderId;
+const buildGeneratedMockOmsMainChainSeed = (orderId: string, index: number): MockOmsMainChainSeed => {
+  const scenario = index % 8;
+  const blockingReasons = [
+    '商品映射缺失',
+    '库存不足',
+    '地址信息不完整',
+    '风控拦截待人工复核',
+    '客户资料待补充',
+    '售后退款待确认',
+    '订单已合并待确认',
+    '订单已拆分待确认',
+  ];
+  const reserveReasons = [
+    '商品映射缺失，不能提交发货',
+    '库存不足，不能完成预占',
+    '收件地址不完整，不能提交发货',
+    '风控拦截待人工复核',
+    '客户资料待补充，当前挂起',
+    '售后退款待确认，当前挂起',
+    '合并订单待人工确认',
+    '拆分订单待人工确认',
+  ];
+  const assigneeId =
+    scenario === 3 ? 'USER-RISK-001' : scenario >= 4 ? `USER-OMS-${String((index % 7) + 1).padStart(3, '0')}` : null;
+  const assigneeName = scenario === 3 ? '风控专员' : scenario >= 4 ? `复核专员${(index % 7) + 1}` : null;
+
+  return {
+    order_id: orderId,
+    audit_status: scenario >= 3 ? 'UNDER_REVIEW' : 'REVIEW_REQUIRED',
+    exception_status: scenario === 3 || scenario === 5 ? 'PROCESSING' : scenario >= 4 ? 'ASSIGNED' : 'OPEN',
+    fulfillment_status: 'NOT_SUBMITTED',
+    reserve_status: null,
+    reserve_precheck_passed: false,
+    reserve_precheck_reasons: [reserveReasons[scenario] ?? reserveReasons[0]!],
+    target_warehouse_id: index % 2 === 0 ? 'WH-DEFAULT' : 'WH-EAST',
+    blocking_reason: blockingReasons[scenario] ?? blockingReasons[0]!,
+    assignee_id: assigneeId,
+    assignee_name: assigneeName,
+    action_logs: [
+      {
+        action: scenario >= 3 ? 'CLAIM' : 'FLAG',
+        message:
+          scenario >= 3
+            ? `${assigneeName ?? '复核专员'}已领取异常单`
+            : `系统命中${blockingReasons[scenario] ?? blockingReasons[0]!}规则，进入异常池`,
+        operator_id: assigneeId,
+        operator_name: assigneeName ?? '系统',
+        created_at: dayjs().subtract((index % 45) + 1, 'minute').toISOString(),
+      },
+    ],
+  };
+};
 const mockOmsMainChainSeeds: MockOmsMainChainSeed[] = [
   {
     order_id: getExceptionSeedOrderId(0),
@@ -1683,7 +1763,10 @@ const mockOmsMainChainSeeds: MockOmsMainChainSeed[] = [
         created_at: dayjs().subtract(12, 'minute').toISOString()
       }
     ]
-  }
+  },
+  ...Array.from({ length: ORDER_EXCEPTION_POOL_COUNT - 5 }, (_, generatedIndex) =>
+    buildGeneratedMockOmsMainChainSeed(getExceptionSeedOrderId(generatedIndex + 7), generatedIndex),
+  )
 ];
 const mockOrderReceiverAddresses = new Map<string, string>(
   mockOrders.map((order, index) => [order.id, `上海市浦东新区示例路 ${100 + index} 号`])
@@ -2191,12 +2274,14 @@ const buildSalesShopConfigView = (shop: Shop): SalesShopConfig => {
 
 const buildOrderItem = (order: OrderSummary, index: number): OrderItem => {
   const mappingMissing = Boolean(order.mapping_missing) && index === 0;
+  const orderSuffix = String(order.id ?? `ORDER-${index + 1}`).slice(-4);
+  const platformPrefix = String(order.platform ?? 'GEN').slice(0, 3).toUpperCase();
   return {
     id: `${order.id}-ITEM-${index + 1}`,
-    platform_sku_id: `PLAT-SKU-${100 + index}`,
-    outer_sku_id: index % 2 === 0 ? `OUTER-${200 + index}` : null,
-    title: `示例商品-${index + 1}`,
-    spec_text: `${index % 2 === 0 ? '黑色' : '白色'} / ${['S', 'M', 'L'][index % 3]}`,
+    platform_sku_id: `${platformPrefix}-SKU-${orderSuffix}-${index + 1}`,
+    outer_sku_id: index % 2 === 0 ? `OUTER-${orderSuffix}-${index + 1}` : null,
+    title: `${platformPrefix}示例商品-${orderSuffix}-${index + 1}`,
+    spec_text: `${index % 2 === 0 ? '黑色' : '白色'} / ${['S', 'M', 'L'][index % 3]} / 款${orderSuffix}`,
     quantity: (index % 3) + 1,
     price_cent: 990 + index * 50,
     mapping_missing: mappingMissing

@@ -27,6 +27,15 @@ const isValidRowIndex = (rowIndex: number | null | undefined): rowIndex is numbe
 const enableSelectionDiagnostics = resolveSelectionDiagnosticsEnabled();
 const selectionCheckboxTargetSelector = '.ag-selection-checkbox-hitbox, .ag-selection-checkbox';
 
+type KeyboardEventLike = {
+  code?: string | null;
+  key?: string | null;
+  target: EventTarget | null;
+  preventDefault: () => void;
+  stopPropagation: () => void;
+  stopImmediatePropagation?: () => void;
+};
+
 export type AgGridSelectionDiagnostic = {
   action: 'activate-row' | 'ignore' | 'range-selection' | 'skip' | 'toggle-selection';
   colId: string;
@@ -62,6 +71,34 @@ export const isSelectionCheckboxTarget = (target: EventTarget | null) => {
   }
   return Boolean(target.closest(selectionCheckboxTargetSelector));
 };
+
+export const isAgGridSpaceKeyboardEvent = (event: Pick<KeyboardEventLike, 'code' | 'key' | 'target'> | null | undefined) => {
+  if (!event) {
+    return false;
+  }
+  const isSpaceKey = event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space';
+  if (!isSpaceKey) {
+    return false;
+  }
+  if (isEditableAgGridKeyboardTarget(event.target)) {
+    return false;
+  }
+  return true;
+};
+
+export const suppressAgGridSpaceKeyboardEvent = (event: KeyboardEventLike | null | undefined) => {
+  if (!isAgGridSpaceKeyboardEvent(event)) {
+    return false;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+  return true;
+};
+
+export const suppressAgGridSpaceKeyboardEventOnKeyUp = (
+  event: KeyboardEventLike | null | undefined,
+) => suppressAgGridSpaceKeyboardEvent(event);
 
 export const useAgGridWorkbenchSelection = <TRow>({
   apiRef,
@@ -338,17 +375,6 @@ export const useAgGridWorkbenchSelection = <TRow>({
         if (!rowNode) {
           return;
         }
-        if (!clickedSelectionCheckbox) {
-          publishSelectionDiagnostic({
-            action: 'ignore',
-            api,
-            colId,
-            hitZone: 'selection-column',
-            rowIndex: currentRowIndex,
-            rowKey: resolveRowKey(record),
-          });
-          return;
-        }
         armSuppressRowActivation();
         applyPointerSelection(api, rowNode, {
           shiftPressed,
@@ -358,7 +384,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
           action: shiftPressed ? 'range-selection' : 'toggle-selection',
           api,
           colId,
-          hitZone: 'selection-checkbox',
+          hitZone: clickedSelectionCheckbox ? 'selection-checkbox' : 'selection-column',
           rowIndex: currentRowIndex,
           rowKey: resolveRowKey(record),
         });
@@ -486,11 +512,9 @@ export const useAgGridWorkbenchSelection = <TRow>({
     (event: CellKeyDownEvent<TRow>) => {
       const nativeEvent = event.event as KeyboardEvent | undefined;
       if (!nativeEvent) return;
-      if (nativeEvent.code !== 'Space' && nativeEvent.key !== ' ') return;
-      if (isEditableAgGridKeyboardTarget(nativeEvent.target)) return;
-
-      nativeEvent.preventDefault();
-      nativeEvent.stopPropagation();
+      if (!isAgGridSpaceKeyboardEvent(nativeEvent)) return;
+      if (nativeEvent.defaultPrevented) return;
+      if (!suppressAgGridSpaceKeyboardEvent(nativeEvent)) return;
 
       const rowNode = event.node;
       if (!rowNode?.data) return;
@@ -510,8 +534,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
 
   const handleSpaceKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== ' ' && event.key !== 'Spacebar') return;
-      if (isEditableAgGridKeyboardTarget(event.target)) return;
+      if (!suppressAgGridSpaceKeyboardEvent(event.nativeEvent as unknown as KeyboardEventLike)) return;
 
       const api = apiRef.current;
       if (!api) return;
@@ -553,6 +576,10 @@ export const useAgGridWorkbenchSelection = <TRow>({
     [apiRef, focusedRowKey, publishSelectionDiagnostic, resolveRowKey, toggleRowNodeSelection],
   );
 
+  const handleSpaceKeyUpCapture = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    suppressAgGridSpaceKeyboardEventOnKeyUp(event.nativeEvent as unknown as KeyboardEventLike);
+  }, []);
+
   return {
     handleCellClicked,
     handleCellFocused,
@@ -560,6 +587,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
     handleGridMouseDownCapture,
     handleRowClicked,
     handleSpaceKeyDownCapture,
+    handleSpaceKeyUpCapture,
     selectionDiagnostic,
     selectionDiagnosticsEnabled: enableSelectionDiagnostics && Boolean(debugKey),
   };

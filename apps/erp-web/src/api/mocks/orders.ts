@@ -218,16 +218,49 @@ const buildDefaultNotes = (): OrderDetail['notes'] => [
   }
 ];
 
-const buildDefaultTags = (): OrderDetail['tags'] => [
-  {
-    tag: 'VIP',
-    created_by: null,
-    created_at: dayjs().toISOString()
-  }
-];
-
 const normalizeTagValues = (tags: string[]) =>
   Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+
+const buildRuntimeOrderTagNames = (order: OrderSummary, orderIndex: number) => {
+  const tags: string[] = [];
+  if (orderIndex % 9 === 0) {
+    tags.push('加急');
+  }
+  if (orderIndex % 11 === 0) {
+    tags.push('人工复核');
+  }
+  if (orderIndex % 17 === 0) {
+    tags.push('直播赠品');
+  }
+  if (String(order.shop_id ?? '').includes('douyin') && orderIndex % 5 === 0) {
+    tags.push('直播间订单');
+  }
+  return normalizeTagValues(tags);
+};
+
+const buildRuntimeOrderSummarySignals = (order: OrderSummary, orderIndex: number) => ({
+  tags: buildRuntimeOrderTagNames(order, orderIndex),
+  presale: orderIndex % 10 === 0,
+  platform_ship_deadline_at:
+    orderIndex % 12 === 0 ? dayjs().subtract((orderIndex % 3) + 1, 'day').toISOString() : undefined,
+  refund_state: orderIndex % 14 === 0 ? 'PARTIAL_REFUND' : undefined,
+  merge_group_id: orderIndex % 16 === 0 ? `MERGE-GROUP-${orderIndex + 1}` : undefined,
+  split_source_order_id: orderIndex % 18 === 0 ? `PARENT-${order.id}` : undefined,
+  freeze_reason:
+    (order.exception_flags ?? []).includes('ORDER_FROZEN') || orderIndex % 20 === 0
+      ? '风控自动冻结'
+      : undefined,
+});
+
+const buildDefaultTags = (order: OrderSummary, orderIndex: number): OrderDetail['tags'] => {
+  const tagNames = buildRuntimeOrderTagNames(order, orderIndex);
+  const createdAt = dayjs().toISOString();
+  return tagNames.map((tag) => ({
+    tag,
+    created_by: null,
+    created_at: createdAt,
+  }));
+};
 
 const resolveMockOrderItems = (order: OrderSummary) =>
   mockOrderItems.get(order.id) ??
@@ -531,6 +564,7 @@ mockOrderDetailOverrides.set(specialOrderIds.split, {
 export const getMockOrderList = (query: OrderListQuery) => {
   const resolvedOrders = mockOrders.map((order, orderIndex) => {
     const resolvedItems = resolveMockOrderItems(order);
+    const runtimeSignals = buildRuntimeOrderSummarySignals(order, orderIndex);
     return {
       ...order,
       ship_warehouse_id:
@@ -539,7 +573,8 @@ export const getMockOrderList = (query: OrderListQuery) => {
         null,
       logistics_company: mockOrderLogisticsCompany.get(order.id) ?? '',
       goods_qty: calculateMockOrderGoodsQty(resolvedItems),
-    };
+      ...runtimeSignals,
+    } as OrderSummary;
   });
 
   const filtered = resolvedOrders.filter((order, orderIndex) => {
@@ -741,6 +776,7 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
     mockOrderWarehouseId.get(order.id) ??
     mockWarehouses[orderIndex % mockWarehouses.length]?.warehouse_id ??
     null;
+  const runtimeSignals = buildRuntimeOrderSummarySignals(order, orderIndex);
   const notes = mockOrderNotes.get(order.id) ?? buildDefaultNotes();
   if (!mockOrderNotes.has(order.id)) {
     mockOrderNotes.set(order.id, notes);
@@ -773,7 +809,6 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
     payment_status: overrides.payment_status ?? null,
     buyer_message: overrides.buyer_message ?? null,
     seller_remark: overrides.seller_remark ?? null,
-    freeze_reason: overrides.freeze_reason ?? null,
     cancel_reason: overrides.cancel_reason ?? null,
     exception_reason: overrides.exception_reason ?? null,
     extra_remark: overrides.extra_remark ?? null,
@@ -787,14 +822,25 @@ export const getMockOrderDetail = (orderId: string): OrderDetail => {
     order_type: order.order_type ?? null,
     sales_channel: order.sales_channel ?? null,
     order_source: order.order_source ?? null,
-    salesperson: order.salesperson ?? null
+    salesperson: order.salesperson ?? null,
+    presale: runtimeSignals.presale ?? false,
+    refund_state: runtimeSignals.refund_state ?? null,
+    freeze_reason: overrides.freeze_reason ?? runtimeSignals.freeze_reason ?? null,
+    merge_group_id: runtimeSignals.merge_group_id ?? null,
+    split_source_order_id: runtimeSignals.split_source_order_id ?? null,
+    platform_ship_deadline_at: runtimeSignals.platform_ship_deadline_at ?? null,
   } as OrderDetail['order'] & {
     order_type?: string | null;
     sales_channel?: string | null;
     order_source?: string | null;
     salesperson?: string | null;
+    presale?: boolean;
+    refund_state?: string | null;
+    merge_group_id?: string | null;
+    split_source_order_id?: string | null;
+    platform_ship_deadline_at?: string | null;
   };
-  const resolvedTags = mockOrderTags.get(order.id) ?? buildDefaultTags();
+  const resolvedTags = mockOrderTags.get(order.id) ?? buildDefaultTags(order, orderIndex);
   return {
     order: orderDetail,
     items: items.map((item) => ({ ...item })),
@@ -2007,4 +2053,3 @@ export const settleMockOrderReconciliation = (
     settled_at: next.settled_at ?? current.settled_at ?? dayjs().toISOString()
   };
 };
-

@@ -72,7 +72,8 @@ export const appMenuItems: AppMenuItem[] = [
     icon: <ShoppingOutlined />,
     children: [
       group('订单中心', [
-        leaf('/orders/review', '审核订单', { permission: 'orders.read' }),
+        leaf('/sales/order-query', '订单查询', { permission: 'orders.read' }),
+        leaf('/orders/review', '订单审核', { permission: 'orders.read' }),
         leaf('/orders/recheck', '订单复核', { permission: 'orders.read' }),
       ]),
       group('业务设置', [

@@ -6,14 +6,15 @@ import { buildHeaderModules, resolveActiveHeaderModuleKey } from './headerMenuMo
 describe('headerMenuModel', () => {
   it('builds only the surviving top-level modules from the reduced menu tree', () => {
     const modules = buildHeaderModules(appMenuItems);
-    const salesModule = modules.find((module) => module.defaultPath === '/orders/review');
+    const salesModule = modules.find((module) => module.defaultPath === '/sales/order-query');
 
     expect(modules.map((module) => module.defaultPath)).toEqual([
       '/dashboard',
       '/channels',
-      '/orders/review',
+      '/sales/order-query',
     ]);
     expect(salesModule?.leafPaths).toEqual([
+      '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',
@@ -31,8 +32,9 @@ describe('headerMenuModel', () => {
 
   it('resolves active modules from the preserved routes only', () => {
     const modules = buildHeaderModules(appMenuItems);
-    const salesModule = modules.find((module) => module.defaultPath === '/orders/review');
+    const salesModule = modules.find((module) => module.defaultPath === '/sales/order-query');
 
+    expect(resolveActiveHeaderModuleKey(modules, '/sales/order-query')).toBe(salesModule?.key);
     expect(resolveActiveHeaderModuleKey(modules, '/orders/review')).toBe(salesModule?.key);
     expect(resolveActiveHeaderModuleKey(modules, '/orders/recheck')).toBe(salesModule?.key);
     expect(resolveActiveHeaderModuleKey(modules, '/sales/settings')).toBe(salesModule?.key);

@@ -21,12 +21,19 @@ import {
   type OrderListQuery,
   type OrderSummary,
 } from '@/api/orders';
-import { listOrderTagDefinitions } from '@/api/orderTagDefinitions';
+import {
+  createOrderTagDefinition,
+  deleteOrderTagDefinition,
+  listOrderTagDefinitions,
+} from '@/api/orderTagDefinitions';
+import { listShipments } from '@/api/shipments';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
 import {
   WorkbenchPageTemplate,
+  type WorkbenchKeyboardShortcut,
   WorkbenchRecordEditorDialog,
+  useWorkbenchInteractionController,
   useWorkbenchSavedViewState,
   useWorkbenchRecordEditor,
   WorkbenchToolbar,
@@ -80,6 +87,12 @@ import {
   type OrderWorkbenchGoodsRow,
 } from './shared/orderWorkbenchGoodsRows';
 import {
+  resolveOrderWorkbenchDetailItems,
+  resolveOrderWorkbenchFeeRows,
+  resolveOrderWorkbenchPlatformOrderRows,
+  resolveOrderWorkbenchShipmentRows,
+} from './shared/orderWorkbenchDetailData';
+import {
   resolveToolbarActionOrderIds,
   runMergeOrdersAction,
   runReviewOrdersAction,
@@ -87,12 +100,6 @@ import {
   type OrderReviewToolbarActionDeps,
 } from './review-native/orderReviewToolbarActions';
 import type { ColumnFilters, OrderReviewLeftStatsItem } from './review-native/types';
-
-type ContextMenuState<T> = {
-  open: boolean;
-  position: { x: number; y: number } | null;
-  row: T | null;
-};
 
 type DetailOrderPayload = {
   id?: string;
@@ -120,20 +127,6 @@ type OrderReviewFilterSnapshot = {
   columnFilters: ColumnFilters;
   leftScreenFiltersDraft: UiModule08StrategyScreenFilterState;
   leftScreenFiltersApplied: UiModule08StrategyScreenFilterState;
-};
-
-const isEditableKeyboardTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-  const tagName = target.tagName;
-  return (
-    target.isContentEditable ||
-    tagName === 'INPUT' ||
-    tagName === 'TEXTAREA' ||
-    tagName === 'SELECT' ||
-    Boolean(target.closest('.ant-select-dropdown, .ant-picker-dropdown'))
-  );
 };
 
 const readStringField = (record: OrderSummary, keys: string[]) => {
@@ -457,9 +450,38 @@ export const OrderReviewPage = () => {
   const canWriteOrders = useCan('orders.write');
   const queryClient = useQueryClient();
 
+  const reviewSavedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.savedView.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const filterSnapshotStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.filterSnapshot.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const reviewPaginationStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.pagination.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
+  const reviewWorkbenchStateCacheKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
+    return `orders.review.workbenchState.v1.${tenantId}.${normalizedUserId}`;
+  }, [tenantId, userId]);
   const { pagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
     defaultPageSize,
     pageSizeOptions,
+    storageKey: reviewPaginationStorageKey,
   });
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -482,11 +504,6 @@ export const OrderReviewPage = () => {
     createUiModule08StrategyScreenFilterState(),
   );
 
-  const [mainContextMenu, setMainContextMenu] = useState<ContextMenuState<OrderSummary>>({
-    open: false,
-    position: null,
-    row: null,
-  });
   const [splitModalOpen, setSplitModalOpen] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
   const [actionLoading, setActionLoading] = useState({
@@ -494,21 +511,6 @@ export const OrderReviewPage = () => {
     merge: false,
     split: false,
   });
-
-  const reviewSavedViewKey = useMemo(() => {
-    if (!tenantId) {
-      return '';
-    }
-    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
-    return `orders.review.savedView.v1.${tenantId}.${normalizedUserId}`;
-  }, [tenantId, userId]);
-  const filterSnapshotStorageKey = useMemo(() => {
-    if (!tenantId) {
-      return '';
-    }
-    const normalizedUserId = String(userId ?? '').trim() || 'anonymous';
-    return `orders.review.filterSnapshot.v1.${tenantId}.${normalizedUserId}`;
-  }, [tenantId, userId]);
   const tableRef = useRef<HTMLDivElement | null>(null);
   const mainGridApiRef = useRef<GridApi<OrderSummary> | null>(null);
   const fetchStartedAtRef = useRef<number | null>(null);
@@ -643,13 +645,15 @@ export const OrderReviewPage = () => {
     staleTime: 60_000,
   });
 
+  const orderTagDefinitions = orderTagDefinitionsQuery.data?.items ?? [];
+
   const orderTagOptions = useMemo(
     () =>
-      (orderTagDefinitionsQuery.data?.items ?? []).map((tag) => ({
+      orderTagDefinitions.map((tag) => ({
         label: tag.name,
         value: tag.name,
       })),
-    [orderTagDefinitionsQuery.data?.items],
+    [orderTagDefinitions],
   );
 
   const baseQuery = useMemo<OrderListQuery>(() => {
@@ -999,7 +1003,6 @@ export const OrderReviewPage = () => {
       if (isFetching) {
         return;
       }
-      setSelectedRowKeys([]);
       setActiveOrder(null);
       setActiveOrderKey(null);
       setFocusedOrderKey(null);
@@ -1015,7 +1018,10 @@ export const OrderReviewPage = () => {
     });
 
     setSelectedRowKeys((current) => {
-      const next = filterOrderReviewSelectionKeys(rows, current);
+      if (!hasFullScopeColumnFilterActive) {
+        return current;
+      }
+      const next = filterOrderReviewSelectionKeys(sourceRowsForFilter, current);
       if (
         next.length === current.length &&
         next.every((key, index) => key === String(current[index] ?? ''))
@@ -1073,7 +1079,7 @@ export const OrderReviewPage = () => {
     if (!focusedOrderKey && firstKey) {
       setFocusedOrderKey(firstKey);
     }
-  }, [activeOrder, activeOrderKey, focusedOrderKey, isFetching, rows]);
+  }, [activeOrder, activeOrderKey, focusedOrderKey, hasFullScopeColumnFilterActive, isFetching, rows, sourceRowsForFilter]);
 
   useEffect(() => {
     if (!selectionAnchorKey) return;
@@ -1154,9 +1160,13 @@ export const OrderReviewPage = () => {
   );
 
   const detailOrder = (detailQuery.data?.order ?? null) as DetailOrderPayload | null;
+  const detailItems = useMemo(
+    () => resolveOrderWorkbenchDetailItems(detailQuery.data ?? null),
+    [detailQuery.data],
+  );
   const goodsRows = useMemo(
-    () => toOrderWorkbenchGoodsRows((detailOrder?.items ?? []) as Record<string, unknown>[]),
-    [detailOrder],
+    () => toOrderWorkbenchGoodsRows(detailItems),
+    [detailItems],
   );
   const logRows = useMemo(() => (detailQuery.data?.audit_logs ?? []) as Record<string, unknown>[], [detailQuery.data]);
   const currentOrderTags = useMemo(
@@ -1164,6 +1174,32 @@ export const OrderReviewPage = () => {
       ((detailQuery.data as { tags?: Array<{ tag?: string | null }> } | undefined)?.tags ?? [])
         .map((item) => String(item.tag ?? '').trim())
         .filter(Boolean),
+    [detailQuery.data],
+  );
+  const shipmentsQuery = useQuery({
+    queryKey: ['shipments', tenantId, 'orders-review-native', detailOrder?.platform_order_id ?? ''],
+    queryFn: () =>
+      listShipments(tenantId, {
+        platform_order_id: String(detailOrder?.platform_order_id ?? '').trim(),
+        limit: 50,
+      }),
+    enabled: Boolean(tenantId && String(detailOrder?.platform_order_id ?? '').trim()),
+    staleTime: 60_000,
+  });
+  const platformOrderRows = useMemo(
+    () => resolveOrderWorkbenchPlatformOrderRows(detailQuery.data as Record<string, unknown> | null | undefined),
+    [detailQuery.data],
+  );
+  const shipmentRows = useMemo(
+    () =>
+      resolveOrderWorkbenchShipmentRows(
+        detailQuery.data as Record<string, unknown> | null | undefined,
+        shipmentsQuery.data?.items ?? [],
+      ),
+    [detailQuery.data, shipmentsQuery.data?.items],
+  );
+  const feeRows = useMemo(
+    () => resolveOrderWorkbenchFeeRows(detailQuery.data as Record<string, unknown> | null | undefined),
     [detailQuery.data],
   );
   const [orderTagsApplying, setOrderTagsApplying] = useState(false);
@@ -1297,11 +1333,6 @@ export const OrderReviewPage = () => {
   const handleApplyOrderTags = useCallback(
     async (tags: string[]) => {
       const normalizedTags = Array.from(new Set(tags.map((item) => item.trim()).filter(Boolean)));
-      if (!normalizedTags.length) {
-        message.warning('请至少选择或输入一个订单记号');
-        return false;
-      }
-
       const orderId = String(detailOrder?.id ?? '').trim();
       if (!tenantId || !orderId) {
         message.warning('请先选中订单');
@@ -1311,7 +1342,7 @@ export const OrderReviewPage = () => {
       setOrderTagsApplying(true);
       try {
         await addOrderTags(tenantId, orderId, normalizedTags);
-        message.success('订单记号已应用');
+        message.success(normalizedTags.length > 0 ? '订单记号已应用' : '订单记号已清空');
         await Promise.all([refetch(), detailQuery.refetch()]);
         return true;
       } catch (error) {
@@ -1322,6 +1353,53 @@ export const OrderReviewPage = () => {
       }
     },
     [detailOrder?.id, detailQuery, refetch, tenantId],
+  );
+
+  const handleRefreshOrderTagDefinitions = useCallback(async () => {
+    if (!tenantId) {
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['order-tag-definitions', tenantId] });
+    await orderTagDefinitionsQuery.refetch();
+  }, [orderTagDefinitionsQuery, queryClient, tenantId]);
+
+  const handleCreateOrderTagDefinition = useCallback(
+    async (name: string) => {
+      const normalized = String(name ?? '').trim();
+      if (!tenantId || !normalized) {
+        message.warning('请输入记号名称');
+        return false;
+      }
+      try {
+        await createOrderTagDefinition(tenantId, { name: normalized });
+        message.success('订单记号已创建');
+        await handleRefreshOrderTagDefinitions();
+        return true;
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '创建订单记号失败');
+        return false;
+      }
+    },
+    [handleRefreshOrderTagDefinitions, tenantId],
+  );
+
+  const handleDeleteOrderTagDefinition = useCallback(
+    async (tagId: string) => {
+      const normalized = String(tagId ?? '').trim();
+      if (!tenantId || !normalized) {
+        return false;
+      }
+      try {
+        await deleteOrderTagDefinition(tenantId, normalized);
+        message.success('订单记号已删除');
+        await handleRefreshOrderTagDefinitions();
+        return true;
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '删除订单记号失败');
+        return false;
+      }
+    },
+    [handleRefreshOrderTagDefinitions, tenantId],
   );
 
   const persistGoodsRows = useCallback(
@@ -1643,7 +1721,7 @@ export const OrderReviewPage = () => {
     setColumnFilters((previous) => clearOrderReviewMainGridColumnFilters(previous));
   }, []);
 
-  useLeftFilterModule<OrderSummary, ColumnFilters>({
+  const { leftPanel } = useLeftFilterModule<OrderSummary, ColumnFilters>({
     rows: leftStatsSourceRows,
     filters: columnFilters,
     onFiltersChange: handleLeftFiltersChange,
@@ -1749,25 +1827,6 @@ export const OrderReviewPage = () => {
       });
     },
     [workbenchRecordEditor],
-  );
-
-  const handleMainContextMenu = useCallback(
-    (record: OrderSummary, event: MouseEvent) => {
-      const key = resolveOrderRowKey(record) || null;
-      setActiveOrder(record);
-      setActiveOrderKey(key);
-      setFocusedOrderKey(key);
-      if (key && !selectedRowKeys.some((item) => String(item) === String(key))) {
-        setSelectedRowKeys([key]);
-        setSelectionAnchorKey(key);
-      }
-      setMainContextMenu({
-        open: true,
-        position: { x: event.clientX, y: event.clientY },
-        row: record,
-      });
-    },
-    [selectedRowKeys],
   );
 
   const selectedOrderIds = useMemo(() => {
@@ -1891,7 +1950,7 @@ export const OrderReviewPage = () => {
     toolbarActionDeps,
   ]);
 
-  const announceWorkbench = useCallback((text: string) => {
+  const dispatchWorkbenchAnnouncement = useCallback((text: string) => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -1935,10 +1994,10 @@ export const OrderReviewPage = () => {
       currentMap[String(slot)] = snapshot;
       localStorage.setItem(filterSnapshotStorageKey, JSON.stringify(currentMap));
       message.success(`已保存筛选快照 ${slot}`);
-      announceWorkbench(`已保存筛选快照 ${slot}`);
+      dispatchWorkbenchAnnouncement(`已保存筛选快照 ${slot}`);
     },
     [
-      announceWorkbench,
+      dispatchWorkbenchAnnouncement,
       columnFilters,
       filterSnapshotStorageKey,
       leftScreenFiltersApplied,
@@ -1980,92 +2039,90 @@ export const OrderReviewPage = () => {
         );
         resetPagination();
         message.success(`已应用筛选快照 ${slot}`);
-        announceWorkbench(`已应用筛选快照 ${slot}`);
+        dispatchWorkbenchAnnouncement(`已应用筛选快照 ${slot}`);
       } catch {
         message.error('筛选快照读取失败，请重新保存后再试');
       }
     },
-    [announceWorkbench, filterSnapshotStorageKey, resetPagination],
+    [dispatchWorkbenchAnnouncement, filterSnapshotStorageKey, resetPagination],
   );
 
-  useEffect(() => {
-    const handlePageHotkeys = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) {
-        return;
-      }
+  const keyboardShortcuts = useMemo<WorkbenchKeyboardShortcut[]>(() => {
+    const shortcuts: WorkbenchKeyboardShortcut[] = [];
 
-      const digitMatch = event.code.match(/^Digit([1-9])$/);
-      if (
-        digitMatch &&
-        event.altKey &&
-        !event.shiftKey &&
-        !event.metaKey &&
-        !event.ctrlKey
-      ) {
-        event.preventDefault();
-        replayFilterSnapshot(Number(digitMatch[1]));
-        return;
-      }
+    for (let slot = 1; slot <= 9; slot += 1) {
+      shortcuts.push({
+        id: `replay-snapshot-${slot}`,
+        key: String(slot),
+        altKey: true,
+        handler: () => replayFilterSnapshot(slot),
+      });
+      shortcuts.push({
+        id: `save-snapshot-${slot}`,
+        key: String(slot),
+        altKey: true,
+        ctrlKey: true,
+        handler: () => persistFilterSnapshot(slot),
+      });
+    }
 
-      if (
-        digitMatch &&
-        event.altKey &&
-        !event.shiftKey &&
-        !event.metaKey &&
-        event.ctrlKey
-      ) {
-        event.preventDefault();
-        persistFilterSnapshot(Number(digitMatch[1]));
-        return;
-      }
+    shortcuts.push(
+      {
+        id: 'approve',
+        key: 'a',
+        altKey: true,
+        shiftKey: true,
+        handler: () => {
+          if (!hasReviewActionTarget || actionLoading.review) {
+            return;
+          }
+          void handleApproveOrders();
+        },
+      },
+      {
+        id: 'merge',
+        key: 'm',
+        altKey: true,
+        shiftKey: true,
+        handler: () => {
+          if (actionOrderIds.length < 2 || actionLoading.merge) {
+            return;
+          }
+          void handleMergeOrders();
+        },
+      },
+      {
+        id: 'split',
+        key: 's',
+        altKey: true,
+        shiftKey: true,
+        handler: () => {
+          if (!hasReviewActionTarget || actionLoading.split) {
+            return;
+          }
+          openSplitModal();
+        },
+      },
+      {
+        id: 'clear-selection',
+        key: 'c',
+        altKey: true,
+        shiftKey: true,
+        handler: () => {
+          setSelectedRowKeys([]);
+          setSelectionAnchorKey(null);
+          dispatchWorkbenchAnnouncement('已清空勾选');
+        },
+      },
+    );
 
-      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) {
-        return;
-      }
-
-      const key = event.key.toLowerCase();
-      if (key === 'a') {
-        event.preventDefault();
-        if (!hasReviewActionTarget || actionLoading.review) {
-          return;
-        }
-        void handleApproveOrders();
-        return;
-      }
-      if (key === 'm') {
-        event.preventDefault();
-        if (actionOrderIds.length < 2 || actionLoading.merge) {
-          return;
-        }
-        void handleMergeOrders();
-        return;
-      }
-      if (key === 's') {
-        event.preventDefault();
-        if (!hasReviewActionTarget || actionLoading.split) {
-          return;
-        }
-        openSplitModal();
-        return;
-      }
-      if (key === 'c') {
-        event.preventDefault();
-        setSelectedRowKeys([]);
-        setSelectionAnchorKey(null);
-        announceWorkbench('已清空勾选');
-      }
-    };
-
-    window.addEventListener('keydown', handlePageHotkeys);
-    return () => {
-      window.removeEventListener('keydown', handlePageHotkeys);
-    };
+    return shortcuts;
   }, [
     actionLoading.merge,
     actionLoading.review,
     actionLoading.split,
     actionOrderIds.length,
-    announceWorkbench,
+    dispatchWorkbenchAnnouncement,
     handleApproveOrders,
     handleMergeOrders,
     hasReviewActionTarget,
@@ -2073,6 +2130,30 @@ export const OrderReviewPage = () => {
     persistFilterSnapshot,
     replayFilterSnapshot,
   ]);
+
+  const {
+    closeContextMenu,
+    contextMenuState: mainContextMenu,
+    openContextMenu,
+  } = useWorkbenchInteractionController<OrderSummary>({
+    keyboardShortcuts,
+    onAnnounce: dispatchWorkbenchAnnouncement,
+  });
+
+  const handleMainContextMenu = useCallback(
+    (record: OrderSummary, event: MouseEvent) => {
+      const key = resolveOrderRowKey(record) || null;
+      setActiveOrder(record);
+      setActiveOrderKey(key);
+      setFocusedOrderKey(key);
+      if (key && !selectedRowKeys.some((item) => String(item) === String(key))) {
+        setSelectedRowKeys([key]);
+        setSelectionAnchorKey(key);
+      }
+      openContextMenu(record, event);
+    },
+    [openContextMenu, selectedRowKeys],
+  );
 
   const selectedAmountCent = useMemo(() => {
     if (!selectedOrderIds.length) return 0;
@@ -2130,10 +2211,10 @@ export const OrderReviewPage = () => {
           setSelectedRowKeys([]);
           setSelectionAnchorKey(null);
         }
-        setMainContextMenu({ open: false, position: null, row: null });
+        closeContextMenu();
       },
     }),
-    [mainContextMenu.row],
+    [closeContextMenu, mainContextMenu.row],
   );
 
   const rightPanel = useMemo(
@@ -2150,10 +2231,14 @@ export const OrderReviewPage = () => {
         logisticsUpdating={detailUpdatingField === 'logistics'}
         onWarehouseChange={handleDetailWarehouseChange}
         onLogisticsChange={handleDetailLogisticsChange}
+        orderTagDefinitions={orderTagDefinitions}
         orderTagOptions={orderTagOptions}
         currentOrderTags={currentOrderTags}
         orderTagsApplying={orderTagsApplying}
         onApplyOrderTags={handleApplyOrderTags}
+        onCreateOrderTagDefinition={handleCreateOrderTagDefinition}
+        onDeleteOrderTagDefinition={handleDeleteOrderTagDefinition}
+        onRefreshOrderTagDefinitions={handleRefreshOrderTagDefinitions}
       />
     ),
     [
@@ -2165,10 +2250,14 @@ export const OrderReviewPage = () => {
       detailUpdatingField,
       detailWarehouseId,
       handleApplyOrderTags,
+      handleCreateOrderTagDefinition,
+      handleDeleteOrderTagDefinition,
       handleDetailLogisticsChange,
       handleDetailWarehouseChange,
+      handleRefreshOrderTagDefinitions,
       mergedCourierOptions,
       mergedWarehouseOptions,
+      orderTagDefinitions,
       orderTagOptions,
       orderTagsApplying,
     ],
@@ -2190,6 +2279,7 @@ export const OrderReviewPage = () => {
         updatingField: detailUpdatingField ?? '',
         orderTagsApplying,
         currentOrderTags,
+        orderTagDefinitions: orderTagDefinitions.map((item) => `${item.tag_id}:${item.name}`),
         orderTagOptions: orderTagOptions.map((option) => String(option.value ?? '')),
         warehouseOptions: mergedWarehouseOptions.map((option) => String(option.value ?? '')),
         courierOptions: mergedCourierOptions.map((option) => String(option.value ?? '')),
@@ -2216,6 +2306,7 @@ export const OrderReviewPage = () => {
       detailWarehouseId,
       mergedCourierOptions,
       mergedWarehouseOptions,
+      orderTagDefinitions,
       orderTagOptions,
       orderTagsApplying,
     ],
@@ -2227,11 +2318,14 @@ export const OrderReviewPage = () => {
         activeOrderId={activeDetailOrderId || 'none'}
         goodsRows={goodsRowsState}
         logRows={logRows}
+        platformOrderRows={platformOrderRows}
+        shipmentRows={shipmentRows}
+        feeRows={feeRows}
         goodsSaving={goodsSaving}
         onPersistGoodsRows={persistGoodsRows}
       />
     ),
-    [activeDetailOrderId, goodsRowsState, goodsSaving, logRows, persistGoodsRows],
+    [activeDetailOrderId, feeRows, goodsRowsState, goodsSaving, logRows, persistGoodsRows, platformOrderRows, shipmentRows],
   );
 
   const bottomPanelSyncKey = useMemo(
@@ -2253,8 +2347,11 @@ export const OrderReviewPage = () => {
           operator: String(row.operator ?? ''),
           detail: String(row.detail ?? ''),
         })),
+        platformOrderRows,
+        shipmentRows,
+        feeRows,
       }),
-    [activeDetailOrderId, goodsRowsState, goodsSaving, logRows],
+    [activeDetailOrderId, feeRows, goodsRowsState, goodsSaving, logRows, platformOrderRows, shipmentRows],
   );
 
   const toolbar = (
@@ -2347,7 +2444,8 @@ export const OrderReviewPage = () => {
   );
 
   return (
-      <WorkbenchPageTemplate
+    <WorkbenchPageTemplate
+      leftPanel={leftPanel}
       toolbar={toolbar}
       tableContainerRef={tableRef}
       tableContent={
@@ -2382,6 +2480,7 @@ export const OrderReviewPage = () => {
       total={total}
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
+      stateCacheKey={reviewWorkbenchStateCacheKey}
       showFooterScrollbarRow={true}
       rightPanel={rightPanel}
       rightPanelSyncKey={rightPanelSyncKey}
@@ -2421,7 +2520,7 @@ export const OrderReviewPage = () => {
             open={mainContextMenu.open}
             position={mainContextMenu.position}
             menu={mainContextMenuConfig}
-            onClose={() => setMainContextMenu({ open: false, position: null, row: null })}
+            onClose={closeContextMenu}
           />
         </>
       }

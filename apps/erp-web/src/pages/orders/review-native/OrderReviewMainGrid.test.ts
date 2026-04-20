@@ -1,13 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
+
+import { OrderTagBadges } from '@/components/OrderTagBadges';
 
 import { buildOrderReviewMainGridColDefs, buildOrderReviewMainGridDefaultColDef } from './OrderReviewMainGrid';
 
 describe('OrderReviewMainGrid column config', () => {
   it('uses narrow min-width constraints for business columns', () => {
     const colDefs = buildOrderReviewMainGridColDefs({
-      headerChecked: false,
-      headerIndeterminate: false,
       logisticsOptions: [],
+      onOpenColumnSettings: vi.fn(),
       onToggleAllSelection: vi.fn(),
       platformFilterOptions: [],
       shopOptions: [],
@@ -32,9 +36,8 @@ describe('OrderReviewMainGrid column config', () => {
 
   it('keeps business columns sortable while structural columns stay unsorted', () => {
     const colDefs = buildOrderReviewMainGridColDefs({
-      headerChecked: false,
-      headerIndeterminate: false,
       logisticsOptions: [],
+      onOpenColumnSettings: vi.fn(),
       onToggleAllSelection: vi.fn(),
       platformFilterOptions: [],
       shopOptions: [],
@@ -60,5 +63,45 @@ describe('OrderReviewMainGrid column config', () => {
     expect(defaultColDef.sortable).toBe(true);
     expect(defaultColDef.minWidth).toBe(52);
     expect(defaultColDef.floatingFilter).toBe(true);
+  });
+
+  it('uses mark column rendering without forcing a dash placeholder', () => {
+    const colDefs = buildOrderReviewMainGridColDefs({
+      logisticsOptions: [],
+      onOpenColumnSettings: vi.fn(),
+      onToggleAllSelection: vi.fn(),
+      platformFilterOptions: [],
+      shopOptions: [],
+    });
+
+    const markColumn = colDefs.find((colDef) => String(colDef.colId ?? '') === 'exception_badges');
+    const valueGetter = markColumn?.valueGetter as ((params: unknown) => unknown) | undefined;
+    const cellRenderer =
+      markColumn?.cellRenderer as
+        | ((params: unknown) => { type?: unknown; props?: { emptyText?: unknown; singleLine?: boolean } })
+        | undefined;
+
+    expect(markColumn?.headerName).toBe('记号');
+    expect(valueGetter?.({ data: undefined } as never)).toEqual([]);
+
+    const element = cellRenderer?.({ value: [] } as never);
+    expect(element?.type).toBe(OrderTagBadges);
+    expect(element?.props?.emptyText).toBeNull();
+    expect(element?.props?.singleLine).toBe(true);
+  });
+
+  it('uses unified compact row metrics for the industrial workbench grid', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderReviewMainGrid.tsx'), 'utf8');
+
+    expect(source).toContain('rowHeight={ORDER_WORKBENCH_GRID_ROW_HEIGHT}');
+    expect(source).toContain('headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}');
+  });
+
+  it('suppresses space-key scrolling at the shared grid boundary without debouncing vertical scrollbar rendering', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderReviewMainGrid.tsx'), 'utf8');
+
+    expect(source).toContain('suppressKeyboardEvent={suppressKeyboardSpaceScroll}');
+    expect(source).toContain('onKeyUpCapture={handleSpaceKeyUpCapture}');
+    expect(source).not.toContain('debounceVerticalScrollbar');
   });
 });

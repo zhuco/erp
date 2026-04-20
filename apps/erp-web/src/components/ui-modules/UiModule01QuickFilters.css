@@ -6,6 +6,11 @@
   border: 1px solid var(--erp-border-color);
   border-radius: 8px;
   background: var(--erp-bg-panel);
+  font-size: var(--erp-font-size-body);
+}
+
+.order-review-quick-filters .ant-typography {
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-quick-filters-header {
@@ -51,7 +56,7 @@
   text-align: left;
   height: 22px;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-quick-filter-button.ant-btn-text:not(:disabled):hover {
@@ -160,7 +165,7 @@
 
 .order-review-quick-sort-label {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--erp-font-size-body);
 }
 
 .order-review-quick-settings-modal .ant-modal-header {
@@ -168,6 +173,7 @@
 }
 
 .order-review-quick-settings-modal .ant-modal-title {
+  font-size: var(--erp-font-size-title);
   line-height: 20px;
 }
 

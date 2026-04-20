@@ -104,6 +104,7 @@ const LoginPage = lazyNamedPage(() => import('@/pages/LoginPage'), 'LoginPage');
 const NotFoundPage = lazyNamedPage(() => import('@/pages/NotFound'), 'NotFoundPage');
 const DashboardPage = lazyNamedPage(() => import('@/pages/Dashboard'), 'DashboardPage');
 const ChannelsPage = lazyNamedPage(() => import('@/pages/channels/ChannelsPage'), 'ChannelsPage');
+const SalesOrderQueryWorkbenchPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderQueryWorkbenchPage'), 'SalesOrderQueryWorkbenchPage');
 const OrderReviewPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewPage'), 'OrderReviewPage');
 const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
 const SalesSettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesSettingsPage'), 'SalesSettingsPage');
@@ -153,6 +154,14 @@ const routeConfig = [
                 element: (
                   <PermissionGuard permission="channels.read">
                     <ChannelsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'sales/order-query',
+                element: (
+                  <PermissionGuard permission="orders.read">
+                    <SalesOrderQueryWorkbenchPage />
                   </PermissionGuard>
                 ),
               },

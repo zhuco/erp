@@ -1,5 +1,5 @@
 import type { CellClickedEvent } from 'ag-grid-community';
-import { Typography } from 'antd';
+import type { ReactNode } from 'react';
 
 import {
   WorkbenchLeftPanelTemplate,
@@ -15,8 +15,8 @@ type OrderExceptionsLeftPanelProps = {
   leftStatsItems: WorkbenchLeftStatsItem[];
   leftStatsPieBackground: string;
   globalOrderTotal: number;
-  isFetching: boolean;
-  hasManualFilterActive: boolean;
+  statsScopeText: ReactNode;
+  screenContent: ReactNode;
 };
 
 export const OrderExceptionsLeftPanel = ({
@@ -27,8 +27,8 @@ export const OrderExceptionsLeftPanel = ({
   leftStatsItems,
   leftStatsPieBackground,
   globalOrderTotal,
-  isFetching,
-  hasManualFilterActive,
+  statsScopeText,
+  screenContent,
 }: OrderExceptionsLeftPanelProps) => (
   <WorkbenchLeftPanelTemplate
     dataTestId="order-exceptions-left-panel"
@@ -39,13 +39,7 @@ export const OrderExceptionsLeftPanel = ({
     leftStatsItems={leftStatsItems}
     leftStatsPieBackground={leftStatsPieBackground}
     globalOrderTotal={globalOrderTotal}
-    statsScopeText={isFetching ? '统计更新中...' : hasManualFilterActive ? '口径：左侧过滤后' : '口径：复核结果'}
-    screenContent={
-      <div className="order-exceptions-left-screen-tip">
-        <Typography.Text type="secondary">
-          左侧支持四个维度单选过滤：异常状态、责任人、SLA（含即将超时）、发货仓。再次点击同一项可取消该维度过滤。
-        </Typography.Text>
-      </div>
-    }
+    statsScopeText={statsScopeText}
+    screenContent={screenContent}
   />
 );

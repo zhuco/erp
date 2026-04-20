@@ -79,7 +79,7 @@ export const buildOrderManagementColumns = ({
     },
     includeTags
       ? {
-          title: '标记',
+          title: '记号',
           key: 'tags',
           width: 120,
           render: (_, record) => resolveTags(record),
@@ -108,7 +108,7 @@ export const buildOrderManagementColumns = ({
           title: '异常',
           key: 'exceptions',
           width: 120,
-          render: (_, record) => <OrderTagBadges tags={resolveOrderBuiltinTags(record)} emptyText="-" />,
+          render: (_, record) => <OrderTagBadges tags={resolveOrderBuiltinTags(record)} emptyText={null} />,
         }
       : null,
     {

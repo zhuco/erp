@@ -83,6 +83,7 @@ const reducedUiAllowedPaths = new Set([
   '/',
   '/dashboard',
   '/channels',
+  '/sales/order-query',
   '/orders/review',
   '/orders/recheck',
   '/sales/settings',
@@ -2257,7 +2258,7 @@ export const WorkbenchLayout = () => {
       <RouteDiagnosticsReporter />
       <header className="workbench-header" ref={headerRef}>
         <ModuleHeader
-          logo="ERP"
+          logo="衡策云"
           modules={moduleItems}
           activeModuleKey={activeModuleKey}
           currentPath={location.pathname}

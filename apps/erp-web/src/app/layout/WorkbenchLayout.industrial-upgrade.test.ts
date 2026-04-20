@@ -52,4 +52,46 @@ describe('WorkbenchLayout industrial upgrade', () => {
     expect(source).toContain('window.requestAnimationFrame');
     expect(source).toContain('window.cancelAnimationFrame');
   });
+
+  it('uses the 衡策云 brand in the workbench header', () => {
+    const source = readFileSync(resolve(__dirname, 'WorkbenchLayout.tsx'), 'utf8');
+
+    expect(source).toContain('logo="衡策云"');
+    expect(source).not.toContain('logo="ERP"');
+  });
+
+  it('keeps the shared panel collapse toggles visually compact', () => {
+    const css = readFileSync(resolve(__dirname, 'workbenchLayout.css'), 'utf8');
+
+    expect(css).toContain('.workbench-resizer-toggle {');
+    expect(css).toContain('.workbench-resizer-horizontal-toggle {');
+    expect(css).toContain('.workbench-resizer::before');
+    expect(css).toContain('.workbench-resizer-horizontal::before');
+    expect(css).toContain('width: 6px;');
+    expect(css).toContain('height: 6px;');
+    expect(css).toContain('width: 1px;');
+    expect(css).toContain('height: 1px;');
+    expect(css).toContain('width: 7px;');
+    expect(css).toContain('height: 13px;');
+    expect(css).toContain('width: 13px;');
+    expect(css).toContain('height: 7px;');
+    expect(css).toContain('font-size: 9px;');
+    expect(css).toContain('line-height: 1;');
+    expect(css).toContain('.workbench-panel-left {');
+    expect(css).toContain('border-right: none;');
+    expect(css).toContain('.workbench-panel-right {');
+    expect(css).toContain('border-left: none;');
+    expect(css).toContain('.workbench-main-bottom {');
+    expect(css).toContain('border-top: none;');
+  });
+
+  it('uses tighter industrial panel spacing between filter, main grid, detail, and bottom panes', () => {
+    const css = readFileSync(resolve(__dirname, 'workbenchLayout.css'), 'utf8');
+
+    expect(css).toContain('.workbench-panel-body {');
+    expect(css).toContain('.workbench-main-content {');
+    expect(css).toContain('.workbench-main-top {');
+    expect(css).toContain('.workbench-main-bottom {');
+    expect(css).toContain('padding: 2px;');
+  });
 });

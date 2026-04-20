@@ -506,11 +506,11 @@
 }
 
 .workbench-panel-left {
-  border-right: 1px solid var(--erp-border-color);
+  border-right: none;
 }
 
 .workbench-panel-right {
-  border-left: 1px solid var(--erp-border-color);
+  border-left: none;
 }
 
 .workbench-panel-header {
@@ -541,7 +541,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px;
+  padding: 2px;
 }
 
 .workbench-panel-collapsed {
@@ -554,10 +554,22 @@
 
 .workbench-resizer {
   position: relative;
-  width: 8px;
+  width: 6px;
   cursor: col-resize;
-  background: var(--erp-border-color);
+  background: transparent;
   flex-shrink: 0;
+}
+
+.workbench-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--erp-border-color);
+  transition: background-color 0.18s ease;
 }
 
 .workbench-resizer:focus-visible {
@@ -574,31 +586,36 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: 7px;
+  height: 13px;
+  min-width: 7px;
+  min-height: 13px;
   padding: 0;
-  font-size: 12px;
-  line-height: 20px;
+  font-size: 9px;
+  line-height: 1;
   border: 1px solid var(--erp-border-color);
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--erp-bg-panel);
   z-index: 2;
 }
 
 .workbench-resizer-toggle.ant-btn-icon-only {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
+  width: 7px;
+  height: 13px;
+  min-width: 7px;
+  min-height: 13px;
 }
 
 .workbench-resizer-toggle .anticon {
-  font-size: 12px;
+  font-size: 9px;
   line-height: 1;
 }
 
 .workbench-resizer:hover {
+  background: transparent;
+}
+
+.workbench-resizer:hover::before {
   background: #cbd5f5;
 }
 
@@ -712,7 +729,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 8px 12px 12px;
+  padding: 2px;
 }
 
 .workbench-main-split {
@@ -729,15 +746,27 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px;
+  padding: 2px;
 }
 
 .workbench-resizer-horizontal {
   position: relative;
-  height: 8px;
+  height: 6px;
   cursor: row-resize;
-  background: var(--erp-border-color);
+  background: transparent;
   flex-shrink: 0;
+}
+
+.workbench-resizer-horizontal::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: var(--erp-border-color);
+  transition: background-color 0.18s ease;
 }
 
 .workbench-resizer-horizontal:focus-visible {
@@ -746,6 +775,10 @@
 }
 
 .workbench-resizer-horizontal:hover {
+  background: transparent;
+}
+
+.workbench-resizer-horizontal:hover::before {
   background: #cbd5f5;
 }
 
@@ -758,28 +791,28 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: 13px;
+  height: 7px;
+  min-width: 13px;
+  min-height: 7px;
   padding: 0;
-  font-size: 12px;
+  font-size: 9px;
   line-height: 1;
   border: 1px solid var(--erp-border-color);
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--erp-bg-panel);
   z-index: 2;
 }
 
 .workbench-resizer-horizontal-toggle.ant-btn-icon-only {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: 13px;
+  height: 7px;
+  min-width: 13px;
+  min-height: 7px;
 }
 
 .workbench-resizer-horizontal-toggle .anticon {
-  font-size: 12px;
+  font-size: 9px;
   line-height: 1;
 }
 
@@ -787,8 +820,8 @@
   flex-shrink: 0;
   min-height: 140px;
   overflow: auto;
-  padding: 6px 8px 8px;
-  border-top: 1px solid var(--erp-border-color);
+  padding: 2px;
+  border-top: none;
   transition: height 0.2s ease, padding 0.2s ease, border-color 0.2s ease;
 }
 
