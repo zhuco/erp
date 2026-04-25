@@ -56,6 +56,12 @@ describe('workbench unified template adoption', () => {
     expect(css).not.toContain('.order-exceptions-left-screen-tip');
   });
 
+  it('keeps the recheck right panel limited to the shared order detail panel without extra duplicate summary sections', () => {
+    const source = readFileSync(resolve(__dirname, '../OrderExceptionsPage.tsx'), 'utf8');
+
+    expect(source).not.toContain('renderDetailContent(activeRow, detailQuery.data, detailQuery.isLoading)');
+  });
+
   it('keeps the shared left-filter module free of direct panel-store mounting', () => {
     const source = readFileSync(resolve(__dirname, 'useLeftFilterModule.tsx'), 'utf8');
 

@@ -330,20 +330,138 @@ const mockCouriers: Courier[] = mockCourierSeeds.map((seed, index) =>
   buildCourier(seed, index)
 );
 
-const mockChannels: Channel[] = platformValues.map((platform, index) => ({
-  channel_id: `CH-${platform}`,
+const mockChannelSeeds: Array<{
+  channel_id: string;
+  channel_type: Channel['channel_type'];
+  platform: Channel['platform'];
+  name: string;
+  contact_name: string;
+  contact_phone: string;
+  contact_address: string;
+  department: string;
+  owner: string;
+  allow_manual_order: boolean;
+  allow_manual_after_sales: boolean;
+  default_warehouse_id: string | null;
+  commission_formula: string | null;
+  status: Channel['status'];
+}> = [
+  {
+    channel_id: 'CH-taobao',
+    channel_type: 'ONLINE',
+    platform: Platform.Taobao,
+    name: '淘宝旗舰渠道',
+    contact_name: '李青',
+    contact_phone: '13800001111',
+    contact_address: '上海市浦东新区张江路 188 号',
+    department: '电商事业部',
+    owner: '王晨',
+    allow_manual_order: true,
+    allow_manual_after_sales: true,
+    default_warehouse_id: mockWarehouses[0]?.warehouse_id ?? null,
+    commission_formula: '销售额 * 0.05',
+    status: 'ACTIVE',
+  },
+  {
+    channel_id: 'CH-jd',
+    channel_type: 'ONLINE',
+    platform: Platform.Jd,
+    name: '京东自营渠道',
+    contact_name: '周敏',
+    contact_phone: '13900002222',
+    contact_address: '北京市朝阳区望京街 66 号',
+    department: '大客户中心',
+    owner: '赵凯',
+    allow_manual_order: false,
+    allow_manual_after_sales: true,
+    default_warehouse_id: mockWarehouses[1]?.warehouse_id ?? null,
+    commission_formula: '成交额 * 0.03',
+    status: 'ACTIVE',
+  },
+  {
+    channel_id: 'CH-pdd',
+    channel_type: 'ONLINE',
+    platform: Platform.Pdd,
+    name: '拼多多分销渠道',
+    contact_name: '陈雨',
+    contact_phone: '13700003333',
+    contact_address: '杭州市滨江区网商路 18 号',
+    department: '电商事业部',
+    owner: '吴杰',
+    allow_manual_order: true,
+    allow_manual_after_sales: false,
+    default_warehouse_id: null,
+    commission_formula: '销售额 * 0.025',
+    status: 'ACTIVE',
+  },
+  {
+    channel_id: 'CH-douyin',
+    channel_type: 'ONLINE',
+    platform: Platform.Douyin,
+    name: '抖音直播渠道',
+    contact_name: '刘婷',
+    contact_phone: '13600004444',
+    contact_address: '广州市天河区科韵路 55 号',
+    department: '内容电商部',
+    owner: '孙航',
+    allow_manual_order: false,
+    allow_manual_after_sales: false,
+    default_warehouse_id: mockWarehouses[0]?.warehouse_id ?? null,
+    commission_formula: '成交额 * 0.04',
+    status: 'DISABLED',
+  },
+  {
+    channel_id: 'CH-offline-retail',
+    channel_type: 'OFFLINE',
+    platform: null,
+    name: '线下零售门店',
+    contact_name: '黄蓉',
+    contact_phone: '13500005555',
+    contact_address: '南京市建邺区河西大街 99 号',
+    department: '零售事业部',
+    owner: '郑远',
+    allow_manual_order: true,
+    allow_manual_after_sales: true,
+    default_warehouse_id: mockWarehouses[1]?.warehouse_id ?? null,
+    commission_formula: null,
+    status: 'ACTIVE',
+  },
+  {
+    channel_id: 'CH-offline-wholesale',
+    channel_type: 'OFFLINE',
+    platform: null,
+    name: '线下批发渠道',
+    contact_name: '何琳',
+    contact_phone: '13400006666',
+    contact_address: '成都市高新区天府大道 288 号',
+    department: '渠道发展部',
+    owner: '许峰',
+    allow_manual_order: true,
+    allow_manual_after_sales: false,
+    default_warehouse_id: null,
+    commission_formula: '批发价差 * 0.12',
+    status: 'DISABLED',
+  },
+];
+
+const mockChannels: Channel[] = mockChannelSeeds.map((seed, index) => ({
+  channel_id: seed.channel_id,
   tenant_id: mockTenantId,
-  platform,
-  name: `渠道-${platform.toUpperCase()}`,
-  department: index % 2 === 0 ? '电商事业部' : '销售中心',
-  owner: index % 2 === 0 ? '李雷' : '韩梅梅',
-  allow_manual_order: index % 2 === 0,
-  allow_manual_after_sales: index % 3 === 0,
-  default_warehouse_id: mockWarehouses[index % mockWarehouses.length]?.warehouse_id ?? null,
-  commission_formula: index % 2 === 0 ? '销售额*0.05' : '成交额*0.03',
-  status: index % 4 === 0 ? 'DISABLED' : 'ACTIVE',
+  channel_type: seed.channel_type,
+  platform: seed.platform,
+  name: seed.name,
+  contact_name: seed.contact_name,
+  contact_phone: seed.contact_phone,
+  contact_address: seed.contact_address,
+  department: seed.department,
+  owner: seed.owner,
+  allow_manual_order: seed.allow_manual_order,
+  allow_manual_after_sales: seed.allow_manual_after_sales,
+  default_warehouse_id: seed.default_warehouse_id,
+  commission_formula: seed.commission_formula,
+  status: seed.status,
   created_at: dayjs().subtract(index + 1, 'day').toISOString(),
-  updated_at: dayjs().subtract(index, 'hour').toISOString()
+  updated_at: dayjs().subtract(index, 'hour').toISOString(),
 }));
 
 const mockSupplierSeeds = ['华东供应商', '华南供应商', '海外供应商'];

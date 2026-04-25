@@ -4,10 +4,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('WorkbenchLayout industrial upgrade', () => {
-  it('supports URL-shareable layout preset with extended panel state keys', () => {
+  it('supports URL-shareable panel state with workbench font scale observability', () => {
     const source = readFileSync(resolve(__dirname, 'WorkbenchLayout.tsx'), 'utf8');
 
-    expect(source).toContain("LAYOUT_PRESET_QUERY_KEY = 'layoutPreset'");
     expect(source).toContain("LAYOUT_LEFT_COLLAPSED_QUERY_KEY = 'leftCollapsed'");
     expect(source).toContain("LAYOUT_RIGHT_COLLAPSED_QUERY_KEY = 'rightCollapsed'");
     expect(source).toContain("LAYOUT_BOTTOM_COLLAPSED_QUERY_KEY = 'bottomCollapsed'");
@@ -23,8 +22,10 @@ describe('WorkbenchLayout industrial upgrade', () => {
     expect(source).toContain('data-workbench-left-width');
     expect(source).toContain('data-workbench-right-width');
     expect(source).toContain('data-workbench-bottom-height');
-    expect(source).toContain('layoutPresetStatusText');
-    expect(source).toContain('resolveLayoutPresetLabel');
+    expect(source).toContain('data-workbench-font-scale={workbenchFontScale}');
+    expect(source).toContain('fontScaleStatusText');
+    expect(source).toContain('resolveWorkbenchFontScaleLabel');
+    expect(source).not.toContain("LAYOUT_PRESET_QUERY_KEY = 'layoutPreset'");
   });
 
   it('adds a11y landmarks and skip link for main content region', () => {
@@ -83,6 +84,23 @@ describe('WorkbenchLayout industrial upgrade', () => {
     expect(css).toContain('border-left: none;');
     expect(css).toContain('.workbench-main-bottom {');
     expect(css).toContain('border-top: none;');
+  });
+
+  it('uses Chinese tooltip and aria labels for shared panel collapse toggles', () => {
+    const source = readFileSync(resolve(__dirname, 'WorkbenchLayout.tsx'), 'utf8');
+
+    expect(source).toContain('workbenchI18n.resizer.expandLeft');
+    expect(source).toContain('workbenchI18n.resizer.collapseLeft');
+    expect(source).toContain('workbenchI18n.resizer.expandRight');
+    expect(source).toContain('workbenchI18n.resizer.collapseRight');
+    expect(source).toContain('workbenchI18n.resizer.expandBottom');
+    expect(source).toContain('workbenchI18n.resizer.collapseBottom');
+    expect(source).not.toContain("'Expand left panel'");
+    expect(source).not.toContain("'Collapse left panel'");
+    expect(source).not.toContain("'Expand right panel'");
+    expect(source).not.toContain("'Collapse right panel'");
+    expect(source).not.toContain("'Expand bottom panel'");
+    expect(source).not.toContain("'Collapse bottom panel'");
   });
 
   it('uses tighter industrial panel spacing between filter, main grid, detail, and bottom panes', () => {

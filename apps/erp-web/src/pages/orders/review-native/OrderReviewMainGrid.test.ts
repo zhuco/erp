@@ -97,11 +97,28 @@ describe('OrderReviewMainGrid column config', () => {
     expect(source).toContain('headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}');
   });
 
+  it('uses tighter shared row metrics and cell padding for the industrial workbench main grid', () => {
+    const metricsSource = readFileSync(resolve(__dirname, '../shared/orderWorkbenchGridMetrics.ts'), 'utf8');
+    const cssSource = readFileSync(resolve(__dirname, '../orderReviewPage.css'), 'utf8');
+
+    expect(metricsSource).toContain('ORDER_WORKBENCH_GRID_ROW_HEIGHT = 22');
+    expect(cssSource).toContain('--ag-cell-horizontal-padding: 4px;');
+    expect(cssSource).toContain('--ag-grid-size: 4px;');
+  });
+
   it('suppresses space-key scrolling at the shared grid boundary without debouncing vertical scrollbar rendering', () => {
     const source = readFileSync(resolve(__dirname, 'OrderReviewMainGrid.tsx'), 'utf8');
 
     expect(source).toContain('suppressKeyboardEvent={suppressKeyboardSpaceScroll}');
     expect(source).toContain('onKeyUpCapture={handleSpaceKeyUpCapture}');
     expect(source).not.toContain('debounceVerticalScrollbar');
+  });
+
+  it('persists sort state when business-column sorting changes', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderReviewMainGrid.tsx'), 'utf8');
+
+    expect(source).toContain('const handleSortChanged = useCallback(');
+    expect(source).toContain('schedulePersistColumnState(event.api);');
+    expect(source).toContain('onSortChanged={handleSortChanged}');
   });
 });

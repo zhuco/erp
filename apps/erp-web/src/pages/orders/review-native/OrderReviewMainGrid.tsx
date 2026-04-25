@@ -14,6 +14,7 @@ import type {
   ICellRendererParams,
   RowDoubleClickedEvent,
   SelectionChangedEvent,
+  SortChangedEvent,
   SuppressKeyboardEventParams,
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
@@ -777,6 +778,13 @@ export const OrderReviewMainGrid = ({
     [schedulePersistColumnState],
   );
 
+  const handleSortChanged = useCallback(
+    (event: SortChangedEvent<OrderSummary>) => {
+      schedulePersistColumnState(event.api);
+    },
+    [schedulePersistColumnState],
+  );
+
   const getRowId = useCallback(
     (params: GetRowIdParams<OrderSummary>) => resolveOrderRowKey(params.data) || 'row-missing',
     [],
@@ -893,6 +901,7 @@ export const OrderReviewMainGrid = ({
           onColumnVisible={handleColumnStateChanged}
           onColumnPinned={handleColumnStateChanged}
           onColumnResized={handleColumnStateChanged}
+          onSortChanged={handleSortChanged}
           onModelUpdated={(event) => {
             handleModelUpdated(event.api);
           }}

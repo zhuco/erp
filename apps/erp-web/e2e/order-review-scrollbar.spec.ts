@@ -273,3 +273,87 @@ test('order review keeps the only visible horizontal scrollbar above summary and
   expect(diagnostics.customScrollbarBottom).toBeLessThanOrEqual(diagnostics.paginationTop);
   expect(Math.abs(diagnostics.customScrollbarBottom - diagnostics.paginationTop)).toBeLessThanOrEqual(1);
 });
+
+type VerticalScrollbarOwnershipDiagnostics = {
+  outerContainer: {
+    clientHeight: number;
+    scrollHeight: number;
+    canScroll: boolean;
+    overflowY: string;
+  } | null;
+  gridViewport: {
+    clientHeight: number;
+    scrollHeight: number;
+    canScroll: boolean;
+    overflowY: string;
+  } | null;
+};
+
+const collectVerticalScrollbarOwnershipDiagnostics = async (
+  page: Page,
+  gridTestId: string,
+): Promise<VerticalScrollbarOwnershipDiagnostics> =>
+  page.evaluate((targetGridTestId) => {
+    const outerContainer = document.querySelector<HTMLElement>('.workbench-main-top');
+    const gridRoot = document.querySelector<HTMLElement>(`[data-testid="${targetGridTestId}"]`);
+    const gridViewport = gridRoot?.querySelector<HTMLElement>('.ag-body-viewport') ?? null;
+
+    const toScrollableMetrics = (element: HTMLElement | null) => {
+      if (!element) {
+        return null;
+      }
+
+      return {
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        canScroll: element.scrollHeight > element.clientHeight + 1,
+        overflowY: window.getComputedStyle(element).overflowY,
+      };
+    };
+
+    return {
+      outerContainer: toScrollableMetrics(outerContainer),
+      gridViewport: toScrollableMetrics(gridViewport),
+    };
+  }, gridTestId);
+
+const verticalScrollbarOwnershipCases = [
+  {
+    name: '订单审核',
+    route: '/orders/review',
+    gridTestId: 'order-review-data-grid',
+  },
+  {
+    name: '订单复核',
+    route: '/orders/recheck',
+    gridTestId: 'order-exceptions-data-grid',
+  },
+  {
+    name: '订单查询',
+    route: '/sales/order-query',
+    gridTestId: 'order-review-data-grid',
+  },
+] as const;
+
+for (const scenario of verticalScrollbarOwnershipCases) {
+  test(`${scenario.name}主数据区只保留主表自身的纵向滚动`, async ({ page }) => {
+    await page.goto(scenario.route);
+    await loginAndSelectTenant(page);
+
+    const grid = page.getByTestId(scenario.gridTestId);
+    await expect(grid).toBeVisible();
+    await expect
+      .poll(async () => grid.locator('.erp-data-grid-row, .ag-center-cols-container .ag-row').count(), {
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(0);
+
+    const diagnostics = await collectVerticalScrollbarOwnershipDiagnostics(page, scenario.gridTestId);
+    console.log(
+      `[order-workbench-vertical-scrollbar:${scenario.route}] ${JSON.stringify(diagnostics, null, 2)}`,
+    );
+
+    expect(diagnostics.gridViewport?.canScroll).toBe(true);
+    expect(diagnostics.outerContainer?.canScroll).toBe(false);
+  });
+}

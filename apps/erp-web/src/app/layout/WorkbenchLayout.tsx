@@ -1,4 +1,4 @@
-import { Alert, Button, Empty, Input, Modal, Space, Tooltip, Typography } from 'antd';
+import { Alert, Button, ConfigProvider, Empty, Input, Modal, Space, Tooltip, Typography } from 'antd';
 import type { InputRef, MenuProps } from 'antd';
 import {
   CaretDownOutlined,
@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { getUserShortcuts } from '@/api/shortcuts';
@@ -72,6 +72,10 @@ import { useUiSettingsStore } from '@/features/uiSettings';
 import { useFocusReturn } from '@/app/layout/useFocusReturn';
 import { workbenchI18n } from '@/app/layout/workbenchI18n';
 import { NotFoundPage } from '@/pages/NotFound';
+import {
+  resolveWorkbenchTypographyScale,
+  type WorkbenchFontScale,
+} from '@/styles/typography';
 
 import './workbenchLayout.css';
 
@@ -83,6 +87,13 @@ const reducedUiAllowedPaths = new Set([
   '/',
   '/dashboard',
   '/channels',
+  '/channels/service-purchase',
+  '/channels/authorize',
+  '/couriers',
+  '/tags',
+  '/warehouses',
+  '/logistics-fees',
+  '/suppliers',
   '/sales/order-query',
   '/orders/review',
   '/orders/recheck',
@@ -91,7 +102,6 @@ const reducedUiAllowedPaths = new Set([
 
 export const isReducedUiPathAllowed = (pathname: string) => reducedUiAllowedPaths.has(pathname);
 const WORKBENCH_RESIZE_SNAP_THRESHOLD = 20;
-const LAYOUT_PRESET_QUERY_KEY = 'layoutPreset';
 const LAYOUT_LEFT_COLLAPSED_QUERY_KEY = 'leftCollapsed';
 const LAYOUT_RIGHT_COLLAPSED_QUERY_KEY = 'rightCollapsed';
 const LAYOUT_BOTTOM_COLLAPSED_QUERY_KEY = 'bottomCollapsed';
@@ -101,9 +111,9 @@ const LAYOUT_BOTTOM_HEIGHT_QUERY_KEY = 'bottomHeight';
 const WORKBENCH_INTERACTION_EVENT = 'erp:workbench-interaction';
 const WORKBENCH_INTERACTION_SAMPLE_RATE = 0.25;
 const WORKBENCH_ANNOUNCE_EVENT = 'erp:workbench-announce';
+const DEFAULT_WORKBENCH_FONT_SCALE: WorkbenchFontScale = 'medium';
 
 type WorkbenchResizableSide = 'left' | 'right' | 'bottom';
-type WorkbenchLayoutPreset = 'compact' | 'default' | 'analysis';
 type WorkbenchRouteLoadingStatus = 'idle' | 'loading' | 'ready' | 'timeout' | 'error';
 type WorkbenchCommandScope = 'workbench' | 'route-tabs';
 
@@ -119,7 +129,6 @@ type WorkbenchCommand = {
 
 type WorkbenchLayoutQueryState = {
   hasAny: boolean;
-  preset: WorkbenchLayoutPreset | null;
   leftCollapsed?: boolean;
   rightCollapsed?: boolean;
   bottomCollapsed?: boolean;
@@ -128,23 +137,23 @@ type WorkbenchLayoutQueryState = {
   bottomHeight?: number;
 };
 
-const isWorkbenchLayoutPreset = (value: unknown): value is WorkbenchLayoutPreset =>
-  value === 'compact' || value === 'default' || value === 'analysis';
+const isWorkbenchFontScale = (value: unknown): value is WorkbenchFontScale =>
+  value === 'small' || value === 'medium' || value === 'large';
 
-const resolveLayoutPresetLabel = (preset: WorkbenchLayoutPreset) => {
-  if (preset === 'compact') {
-    return workbenchI18n.layoutPreset.compact;
+const resolveWorkbenchFontScaleLabel = (fontScale: WorkbenchFontScale) => {
+  if (fontScale === 'small') {
+    return workbenchI18n.fontScale.small;
   }
-  if (preset === 'analysis') {
-    return workbenchI18n.layoutPreset.analysis;
+  if (fontScale === 'large') {
+    return workbenchI18n.fontScale.large;
   }
-  return workbenchI18n.layoutPreset.default;
+  return workbenchI18n.fontScale.medium;
 };
 
 type WorkbenchInteractionName =
-  | 'layout.preset.apply'
-  | 'layout.preset.restore'
-  | 'layout.preset.persist'
+  | 'font-scale.apply'
+  | 'font-scale.restore'
+  | 'font-scale.persist'
   | 'search.select'
   | 'resize.end';
 
@@ -580,7 +589,6 @@ export const WorkbenchLayout = () => {
   const currentRouteSnapshot = useRouteLoadingSnapshot(currentRouteKey);
   const queryLayoutState = useMemo<WorkbenchLayoutQueryState>(() => {
     const params = new URLSearchParams(location.search);
-    const routePreset = params.get(LAYOUT_PRESET_QUERY_KEY);
     const leftCollapsed = parseLayoutBooleanQueryValue(params.get(LAYOUT_LEFT_COLLAPSED_QUERY_KEY));
     const rightCollapsed = parseLayoutBooleanQueryValue(
       params.get(LAYOUT_RIGHT_COLLAPSED_QUERY_KEY),
@@ -602,18 +610,15 @@ export const WorkbenchLayout = () => {
       params.get(LAYOUT_BOTTOM_HEIGHT_QUERY_KEY),
       WORKBENCH_BOTTOM_PANEL_MIN_HEIGHT,
     );
-    const preset = isWorkbenchLayoutPreset(routePreset) ? routePreset : null;
 
     return {
       hasAny:
-        preset !== null ||
         typeof leftCollapsed === 'boolean' ||
         typeof rightCollapsed === 'boolean' ||
         typeof bottomCollapsed === 'boolean' ||
         typeof leftWidth === 'number' ||
         typeof rightWidth === 'number' ||
         typeof bottomHeight === 'number',
-      preset,
       leftCollapsed,
       rightCollapsed,
       bottomCollapsed,
@@ -822,11 +827,11 @@ export const WorkbenchLayout = () => {
     }
     return `erp.ui.workbench.layout.${tenantId}.${userId}`;
   }, [tenantId, userId]);
-  const layoutPresetStorageKey = useMemo(() => {
+  const workbenchFontScaleStorageKey = useMemo(() => {
     if (!tenantId || !userId) {
       return '';
     }
-    return `erp.ui.workbench.layout.preset.${tenantId}.${userId}`;
+    return `erp.ui.workbench.font-scale.${tenantId}.${userId}`;
   }, [tenantId, userId]);
   const recentFunctionStorageKey = useMemo(() => {
     if (!tenantId || !userId) {
@@ -852,15 +857,18 @@ export const WorkbenchLayout = () => {
     Record<string, WorkbenchRoutePanelsState>
   >({});
   const [resizeIndicator, setResizeIndicator] = useState<ResizeIndicatorState | null>(null);
-  const [layoutPreset, setLayoutPreset] = useState<WorkbenchLayoutPreset>('default');
+  const [workbenchFontScale, setWorkbenchFontScale] = useState<WorkbenchFontScale>(
+    DEFAULT_WORKBENCH_FONT_SCALE,
+  );
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [commandKeyword, setCommandKeyword] = useState('');
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [screenReaderAnnouncement, setScreenReaderAnnouncement] = useState('');
   const [resizeCommitVersion, setResizeCommitVersion] = useState(0);
   const layoutHydratedRef = useRef(false);
-  const layoutPresetHydratedRef = useRef<string | null>(null);
-  const layoutPresetExpectedRef = useRef<WorkbenchLayoutPreset>('default');
+  const routeLayoutHydratedRef = useRef<string | null>(null);
+  const workbenchFontScaleHydratedRef = useRef(false);
+  const workbenchFontScaleExpectedRef = useRef<WorkbenchFontScale>(DEFAULT_WORKBENCH_FONT_SCALE);
   const pendingFunctionSearchFocusRef = useRef(false);
   const screenReaderAnnounceTimerRef = useRef<number | null>(null);
   const previousRouteStatusRef = useRef<WorkbenchRouteLoadingStatus | null>(null);
@@ -893,6 +901,34 @@ export const WorkbenchLayout = () => {
 
   useFocusReturn(commandPaletteOpen);
   useFocusReturn(shortcutHelpOpen);
+
+  const workbenchTypographyScale = useMemo(
+    () => resolveWorkbenchTypographyScale(workbenchFontScale),
+    [workbenchFontScale],
+  );
+  const workbenchShellStyle = useMemo(
+    () =>
+      ({
+        '--erp-font-size-body': `${workbenchTypographyScale.body}px`,
+        '--erp-font-size-body-strong': `${workbenchTypographyScale.bodyStrong}px`,
+        '--erp-font-size-title': `${workbenchTypographyScale.title}px`,
+        '--erp-font-size-title-display': `${workbenchTypographyScale.titleDisplay}px`,
+        '--erp-font-size-base': `${workbenchTypographyScale.body}px`,
+      }) as CSSProperties,
+    [workbenchTypographyScale],
+  );
+  const workbenchThemeConfig = useMemo(
+    () => ({
+      token: {
+        fontSize: workbenchTypographyScale.body,
+        fontSizeSM: Math.max(11, workbenchTypographyScale.body - 1),
+        fontSizeLG: workbenchTypographyScale.title,
+        fontSizeHeading4: workbenchTypographyScale.title,
+        fontSizeHeading3: workbenchTypographyScale.titleDisplay,
+      },
+    }),
+    [workbenchTypographyScale],
+  );
 
   const handleLeftPanelWidthChange = useCallback(
     (width: number) =>
@@ -1451,59 +1487,16 @@ export const WorkbenchLayout = () => {
     resetResizablePanelSize(side, maxBottom);
   };
 
-  const applyLayoutPreset = useCallback(
-    (preset: WorkbenchLayoutPreset) => {
-      const maxBottom = resolveBottomPanelMaxHeight();
-      layoutPresetExpectedRef.current = preset;
-      setLayoutPreset(preset);
-      setResizeIndicator(null);
-      emitWorkbenchInteraction('layout.preset.apply', {
-        preset,
+  const applyWorkbenchFontScale = useCallback(
+    (fontScale: WorkbenchFontScale) => {
+      workbenchFontScaleExpectedRef.current = fontScale;
+      setWorkbenchFontScale(fontScale);
+      emitWorkbenchInteraction('font-scale.apply', {
+        fontScale,
         route: currentRouteKey,
       });
-
-      if (preset === 'compact') {
-        setLeftCollapsed(true);
-        setRightCollapsed(true);
-        setBottomCollapsed(true);
-        return;
-      }
-
-      if (preset === 'default') {
-        setLeftCollapsed(false);
-        setRightCollapsed(false);
-        setBottomCollapsed(false);
-        setLeftWidth(WORKBENCH_DEFAULT_LEFT_PANEL_WIDTH);
-        setRightWidth(WORKBENCH_DEFAULT_RIGHT_PANEL_WIDTH);
-        setBottomHeight(
-          clampWorkbenchPanelSize(
-            WORKBENCH_DEFAULT_BOTTOM_PANEL_HEIGHT,
-            WORKBENCH_BOTTOM_PANEL_MIN_HEIGHT,
-            maxBottom,
-          ),
-        );
-        return;
-      }
-
-      setLeftCollapsed(true);
-      setRightCollapsed(false);
-      setBottomCollapsed(false);
-      setRightWidth(
-        clampWorkbenchPanelSize(
-          WORKBENCH_DEFAULT_RIGHT_PANEL_WIDTH + 80,
-          WORKBENCH_RIGHT_PANEL_MIN_WIDTH,
-          WORKBENCH_RIGHT_PANEL_MAX_WIDTH,
-        ),
-      );
-      setBottomHeight(
-        clampWorkbenchPanelSize(
-          WORKBENCH_DEFAULT_BOTTOM_PANEL_HEIGHT + 120,
-          WORKBENCH_BOTTOM_PANEL_MIN_HEIGHT,
-          maxBottom,
-        ),
-      );
     },
-    [currentRouteKey, resolveBottomPanelMaxHeight],
+    [currentRouteKey],
   );
 
   const workbenchCommands = useMemo<WorkbenchCommand[]>(
@@ -1518,31 +1511,31 @@ export const WorkbenchLayout = () => {
         run: () => focusFunctionSearchInput(),
       },
       {
-        id: 'preset-compact',
-        label: workbenchI18n.commandLabels.applyCompactLayout,
-        description: workbenchI18n.commandDescriptions.applyCompactLayout,
+        id: 'font-scale-small',
+        label: workbenchI18n.commandLabels.applySmallFontScale,
+        description: workbenchI18n.commandDescriptions.applySmallFontScale,
         shortcut: 'Alt+Shift+1',
         scope: 'workbench',
         keywords: ['甯冨眬', '绱у噾', 'layout', 'compact'],
-        run: () => applyLayoutPreset('compact'),
+        run: () => applyWorkbenchFontScale('small'),
       },
       {
-        id: 'preset-default',
-        label: workbenchI18n.commandLabels.applyDefaultLayout,
-        description: workbenchI18n.commandDescriptions.applyDefaultLayout,
+        id: 'font-scale-medium',
+        label: workbenchI18n.commandLabels.applyMediumFontScale,
+        description: workbenchI18n.commandDescriptions.applyMediumFontScale,
         shortcut: 'Alt+Shift+2',
         scope: 'workbench',
         keywords: ['甯冨眬', '鏍囧噯', 'layout', 'default'],
-        run: () => applyLayoutPreset('default'),
+        run: () => applyWorkbenchFontScale('medium'),
       },
       {
-        id: 'preset-analysis',
-        label: workbenchI18n.commandLabels.applyAnalysisLayout,
-        description: workbenchI18n.commandDescriptions.applyAnalysisLayout,
+        id: 'font-scale-large',
+        label: workbenchI18n.commandLabels.applyLargeFontScale,
+        description: workbenchI18n.commandDescriptions.applyLargeFontScale,
         shortcut: 'Alt+Shift+3',
         scope: 'workbench',
         keywords: ['甯冨眬', '鍒嗘瀽', 'layout', 'analysis'],
-        run: () => applyLayoutPreset('analysis'),
+        run: () => applyWorkbenchFontScale('large'),
       },
       {
         id: 'toggle-left',
@@ -1624,7 +1617,7 @@ export const WorkbenchLayout = () => {
       },
     ],
     [
-      applyLayoutPreset,
+      applyWorkbenchFontScale,
       bottomCollapsed,
       focusFunctionSearchInput,
       leftCollapsed,
@@ -1721,17 +1714,17 @@ export const WorkbenchLayout = () => {
 
       if (event.key === '1' || event.code === 'Digit1') {
         event.preventDefault();
-        applyLayoutPreset('compact');
+        applyWorkbenchFontScale('small');
         return;
       }
       if (event.key === '2' || event.code === 'Digit2') {
         event.preventDefault();
-        applyLayoutPreset('default');
+        applyWorkbenchFontScale('medium');
         return;
       }
       if (event.key === '3' || event.code === 'Digit3') {
         event.preventDefault();
-        applyLayoutPreset('analysis');
+        applyWorkbenchFontScale('large');
       }
     };
 
@@ -1739,14 +1732,18 @@ export const WorkbenchLayout = () => {
     return () => {
       window.removeEventListener('keydown', handleWorkbenchHotkeys);
     };
-  }, [applyLayoutPreset, commandPaletteOpen, openCommandPalette, openShortcutHelp, shortcutHelpOpen]);
+  }, [
+    applyWorkbenchFontScale,
+    commandPaletteOpen,
+    openCommandPalette,
+    openShortcutHelp,
+    shortcutHelpOpen,
+  ]);
 
   useEffect(() => {
     if (queryLayoutState.hasAny) {
-      const restoredPreset = queryLayoutState.preset ?? 'default';
       const maxBottom = resolveBottomPanelMaxHeight();
-      layoutPresetHydratedRef.current = currentRouteKey;
-      applyLayoutPreset(restoredPreset);
+      routeLayoutHydratedRef.current = currentRouteKey;
 
       if (typeof queryLayoutState.leftCollapsed === 'boolean') {
         setLeftCollapsed(queryLayoutState.leftCollapsed);
@@ -1772,94 +1769,60 @@ export const WorkbenchLayout = () => {
           ),
         );
       }
-
-      emitWorkbenchInteraction('layout.preset.restore', {
-        preset: restoredPreset,
-        route: currentRouteKey,
-        source: 'query',
-      });
       return;
     }
 
-    let cachedPreset: WorkbenchLayoutPreset = 'default';
+    routeLayoutHydratedRef.current = currentRouteKey;
+  }, [currentRouteKey, queryLayoutState, resolveBottomPanelMaxHeight]);
+
+  useEffect(() => {
+    let cachedFontScale = DEFAULT_WORKBENCH_FONT_SCALE;
     let restoreSource: 'default' | 'storage' = 'default';
-    if (layoutPresetStorageKey) {
-      try {
-        const raw = localStorage.getItem(layoutPresetStorageKey);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Record<string, unknown>;
-          const routePreset = parsed[currentRouteKey];
-          if (isWorkbenchLayoutPreset(routePreset)) {
-            cachedPreset = routePreset;
-            restoreSource = 'storage';
-          }
-        }
-      } catch {
-        // ignore malformed route-preset cache
-      }
+
+    if (!workbenchFontScaleStorageKey) {
+      workbenchFontScaleExpectedRef.current = cachedFontScale;
+      setWorkbenchFontScale(cachedFontScale);
+      workbenchFontScaleHydratedRef.current = true;
+      return;
     }
-    layoutPresetHydratedRef.current = currentRouteKey;
-    applyLayoutPreset(cachedPreset);
-    emitWorkbenchInteraction('layout.preset.restore', {
-      preset: cachedPreset,
-      route: currentRouteKey,
+
+    const raw = localStorage.getItem(workbenchFontScaleStorageKey);
+    if (isWorkbenchFontScale(raw)) {
+      cachedFontScale = raw;
+      restoreSource = 'storage';
+    }
+
+    workbenchFontScaleExpectedRef.current = cachedFontScale;
+    setWorkbenchFontScale(cachedFontScale);
+    workbenchFontScaleHydratedRef.current = true;
+    emitWorkbenchInteraction('font-scale.restore', {
+      fontScale: cachedFontScale,
       source: restoreSource,
     });
-  }, [
-    applyLayoutPreset,
-    currentRouteKey,
-    layoutPresetStorageKey,
-    queryLayoutState,
-    resolveBottomPanelMaxHeight,
-  ]);
+  }, [workbenchFontScaleStorageKey]);
 
   useEffect(() => {
-    if (!layoutPresetStorageKey) {
+    if (!workbenchFontScaleStorageKey || !workbenchFontScaleHydratedRef.current) {
       return;
     }
-    if (layoutPresetHydratedRef.current !== currentRouteKey) {
+    if (workbenchFontScaleExpectedRef.current !== workbenchFontScale) {
       return;
     }
-    if (layoutPresetExpectedRef.current !== layoutPreset) {
-      return;
-    }
-
-    try {
-      const raw = localStorage.getItem(layoutPresetStorageKey);
-      const parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-      const next =
-        parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-          ? { ...parsed }
-          : ({} as Record<string, unknown>);
-      next[currentRouteKey] = layoutPreset;
-      localStorage.setItem(layoutPresetStorageKey, JSON.stringify(next));
-      emitWorkbenchInteraction('layout.preset.persist', {
-        preset: layoutPreset,
-        route: currentRouteKey,
-      });
-    } catch {
-      localStorage.setItem(
-        layoutPresetStorageKey,
-        JSON.stringify({
-          [currentRouteKey]: layoutPreset,
-        }),
-      );
-      emitWorkbenchInteraction('layout.preset.persist', {
-        preset: layoutPreset,
-        route: currentRouteKey,
-      });
-    }
-  }, [currentRouteKey, layoutPreset, layoutPresetStorageKey]);
+    localStorage.setItem(workbenchFontScaleStorageKey, workbenchFontScale);
+    emitWorkbenchInteraction('font-scale.persist', {
+      fontScale: workbenchFontScale,
+      route: currentRouteKey,
+    });
+  }, [currentRouteKey, workbenchFontScale, workbenchFontScaleStorageKey]);
 
   useEffect(() => {
-    if (layoutPresetHydratedRef.current !== currentRouteKey) {
+    if (routeLayoutHydratedRef.current !== currentRouteKey) {
       return;
     }
     if (isPointerResizingRef.current) {
       return;
     }
     const params = new URLSearchParams(location.search);
-    params.set(LAYOUT_PRESET_QUERY_KEY, layoutPreset);
     params.set(LAYOUT_LEFT_COLLAPSED_QUERY_KEY, leftCollapsed ? '1' : '0');
     params.set(LAYOUT_RIGHT_COLLAPSED_QUERY_KEY, rightCollapsed ? '1' : '0');
     params.set(LAYOUT_BOTTOM_COLLAPSED_QUERY_KEY, bottomCollapsed ? '1' : '0');
@@ -1877,7 +1840,6 @@ export const WorkbenchLayout = () => {
     bottomCollapsed,
     bottomHeight,
     currentRouteKey,
-    layoutPreset,
     leftCollapsed,
     leftWidth,
     location.hash,
@@ -1889,11 +1851,13 @@ export const WorkbenchLayout = () => {
   ]);
 
   useEffect(() => {
-    if (layoutPresetHydratedRef.current !== currentRouteKey) {
+    if (!workbenchFontScaleHydratedRef.current) {
       return;
     }
-    announceForScreenReader(workbenchI18n.presetApplied(resolveLayoutPresetLabel(layoutPreset)));
-  }, [announceForScreenReader, currentRouteKey, layoutPreset]);
+    announceForScreenReader(
+      workbenchI18n.fontScaleApplied(resolveWorkbenchFontScaleLabel(workbenchFontScale)),
+    );
+  }, [announceForScreenReader, workbenchFontScale]);
 
   useEffect(() => {
     const previous = previousPanelCollapsedStateRef.current;
@@ -1929,7 +1893,7 @@ export const WorkbenchLayout = () => {
       bottomCollapsed,
     };
 
-    if (!announcement || layoutPresetHydratedRef.current !== currentRouteKey) {
+    if (!announcement || routeLayoutHydratedRef.current !== currentRouteKey) {
       return;
     }
     announceForScreenReader(announcement);
@@ -2078,8 +2042,8 @@ export const WorkbenchLayout = () => {
   const resizeIndicatorLabel = resizeIndicator
     ? buildResizeIndicatorLabel(resizeIndicator.side, resizeIndicator.size)
     : '';
-  const layoutPresetStatusText = workbenchI18n.layoutPresetStatus(
-    resolveLayoutPresetLabel(layoutPreset),
+  const fontScaleStatusText = workbenchI18n.fontScaleStatus(
+    resolveWorkbenchFontScaleLabel(workbenchFontScale),
   );
   const activeRouteRefreshToken = refreshTokens[currentRouteKey] ?? 0;
   const validRouteKeys = useMemo(() => {
@@ -2234,16 +2198,18 @@ export const WorkbenchLayout = () => {
   );
 
   return (
-    <div
-      className="workbench-shell"
-      data-workbench-layout-preset={layoutPreset}
-      data-workbench-left-collapsed={leftCollapsed ? 'true' : 'false'}
-      data-workbench-right-collapsed={rightCollapsed ? 'true' : 'false'}
-      data-workbench-bottom-collapsed={bottomCollapsed ? 'true' : 'false'}
-      data-workbench-left-width={Math.round(leftWidth)}
-      data-workbench-right-width={Math.round(rightWidth)}
-      data-workbench-bottom-height={Math.round(bottomHeight)}
-    >
+    <ConfigProvider theme={workbenchThemeConfig}>
+      <div
+        className="workbench-shell"
+        style={workbenchShellStyle}
+        data-workbench-font-scale={workbenchFontScale}
+        data-workbench-left-collapsed={leftCollapsed ? 'true' : 'false'}
+        data-workbench-right-collapsed={rightCollapsed ? 'true' : 'false'}
+        data-workbench-bottom-collapsed={bottomCollapsed ? 'true' : 'false'}
+        data-workbench-left-width={Math.round(leftWidth)}
+        data-workbench-right-width={Math.round(rightWidth)}
+        data-workbench-bottom-height={Math.round(bottomHeight)}
+      >
       <a className="workbench-skip-link" href="#workbench-main-content">
         {workbenchI18n.skipToMainContent}
       </a>
@@ -2279,46 +2245,46 @@ export const WorkbenchLayout = () => {
         />
         <div className="workbench-main-toolbar">
           <ShortcutToolbar menuItems={menuRoutes} />
-          <div
-            className="workbench-layout-presets"
-            role="group"
-            aria-label={workbenchI18n.layoutPresetGroup}
-          >
-            <Button
-              size="small"
-              type={layoutPreset === 'compact' ? 'primary' : 'default'}
-              data-testid="workbench-layout-preset-compact"
-              aria-keyshortcuts="Alt+Shift+1"
-              onClick={() => applyLayoutPreset('compact')}
+            <div
+              className="workbench-font-scales"
+              role="group"
+              aria-label={workbenchI18n.fontScaleGroup}
             >
-              {workbenchI18n.layoutPreset.compact}
-            </Button>
-            <Button
-              size="small"
-              type={layoutPreset === 'default' ? 'primary' : 'default'}
-              data-testid="workbench-layout-preset-default"
-              aria-keyshortcuts="Alt+Shift+2"
-              onClick={() => applyLayoutPreset('default')}
+              <Button
+                size="small"
+                type={workbenchFontScale === 'small' ? 'primary' : 'default'}
+                data-testid="workbench-font-scale-small"
+                aria-keyshortcuts="Alt+Shift+1"
+                onClick={() => applyWorkbenchFontScale('small')}
+              >
+                {workbenchI18n.fontScale.small}
+              </Button>
+              <Button
+                size="small"
+                type={workbenchFontScale === 'medium' ? 'primary' : 'default'}
+                data-testid="workbench-font-scale-medium"
+                aria-keyshortcuts="Alt+Shift+2"
+                onClick={() => applyWorkbenchFontScale('medium')}
+              >
+                {workbenchI18n.fontScale.medium}
+              </Button>
+              <Button
+                size="small"
+                type={workbenchFontScale === 'large' ? 'primary' : 'default'}
+                data-testid="workbench-font-scale-large"
+                aria-keyshortcuts="Alt+Shift+3"
+                onClick={() => applyWorkbenchFontScale('large')}
+              >
+                {workbenchI18n.fontScale.large}
+              </Button>
+            </div>
+            <div
+              className="workbench-font-scale-status"
+              data-testid="workbench-font-scale-status"
+              aria-live="polite"
             >
-              {workbenchI18n.layoutPreset.default}
-            </Button>
-            <Button
-              size="small"
-              type={layoutPreset === 'analysis' ? 'primary' : 'default'}
-              data-testid="workbench-layout-preset-analysis"
-              aria-keyshortcuts="Alt+Shift+3"
-              onClick={() => applyLayoutPreset('analysis')}
-            >
-              {workbenchI18n.layoutPreset.analysis}
-            </Button>
-          </div>
-          <div
-            className="workbench-layout-preset-status"
-            data-testid="workbench-layout-preset-status"
-            aria-live="polite"
-          >
-            {layoutPresetStatusText}
-          </div>
+              {fontScaleStatusText}
+            </div>
           <Button
             size="small"
             className="workbench-toolbar-focus-search"
@@ -2360,7 +2326,7 @@ export const WorkbenchLayout = () => {
               data-testid="workbench-left-resizer"
               role="separator"
               aria-orientation="vertical"
-              aria-label="Resize left panel width"
+                  aria-label={workbenchI18n.resizer.leftWidth}
               aria-valuemin={WORKBENCH_LEFT_PANEL_MIN_WIDTH}
               aria-valuemax={WORKBENCH_LEFT_PANEL_MAX_WIDTH}
               aria-valuenow={leftCollapsed ? WORKBENCH_LEFT_PANEL_MIN_WIDTH : leftWidth}
@@ -2369,17 +2335,17 @@ export const WorkbenchLayout = () => {
               onKeyDown={handleResizeKeyDown('left')}
               onDoubleClick={handleResizeReset('left')}
             >
-              <Tooltip title={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}>
-                <Button
-                  size="small"
-                  type="text"
-                  className="workbench-resizer-toggle"
-                  icon={leftCollapsed ? <CaretRightOutlined /> : <CaretLeftOutlined />}
-                  aria-label={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={() => setLeftCollapsed((prev) => !prev)}
-                />
-              </Tooltip>
+                  <Tooltip title={leftCollapsed ? workbenchI18n.resizer.expandLeft : workbenchI18n.resizer.collapseLeft}>
+                    <Button
+                      size="small"
+                      type="text"
+                      className="workbench-resizer-toggle"
+                      icon={leftCollapsed ? <CaretRightOutlined /> : <CaretLeftOutlined />}
+                      aria-label={leftCollapsed ? workbenchI18n.resizer.expandLeft : workbenchI18n.resizer.collapseLeft}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => setLeftCollapsed((prev) => !prev)}
+                    />
+                  </Tooltip>
             </div>
           </>
         ) : null}
@@ -2387,14 +2353,14 @@ export const WorkbenchLayout = () => {
           id="workbench-main-content"
           className="workbench-main"
           role="main"
-          aria-label="Workbench main content"
+          aria-label={workbenchI18n.workbenchMainContent}
         >
           {readOnlyFlag.enabled && (
             <Alert
               banner
               showIcon
               type="warning"
-              message="This route has not connected a workbench top hint area yet. Showing placeholder content."
+              message={workbenchI18n.readOnlyBanner}
               style={{ margin: '12px 16px 0' }}
             />
           )}
@@ -2434,7 +2400,7 @@ export const WorkbenchLayout = () => {
                     data-testid="workbench-bottom-resizer"
                     role="separator"
                     aria-orientation="horizontal"
-                    aria-label="Resize bottom panel height"
+                    aria-label={workbenchI18n.resizer.bottomHeight}
                     aria-valuemin={WORKBENCH_BOTTOM_PANEL_MIN_HEIGHT}
                     aria-valuemax={bottomPanelMaxHeight}
                     aria-valuenow={bottomAriaValue}
@@ -2443,13 +2409,17 @@ export const WorkbenchLayout = () => {
                     onKeyDown={handleResizeKeyDown('bottom')}
                     onDoubleClick={handleResizeReset('bottom')}
                   >
-                    <Tooltip title={bottomCollapsed ? 'Expand bottom panel' : 'Collapse bottom panel'}>
+                    <Tooltip
+                      title={bottomCollapsed ? workbenchI18n.resizer.expandBottom : workbenchI18n.resizer.collapseBottom}
+                    >
                       <Button
                         size="small"
                         type="text"
                         className="workbench-resizer-horizontal-toggle"
                         icon={bottomCollapsed ? <CaretUpOutlined /> : <CaretDownOutlined />}
-                        aria-label={bottomCollapsed ? 'Expand bottom panel' : 'Collapse bottom panel'}
+                        aria-label={
+                          bottomCollapsed ? workbenchI18n.resizer.expandBottom : workbenchI18n.resizer.collapseBottom
+                        }
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -2476,7 +2446,7 @@ export const WorkbenchLayout = () => {
               data-testid="workbench-right-resizer"
               role="separator"
               aria-orientation="vertical"
-              aria-label="Resize right panel width"
+              aria-label={workbenchI18n.resizer.rightWidth}
               aria-valuemin={WORKBENCH_RIGHT_PANEL_MIN_WIDTH}
               aria-valuemax={WORKBENCH_RIGHT_PANEL_MAX_WIDTH}
               aria-valuenow={rightCollapsed ? WORKBENCH_RIGHT_PANEL_MIN_WIDTH : rightWidth}
@@ -2485,13 +2455,15 @@ export const WorkbenchLayout = () => {
               onKeyDown={handleResizeKeyDown('right')}
               onDoubleClick={handleResizeReset('right')}
             >
-              <Tooltip title={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}>
+              <Tooltip
+                title={rightCollapsed ? workbenchI18n.resizer.expandRight : workbenchI18n.resizer.collapseRight}
+              >
                 <Button
                   size="small"
                   type="text"
                   className="workbench-resizer-toggle"
                   icon={rightCollapsed ? <CaretLeftOutlined /> : <CaretRightOutlined />}
-                  aria-label={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}
+                  aria-label={rightCollapsed ? workbenchI18n.resizer.expandRight : workbenchI18n.resizer.collapseRight}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => setRightCollapsed((prev) => !prev)}
                 />
@@ -2522,7 +2494,7 @@ export const WorkbenchLayout = () => {
         ) : null}
         <Modal
           open={commandPaletteOpen}
-          title="Command Palette"
+          title={workbenchI18n.commandPaletteTitle}
           onCancel={() => setCommandPaletteOpen(false)}
           footer={null}
           width={640}
@@ -2534,10 +2506,14 @@ export const WorkbenchLayout = () => {
               value={commandKeyword}
               onChange={(event) => setCommandKeyword(event.target.value)}
               onKeyDown={handleCommandInputKeyDown}
-              placeholder="Type command name, description, or shortcut (e.g. Ctrl+R, layout, search)"
+              placeholder={workbenchI18n.commandPalettePlaceholder}
               allowClear
             />
-            <div className="workbench-command-list" role="listbox" aria-label="Command list">
+            <div
+              className="workbench-command-list"
+              role="listbox"
+              aria-label={workbenchI18n.commandListAriaLabel}
+            >
               {filteredWorkbenchCommands.length ? (
                 filteredWorkbenchCommands.map((command) => (
                   <button
@@ -2556,7 +2532,7 @@ export const WorkbenchLayout = () => {
               ) : (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No matching command found. Try another keyword."
+                  description={workbenchI18n.noMatchingCommand}
                 />
               )}
             </div>
@@ -2584,6 +2560,7 @@ export const WorkbenchLayout = () => {
           </div>
         </Modal>
       </div>
-    </div>
+      </div>
+    </ConfigProvider>
   );
 };

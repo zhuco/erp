@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -32,5 +34,14 @@ describe('WorkbenchColumnSettingsFloatingControl', () => {
 
     expect(markup).toContain('workbench-column-settings-floating-control custom-control');
     expect(markup).toContain('workbench-column-settings-floating-button custom-button');
+  });
+
+  it('keeps the row-index floating settings trigger explicitly centered inside the narrow structural column', () => {
+    const cssSource = readFileSync(resolve(__dirname, 'workbenchColumnSettings.css'), 'utf8');
+
+    expect(cssSource).toContain('.workbench-column-settings-floating-control--row-index');
+    expect(cssSource).toContain('.workbench-column-settings-floating-button--row-index');
+    expect(cssSource).toContain('.order-workbench-row-index-header-centered');
+    expect(cssSource).toContain('justify-content: center;');
   });
 });

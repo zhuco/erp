@@ -13,6 +13,11 @@
   --ag-font-size: var(--erp-font-size-body);
 }
 
+.workbench-main-top .order-workbench-page {
+  /* 统一作业台页面禁止使用负 margin 把外层主区域重新撑出滚动条 */
+  margin: 0;
+}
+
 .order-workbench-page :where(
     .ant-typography:not(.ant-typography-title),
     .ant-btn,

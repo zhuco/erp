@@ -634,14 +634,14 @@
   gap: 8px;
 }
 
-.workbench-layout-presets {
+.workbench-font-scales {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-left: auto;
 }
 
-.workbench-layout-preset-status {
+.workbench-font-scale-status {
   min-width: 118px;
   color: #5b6b86;
   font-size: 12px;

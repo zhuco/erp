@@ -85,4 +85,12 @@ describe('OrderExceptionsMainGrid column config', () => {
     expect(source).toContain('onKeyUpCapture={handleSpaceKeyUpCapture}');
     expect(source).not.toContain('debounceVerticalScrollbar');
   });
+
+  it('persists sort state when business-column sorting changes', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderExceptionsMainGrid.tsx'), 'utf8');
+
+    expect(source).toContain('const handleSortChanged = useCallback(');
+    expect(source).toContain('schedulePersistColumnState(event.api);');
+    expect(source).toContain('onSortChanged={handleSortChanged}');
+  });
 });

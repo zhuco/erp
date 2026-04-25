@@ -73,6 +73,9 @@ describe('order workbench shared entry regression', () => {
     const reviewPage = readRepoFile('apps/erp-web/src/pages/orders/OrderReviewPage.tsx');
     const exceptionsPage = readRepoFile('apps/erp-web/src/pages/orders/OrderExceptionsPage.tsx');
     const channelsPage = readRepoFile('apps/erp-web/src/pages/channels/ChannelsPage.tsx');
+    const channelDirectoryPage = readRepoFile(
+      'apps/erp-web/src/pages/channels/ChannelDirectoryPage.tsx',
+    );
 
     expect(reviewPage).toContain('selectedRowKeys?: string[];');
     expect(reviewPage).toContain('focusedOrderKey?: string | null;');
@@ -99,10 +102,16 @@ describe('order workbench shared entry regression', () => {
     expect(exceptionsPage).toContain('rightPanelSyncKey={rightPanelSyncKey}');
     expect(exceptionsPage).toContain('bottomPanelSyncKey={bottomPanelSyncKey}');
 
-    expect(channelsPage).toContain('type ChannelsWorkbenchSavedViewState = {');
-    expect(channelsPage).toContain('selectedRowKeys?: string[];');
-    expect(channelsPage).toContain('storageKey: channelsPaginationStorageKey');
-    expect(channelsPage).toContain('stateCacheKey={channelsWorkbenchStateCacheKey}');
+    expect(channelsPage).toContain(
+      "import { ChannelDirectoryPage } from './ChannelDirectoryPage';",
+    );
+    expect(channelsPage).toContain('return <ChannelDirectoryPage />;');
+
+    expect(channelDirectoryPage).toContain('type ChannelDirectorySavedViewState = {');
+    expect(channelDirectoryPage).toContain('selectedRowKeys');
+    expect(channelDirectoryPage).toContain('persistSelectionState: false');
+    expect(channelDirectoryPage).toContain('storageKey: paginationStorageKey');
+    expect(channelDirectoryPage).toContain('stateCacheKey={stateCacheKey}');
   });
 
   it('expands the recheck main grid with richer operational ERP columns', () => {

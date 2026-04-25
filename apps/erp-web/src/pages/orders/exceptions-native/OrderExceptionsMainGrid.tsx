@@ -15,6 +15,7 @@ import type {
   ModelUpdatedEvent,
   RowDoubleClickedEvent,
   SelectionChangedEvent,
+  SortChangedEvent,
   SuppressKeyboardEventParams,
 } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
@@ -41,7 +42,6 @@ import {
   fulfillmentStatusLabels,
   reserveStatusLabels,
 } from '@/features/oms-wms-main-chain/statuses';
-import { resolveOrderDisplayTags } from '@/features/orderTags';
 import { useSessionStore } from '@/features/sessionStore';
 import { resolveOrderExceptionRowKey } from '@/pages/orders/exceptions-native/orderExceptionsRowKey';
 import {
@@ -64,6 +64,7 @@ import {
   useAgGridWorkbenchSelection,
 } from '@/pages/orders/shared/useAgGridWorkbenchSelection';
 import { resolveSelectionDiagnosticsEnabled } from '@/pages/orders/shared/selectionDiagnostics';
+import { resolveOrderExceptionDisplayTags } from './orderExceptionDisplayTags';
 import {
   buildOrderExceptionsMainGridFilterModel,
   extractOrderExceptionsMainGridColumnFilters,
@@ -776,6 +777,13 @@ export const OrderExceptionsMainGrid = ({
     [schedulePersistColumnState],
   );
 
+  const handleSortChanged = useCallback(
+    (event: SortChangedEvent<OrderExceptionSummary>) => {
+      schedulePersistColumnState(event.api);
+    },
+    [schedulePersistColumnState],
+  );
+
   const handleModelUpdated = useCallback(
     (event: ModelUpdatedEvent<OrderExceptionSummary>) => {
       onDisplayedRowsChange?.(event.api.getDisplayedRowCount());
@@ -900,6 +908,7 @@ export const OrderExceptionsMainGrid = ({
           onColumnVisible={handleColumnStateChanged}
           onColumnPinned={handleColumnStateChanged}
           onColumnResized={handleColumnStateChanged}
+          onSortChanged={handleSortChanged}
           onFilterChanged={handleFilterChanged}
           onSelectionChanged={handleSelectionChanged}
           onCellClicked={handleCellClicked}
@@ -1053,7 +1062,7 @@ export const buildOrderExceptionsMainGridColDefs = ({
     minWidth: 88,
     sortable: false,
     cellRenderer: (params: ICellRendererParams<OrderExceptionSummary>) =>
-      params.data ? <OrderTagBadges tags={resolveOrderDisplayTags(params.data)} emptyText={null} singleLine /> : null,
+      params.data ? <OrderTagBadges tags={resolveOrderExceptionDisplayTags(params.data)} emptyText={null} singleLine /> : null,
   },
   {
     colId: 'receiver_name',

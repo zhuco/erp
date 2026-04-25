@@ -1,7 +1,7 @@
 .order-tag-badges {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
@@ -22,13 +22,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
+  min-height: 16px;
+  padding: 0 4px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1;
   font-weight: 600;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .order-tag-badge-builtin {

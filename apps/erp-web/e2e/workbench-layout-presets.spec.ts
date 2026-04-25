@@ -2,44 +2,53 @@ import { expect, loginAndSelectTenant, test } from './fixtures';
 
 const openWorkbenchRoute = async (
   page: import('@playwright/test').Page,
-  route: '/orders/review' | '/orders',
+  route: '/orders/review' | '/sales/order-query',
 ) => {
   await page.goto(route);
-  if (route === '/orders/review') {
-    await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
-    return;
-  }
-  await expect(page.getByTestId('orders-grid')).toBeVisible();
+  await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
 };
 
-const expectLayoutPreset = async (
+const expectWorkbenchFontScale = async (
   page: import('@playwright/test').Page,
-  preset: 'compact' | 'default' | 'analysis',
-  presetLabel: '紧凑' | '标准' | '分析',
+  fontScale: 'small' | 'medium' | 'large',
+  fontScaleLabel: '小' | '中' | '大',
 ) => {
   await expect(page.locator('.workbench-shell')).toHaveAttribute(
-    'data-workbench-layout-preset',
-    preset,
+    'data-workbench-font-scale',
+    fontScale,
   );
-  await expect(page.getByTestId('workbench-layout-preset-status')).toContainText(
-    `布局预设：${presetLabel}`,
+  await expect(page.getByTestId('workbench-font-scale-status')).toContainText(
+    `工作台字号：${fontScaleLabel}`,
   );
 };
 
-test.describe('workbench layout presets', () => {
-  test('switches presets by buttons and updates status', async ({ page }) => {
+const readWorkbenchFontSize = async (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const shell = document.querySelector<HTMLElement>('.workbench-shell');
+    if (!shell) {
+      return '';
+    }
+
+    return window.getComputedStyle(shell).getPropertyValue('--erp-font-size-body').trim();
+  });
+
+test.describe('workbench font scale controls', () => {
+  test('switches font scale by buttons and updates status', async ({ page }) => {
     await page.goto('/dashboard');
     await loginAndSelectTenant(page);
     await openWorkbenchRoute(page, '/orders/review');
 
-    await page.getByTestId('workbench-layout-preset-analysis').click();
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await page.getByTestId('workbench-font-scale-large').click();
+    await expectWorkbenchFontScale(page, 'large', '大');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('13.8px');
 
-    await page.getByTestId('workbench-layout-preset-compact').click();
-    await expectLayoutPreset(page, 'compact', '紧凑');
+    await page.getByTestId('workbench-font-scale-small').click();
+    await expectWorkbenchFontScale(page, 'small', '小');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('11.8px');
 
-    await page.getByTestId('workbench-layout-preset-default').click();
-    await expectLayoutPreset(page, 'default', '标准');
+    await page.getByTestId('workbench-font-scale-medium').click();
+    await expectWorkbenchFontScale(page, 'medium', '中');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('12.8px');
   });
 
   test('supports Alt+Shift+1/2/3 hotkeys', async ({ page }) => {
@@ -50,48 +59,38 @@ test.describe('workbench layout presets', () => {
     await page.locator('.workbench-main').click({ position: { x: 20, y: 20 } });
 
     await page.keyboard.press('Alt+Shift+1');
-    await expectLayoutPreset(page, 'compact', '紧凑');
+    await expectWorkbenchFontScale(page, 'small', '小');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('11.8px');
 
     await page.keyboard.press('Alt+Shift+2');
-    await expectLayoutPreset(page, 'default', '标准');
+    await expectWorkbenchFontScale(page, 'medium', '中');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('12.8px');
 
     await page.keyboard.press('Alt+Shift+3');
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await expectWorkbenchFontScale(page, 'large', '大');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('13.8px');
   });
 
-  test('remembers preset per route key', async ({ page }) => {
+  test('keeps font scale across integrated workbench routes and reload', async ({ page }) => {
     await page.goto('/dashboard');
     await loginAndSelectTenant(page);
 
     await openWorkbenchRoute(page, '/orders/review');
-    await page.getByTestId('workbench-layout-preset-compact').click();
-    await expectLayoutPreset(page, 'compact', '紧凑');
+    await page.getByTestId('workbench-font-scale-large').click();
+    await expectWorkbenchFontScale(page, 'large', '大');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('13.8px');
 
-    await openWorkbenchRoute(page, '/orders');
-    await expectLayoutPreset(page, 'default', '标准');
-    await page.getByTestId('workbench-layout-preset-analysis').click();
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await openWorkbenchRoute(page, '/sales/order-query');
+    await expectWorkbenchFontScale(page, 'large', '大');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('13.8px');
 
     await openWorkbenchRoute(page, '/orders/review');
-    await expectLayoutPreset(page, 'compact', '紧凑');
+    await expectWorkbenchFontScale(page, 'large', '大');
 
-    await openWorkbenchRoute(page, '/orders');
-    await expectLayoutPreset(page, 'analysis', '分析');
-  });
-
-  test('keeps preset in URL for shareable workbench state', async ({ page }) => {
-    await page.goto('/dashboard');
-    await loginAndSelectTenant(page);
-    await openWorkbenchRoute(page, '/orders/review');
-
-    await page.getByTestId('workbench-layout-preset-analysis').click();
-    await expectLayoutPreset(page, 'analysis', '分析');
-    await expect(page).toHaveURL(/layoutPreset=analysis/);
-
-    const sharedUrl = page.url();
-    await page.goto(sharedUrl);
+    await page.reload();
     await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await expectWorkbenchFontScale(page, 'large', '大');
+    await expect.poll(() => readWorkbenchFontSize(page)).toBe('13.8px');
   });
 
   test('keeps extended panel state in URL and restores it after reload', async ({ page }) => {
@@ -99,8 +98,8 @@ test.describe('workbench layout presets', () => {
     await loginAndSelectTenant(page);
     await openWorkbenchRoute(page, '/orders/review');
 
-    await page.getByTestId('workbench-layout-preset-analysis').click();
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await page.getByTestId('workbench-font-scale-large').click();
+    await expectWorkbenchFontScale(page, 'large', '大');
 
     const shell = page.locator('.workbench-shell');
     const beforeReloadState = await shell.evaluate((node) => ({
@@ -112,10 +111,19 @@ test.describe('workbench layout presets', () => {
       bottomHeight: node.getAttribute('data-workbench-bottom-height'),
     }));
 
-    await expect(page).toHaveURL(/layoutPreset=analysis/);
-    await expect(page).toHaveURL(/leftCollapsed=1/);
-    await expect(page).toHaveURL(/rightCollapsed=0/);
-    await expect(page).toHaveURL(/bottomCollapsed=0/);
+    const resolveCollapsedQueryValue = (value: string | null) => (value === 'true' ? '1' : '0');
+
+    await expect(page).toHaveURL(
+      new RegExp(`leftCollapsed=${resolveCollapsedQueryValue(beforeReloadState.leftCollapsed)}`),
+    );
+    await expect(page).toHaveURL(
+      new RegExp(`rightCollapsed=${resolveCollapsedQueryValue(beforeReloadState.rightCollapsed)}`),
+    );
+    await expect(page).toHaveURL(
+      new RegExp(
+        `bottomCollapsed=${resolveCollapsedQueryValue(beforeReloadState.bottomCollapsed)}`,
+      ),
+    );
     await expect(page).toHaveURL(/leftWidth=\d+/);
     await expect(page).toHaveURL(/rightWidth=\d+/);
     await expect(page).toHaveURL(/bottomHeight=\d+/);
@@ -123,7 +131,7 @@ test.describe('workbench layout presets', () => {
     const sharedUrl = page.url();
     await page.goto(sharedUrl);
     await expect(page.getByTestId('order-review-data-grid')).toBeVisible();
-    await expectLayoutPreset(page, 'analysis', '分析');
+    await expectWorkbenchFontScale(page, 'large', '大');
 
     await expect(page).toHaveURL(/leftCollapsed=[01]/);
     await expect(page).toHaveURL(/rightCollapsed=[01]/);

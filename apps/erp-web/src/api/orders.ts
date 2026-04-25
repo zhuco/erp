@@ -180,6 +180,14 @@ export type OrderExceptionSummary = {
   assignee_name?: string | null;
   latest_action?: string | null;
   latest_action_at?: string | null;
+  tags?: string[] | null;
+  exception_flags?: string[] | null;
+  freeze_reason?: string | null;
+  presale?: boolean;
+  refund_state?: string | null;
+  merge_group_id?: string | null;
+  split_source_order_id?: string | null;
+  platform_ship_deadline_at?: string | null;
 };
 
 export type OrderExceptionDetail = OrderExceptionSummary & {

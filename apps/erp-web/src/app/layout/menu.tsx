@@ -62,10 +62,18 @@ export const appMenuItems: AppMenuItem[] = [
     icon: <DashboardOutlined />,
   },
   {
-    name: '渠道',
-    path: '/channels',
+    name: '目录',
     icon: <AppstoreOutlined />,
-    permission: 'channels.read',
+    children: [
+      group('基础目录', [
+        leaf('/channels', '渠道目录', { permission: 'channels.read' }),
+        leaf('/couriers', '物流目录', { permission: 'couriers.read' }),
+        leaf('/tags', '记号目录'),
+        leaf('/warehouses', '仓库目录', { permission: 'warehouses.read' }),
+        leaf('/logistics-fees', '物流费目录'),
+        leaf('/suppliers', '供应商目录', { permission: 'suppliers.read' }),
+      ]),
+    ],
   },
   {
     name: '销售',

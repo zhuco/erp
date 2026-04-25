@@ -96,6 +96,14 @@ type MockOrderExceptionSummary = {
   assignee_name?: string | null;
   latest_action?: string | null;
   latest_action_at?: string | null;
+  tags?: string[];
+  exception_flags?: string[];
+  freeze_reason?: string | null;
+  presale?: boolean;
+  refund_state?: string | null;
+  merge_group_id?: string | null;
+  split_source_order_id?: string | null;
+  platform_ship_deadline_at?: string | null;
 };
 
 type MockFulfillmentPrecheckResult = {
@@ -361,6 +369,8 @@ const syncOrderSummaryWithMainChain = (orderId: string, state: MockOmsMainChainS
 
 const buildMockOrderExceptionSummary = (state: MockOmsMainChainState): MockOrderExceptionSummary => {
   const order = mockOrders.find((item) => item.id === state.order_id) ?? buildOrder(0);
+  const orderIndex = Math.max(0, mockOrders.findIndex((item) => item.id === order.id));
+  const runtimeSignals = buildRuntimeOrderSummarySignals(order, orderIndex);
   const latestAction = state.action_logs.at(-1) ?? null;
   return {
     order_id: state.order_id,
@@ -378,7 +388,15 @@ const buildMockOrderExceptionSummary = (state: MockOmsMainChainState): MockOrder
     assignee_id: state.assignee_id ?? null,
     assignee_name: state.assignee_name ?? null,
     latest_action: latestAction?.message ?? null,
-    latest_action_at: latestAction?.created_at ?? null
+    latest_action_at: latestAction?.created_at ?? null,
+    tags: runtimeSignals.tags,
+    exception_flags: order.exception_flags ?? [],
+    freeze_reason: runtimeSignals.freeze_reason ?? null,
+    presale: runtimeSignals.presale,
+    refund_state: runtimeSignals.refund_state ?? null,
+    merge_group_id: runtimeSignals.merge_group_id ?? null,
+    split_source_order_id: runtimeSignals.split_source_order_id ?? null,
+    platform_ship_deadline_at: runtimeSignals.platform_ship_deadline_at ?? null,
   };
 };
 

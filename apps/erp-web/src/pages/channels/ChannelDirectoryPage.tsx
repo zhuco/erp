@@ -1,5 +1,845 @@
-import { ChannelsPage } from './ChannelsPage';
+import './channelDirectoryPage.css';
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Button,
+  Drawer,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Switch,
+  Typography,
+  message,
+} from 'antd';
+import type { MenuProps } from 'antd';
+import type { Key, MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import {
+  createChannel,
+  deleteChannel,
+  listChannels,
+  updateChannel,
+  type Channel,
+  type ChannelStatus,
+  type ChannelType,
+} from '@/api/channels';
+import { listWarehouses } from '@/api/warehouses';
+import {
+  WorkbenchPageTemplate,
+  WorkbenchToolbar,
+  useWorkbenchInteractionController,
+  useWorkbenchSavedViewState,
+  useWorkbenchSelectionController,
+  useWorkbenchTablePagination,
+  useWorkbenchViewStateController,
+} from '@/components/page-templates';
+import { ErpDataGridNext } from '@/components/ErpDataGridNext';
+import { UiModule03ContextMenu } from '@/components/ui-modules';
+import { platformOptions, type PlatformCode } from '@/features/platform';
+import { useCan } from '@/features/rbac';
+import { useSessionStore } from '@/features/sessionStore';
+import { useTenantId } from '@/features/tenant';
+import { useLeftFilterModule } from '@/pages/orders/shared/useLeftFilterModule';
+
+import { ChannelDirectoryLeftPanel, ChannelDirectoryRightPanel } from './ChannelDirectoryPanels';
+import { buildChannelDirectoryColumns, buildChannelDirectoryHeaderFilters } from './channelDirectoryColumns';
+import {
+  buildChannelDirectoryLeftCheckedKeys,
+  buildChannelDirectoryLeftNodes,
+  buildChannelDirectoryPieBackground,
+  createDefaultChannelDirectoryColumnFilters,
+  createDefaultChannelDirectoryLeftFilters,
+  filterChannelsByColumnFilters,
+  filterChannelsByKeyword,
+  filterChannelsByLeftFilters,
+  hasChannelDirectoryLeftManualFilter,
+  reduceChannelDirectoryLeftFiltersByNode,
+  resolveChannelAuthorizationEnabled,
+  resolveChannelRowKey,
+  summarizeChannels,
+  type ChannelDirectoryColumnFilters,
+  type ChannelDirectoryLeftFilters,
+} from './channelDirectoryModel';
+
+type ChannelDirectoryFormValues = {
+  name: string;
+  channel_type: ChannelType;
+  platform?: PlatformCode;
+  contact_name?: string;
+  contact_phone?: string;
+  contact_address?: string;
+  department?: string;
+  owner?: string;
+  commission_formula?: string;
+  default_warehouse_id?: string;
+  allow_manual_order?: boolean;
+  allow_manual_after_sales?: boolean;
+  status: ChannelStatus;
+};
+
+type ChannelDirectorySavedViewState = {
+  searchInput: string;
+  searchKeyword: string;
+  leftFilters: ChannelDirectoryLeftFilters;
+  columnFilters: ChannelDirectoryColumnFilters;
+};
+
+const pageSizeOptions = ['20', '50', '100', '200'];
+
+const normalizeNullableText = (value?: string | null) => {
+  const nextValue = String(value ?? '').trim();
+  return nextValue || null;
+};
 
 export const ChannelDirectoryPage = () => {
-  return <ChannelsPage />;
+  const tenantId = useTenantId();
+  const userId = useSessionStore((state) => state.userId);
+  const canWrite = useCan('channels.write');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editorForm] = Form.useForm<ChannelDirectoryFormValues>();
+
+  const savedViewKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    return `channels.directory.saved-view.v1.${tenantId}.${String(userId ?? '').trim() || 'anonymous'}`;
+  }, [tenantId, userId]);
+
+  const paginationStorageKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    return `channels.directory.pagination.v1.${tenantId}.${String(userId ?? '').trim() || 'anonymous'}`;
+  }, [tenantId, userId]);
+
+  const stateCacheKey = useMemo(() => {
+    if (!tenantId) {
+      return '';
+    }
+    return `channels.directory.workbench-state.v1.${tenantId}.${String(userId ?? '').trim() || 'anonymous'}`;
+  }, [tenantId, userId]);
+
+  const { pagination, resetPagination, handlePaginationChange } = useWorkbenchTablePagination({
+    defaultPageSize: 20,
+    pageSizeOptions,
+    storageKey: paginationStorageKey,
+  });
+
+  const [searchInput, setSearchInput] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [leftFilters, setLeftFilters] = useState<ChannelDirectoryLeftFilters>(
+    createDefaultChannelDirectoryLeftFilters,
+  );
+  const [columnFilters, setColumnFilters] = useState<ChannelDirectoryColumnFilters>(
+    createDefaultChannelDirectoryColumnFilters,
+  );
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+
+  const channelsQuery = useQuery({
+    queryKey: ['channels', tenantId, 'directory'],
+    queryFn: () =>
+      listChannels(tenantId, {
+        offset: 0,
+        limit: 500,
+      }),
+    enabled: Boolean(tenantId),
+    placeholderData: (previousData) => previousData,
+  });
+
+  const warehousesQuery = useQuery({
+    queryKey: ['warehouses', tenantId, 'channel-directory'],
+    queryFn: () => listWarehouses(tenantId, { offset: 0, limit: 200 }),
+    enabled: Boolean(tenantId),
+    staleTime: 60_000,
+  });
+
+  const sourceRows = channelsQuery.data?.items ?? [];
+  const searchScopedRows = useMemo(
+    () => filterChannelsByKeyword(sourceRows, searchKeyword),
+    [searchKeyword, sourceRows],
+  );
+
+  const summary = useMemo(() => summarizeChannels(searchScopedRows), [searchScopedRows]);
+  const pieBackground = useMemo(
+    () => buildChannelDirectoryPieBackground(summary),
+    [summary],
+  );
+
+  const {
+    filteredRows: leftFilteredRows,
+    leftPanel,
+  } = useLeftFilterModule<Channel, ChannelDirectoryLeftFilters>({
+    rows: searchScopedRows,
+    filters: leftFilters,
+    onFiltersChange: (action) =>
+      setLeftFilters((previous) => (typeof action === 'function' ? action(previous) : action)),
+    initialExpandedKeys: ['group:overview', 'group:type', 'group:capability'],
+    emptyRowLabel: '没有可用筛选项',
+    hasManualFilter: hasChannelDirectoryLeftManualFilter,
+    filterRows: filterChannelsByLeftFilters,
+    buildCheckedKeys: buildChannelDirectoryLeftCheckedKeys,
+    buildLeftNodes: buildChannelDirectoryLeftNodes,
+    reduceFiltersByNode: reduceChannelDirectoryLeftFiltersByNode,
+    onBeforeLeafFilterApply: resetPagination,
+    renderPanel: ({ leftTab, onLeftTabChange, leftRowsForRender, onLeftRowClick, hasManualFilterActive }) => (
+      <ChannelDirectoryLeftPanel
+        leftTab={leftTab}
+        onLeftTabChange={onLeftTabChange}
+        leftRowsForRender={leftRowsForRender}
+        onLeftRowClick={onLeftRowClick}
+        hasManualFilterActive={hasManualFilterActive}
+        filters={leftFilters}
+        summaryItems={[
+          { key: 'total', label: '全部渠道', value: summary.total, color: '#2f6fed' },
+          { key: 'online', label: '线上', value: summary.online, color: '#2f6fed' },
+          { key: 'offline', label: '线下', value: summary.offline, color: '#0f9d58' },
+          { key: 'active', label: '启用', value: summary.active, color: '#1f8b4c' },
+        ]}
+        pieBackground={pieBackground}
+        totalCount={summary.total}
+        isFetching={channelsQuery.isFetching}
+        onPatchFilters={(patch) => {
+          resetPagination();
+          setLeftFilters((previous) => ({ ...previous, ...patch }));
+        }}
+        onResetFilters={() => {
+          resetPagination();
+          setLeftFilters(createDefaultChannelDirectoryLeftFilters());
+        }}
+      />
+    ),
+  });
+
+  const displayRows = useMemo(
+    () => filterChannelsByColumnFilters(leftFilteredRows, columnFilters),
+    [columnFilters, leftFilteredRows],
+  );
+
+  const currentPage = Number(pagination.current ?? 1);
+  const currentPageSize = Number(pagination.pageSize ?? 20);
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return displayRows.slice(start, start + currentPageSize);
+  }, [currentPage, currentPageSize, displayRows]);
+
+  const {
+    activeRow,
+    activeRowKey,
+    focusedRowKey,
+    selectedRowKeys,
+    selectionState,
+    setActiveRowKey,
+    setFocusedRowKey,
+    setSelectedRowKeys,
+    setSelectionAnchorKey,
+  } = useWorkbenchSelectionController<Channel>({
+    rows: pagedRows,
+    loading: channelsQuery.isFetching,
+    resolveRowKey: resolveChannelRowKey,
+  });
+
+  const { hydrateViewState, serializeViewState } = useWorkbenchViewStateController<
+    ChannelDirectorySavedViewState
+  >({
+    extraState: {
+      searchInput,
+      searchKeyword,
+      leftFilters,
+      columnFilters,
+    },
+    extraStateKeys: ['searchInput', 'searchKeyword', 'leftFilters', 'columnFilters'],
+    selectionState,
+    persistSelectionState: false,
+    onHydrateExtraState: (state) => {
+      if (typeof state.searchInput === 'string') {
+        setSearchInput(state.searchInput);
+      }
+      if (typeof state.searchKeyword === 'string') {
+        setSearchKeyword(state.searchKeyword);
+      }
+      if (state.leftFilters && typeof state.leftFilters === 'object') {
+        setLeftFilters(state.leftFilters);
+      }
+      if (state.columnFilters && typeof state.columnFilters === 'object') {
+        setColumnFilters(state.columnFilters);
+      }
+    },
+    onHydrateSelectionState: (state) => {
+      if (Object.prototype.hasOwnProperty.call(state, 'selectedRowKeys')) {
+        setSelectedRowKeys((state.selectedRowKeys ?? []) as string[]);
+      }
+      if (Object.prototype.hasOwnProperty.call(state, 'focusedRowKey')) {
+        setFocusedRowKey((state.focusedRowKey as string | null) ?? null);
+      }
+      if (Object.prototype.hasOwnProperty.call(state, 'activeRowKey')) {
+        setActiveRowKey((state.activeRowKey as string | null) ?? null);
+      }
+      if (Object.prototype.hasOwnProperty.call(state, 'selectionAnchorKey')) {
+        setSelectionAnchorKey((state.selectionAnchorKey as string | null) ?? null);
+      }
+    },
+  });
+
+  useWorkbenchSavedViewState<ChannelDirectorySavedViewState>({
+    storageKey: savedViewKey,
+    hydrate: hydrateViewState,
+    serialize: serializeViewState,
+  });
+
+  const warehouseMap = useMemo(
+    () =>
+      new Map(
+        (warehousesQuery.data?.items ?? []).map((warehouse) => [warehouse.warehouse_id, warehouse.name]),
+      ),
+    [warehousesQuery.data?.items],
+  );
+
+  const warehouseOptions = useMemo(
+    () =>
+      (warehousesQuery.data?.items ?? []).map((warehouse) => ({
+        label: warehouse.name,
+        value: warehouse.warehouse_id,
+      })),
+    [warehousesQuery.data?.items],
+  );
+
+  const columns = useMemo(
+    () => buildChannelDirectoryColumns(warehouseMap),
+    [warehouseMap],
+  );
+
+  const headerFilters = useMemo(
+    () =>
+      buildChannelDirectoryHeaderFilters({
+        filters: columnFilters,
+        warehouseOptions,
+        onPatchFilters: (patch) => {
+          resetPagination();
+          setColumnFilters((previous) => ({ ...previous, ...patch }));
+        },
+      }),
+    [columnFilters, resetPagination, warehouseOptions],
+  );
+
+  const selectedChannelMap = useMemo(
+    () => new Map(pagedRows.map((channel) => [channel.channel_id, channel])),
+    [pagedRows],
+  );
+
+  const resolveActionChannels = useCallback(() => {
+    if (selectedRowKeys.length > 0) {
+      return selectedRowKeys
+        .map((rowKey) => selectedChannelMap.get(String(rowKey)))
+        .filter((channel): channel is Channel => Boolean(channel));
+    }
+    return activeRow ? [activeRow] : [];
+  }, [activeRow, selectedChannelMap, selectedRowKeys]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: ChannelDirectoryFormValues) => {
+      if (!tenantId) {
+        throw new Error('请先选择租户');
+      }
+      const payload = {
+        name: values.name.trim(),
+        channel_type: values.channel_type,
+        platform: values.channel_type === 'OFFLINE' ? null : values.platform ?? null,
+        contact_name: normalizeNullableText(values.contact_name),
+        contact_phone: normalizeNullableText(values.contact_phone),
+        contact_address: normalizeNullableText(values.contact_address),
+        department: normalizeNullableText(values.department),
+        owner: normalizeNullableText(values.owner),
+        commission_formula: normalizeNullableText(values.commission_formula),
+        default_warehouse_id: normalizeNullableText(values.default_warehouse_id),
+        allow_manual_order: Boolean(values.allow_manual_order),
+        allow_manual_after_sales: Boolean(values.allow_manual_after_sales),
+        status: values.status,
+      } as const;
+
+      if (editingChannel) {
+        return updateChannel(tenantId, editingChannel.channel_id, payload);
+      }
+      return createChannel(tenantId, payload);
+    },
+    onSuccess: async () => {
+      message.success(editingChannel ? '渠道已更新' : '渠道已创建');
+      setEditorOpen(false);
+      setEditingChannel(null);
+      await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '保存渠道失败');
+    },
+  });
+
+  const handleSearch = useCallback(() => {
+    setSearchKeyword(searchInput.trim());
+    resetPagination();
+  }, [resetPagination, searchInput]);
+
+  const openCreateDrawer = useCallback(() => {
+    setEditingChannel(null);
+    editorForm.resetFields();
+    editorForm.setFieldsValue({
+      channel_type: 'ONLINE',
+      status: 'ACTIVE',
+      allow_manual_order: true,
+      allow_manual_after_sales: false,
+    });
+    setEditorOpen(true);
+  }, [editorForm]);
+
+  const openEditDrawer = useCallback(
+    (channel: Channel) => {
+      setEditingChannel(channel);
+      editorForm.setFieldsValue({
+        name: channel.name,
+        channel_type: channel.channel_type ?? 'ONLINE',
+        platform: channel.platform ?? undefined,
+        contact_name: channel.contact_name ?? undefined,
+        contact_phone: channel.contact_phone ?? undefined,
+        contact_address: channel.contact_address ?? undefined,
+        department: channel.department ?? undefined,
+        owner: channel.owner ?? undefined,
+        commission_formula: channel.commission_formula ?? undefined,
+        default_warehouse_id: channel.default_warehouse_id ?? undefined,
+        allow_manual_order: channel.allow_manual_order,
+        allow_manual_after_sales: channel.allow_manual_after_sales,
+        status: channel.status,
+      });
+      setEditorOpen(true);
+    },
+    [editorForm],
+  );
+
+  const handleSave = useCallback(async () => {
+    try {
+      const values = await editorForm.validateFields();
+      await saveMutation.mutateAsync(values);
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        message.error(error.message);
+      }
+    }
+  }, [editorForm, saveMutation]);
+
+  const handleDeleteSelected = useCallback(() => {
+    const targetChannels = resolveActionChannels();
+    if (targetChannels.length === 0) {
+      message.warning('请先选择要删除的渠道');
+      return;
+    }
+
+    Modal.confirm({
+      title: `确认删除选中的 ${targetChannels.length} 个渠道吗？`,
+      okText: '删除',
+      cancelText: '取消',
+      onOk: async () => {
+        await Promise.all(
+          targetChannels.map((channel) => deleteChannel(tenantId, channel.channel_id)),
+        );
+        message.success(`已删除 ${targetChannels.length} 个渠道`);
+        setSelectedRowKeys([]);
+        setSelectionAnchorKey(null);
+        await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+      },
+    });
+  }, [queryClient, resolveActionChannels, setSelectedRowKeys, setSelectionAnchorKey, tenantId]);
+
+  const handleDisableSelected = useCallback(() => {
+    const targetChannels = resolveActionChannels().filter((channel) => channel.status !== 'DISABLED');
+    if (targetChannels.length === 0) {
+      message.warning('当前没有可停用的渠道');
+      return;
+    }
+
+    Modal.confirm({
+      title: `确认停用选中的 ${targetChannels.length} 个渠道吗？`,
+      okText: '停用',
+      cancelText: '取消',
+      onOk: async () => {
+        await Promise.all(
+          targetChannels.map((channel) =>
+            updateChannel(tenantId, channel.channel_id, { status: 'DISABLED' }),
+          ),
+        );
+        message.success(`已停用 ${targetChannels.length} 个渠道`);
+        await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+      },
+    });
+  }, [queryClient, resolveActionChannels, tenantId]);
+
+  const handleOpenServicePurchase = useCallback(() => {
+    if (!activeRow) {
+      message.warning('请先选择渠道');
+      return;
+    }
+    navigate(`/channels/service-purchase?channel_id=${activeRow.channel_id}`);
+  }, [activeRow, navigate]);
+
+  const handleOpenAuthorize = useCallback(() => {
+    if (!activeRow) {
+      message.warning('请先选择渠道');
+      return;
+    }
+    if (!resolveChannelAuthorizationEnabled(activeRow)) {
+      message.info('线下渠道无需授权');
+      return;
+    }
+    navigate(`/channels/authorize?channel_id=${activeRow.channel_id}`);
+  }, [activeRow, navigate]);
+
+  const { closeContextMenu, contextMenuState, openContextMenu } =
+    useWorkbenchInteractionController<Channel>();
+
+  const handleContextMenu = useCallback(
+    (channel: Channel, event: MouseEvent | ReactMouseEvent) => {
+      const rowKey = resolveChannelRowKey(channel);
+      setActiveRowKey(rowKey);
+      setFocusedRowKey(rowKey);
+      if (rowKey && !selectedRowKeys.some((item) => String(item) === rowKey)) {
+        setSelectedRowKeys([rowKey]);
+        setSelectionAnchorKey(rowKey);
+      }
+      openContextMenu(channel, 'nativeEvent' in event ? event.nativeEvent : event);
+    },
+    [
+      openContextMenu,
+      selectedRowKeys,
+      setActiveRowKey,
+      setFocusedRowKey,
+      setSelectedRowKeys,
+      setSelectionAnchorKey,
+    ],
+  );
+
+  const contextMenuConfig = useMemo<MenuProps>(
+    () => ({
+      items: [
+        { key: 'edit', label: '修改', disabled: !canWrite || !contextMenuState.row },
+        { key: 'delete', label: '删除', disabled: !canWrite || !contextMenuState.row },
+        { key: 'disable', label: '停用', disabled: !canWrite || !contextMenuState.row },
+        { type: 'divider' },
+        { key: 'service-purchase', label: '去订购', disabled: !contextMenuState.row },
+        {
+          key: 'authorize',
+          label: '去授权',
+          disabled:
+            !contextMenuState.row ||
+            !resolveChannelAuthorizationEnabled(contextMenuState.row),
+        },
+      ],
+      onClick: ({ key }) => {
+        const targetChannel = contextMenuState.row;
+        if (!targetChannel) {
+          return;
+        }
+        if (key === 'edit') {
+          openEditDrawer(targetChannel);
+        }
+        if (key === 'delete') {
+          Modal.confirm({
+            title: `确认删除渠道 ${targetChannel.name} 吗？`,
+            okText: '删除',
+            cancelText: '取消',
+            onOk: async () => {
+              await deleteChannel(tenantId, targetChannel.channel_id);
+              message.success('渠道已删除');
+              await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+            },
+          });
+        }
+        if (key === 'disable') {
+          Modal.confirm({
+            title: `确认停用渠道 ${targetChannel.name} 吗？`,
+            okText: '停用',
+            cancelText: '取消',
+            onOk: async () => {
+              await updateChannel(tenantId, targetChannel.channel_id, { status: 'DISABLED' });
+              message.success('渠道已停用');
+              await queryClient.invalidateQueries({ queryKey: ['channels', tenantId] });
+            },
+          });
+        }
+        if (key === 'service-purchase') {
+          navigate(`/channels/service-purchase?channel_id=${targetChannel.channel_id}`);
+        }
+        if (key === 'authorize') {
+          navigate(`/channels/authorize?channel_id=${targetChannel.channel_id}`);
+        }
+        closeContextMenu();
+      },
+    }),
+    [
+      canWrite,
+      closeContextMenu,
+      contextMenuState.row,
+      navigate,
+      openEditDrawer,
+      queryClient,
+      tenantId,
+    ],
+  );
+
+  const editorChannelType = Form.useWatch('channel_type', editorForm);
+
+  useEffect(() => {
+    if (editorChannelType === 'OFFLINE') {
+      editorForm.setFieldValue('platform', undefined);
+    }
+  }, [editorChannelType, editorForm]);
+
+  const toolbar = (
+    <WorkbenchToolbar
+      leftContent={
+        <Space size={8} wrap>
+          <Typography.Text strong className="channel-directory-title">
+            渠道目录
+          </Typography.Text>
+          <Button type="primary" size="small" disabled={!canWrite} onClick={openCreateDrawer}>
+            新建渠道
+          </Button>
+          <Button
+            size="small"
+            disabled={!canWrite || resolveActionChannels().length !== 1}
+            onClick={() => {
+              const targetChannel = resolveActionChannels()[0];
+              if (targetChannel) {
+                openEditDrawer(targetChannel);
+              }
+            }}
+          >
+            修改
+          </Button>
+          <Button size="small" disabled={!canWrite} onClick={handleDeleteSelected}>
+            删除
+          </Button>
+          <Button size="small" disabled={!canWrite} onClick={handleDisableSelected}>
+            停用
+          </Button>
+        </Space>
+      }
+      searchValue={searchInput}
+      onSearchChange={setSearchInput}
+      onSearch={handleSearch}
+      searchPlaceholder="搜索渠道名称 / 联系人 / 电话 / 地址 / 负责人"
+      onExport={() => message.info('渠道目录导出能力待接入')}
+      onPrint={() => message.info('渠道目录打印能力待接入')}
+      onHelp={() => message.info('渠道目录帮助文档待接入')}
+    />
+  );
+
+  const rightPanel = useMemo(
+    () => (
+      <ChannelDirectoryRightPanel
+        activeChannel={activeRow}
+        warehouseMap={warehouseMap}
+        onOpenServicePurchase={handleOpenServicePurchase}
+        onOpenAuthorize={handleOpenAuthorize}
+      />
+    ),
+    [activeRow, handleOpenAuthorize, handleOpenServicePurchase, warehouseMap],
+  );
+
+  const rightPanelSyncKey = useMemo(
+    () =>
+      JSON.stringify({
+        activeChannelId: activeRow?.channel_id ?? '',
+        activeChannelStatus: activeRow?.status ?? '',
+        activeChannelType: activeRow?.channel_type ?? '',
+        activeChannelUpdatedAt: activeRow?.updated_at ?? '',
+      }),
+    [activeRow?.channel_id, activeRow?.channel_type, activeRow?.status, activeRow?.updated_at],
+  );
+
+  return (
+    <WorkbenchPageTemplate
+      pageTestId="channel-directory-workbench-page"
+      className="channel-directory-page"
+      leftPanel={leftPanel}
+      toolbar={toolbar}
+      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
+      tableContent={
+        <div className="channel-directory-table-shell">
+          <ErpDataGridNext<Channel>
+            rows={pagedRows}
+            columns={columns}
+            rowKey={(channel) => channel.channel_id}
+            columnSettingsKey="channels.directory.main-grid"
+            dataTestId="channel-directory-grid"
+            headerFilters={headerFilters}
+            enableRowModifierSelection
+            showColumnSettings
+            selectedRowKeys={selectedRowKeys}
+            activeRowKey={activeRowKey}
+            onSelectionChange={(keys: Key[]) => {
+              const normalized = Array.from(
+                new Set(
+                  keys
+                    .map((key) => String(key ?? '').trim())
+                    .filter(Boolean),
+                ),
+              );
+              setSelectedRowKeys(normalized);
+              setSelectionAnchorKey((currentAnchor) => {
+                if (!normalized.length) {
+                  return null;
+                }
+                if (currentAnchor && normalized.includes(currentAnchor)) {
+                  return currentAnchor;
+                }
+                return normalized[0] ?? null;
+              });
+            }}
+            onActiveRowChange={(channel) => {
+              const rowKey = resolveChannelRowKey(channel);
+              setActiveRowKey(rowKey);
+              setFocusedRowKey(rowKey);
+            }}
+            onRowDoubleClick={(channel) => {
+              if (!canWrite) {
+                return;
+              }
+              openEditDrawer(channel);
+            }}
+            onRowContextMenu={(channel, event) => handleContextMenu(channel, event)}
+            emptyText="暂无渠道数据"
+            loading={channelsQuery.isFetching}
+            error={channelsQuery.error}
+            errorTitle="渠道目录加载失败"
+            onRetry={() => {
+              void channelsQuery.refetch();
+            }}
+          />
+        </div>
+      }
+      footerSummary={
+        <>
+          <span>{`总数 ${displayRows.length} 条，本页 ${pagedRows.length} 条，已选 ${selectedRowKeys.length} 条`}</span>
+          <span>{activeRow ? `当前焦点：${activeRow.name}` : '当前焦点：-'}</span>
+        </>
+      }
+      footerSyncKey={`channel-directory-${displayRows.length}-${currentPage}-${currentPageSize}`}
+      total={displayRows.length}
+      pagination={pagination}
+      onPaginationChange={handlePaginationChange}
+      stateCacheKey={stateCacheKey}
+      showFooterScrollbarRow={true}
+      rightPanel={rightPanel}
+      rightPanelSyncKey={rightPanelSyncKey}
+      overlays={
+        <>
+          <UiModule03ContextMenu
+            open={contextMenuState.open}
+            position={contextMenuState.position}
+            menu={contextMenuConfig}
+            onClose={closeContextMenu}
+          />
+          <Drawer
+            title={editingChannel ? '修改渠道' : '新建渠道'}
+            open={editorOpen}
+            onClose={() => setEditorOpen(false)}
+            width={560}
+            destroyOnHidden
+            footer={
+              <Space>
+                <Button onClick={() => setEditorOpen(false)}>取消</Button>
+                <Button type="primary" loading={saveMutation.isPending} onClick={() => void handleSave()}>
+                  保存
+                </Button>
+              </Space>
+            }
+          >
+            <Form form={editorForm} layout="vertical">
+              <Form.Item
+                name="name"
+                label="渠道名称"
+                rules={[{ required: true, message: '请输入渠道名称' }]}
+              >
+                <Input placeholder="例如：淘宝旗舰渠道" />
+              </Form.Item>
+              <Form.Item
+                name="channel_type"
+                label="渠道类型"
+                rules={[{ required: true, message: '请选择渠道类型' }]}
+              >
+                <Select
+                  options={[
+                    { label: '线上', value: 'ONLINE' },
+                    { label: '线下', value: 'OFFLINE' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                name="platform"
+                label="平台"
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (getFieldValue('channel_type') === 'OFFLINE' || value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('线上渠道必须选择平台'));
+                    },
+                  }),
+                ]}
+              >
+                <Select
+                  allowClear
+                  disabled={editorChannelType === 'OFFLINE'}
+                  options={platformOptions}
+                  placeholder={editorChannelType === 'OFFLINE' ? '线下渠道无需平台' : '请选择平台'}
+                />
+              </Form.Item>
+              <Form.Item name="contact_name" label="联系人">
+                <Input placeholder="联系人姓名" />
+              </Form.Item>
+              <Form.Item name="contact_phone" label="电话">
+                <Input placeholder="联系电话" />
+              </Form.Item>
+              <Form.Item name="contact_address" label="地址">
+                <Input.TextArea rows={3} placeholder="联系地址" />
+              </Form.Item>
+              <Form.Item name="department" label="归属部门">
+                <Input placeholder="例如：电商事业部" />
+              </Form.Item>
+              <Form.Item name="owner" label="负责人">
+                <Input placeholder="负责人姓名" />
+              </Form.Item>
+              <Form.Item name="commission_formula" label="平台抽佣公式">
+                <Input placeholder="例如：销售额 * 0.05" />
+              </Form.Item>
+              <Form.Item name="default_warehouse_id" label="默认发货仓库">
+                <Select allowClear options={warehouseOptions} placeholder="请选择仓库" />
+              </Form.Item>
+              <Form.Item name="status" label="状态" initialValue="ACTIVE">
+                <Select
+                  options={[
+                    { label: '启用', value: 'ACTIVE' },
+                    { label: '停用', value: 'DISABLED' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="allow_manual_order" label="允许手工建销售单" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+              <Form.Item
+                name="allow_manual_after_sales"
+                label="允许手工建售后单"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </Form>
+          </Drawer>
+        </>
+      }
+    />
+  );
 };

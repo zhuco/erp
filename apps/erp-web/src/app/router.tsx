@@ -103,7 +103,35 @@ const ForbiddenPage = lazyNamedPage(() => import('@/pages/Forbidden'), 'Forbidde
 const LoginPage = lazyNamedPage(() => import('@/pages/LoginPage'), 'LoginPage');
 const NotFoundPage = lazyNamedPage(() => import('@/pages/NotFound'), 'NotFoundPage');
 const DashboardPage = lazyNamedPage(() => import('@/pages/Dashboard'), 'DashboardPage');
-const ChannelsPage = lazyNamedPage(() => import('@/pages/channels/ChannelsPage'), 'ChannelsPage');
+const ChannelDirectoryPage = lazyNamedPage(
+  () => import('@/pages/channels/ChannelDirectoryPage'),
+  'ChannelDirectoryPage',
+);
+const ChannelServicePurchasePage = lazyNamedPage(
+  () => import('@/pages/channels/ChannelServicePurchasePage'),
+  'ChannelServicePurchasePage',
+);
+const ChannelAuthorizePage = lazyNamedPage(
+  () => import('@/pages/channels/ChannelAuthorizePage'),
+  'ChannelAuthorizePage',
+);
+const CouriersPage = lazyNamedPage(() => import('@/pages/couriers/CouriersPage'), 'CouriersPage');
+const TagDirectoryPage = lazyNamedPage(
+  () => import('@/pages/tags/TagDirectoryPage'),
+  'TagDirectoryPage',
+);
+const WarehouseDirectoryPage = lazyNamedPage(
+  () => import('@/pages/warehouses/WarehouseDirectoryPage'),
+  'WarehouseDirectoryPage',
+);
+const LogisticsFeeDirectoryPage = lazyNamedPage(
+  () => import('@/pages/logistics/LogisticsFeeDirectoryPage'),
+  'LogisticsFeeDirectoryPage',
+);
+const SuppliersPage = lazyNamedPage(
+  () => import('@/pages/suppliers/SuppliersPage'),
+  'SuppliersPage',
+);
 const SalesOrderQueryWorkbenchPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderQueryWorkbenchPage'), 'SalesOrderQueryWorkbenchPage');
 const OrderReviewPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewPage'), 'OrderReviewPage');
 const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
@@ -153,7 +181,55 @@ const routeConfig = [
                 path: 'channels',
                 element: (
                   <PermissionGuard permission="channels.read">
-                    <ChannelsPage />
+                    <ChannelDirectoryPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'channels/service-purchase',
+                element: (
+                  <PermissionGuard permission="channels.read">
+                    <ChannelServicePurchasePage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'channels/authorize',
+                element: (
+                  <PermissionGuard permission="channels.read">
+                    <ChannelAuthorizePage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'couriers',
+                element: (
+                  <PermissionGuard permission="couriers.read">
+                    <CouriersPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'tags',
+                element: <TagDirectoryPage />,
+              },
+              {
+                path: 'warehouses',
+                element: (
+                  <PermissionGuard permission="warehouses.read">
+                    <WarehouseDirectoryPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'logistics-fees',
+                element: <LogisticsFeeDirectoryPage />,
+              },
+              {
+                path: 'suppliers',
+                element: (
+                  <PermissionGuard permission="suppliers.read">
+                    <SuppliersPage />
                   </PermissionGuard>
                 ),
               },

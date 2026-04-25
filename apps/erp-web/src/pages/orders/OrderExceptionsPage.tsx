@@ -1409,7 +1409,6 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
             displayOrderTags={displayOrderTags}
           />
         ) : null}
-        {renderDetailContent(activeRow, detailQuery.data, detailQuery.isLoading)}
       </div>
     ),
     [

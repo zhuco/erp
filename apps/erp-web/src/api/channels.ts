@@ -5,15 +5,23 @@ import {
   createMockChannel,
   deleteMockChannel,
   getMockChannelList,
-  updateMockChannel
+  updateMockChannel,
 } from '@/api/mocks';
 import type { PlatformCode } from '@/features/platform';
+
+export type ChannelType = 'ONLINE' | 'OFFLINE';
+
+export type ChannelStatus = 'ACTIVE' | 'DISABLED';
 
 export type Channel = {
   channel_id: string;
   tenant_id: string;
-  platform: PlatformCode;
+  channel_type?: ChannelType;
+  platform?: PlatformCode | null;
   name: string;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_address?: string | null;
   department?: string | null;
   owner?: string | null;
   allow_manual_order: boolean;
@@ -24,8 +32,6 @@ export type Channel = {
   created_at?: string | null;
   updated_at?: string | null;
 };
-
-export type ChannelStatus = 'ACTIVE' | 'DISABLED';
 
 export type ChannelListQuery = {
   keyword?: string;
@@ -40,25 +46,34 @@ export type ChannelListResponse = {
 };
 
 export type ChannelCreatePayload = {
-  platform: PlatformCode;
+  channel_type?: ChannelType;
+  platform?: PlatformCode | null;
   name: string;
-  department?: string;
-  owner?: string;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_address?: string | null;
+  department?: string | null;
+  owner?: string | null;
   allow_manual_order?: boolean;
   allow_manual_after_sales?: boolean;
-  default_warehouse_id?: string;
-  commission_formula?: string;
+  default_warehouse_id?: string | null;
+  commission_formula?: string | null;
+  status?: ChannelStatus;
 };
 
 export type ChannelUpdatePayload = {
-  platform?: PlatformCode;
+  channel_type?: ChannelType;
+  platform?: PlatformCode | null;
   name?: string;
-  department?: string;
-  owner?: string;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_address?: string | null;
+  department?: string | null;
+  owner?: string | null;
   allow_manual_order?: boolean;
   allow_manual_after_sales?: boolean;
-  default_warehouse_id?: string;
-  commission_formula?: string;
+  default_warehouse_id?: string | null;
+  commission_formula?: string | null;
   status?: ChannelStatus;
 };
 
@@ -97,7 +112,7 @@ const buildQueryString = (query: ChannelListQuery): string => {
 
 export const listChannels = async (
   tenantId: string,
-  query: ChannelListQuery
+  query: ChannelListQuery,
 ): Promise<ChannelListResponse> => {
   if (useMocks) {
     return getMockChannelList(query);
@@ -105,13 +120,13 @@ export const listChannels = async (
   return requestJson<ChannelListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/channels${buildQueryString(query)}`,
     { headers: buildAuthHeaders() },
-    '获取渠道列表失败'
+    '获取渠道列表失败',
   );
 };
 
 export const createChannel = async (
   tenantId: string,
-  payload: ChannelCreatePayload
+  payload: ChannelCreatePayload,
 ): Promise<Channel> => {
   if (useMocks) {
     return createMockChannel(payload);
@@ -122,18 +137,18 @@ export const createChannel = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...buildAuthHeaders()
+        ...buildAuthHeaders(),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     },
-    '创建渠道失败'
+    '创建渠道失败',
   );
 };
 
 export const updateChannel = async (
   tenantId: string,
   channelId: string,
-  payload: ChannelUpdatePayload
+  payload: ChannelUpdatePayload,
 ): Promise<Channel> => {
   if (useMocks) {
     return updateMockChannel(channelId, payload);
@@ -144,11 +159,11 @@ export const updateChannel = async (
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        ...buildAuthHeaders()
+        ...buildAuthHeaders(),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     },
-    '更新渠道失败'
+    '更新渠道失败',
   );
 };
 
@@ -160,8 +175,8 @@ export const deleteChannel = async (tenantId: string, channelId: string): Promis
     `${apiBaseUrl}/v1/tenants/${tenantId}/channels/${channelId}`,
     {
       method: 'DELETE',
-      headers: buildAuthHeaders()
+      headers: buildAuthHeaders(),
     },
-    '删除渠道失败'
+    '删除渠道失败',
   );
 };

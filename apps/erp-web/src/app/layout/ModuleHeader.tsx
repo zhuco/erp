@@ -53,7 +53,7 @@ const PANEL_VIEWPORT_GAP = 24;
 
 const fallbackModules: HeaderModuleItem[] = [
   { key: 'dashboard', label: '首页', defaultPath: '/dashboard', leafPaths: ['/dashboard'], groups: [] },
-  { key: 'channels', label: '渠道', leafPaths: [], groups: [] },
+  { key: 'channels', label: '目录', leafPaths: [], groups: [] },
   { key: 'sales', label: '销售', leafPaths: [], groups: [] },
   { key: 'products', label: '商品', leafPaths: [], groups: [] },
   { key: 'procurement', label: '采购', leafPaths: [], groups: [] },

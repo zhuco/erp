@@ -277,8 +277,12 @@ export const getMockChannelList = (query: ChannelListQuery): ChannelListResponse
       return true;
     }
     return (
-      channel.platform.toLowerCase().includes(normalizedKeyword) ||
+      String(channel.platform ?? '').toLowerCase().includes(normalizedKeyword) ||
+      String(channel.channel_type ?? '').toLowerCase().includes(normalizedKeyword) ||
       channel.name.toLowerCase().includes(normalizedKeyword) ||
+      channel.contact_name?.toLowerCase()?.includes(normalizedKeyword) ||
+      channel.contact_phone?.toLowerCase()?.includes(normalizedKeyword) ||
+      channel.contact_address?.toLowerCase()?.includes(normalizedKeyword) ||
       channel.department?.toLowerCase()?.includes(normalizedKeyword) ||
       channel.owner?.toLowerCase()?.includes(normalizedKeyword)
     );
@@ -292,18 +296,23 @@ export const getMockChannelList = (query: ChannelListQuery): ChannelListResponse
 
 export const createMockChannel = (payload: ChannelCreatePayload): Channel => {
   const now = dayjs().toISOString();
+  const channelType = payload.channel_type ?? (payload.platform ? 'ONLINE' : 'OFFLINE');
   const channel: Channel = {
     channel_id: `CH-${Date.now()}`,
     tenant_id: mockTenantId,
-    platform: payload.platform,
+    channel_type: channelType,
+    platform: payload.platform ?? null,
     name: payload.name,
+    contact_name: payload.contact_name ?? null,
+    contact_phone: payload.contact_phone ?? null,
+    contact_address: payload.contact_address ?? null,
     department: payload.department ?? null,
     owner: payload.owner ?? null,
     allow_manual_order: payload.allow_manual_order ?? false,
     allow_manual_after_sales: payload.allow_manual_after_sales ?? false,
     default_warehouse_id: payload.default_warehouse_id ?? null,
     commission_formula: payload.commission_formula ?? null,
-    status: 'ACTIVE',
+    status: payload.status ?? 'ACTIVE',
     created_at: now,
     updated_at: now
   };
@@ -316,6 +325,7 @@ export const updateMockChannel = (
   payload: ChannelUpdatePayload
 ): Channel => {
   const now = dayjs().toISOString();
+  const hasOwn = <T extends object>(key: keyof T) => Object.prototype.hasOwnProperty.call(payload, key);
   const index = mockChannels.findIndex((channel) => channel.channel_id === channelId);
   const base =
     index >= 0
@@ -323,8 +333,12 @@ export const updateMockChannel = (
       : ({
           channel_id: channelId,
           tenant_id: mockTenantId,
-          platform: payload.platform ?? 'taobao',
+          channel_type: payload.channel_type ?? (payload.platform ? 'ONLINE' : 'OFFLINE'),
+          platform: payload.platform ?? null,
           name: payload.name ?? '未命名渠道',
+          contact_name: payload.contact_name ?? null,
+          contact_phone: payload.contact_phone ?? null,
+          contact_address: payload.contact_address ?? null,
           department: payload.department ?? null,
           owner: payload.owner ?? null,
           allow_manual_order: payload.allow_manual_order ?? false,
@@ -334,16 +348,28 @@ export const updateMockChannel = (
           status: payload.status ?? 'ACTIVE',
           created_at: now
         } as Channel);
+  const resolvedChannelType =
+    payload.channel_type ?? base.channel_type ?? (hasOwn('platform') ? (payload.platform ? 'ONLINE' : 'OFFLINE') : base.platform ? 'ONLINE' : 'OFFLINE');
   const updated: Channel = {
     ...base,
-    platform: payload.platform ?? base.platform,
+    channel_type: resolvedChannelType,
+    platform: hasOwn('platform') ? payload.platform ?? null : base.platform,
     name: payload.name ?? base.name,
+    contact_name: hasOwn('contact_name') ? payload.contact_name ?? null : base.contact_name,
+    contact_phone: hasOwn('contact_phone') ? payload.contact_phone ?? null : base.contact_phone,
+    contact_address: hasOwn('contact_address')
+      ? payload.contact_address ?? null
+      : base.contact_address,
     department: payload.department ?? base.department,
     owner: payload.owner ?? base.owner,
     allow_manual_order: payload.allow_manual_order ?? base.allow_manual_order,
     allow_manual_after_sales: payload.allow_manual_after_sales ?? base.allow_manual_after_sales,
-    default_warehouse_id: payload.default_warehouse_id ?? base.default_warehouse_id,
-    commission_formula: payload.commission_formula ?? base.commission_formula,
+    default_warehouse_id: hasOwn('default_warehouse_id')
+      ? payload.default_warehouse_id ?? null
+      : base.default_warehouse_id,
+    commission_formula: hasOwn('commission_formula')
+      ? payload.commission_formula ?? null
+      : base.commission_formula,
     status: payload.status ?? base.status,
     updated_at: now
   };
@@ -365,8 +391,12 @@ export const deleteMockChannel = (channelId: string): Channel => {
   return {
     channel_id: channelId,
     tenant_id: mockTenantId,
-    platform: 'taobao',
+    channel_type: 'OFFLINE',
+    platform: null,
     name: '未命名渠道',
+    contact_name: null,
+    contact_phone: null,
+    contact_address: null,
     department: null,
     owner: null,
     allow_manual_order: false,

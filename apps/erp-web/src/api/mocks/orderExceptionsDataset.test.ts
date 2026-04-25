@@ -22,4 +22,14 @@ describe('mock order exceptions dataset', () => {
       expect(String(item.assignee_name ?? '').trim()).not.toBe('');
     });
   });
+
+  it('includes summary-level tags so the recheck main grid marks do not depend on detail hydration', () => {
+    const { items } = listMockOrderExceptions();
+    const taggedItems = items.filter((item) => Array.isArray((item as { tags?: unknown }).tags));
+
+    expect(taggedItems.length).toBeGreaterThan(0);
+    expect(
+      taggedItems.some((item) => ((item as { tags?: string[] }).tags ?? []).some((tag) => String(tag).trim().length > 0)),
+    ).toBe(true);
+  });
 });

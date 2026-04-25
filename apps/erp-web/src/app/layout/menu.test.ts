@@ -3,10 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { appMenuItems, flattenMenuItems } from './menu';
 
 describe('appMenuItems', () => {
-  it('only exposes the approved five-page UI shell', () => {
+  it('exposes the directory module as a grouped first-level menu with second-level master-data entries', () => {
     expect(flattenMenuItems(appMenuItems).map((item) => item.path)).toEqual([
       '/dashboard',
       '/channels',
+      '/couriers',
+      '/tags',
+      '/warehouses',
+      '/logistics-fees',
+      '/suppliers',
       '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
@@ -14,17 +19,21 @@ describe('appMenuItems', () => {
     ]);
   });
 
-  it('keeps only home, channel directory, and the reduced sales module', () => {
+  it('keeps only home, directory, and the sales module at the top level', () => {
     expect(appMenuItems).toHaveLength(3);
     expect(appMenuItems[0]).toMatchObject({
       path: '/dashboard',
     });
 
-    const channelModule = appMenuItems.find((item) =>
-      flattenMenuItems([item]).some((leaf) => leaf.path === '/channels'),
-    );
-    expect(flattenMenuItems(channelModule ? [channelModule] : []).map((item) => item.path)).toEqual([
+    const directoryModule = appMenuItems.find((item) => item.name === '目录');
+    expect(directoryModule?.path).toBeUndefined();
+    expect(flattenMenuItems(directoryModule ? [directoryModule] : []).map((item) => item.path)).toEqual([
       '/channels',
+      '/couriers',
+      '/tags',
+      '/warehouses',
+      '/logistics-fees',
+      '/suppliers',
     ]);
 
     const salesModule = appMenuItems.find((item) =>

@@ -11,12 +11,17 @@ import {
 } from './moduleSearch';
 
 describe('moduleSearch', () => {
-  it('only indexes the approved sales query and workbench entry points', () => {
+  it('indexes directory children together with the preserved sales workbench pages', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
 
     expect(entries.map((entry) => entry.path)).toEqual([
       '/dashboard',
       '/channels',
+      '/couriers',
+      '/tags',
+      '/warehouses',
+      '/logistics-fees',
+      '/suppliers',
       '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
@@ -24,37 +29,46 @@ describe('moduleSearch', () => {
     ]);
   });
 
-  it('supports direct matching for sales query and the existing workbench pages', () => {
+  it('supports direct matching for directory entries and sales workbench routes', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
 
-    expect(searchFunctionEntries(entries, '订单查询')[0]).toMatchObject({
-      path: '/sales/order-query',
+    expect(searchFunctionEntries(entries, '渠道目录')[0]).toMatchObject({
+      path: '/channels',
+    });
+    expect(searchFunctionEntries(entries, '物流目录')[0]).toMatchObject({
+      path: '/couriers',
+    });
+    expect(searchFunctionEntries(entries, '记号目录')[0]).toMatchObject({
+      path: '/tags',
+    });
+    expect(searchFunctionEntries(entries, '仓库目录')[0]).toMatchObject({
+      path: '/warehouses',
+    });
+    expect(searchFunctionEntries(entries, '物流费目录')[0]).toMatchObject({
+      path: '/logistics-fees',
+    });
+    expect(searchFunctionEntries(entries, '供应商目录')[0]).toMatchObject({
+      path: '/suppliers',
     });
     expect(searchFunctionEntries(entries, '单审')[0]).toMatchObject({
       path: '/orders/review',
-    });
-    expect(searchFunctionEntries(entries, '复核')[0]).toMatchObject({
-      path: '/orders/recheck',
-    });
-    expect(searchFunctionEntries(entries, '渠道')[0]).toMatchObject({
-      path: '/channels',
     });
   });
 
   it('ignores removed pages when building recent and common recommendations', () => {
     const entries = buildFunctionSearchEntries(appMenuItems);
     const recommendations = buildFunctionRecommendations(entries, {
-      recentPaths: ['/sales/order-query', '/orders', '/channels'],
+      recentPaths: ['/channels', '/suppliers', '/orders'],
       shortcutPaths: ['/sales/settings', '/integrations/center'],
     });
 
     expect(recommendations).toEqual([
       expect.objectContaining({
-        path: '/sales/order-query',
+        path: '/channels',
         source: 'recent',
       }),
       expect.objectContaining({
-        path: '/channels',
+        path: '/suppliers',
         source: 'recent',
       }),
       expect.objectContaining({
@@ -64,13 +78,25 @@ describe('moduleSearch', () => {
     ]);
   });
 
-  it('groups the reduced results by their surviving top-level modules', () => {
+  it('groups directory results under the shared directory module', () => {
     const groups = groupFunctionEntriesByModule([
       {
-        path: '/sales/order-query',
-        name: '订单查询',
-        moduleName: '销售',
-        groupName: '订单中心',
+        path: '/channels',
+        name: '渠道目录',
+        moduleName: '目录',
+        groupName: '基础目录',
+      },
+      {
+        path: '/couriers',
+        name: '物流目录',
+        moduleName: '目录',
+        groupName: '基础目录',
+      },
+      {
+        path: '/suppliers',
+        name: '供应商目录',
+        moduleName: '目录',
+        groupName: '基础目录',
       },
       {
         path: '/orders/review',
@@ -78,40 +104,29 @@ describe('moduleSearch', () => {
         moduleName: '销售',
         groupName: '订单中心',
       },
-      {
-        path: '/orders/recheck',
-        name: '订单复核',
-        moduleName: '销售',
-        groupName: '订单中心',
-      },
-      {
-        path: '/channels',
-        name: '渠道目录',
-        moduleName: '渠道',
-      },
     ]);
 
     expect(groups[0]).toMatchObject({
-      label: '销售',
+      label: '目录',
     });
     expect(groups[0]?.items.map((item) => item.path)).toEqual([
-      '/sales/order-query',
-      '/orders/review',
-      '/orders/recheck',
+      '/channels',
+      '/couriers',
+      '/suppliers',
     ]);
     expect(groups[1]).toMatchObject({
-      label: '渠道',
+      label: '销售',
     });
-    expect(groups[1]?.items.map((item) => item.path)).toEqual(['/channels']);
+    expect(groups[1]?.items.map((item) => item.path)).toEqual(['/orders/review']);
   });
 
-  it('groups recommendations by source for the reduced navigation shell', () => {
+  it('groups recommendations by source for the upgraded navigation shell', () => {
     const groups = groupFunctionRecommendationsBySource([
       {
-        path: '/sales/order-query',
-        name: '订单查询',
-        moduleName: '销售',
-        groupName: '订单中心',
+        path: '/channels',
+        name: '渠道目录',
+        moduleName: '目录',
+        groupName: '基础目录',
         source: 'recent',
       },
       {
@@ -125,7 +140,7 @@ describe('moduleSearch', () => {
     expect(groups).toEqual([
       expect.objectContaining({
         label: '最近使用',
-        items: [expect.objectContaining({ path: '/sales/order-query' })],
+        items: [expect.objectContaining({ path: '/channels' })],
       }),
       expect.objectContaining({
         label: '常用功能',
@@ -139,7 +154,7 @@ describe('moduleSearch', () => {
       mergeRecentFunctionPaths(['/channels', '/dashboard', '/sales/order-query'], '/dashboard', 3),
     ).toEqual(['/dashboard', '/channels', '/sales/order-query']);
     expect(
-      mergeRecentFunctionPaths(['/channels', '/dashboard'], '/sales/order-query', 2),
-    ).toEqual(['/sales/order-query', '/channels']);
+      mergeRecentFunctionPaths(['/channels', '/dashboard'], '/suppliers', 2),
+    ).toEqual(['/suppliers', '/channels']);
   });
 });
