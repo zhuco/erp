@@ -1,6 +1,8 @@
 # 衡策云 (SaaS 多店铺 / 日百万单 / 平台订单为准)
 
-衡策云是面向多平台电商订单的 ERP 基础工程骨架。当前版本聚焦在“订单闭环通路”，提供可编译的 Rust 多服务工程、最小可运行链路与文档模板，方便按任务卡补齐平台鉴权、字段映射与业务功能。
+> 当前版本：`0.1.7`（2026-05-06）
+
+衡策云是面向多平台电商经营的 ERP 基础工程骨架。当前版本聚焦“平台订单进入系统后，经过审单、库存、仓储、物流、售后、财务和报表形成可追溯闭环”，提供可编译的 Rust 多服务工程、React 管理端、OpenAPI 契约与工业化门禁。
 
 ## 当前能力
 - Webhook 入站 → Inbox 去重 → Outbox 事件
@@ -9,6 +11,7 @@
 - 多租户 RBAC/JWT 骨架
 - Web 管理端（React/Vite/Ant Design Pro）与 OpenAPI 生成
 - 系统管理：权限目录/角色/用户/数据权限、审计日志、配置中心、失败队列与 trace/metrics
+- 后续产品范围与路线图：以 `docs/PRODUCT_SCOPE.md` 和 `docs/ROADMAP.md` 为准
 
 ## 服务与通路
 - `erp-channel`：接收 `/webhooks/{platform}/{shop_id}`，落库原始 payload，去重写入 `inbox_events`，产生 `outbox_events(INBOX_EVENT_RECEIVED)`
@@ -17,7 +20,7 @@
 - `erp-api`：管理接口与鉴权（OpenAPI: `openapi/erp_api_v1.yaml`）
 - `adapter-*`：平台适配器骨架（淘宝/京东/拼多多/抖音）
 
-> 真实平台签名/鉴权/字段映射与链路细节，详见 `docs/spec` 与 `docs/list.md`（统一入口）。
+> 真实平台签名、鉴权、字段映射、链路细节与后续开发方向，详见 `docs/README.md`（文档中心）。
 
 ## 目录结构
 - `crates/`: Rust workspace（通用库、适配器、服务）
@@ -25,7 +28,7 @@
 - `migrations/`: 数据库迁移
 - `openapi/`: OpenAPI 规范
 - `infra/` / `docker-compose*.yml`: 基础设施与部署样例
-- `docs/`: 规范、运维、验收与任务卡
+- `docs/`: 合并后的产品范围、路线图、架构、前端规范与运维门禁
 
 ## 依赖
 - Docker（Postgres/Redis/NATS）
@@ -49,7 +52,7 @@ cargo run -p erp-worker
 ```
 
 ## 最小闭环验证
-1. 按 `docs/dev/seed.sql` 创建 tenant + shop（或使用 `docker-compose.local.yml` 自动注入种子数据）
+1. 按 `scripts/seed.local.sql` 创建 tenant + shop（或使用 `docker-compose.local.yml` 自动注入种子数据）
 2. 调用 webhook：
    ```bash
    curl -XPOST "http://localhost:8081/webhooks/taobao/<SHOP_UUID>" \
@@ -78,19 +81,13 @@ pnpm run accept:all
 - `Makefile`（例如 `make accept-web`）
 - `scripts/accept_*.sh`
 - `scripts/progress_check.sh`
-- 兼容层说明见 `docs/ops/ENGINEERING_STANDARDS.md`
+- 兼容层说明见 `docs/OPERATIONS.md`
 
 ## 文档导航
-- `docs/list.md`: 统一入口（文档分层、冲突裁决、主题归并）
-- `docs/dev/01-项目总览与阅读路径.md`: 面向接手开发的总入口
-- `docs/dev/02-前端结构与路由现状.md`: 前端分层、主路由与工作台模板说明
-- `docs/dev/03-后端服务与接口边界.md`: 后端服务职责、事件链路与 API 覆盖范围
-- `docs/dev/04-数据模型与迁移概览.md`: 迁移分段、数据域与改模检查点
-- `docs/spec/`: 架构、数据模型、平台接入与流程规范
-- `docs/web/`: 前端开发、测试验收与打印桥接
-- `docs/ops/`: 运维、发布、门禁与运行手册
-- `docs/dev/前后端使用方式.md`: 前端、后端与联调的本地使用说明（Windows / PowerShell）
-- `docs/ops/ENGINEERING_STANDARDS.md`: 工程规范与命令统一入口
-- `docs/reports/README.md`: 报告目录入口（含当前保留文档与历史归档指引）
-- `docs/superpowers/`: 设计与实施计划留痕
+- `docs/README.md`: 文档中心、阅读顺序与维护规则
+- `docs/PRODUCT_SCOPE.md`: 产品范围、要实现的功能与优先级
+- `docs/ROADMAP.md`: 后续开发方向、阶段目标与近期重点
+- `docs/ARCHITECTURE.md`: 架构、服务职责、数据域、状态和接口约定
+- `docs/FRONTEND_GUIDE.md`: 前端页面、工作台、表格、测试和打印规范
+- `docs/OPERATIONS.md`: 本地运行、验收命令、发布门禁、安全、运维要求与版本更新记录
 - `openapi/`: API 规范（配合 `apps/erp-web` 生成客户端）

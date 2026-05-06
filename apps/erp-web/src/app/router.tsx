@@ -136,6 +136,31 @@ const SalesOrderQueryWorkbenchPage = lazyNamedPage(() => import('@/pages/sales/S
 const OrderReviewPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewPage'), 'OrderReviewPage');
 const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
 const SalesSettingsPage = lazyNamedPage(() => import('@/pages/sales/SalesSettingsPage'), 'SalesSettingsPage');
+const SystemIntegrationsPage = lazyNamedPage(
+  () => import('@/pages/system/SystemIntegrationsPage'),
+  'SystemIntegrationsPage',
+);
+const InventoryPage = lazyNamedPage(() => import('@/pages/inventory/InventoryPage'), 'InventoryPage');
+const WmsWavesPage = lazyNamedPage(() => import('@/pages/wms/WmsWavesPage'), 'WmsWavesPage');
+const WmsShipPage = lazyNamedPage(() => import('@/pages/wms/WmsShipPage'), 'WmsShipPage');
+const AfterSalesExchangesPage = lazyNamedPage(
+  () => import('@/pages/afterSales/AfterSalesExchangesPage'),
+  'AfterSalesExchangesPage',
+);
+const LogisticsExceptionsPage = lazyNamedPage(
+  () => import('@/pages/logistics/LogisticsExceptionsPage'),
+  'LogisticsExceptionsPage',
+);
+const ProfitPage = lazyNamedPage(() => import('@/pages/finance/ProfitPage'), 'ProfitPage');
+const PlanExecutionPage = lazyNamedPage(
+  () => import('@/pages/planning/PlanExecutionPage'),
+  'PlanExecutionPage',
+);
+const SalesStatsPage = lazyNamedPage(() => import('@/pages/stats/SalesStatsPage'), 'SalesStatsPage');
+const ObservabilityPage = lazyNamedPage(
+  () => import('@/pages/system/ObservabilityPage'),
+  'ObservabilityPage',
+);
 
 const legacyRouteRedirects = routeAliases.map(({ legacyPath }) => ({
   path: toRelativeRoutePath(legacyPath),
@@ -262,6 +287,86 @@ const routeConfig = [
                 element: (
                   <PermissionGuard permission="settings.read">
                     <SalesSettingsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'integrations/center',
+                element: (
+                  <PermissionGuard permission="channels.read">
+                    <SystemIntegrationsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'inventory',
+                element: (
+                  <PermissionGuard permission="inventory.read">
+                    <InventoryPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'wms/waves',
+                element: (
+                  <PermissionGuard permission="wms.wave.read">
+                    <WmsWavesPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'wms/ship',
+                element: (
+                  <PermissionGuard permission="shipping.read">
+                    <WmsShipPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'after-sales/exchanges',
+                element: (
+                  <PermissionGuard permission="aftersales.read">
+                    <AfterSalesExchangesPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'logistics/exceptions',
+                element: (
+                  <PermissionGuard permission="shipping.read">
+                    <LogisticsExceptionsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'finance/profit',
+                element: (
+                  <PermissionGuard permission="finance.read">
+                    <ProfitPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'planning/plan-execution',
+                element: (
+                  <PermissionGuard permission="purchase_suggestions.read">
+                    <PlanExecutionPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'stats/sales',
+                element: (
+                  <PermissionGuard permission="stats.read">
+                    <SalesStatsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'system/observability',
+                element: (
+                  <PermissionGuard permission="settings.read">
+                    <ObservabilityPage />
                   </PermissionGuard>
                 ),
               },

@@ -886,3 +886,174 @@ pub(super) async fn handle_oms_cancel_request(
     };
     (StatusCode::OK, Json(response)).into_response()
 }
+
+pub(super) async fn get_order_raw(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return (StatusCode::BAD_REQUEST, "bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read_raw") {
+        return resp.into_response();
+    }
+
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(v) => v,
+        Err(_) => return (StatusCode::BAD_REQUEST, "bad order_id").into_response(),
+    };
+
+    let orders_repo = OrdersRepo::new(state.db.pool());
+    let detail = match orders_repo.get_order_detail(tenant_id, order_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => return (StatusCode::NOT_FOUND, "not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    };
+    if let Err(resp) = ensure_shop_access(&ctx, detail.order.shop_id) {
+        return resp.into_response();
+    }
+    match orders_repo.get_order_raw(tenant_id, order_id).await {
+        Ok(Some(raw)) => (StatusCode::OK, Json(raw)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    }
+}
+
+pub(super) async fn ship_order(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    headers: HeaderMap,
+    Json(req): Json<ShipOrderRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+    let warehouse_id = match req.warehouse_id.as_deref() {
+        Some(raw) => match uuid::Uuid::parse_str(raw) {
+            Ok(v) => Some(v),
+            Err(_) => return bad_request("bad warehouse_id").into_response(),
+        },
+        None => None,
+    };
+
+    let idempotency_key = headers
+        .get("Idempotency-Key")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| order_id.to_string());
+
+    let _ = req.print_label;
+    let shipment = match handle_shipment_request(
+        &state,
+        &ctx,
+        &req_ctx,
+        ShipmentRequestArgs {
+            tenant_id,
+            order_id,
+            warehouse_id,
+            carrier_code: req.carrier_code,
+            tracking_no: req.tracking_no,
+            weight_gram: req.weight_gram,
+            serials: req.serials.unwrap_or_default(),
+            idempotency_key,
+        },
+    )
+    .await
+    {
+        Ok(v) => v,
+        Err(resp) => return resp,
+    };
+
+    (StatusCode::OK, Json(shipment)).into_response()
+}
+
+pub(super) async fn allocate_oms_order(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OmsAllocationRequest>,
+) -> impl IntoResponse {
+    handle_oms_allocation(
+        &state,
+        &ctx,
+        &req_ctx,
+        &tenant_id,
+        &order_id,
+        req.carrier_code,
+    )
+    .await
+}
+
+pub(super) async fn create_oms_shipments(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OmsAllocationRequest>,
+) -> impl IntoResponse {
+    handle_oms_allocation(
+        &state,
+        &ctx,
+        &req_ctx,
+        &tenant_id,
+        &order_id,
+        req.carrier_code,
+    )
+    .await
+}
+
+pub(super) async fn resend_oms_order(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OmsResendRequest>,
+) -> impl IntoResponse {
+    handle_oms_resend(
+        &state,
+        &ctx,
+        &req_ctx,
+        &tenant_id,
+        &order_id,
+        req.carrier_code,
+        req.origin_shipment_id,
+    )
+    .await
+}
+
+pub(super) async fn release_oms_order(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+) -> impl IntoResponse {
+    handle_oms_release(&state, &ctx, &req_ctx, &tenant_id, &order_id).await
+}
+
+pub(super) async fn request_oms_shipment_cancel(
+    State(state): State<AppState>,
+    Path((tenant_id, shipment_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OmsShipmentCancelRequest>,
+) -> impl IntoResponse {
+    handle_oms_cancel_request(&state, &ctx, &req_ctx, &tenant_id, &shipment_id, req.reason).await
+}

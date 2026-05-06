@@ -199,6 +199,30 @@ pub fn derive_order_status(
     OrderMainStatus::PendingAllocate
 }
 
+pub fn ensure_order_review_reopen_allowed(
+    oms_status: OmsOrderStatus,
+    order_status: OrderMainStatus,
+    fulfillment_status: OrderFulfillmentStatus,
+) -> Result<(), &'static str> {
+    if matches!(
+        oms_status,
+        OmsOrderStatus::Shipped | OmsOrderStatus::Done | OmsOrderStatus::Cancelled
+    ) || matches!(
+        order_status,
+        OrderMainStatus::Shipped
+            | OrderMainStatus::Signed
+            | OrderMainStatus::Completed
+            | OrderMainStatus::Cancelled
+    ) || matches!(
+        fulfillment_status,
+        OrderFulfillmentStatus::Shipped | OrderFulfillmentStatus::Signed
+    ) {
+        return Err("order terminal status not review reopenable");
+    }
+
+    Ok(())
+}
+
 fn push_flag(flags: &mut Vec<String>, value: &str) {
     if !flags.iter().any(|existing| existing == value) {
         flags.push(value.to_string());
@@ -314,6 +338,68 @@ mod tests {
         let next = transition_status(OmsOrderStatus::ReviewPending, OmsOrderAction::ReviewReject)
             .expect("transition ok");
         assert_eq!(next, OmsOrderStatus::ReviewPending);
+    }
+
+    #[test]
+    fn review_reopen_guard_rejects_terminal_statuses() {
+        for order_status in [
+            OrderMainStatus::Shipped,
+            OrderMainStatus::Signed,
+            OrderMainStatus::Completed,
+            OrderMainStatus::Cancelled,
+        ] {
+            let error = ensure_order_review_reopen_allowed(
+                OmsOrderStatus::PendingShipment,
+                order_status,
+                OrderFulfillmentStatus::NotAllocated,
+            )
+            .expect_err("terminal order status should be blocked");
+            assert_eq!(error, "order terminal status not review reopenable");
+        }
+
+        for oms_status in [
+            OmsOrderStatus::Shipped,
+            OmsOrderStatus::Done,
+            OmsOrderStatus::Cancelled,
+        ] {
+            let error = ensure_order_review_reopen_allowed(
+                oms_status,
+                OrderMainStatus::PendingOutbound,
+                OrderFulfillmentStatus::NotAllocated,
+            )
+            .expect_err("terminal oms status should be blocked");
+            assert_eq!(error, "order terminal status not review reopenable");
+        }
+
+        for fulfillment_status in [
+            OrderFulfillmentStatus::Shipped,
+            OrderFulfillmentStatus::Signed,
+        ] {
+            let error = ensure_order_review_reopen_allowed(
+                OmsOrderStatus::PendingShipment,
+                OrderMainStatus::PendingOutbound,
+                fulfillment_status,
+            )
+            .expect_err("terminal fulfillment status should be blocked");
+            assert_eq!(error, "order terminal status not review reopenable");
+        }
+    }
+
+    #[test]
+    fn review_reopen_guard_allows_pre_shipment_statuses() {
+        ensure_order_review_reopen_allowed(
+            OmsOrderStatus::PendingShipment,
+            OrderMainStatus::PendingAllocate,
+            OrderFulfillmentStatus::NotAllocated,
+        )
+        .expect("pending allocation can reopen review");
+
+        ensure_order_review_reopen_allowed(
+            OmsOrderStatus::Packed,
+            OrderMainStatus::Picking,
+            OrderFulfillmentStatus::ReadyToShip,
+        )
+        .expect("pre-shipment fulfillment can reopen review");
     }
 
     #[test]

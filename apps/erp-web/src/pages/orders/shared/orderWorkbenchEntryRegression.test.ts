@@ -9,10 +9,10 @@ const readRepoFile = (relativePath: string) =>
   readFileSync(path.resolve(repoRoot, relativePath), 'utf8');
 
 describe('order workbench shared entry regression', () => {
-  it('records the current grid technology decision in a dedicated document', () => {
+  it('在合并后的前端规范中记录当前表格技术决策', () => {
     const decisionDocPath = path.resolve(
       repoRoot,
-      'docs/ErpDataGrid/order-workbench-technology-decision-2026-04-15.md',
+      'docs/FRONTEND_GUIDE.md',
     );
 
     expect(existsSync(decisionDocPath)).toBe(true);

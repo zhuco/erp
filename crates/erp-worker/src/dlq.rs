@@ -5,8 +5,10 @@ use async_nats::HeaderMap;
 use chrono::Utc;
 use erp_adapter::AdapterError;
 use erp_common::trace::TRACE_ID_HEADER;
+use erp_domain::DeadLetterReplayPayload;
 use erp_outbox::envelope::OutboxEnvelope;
 use erp_outbox::publisher::{subject_for, subject_for_print_job};
+use erp_repo::db::Db;
 use erp_repo::shipments::{SHIPMENT_CONFIRMED_EVENT, SHIPMENT_SHIPPED_EVENT};
 use serde_json::Value;
 use sqlx::PgPool;
@@ -409,4 +411,19 @@ pub async fn replay_dead_letter(
         }
     })
     .await
+}
+
+pub(super) async fn handle_dead_letter_replay(
+    db: &Db,
+    nats: &async_nats::Client,
+    payload: DeadLetterReplayPayload,
+) -> anyhow::Result<()> {
+    replay_dead_letter(
+        db.pool(),
+        nats,
+        uuid::Uuid::from(payload.tenant_id),
+        payload.dead_letter_id,
+    )
+    .await?;
+    Ok(())
 }

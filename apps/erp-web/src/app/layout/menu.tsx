@@ -1,4 +1,11 @@
-import { AppstoreOutlined, DashboardOutlined, ShoppingOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  BarChartOutlined,
+  DashboardOutlined,
+  DollarOutlined,
+  SafetyCertificateOutlined,
+  ShoppingOutlined,
+} from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
 import type { FeatureFlagKey } from '@/features/featureFlags';
@@ -86,6 +93,44 @@ export const appMenuItems: AppMenuItem[] = [
       ]),
       group('业务设置', [
         leaf('/sales/settings', '销售设置', { permission: 'settings.read' }),
+      ]),
+    ],
+  },
+  {
+    name: '履约',
+    icon: <SafetyCertificateOutlined />,
+    children: [
+      group('库存与仓储', [
+        leaf('/inventory', '库存查询', { permission: 'inventory.read' }),
+        leaf('/wms/waves', '波次执行', { permission: 'wms.wave.read' }),
+        leaf('/wms/ship', '出库发货', { permission: 'shipping.read' }),
+        leaf('/logistics/exceptions', '物流异常', { permission: 'shipping.read' }),
+      ]),
+      group('售后履约', [
+        leaf('/after-sales/exchanges', '退换补发', { permission: 'aftersales.read' }),
+      ]),
+    ],
+  },
+  {
+    name: '经营',
+    icon: <DollarOutlined />,
+    children: [
+      group('财务与计划', [
+        leaf('/finance/profit', '利润分析', { permission: 'finance.read' }),
+        leaf('/planning/plan-execution', '计划执行', {
+          permission: 'purchase_suggestions.read',
+        }),
+      ]),
+    ],
+  },
+  {
+    name: '报表',
+    icon: <BarChartOutlined />,
+    children: [
+      group('统计与治理', [
+        leaf('/stats/sales', '销售统计', { permission: 'stats.read' }),
+        leaf('/integrations/center', '接口集成', { permission: 'channels.read' }),
+        leaf('/system/observability', '系统观测', { permission: 'settings.read' }),
       ]),
     ],
   },

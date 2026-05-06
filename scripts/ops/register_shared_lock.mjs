@@ -90,8 +90,8 @@ function saveJson(filePath, value) {
 function main() {
   const parsed = parseArgs();
   const repoRoot = process.cwd();
-  const policyPath = path.resolve(parsed.policyFile || path.join(repoRoot, 'docs', 'ops', 'config', 'PARALLEL_SHARED_LOCKS_V2.json'));
-  const registryPath = path.resolve(parsed.lockRegistry || path.join(repoRoot, 'docs', 'ops', 'state', 'PARALLEL_SHARED_LOCK_REGISTRY.json'));
+  const policyPath = path.resolve(parsed.policyFile || path.join(repoRoot, 'scripts', 'ops', 'config', 'PARALLEL_SHARED_LOCKS_V2.json'));
+  const registryPath = path.resolve(parsed.lockRegistry || path.join(repoRoot, 'tmp', 'ops-state', 'PARALLEL_SHARED_LOCK_REGISTRY.json'));
 
   const policy = loadJson(policyPath, { locked_patterns: [] });
   const lockedPatterns = Array.isArray(policy.locked_patterns) ? policy.locked_patterns : [];

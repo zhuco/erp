@@ -1147,3 +1147,384 @@ pub(super) async fn reject_order_exception(
         Err(resp) => resp,
     }
 }
+
+pub(super) async fn handle_order_exception(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OrderExceptionHandleRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+
+    match apply_order_exception_action(
+        &state, &ctx, &req_ctx, tenant_id, order_id, req.action, req.flags, req.reason,
+    )
+    .await
+    {
+        Ok(updated) => (StatusCode::OK, Json(updated)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+pub(super) async fn handle_order_exception_pool(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<OrderExceptionPoolRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&req.order_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+
+    match apply_order_exception_action(
+        &state, &ctx, &req_ctx, tenant_id, order_id, req.action, req.flags, req.reason,
+    )
+    .await
+    {
+        Ok(updated) => (StatusCode::OK, Json(updated)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+pub(super) async fn get_order_exception_stats(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(v) => v,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+
+    let repo = OrdersRepo::new(state.db.pool());
+    let stats = match repo.get_exception_stats(tenant_id).await {
+        Ok(v) => v,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    };
+
+    let codes = stats
+        .reasons
+        .iter()
+        .map(|reason| reason.reason_code.clone())
+        .collect::<Vec<_>>();
+    let mut label_map = std::collections::HashMap::new();
+    if !codes.is_empty() {
+        let rows: Vec<(String, String)> = match sqlx::query_as(
+            r#"
+            select code, label
+            from exception_reasons
+            where tenant_id = $1 and code = any($2)
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(&codes)
+        .fetch_all(state.db.pool())
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        };
+        for (code, label) in rows {
+            label_map.insert(code, label);
+        }
+    }
+
+    let reasons = stats
+        .reasons
+        .into_iter()
+        .map(|reason| OrderExceptionReasonStatResponse {
+            reason_code: reason.reason_code.clone(),
+            label: label_map.get(&reason.reason_code).cloned(),
+            total: reason.total,
+            open: reason.open,
+            processed: reason.processed,
+        })
+        .collect::<Vec<_>>();
+
+    let response = OrderExceptionStatsResponse {
+        total: stats.total,
+        open: stats.open,
+        processed: stats.processed,
+        reasons,
+    };
+    (StatusCode::OK, Json(response)).into_response()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn apply_order_exception_action(
+    state: &AppState,
+    ctx: &AuthContext,
+    req_ctx: &RequestContext,
+    tenant_id: TenantId,
+    order_id: OrderId,
+    action: String,
+    flags: Option<Vec<String>>,
+    reason: Option<String>,
+) -> Result<OrderReviewState, Response> {
+    let action = action.to_uppercase();
+    let orders_repo = OrdersRepo::new(state.db.pool());
+    let state_row = match orders_repo
+        .get_order_review_state(tenant_id, order_id)
+        .await
+    {
+        Ok(Some(v)) => v,
+        Ok(None) => return Err(not_found("order not found").into_response()),
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()),
+    };
+
+    let mut next_flags = state_row.exception_flags.clone();
+    let target_flags = flags
+        .unwrap_or_default()
+        .into_iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+
+    match action.as_str() {
+        "RESOLVE" => {
+            if target_flags.is_empty() {
+                next_flags.clear();
+            } else {
+                next_flags.retain(|flag| !target_flags.contains(flag));
+            }
+        }
+        "REJECT" => {}
+        "REVOKE" | "REOPEN" => {
+            for flag in target_flags.iter() {
+                if !next_flags.contains(flag) {
+                    next_flags.push(flag.clone());
+                }
+            }
+        }
+        "CLOSE" => {
+            if target_flags.is_empty() {
+                next_flags.clear();
+            } else {
+                next_flags.retain(|flag| !target_flags.contains(flag));
+            }
+        }
+        _ => return Err(bad_request("bad action").into_response()),
+    }
+
+    let mut next_review_status = state_row.review_status;
+    let mut next_oms_status = state_row.oms_status;
+    let review_action = match action.as_str() {
+        "RESOLVE" if state_row.review_status.is_pending() => Some(ReviewAction::Pass),
+        "REJECT" => Some(ReviewAction::Reject),
+        "REOPEN" | "REVOKE" => Some(ReviewAction::Flag),
+        _ => None,
+    };
+    if let Some(review_action) = review_action {
+        if let Ok(outcome) = apply_review_decision(
+            state_row.oms_status,
+            review_action,
+            &next_flags,
+            None,
+            ReviewMode::Manual,
+        ) {
+            next_review_status = outcome.review_status;
+            next_oms_status = outcome.oms_status;
+            for flag in outcome.exception_flags {
+                if !next_flags.contains(&flag) {
+                    next_flags.push(flag);
+                }
+            }
+        }
+    }
+
+    let mut next_exception_status = derive_exception_status(&next_flags);
+    if action.as_str() == "RESOLVE" && next_flags.is_empty() {
+        next_exception_status = OrderExceptionStatus::Released;
+    }
+    if action.as_str() == "CLOSE" {
+        next_exception_status = OrderExceptionStatus::Closed;
+    }
+    let next_order_status = derive_order_status(
+        next_oms_status,
+        next_review_status,
+        state_row.fulfillment_status,
+        next_exception_status,
+    );
+
+    let updated = if next_flags == state_row.exception_flags
+        && next_exception_status == state_row.exception_status
+        && next_order_status == state_row.order_status
+        && next_review_status == state_row.review_status
+        && next_oms_status == state_row.oms_status
+    {
+        state_row.clone()
+    } else {
+        match orders_repo
+            .update_order_review_state(
+                tenant_id,
+                order_id,
+                OrderReviewUpdate {
+                    oms_status: next_oms_status,
+                    order_status: next_order_status,
+                    review_status: next_review_status,
+                    fulfillment_status: state_row.fulfillment_status,
+                    exception_status: next_exception_status,
+                    exception_flags: next_flags.clone(),
+                    expected_version: Some(state_row.version),
+                },
+            )
+            .await
+        {
+            Ok(Some(v)) => v,
+            Ok(None) => return Err(conflict("exception update conflict").into_response()),
+            Err(e) => {
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+            }
+        }
+    };
+
+    let target_codes = if target_flags.is_empty() {
+        state_row.exception_flags.clone()
+    } else {
+        target_flags
+    };
+    if !target_codes.is_empty() {
+        let (status, handled_at, handler_id) = match action.as_str() {
+            "RESOLVE" => ("RESOLVED".to_string(), Some(Utc::now()), Some(ctx.user_id)),
+            "REJECT" => ("REJECTED".to_string(), Some(Utc::now()), Some(ctx.user_id)),
+            "CLOSE" => ("CLOSED".to_string(), Some(Utc::now()), Some(ctx.user_id)),
+            _ => ("OPEN".to_string(), None, None),
+        };
+        let updates = target_codes
+            .into_iter()
+            .map(|code| OrderExceptionTicketUpdate {
+                reason_code: code,
+                status: status.clone(),
+                handler_id,
+                handled_at,
+            })
+            .collect::<Vec<_>>();
+        let _ = orders_repo
+            .update_exception_ticket_status(tenant_id, order_id, &updates)
+            .await;
+    }
+
+    let action_label = match action.as_str() {
+        "RESOLVE" => "OMS.EXCEPTION_RESOLVE",
+        "REJECT" => "OMS.EXCEPTION_REJECT",
+        "CLOSE" => "OMS.EXCEPTION_CLOSE",
+        _ => "OMS.EXCEPTION_REVOKE",
+    };
+    record_audit_log(
+        state,
+        ctx,
+        req_ctx,
+        action_label,
+        "ORDER",
+        Some(order_id.to_string()),
+        Some(serde_json::json!({
+            "exception_flags": state_row.exception_flags,
+        })),
+        Some(serde_json::json!({
+            "exception_flags": updated.exception_flags,
+            "reason": reason,
+            "action": action,
+        })),
+    )
+    .await;
+
+    record_order_state_logs(
+        state,
+        req_ctx,
+        OrderStateLogInput {
+            tenant_id,
+            order_id,
+            action_code: action_label.to_string(),
+            from_status: state_row.order_status,
+            to_status: updated.order_status,
+            operator_id: Some(ctx.user_id),
+            reason: reason.clone(),
+            request_payload: serde_json::json!({
+                "action": action.clone(),
+                "reason": reason.clone(),
+            }),
+            response_payload: serde_json::json!({
+                "oms_status": updated.oms_status.to_string(),
+                "order_status": updated.order_status.to_string(),
+                "review_status": updated.review_status.to_string(),
+                "exception_flags": updated.exception_flags,
+            }),
+        },
+    )
+    .await;
+
+    let operation_action = match action.as_str() {
+        "RESOLVE" => OP_ACTION_OMS_EXCEPTION_RESOLVE,
+        "REJECT" => OP_ACTION_OMS_EXCEPTION_REJECT,
+        _ => OP_ACTION_OMS_EXCEPTION_REVOKE,
+    };
+    let logs_repo = OperationLogsRepo::new(state.db.pool());
+    let _ = logs_repo
+        .insert(OperationLogCreate {
+            tenant_id,
+            actor_type: "USER".to_string(),
+            actor_user_id: Some(ctx.user_id),
+            action: operation_action.to_string(),
+            ref_type: Some("ORDER".to_string()),
+            ref_id: Some(order_id.to_string()),
+            metadata: Some(serde_json::json!({
+                "reason": reason,
+                "before_flags": state_row.exception_flags,
+                "after_flags": updated.exception_flags,
+            })),
+        })
+        .await;
+
+    if next_review_status != state_row.review_status {
+        let reviewed_at = if review_record_status(next_review_status) == ORDER_REVIEW_RECORD_PENDING
+        {
+            None
+        } else {
+            Some(Utc::now())
+        };
+        upsert_order_review_record(
+            state,
+            tenant_id,
+            order_id,
+            next_review_status,
+            Some(ctx.user_id),
+            reviewed_at,
+            reason.clone(),
+        )
+        .await;
+    }
+
+    Ok(updated)
+}

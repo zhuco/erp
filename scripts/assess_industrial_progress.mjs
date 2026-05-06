@@ -10,9 +10,8 @@ const repoRoot = path.resolve(scriptDir, '..');
 
 const defaultOutputPath = path.join(
   repoRoot,
-  'docs',
-  'reports',
-  '_generated',
+  'tmp',
+  'industrial-progress',
   'industrial-progress-latest.json',
 );
 

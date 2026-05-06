@@ -167,8 +167,8 @@ if (!parsed.task) {
 }
 
 const repoRoot = process.cwd();
-const policyPath = path.resolve(parsed.policyFile || path.join(repoRoot, 'docs', 'ops', 'config', 'PARALLEL_SHARED_LOCKS_V2.json'));
-const registryPath = path.resolve(parsed.lockRegistry || path.join(repoRoot, 'docs', 'ops', 'state', 'PARALLEL_SHARED_LOCK_REGISTRY.json'));
+const policyPath = path.resolve(parsed.policyFile || path.join(repoRoot, 'scripts', 'ops', 'config', 'PARALLEL_SHARED_LOCKS_V2.json'));
+const registryPath = path.resolve(parsed.lockRegistry || path.join(repoRoot, 'tmp', 'ops-state', 'PARALLEL_SHARED_LOCK_REGISTRY.json'));
 const taskPath = path.resolve(parsed.task);
 
 if (!fs.existsSync(taskPath)) {

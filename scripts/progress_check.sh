@@ -2,7 +2,7 @@
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPORT_DIR="${ROOT_DIR}/docs/reports"
+REPORT_DIR="${ROOT_DIR}/tmp/progress-reports"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 REPORT_FILE="${REPORT_DIR}/progress_check_${TIMESTAMP}.md"
 

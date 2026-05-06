@@ -553,7 +553,10 @@ async fn serial_binding_keeps_shipment_ref_and_marks_shipped_inner() -> anyhow::
     assert_eq!(bound.len(), 1);
     assert_eq!(bound[0].status, "ALLOCATED");
     assert_eq!(bound[0].ref_doc_type.as_deref(), Some("SHIPMENT"));
-    assert_eq!(bound[0].ref_doc_id.as_deref(), Some(shipment_id.to_string().as_str()));
+    assert_eq!(
+        bound[0].ref_doc_id.as_deref(),
+        Some(shipment_id.to_string().as_str())
+    );
 
     let duplicate_err = repo
         .bind_serials_to_shipment(ShipmentSerialBindInput {
@@ -572,7 +575,8 @@ async fn serial_binding_keeps_shipment_ref_and_marks_shipped_inner() -> anyhow::
     assert!(duplicate_message.contains("ref_doc_type=SHIPMENT"));
     assert!(duplicate_message.contains(&shipment_id.to_string()));
 
-    repo.mark_shipment_serials_shipped(tenant, shipment_id).await?;
+    repo.mark_shipment_serials_shipped(tenant, shipment_id)
+        .await?;
 
     #[derive(sqlx::FromRow)]
     struct SerialRow {

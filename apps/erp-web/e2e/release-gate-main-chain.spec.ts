@@ -8,8 +8,8 @@ test('release gate smoke covers integration, inventory, after-sales and profit c
   await expect(page.getByTestId('system-integrations-overview-section')).toBeVisible();
 
   await page.goto('/inventory');
-  await expect(page.getByTestId('inventory-summary-title')).toBeVisible();
-  await expect(page.getByTestId('inventory-summary-table')).toBeVisible();
+  await expect(page.getByTestId('inventory-title')).toBeVisible();
+  await expect(page.getByTestId('inventory-table')).toBeVisible();
 
   await page.goto('/wms/waves');
   await expect(page.getByTestId('wms-waves-table')).toBeVisible();

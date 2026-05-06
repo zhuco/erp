@@ -67,13 +67,13 @@ test('validateTaskFiles 鍦ㄧ櫧鍚嶅崟鑼冨洿鍐呮椂 PASS', () => {
     owner: 'owner',
     branch: 'codex/pass',
     worktree: '.worktrees/pass',
-    allowedFiles: ['scripts/ops/**', 'docs/ops/templates/**'],
+    allowedFiles: ['scripts/ops/**', 'scripts/ops/templates/**'],
     disallowedFiles: ['scripts/ops/secret/**'],
   }));
 
   const result = validateTaskFiles(task, [
     'scripts/ops/task_card.mjs',
-    'docs/ops/templates/PARALLEL_TASK_CARD_TEMPLATE.md',
+    'scripts/ops/templates/PARALLEL_TASK_CARD_TEMPLATE.md',
   ]);
 
   assert.equal(result.ok, true);
@@ -195,7 +195,7 @@ test('validate_task_boundary CLI 鏀寔鏄惧紡鏂囦欢鍒楄〃', () => {
 test('readGitChangedFiles 鏀寔 staged / working / all 涓夌妯″紡', () => {
   const repoDir = createTempGitRepo();
   const stagedFile = path.join(repoDir, 'scripts', 'ops', 'staged.txt');
-  const workingFile = path.join(repoDir, 'docs', 'ops', 'working.txt');
+  const workingFile = path.join(repoDir, 'tmp', 'ops', 'working.txt');
 
   fs.mkdirSync(path.dirname(stagedFile), { recursive: true });
   fs.mkdirSync(path.dirname(workingFile), { recursive: true });
@@ -213,8 +213,8 @@ test('readGitChangedFiles 鏀寔 staged / working / all 涓夌妯″紡', 
   const allFiles = readGitChangedFiles({ repoRoot: repoDir, mode: 'all' });
 
   assert.deepEqual(stagedFiles, ['scripts/ops/staged.txt']);
-  assert.deepEqual(workingFiles, ['docs/ops/working.txt']);
-  assert.deepEqual(allFiles, ['docs/ops/working.txt', 'scripts/ops/staged.txt']);
+  assert.deepEqual(workingFiles, ['tmp/ops/working.txt']);
+  assert.deepEqual(allFiles, ['scripts/ops/staged.txt', 'tmp/ops/working.txt']);
 });
 
 test('task card supports window/slot/lock metadata fields', () => {

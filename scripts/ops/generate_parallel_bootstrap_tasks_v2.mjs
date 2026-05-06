@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTaskCard } from './task_card.mjs';
@@ -17,9 +17,9 @@ for (let i = 0; i < args.length; i += 1) {
   }
 }
 
-const matrixPath = path.join(repoRoot, 'docs', 'ops', 'config', 'PARALLEL_WINDOW_MATRIX_V2.json');
+const matrixPath = path.join(repoRoot, 'scripts', 'ops', 'config', 'PARALLEL_WINDOW_MATRIX_V2.json');
 const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
-const outDir = path.join(repoRoot, 'docs', 'ops', 'tasks', targetDate);
+const outDir = path.join(repoRoot, 'tmp', 'parallel-tasks', targetDate);
 fs.mkdirSync(outDir, { recursive: true });
 
 const SUBMISSION_FORMAT = 'task | commit | changed_files | test_results | residual_risks';
@@ -285,7 +285,7 @@ const WINDOW_TASKS = {
       title: '批次门禁 findings 与合并顺序建议',
       goal: '输出越界、缺测、锁冲突检查结果及合并顺序建议。',
       background: 'W10-T3 仅输出 findings 与合并建议，不做业务代码实现。',
-      tests: ['pnpm run repo:verify', `node scripts/ops/generate_parallel_scorecard.mjs --input docs/ops/tasks/${targetDate}/parallel-scorecard-input.json --output docs/ops/tasks/${targetDate}/parallel-scorecard.md`],
+      tests: ['pnpm run repo:verify', `node scripts/ops/generate_parallel_scorecard.mjs --input tmp/parallel-tasks/${targetDate}/parallel-scorecard-input.json --output tmp/parallel-tasks/${targetDate}/parallel-scorecard.md`],
     },
   },
 };
@@ -338,7 +338,7 @@ for (const windowMeta of matrix.windows) {
     }
 
     const fileName = `${windowMeta.id.toLowerCase()}-${slot.toLowerCase()}-${task.slug}.md`;
-    const relPath = `docs/ops/tasks/${targetDate}/${fileName}`;
+    const relPath = `tmp/parallel-tasks/${targetDate}/${fileName}`;
     const sharedLockTargets = task.sharedLockTargets || [];
 
     const dependencies = ['任务卡已创建并确认窗口边界'];

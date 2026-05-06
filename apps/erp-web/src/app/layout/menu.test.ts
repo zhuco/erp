@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { appMenuItems, flattenMenuItems } from './menu';
+import { findUnregisteredMenuPaths } from '../routeRegistry';
 
 describe('appMenuItems', () => {
   it('exposes the directory module as a grouped first-level menu with second-level master-data entries', () => {
@@ -16,11 +17,28 @@ describe('appMenuItems', () => {
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',
+      '/inventory',
+      '/wms/waves',
+      '/wms/ship',
+      '/logistics/exceptions',
+      '/after-sales/exchanges',
+      '/finance/profit',
+      '/planning/plan-execution',
+      '/stats/sales',
+      '/integrations/center',
+      '/system/observability',
     ]);
   });
 
-  it('keeps only home, directory, and the sales module at the top level', () => {
-    expect(appMenuItems).toHaveLength(3);
+  it('keeps the P0 modules grouped at the top level', () => {
+    expect(appMenuItems.map((item) => item.name)).toEqual([
+      '首页',
+      '目录',
+      '销售',
+      '履约',
+      '经营',
+      '报表',
+    ]);
     expect(appMenuItems[0]).toMatchObject({
       path: '/dashboard',
     });
@@ -45,5 +63,18 @@ describe('appMenuItems', () => {
       '/orders/recheck',
       '/sales/settings',
     ]);
+
+    const fulfillmentModule = appMenuItems.find((item) => item.name === '履约');
+    expect(flattenMenuItems(fulfillmentModule ? [fulfillmentModule] : []).map((item) => item.path)).toEqual([
+      '/inventory',
+      '/wms/waves',
+      '/wms/ship',
+      '/logistics/exceptions',
+      '/after-sales/exchanges',
+    ]);
+  });
+
+  it('keeps every visible menu leaf registered as a reachable route', () => {
+    expect(findUnregisteredMenuPaths()).toEqual([]);
   });
 });

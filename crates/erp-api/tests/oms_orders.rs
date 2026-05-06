@@ -1406,7 +1406,9 @@ async fn settlement_unlock_export_writes_action_and_status_history() -> Result<(
     if let Err(err) = settlement_unlock_export_writes_action_and_status_history_inner().await {
         let message = err.to_string();
         if message.contains("pool timed out") || message.contains("DATABASE_URL") {
-            eprintln!("skipping settlement_unlock_export_writes_action_and_status_history: {message}");
+            eprintln!(
+                "skipping settlement_unlock_export_writes_action_and_status_history: {message}"
+            );
             return Ok(());
         }
         return Err(err);
@@ -1621,18 +1623,17 @@ async fn settlement_unlock_export_writes_action_and_status_history_inner() -> Re
     .await?;
     assert_eq!(export_status_history_count, 1);
 
-    let settlement_record =
-        sqlx::query_as::<_, (String, Option<String>)>(
-            r#"
+    let settlement_record = sqlx::query_as::<_, (String, Option<String>)>(
+        r#"
             select status, export_job_id
             from order_settlement_records
             where tenant_id = $1 and order_id = $2
             "#,
-        )
-        .bind(tenant_id)
-        .bind(order_id)
-        .fetch_one(db.pool())
-        .await?;
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
     assert_eq!(settlement_record.0, "EXPORTED");
     assert_eq!(settlement_record.1.as_deref(), Some("EXP-JOB-001"));
 
@@ -2742,6 +2743,181 @@ async fn cancel_order_with_timeout_reason_persists_cancel_info_inner() -> Result
     assert_eq!(persisted.3, "CLOSED");
     assert_eq!(persisted.4.as_deref(), Some("AUTO_TIMEOUT_CANCEL"));
     assert!(persisted.5.is_some());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn terminal_order_cannot_reopen_review() -> Result<()> {
+    if let Err(err) = terminal_order_cannot_reopen_review_inner().await {
+        let message = err.to_string();
+        if message.contains("pool timed out") || message.contains("DATABASE_URL") {
+            eprintln!("skipping terminal_order_cannot_reopen_review: {message}");
+            return Ok(());
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+async fn terminal_order_cannot_reopen_review_inner() -> Result<()> {
+    let database_url = support::test_database_url();
+    let db = Db::connect(&database_url).await?;
+    setup_schema(db.pool()).await?;
+
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        r#"
+        insert into tenants (tenant_id, name, status)
+        values ($1, $2, 'ACTIVE')
+        "#,
+    )
+    .bind(tenant_id)
+    .bind("terminal-reopen-tenant")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into shops (shop_id, tenant_id, platform, platform_shop_id)
+        values ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(shop_id)
+    .bind(tenant_id)
+    .bind("taobao")
+    .bind("SHOP-TERMINAL-REOPEN-1")
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into order_index (
+            tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at
+        ) values ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .bind(order_month)
+    .bind("taobao")
+    .bind("PLAT-TERMINAL-REOPEN-1")
+    .bind(shop_id)
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    sqlx::query(
+        r#"
+        insert into orders (
+            tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status,
+            oms_status, order_status, fulfillment_status, exception_status, review_status,
+            exception_flags, logistics_company, tracking_no, inventory_shortage, version,
+            order_created_at
+        ) values (
+            $1, $2, $3, $4, $5, $6, 'SHIPPED',
+            'SHIPPED', 'SHIPPED', 'SHIPPED', 'NONE', 'APPROVED',
+            '[]'::jsonb, 'SF', 'SFTERMINAL001', false, 7, $7
+        )
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_month)
+    .bind(order_id)
+    .bind("taobao")
+    .bind(shop_id)
+    .bind("PLAT-TERMINAL-REOPEN-1")
+    .bind(now)
+    .execute(db.pool())
+    .await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+
+    let rollback_body = serde_json::json!({
+        "reason": "terminal order should stay immutable"
+    });
+    let rollback_request = Request::builder()
+        .uri(format!(
+            "/v1/tenants/{tenant_id}/orders/{order_id}/rollback-review"
+        ))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&rollback_body)?))
+        .unwrap();
+    let rollback_response = app.clone().oneshot(rollback_request).await.unwrap();
+    assert_eq!(rollback_response.status(), StatusCode::BAD_REQUEST);
+    let rollback_body = rollback_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let rollback_json: serde_json::Value = serde_json::from_slice(&rollback_body)?;
+    assert_eq!(
+        rollback_json
+            .get("message")
+            .and_then(|value| value.as_str()),
+        Some("order terminal status not review reopenable")
+    );
+
+    let requeue_request = Request::builder()
+        .uri(format!(
+            "/v1/tenants/{tenant_id}/orders/{order_id}/review/requeue"
+        ))
+        .method("POST")
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    let requeue_response = app.oneshot(requeue_request).await.unwrap();
+    assert_eq!(requeue_response.status(), StatusCode::BAD_REQUEST);
+    let requeue_body = requeue_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let requeue_json: serde_json::Value = serde_json::from_slice(&requeue_body)?;
+    assert_eq!(
+        requeue_json.get("message").and_then(|value| value.as_str()),
+        Some("order terminal status not review reopenable")
+    );
+
+    let persisted: (String, String, String, String, i32) = sqlx::query_as(
+        r#"
+        select oms_status, order_status, fulfillment_status, review_status, version
+        from orders
+        where tenant_id = $1 and order_id = $2
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(persisted.0, "SHIPPED");
+    assert_eq!(persisted.1, "SHIPPED");
+    assert_eq!(persisted.2, "SHIPPED");
+    assert_eq!(persisted.3, "APPROVED");
+    assert_eq!(persisted.4, 7);
+
+    let history_count: i64 = sqlx::query_scalar(
+        r#"
+        select count(*)
+        from order_status_history
+        where tenant_id = $1 and order_id = $2
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(order_id)
+    .fetch_one(db.pool())
+    .await?;
+    assert_eq!(history_count, 0);
 
     Ok(())
 }

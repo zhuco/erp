@@ -54,6 +54,59 @@ const parserRegressionRequiredCommands = requiredCiWorkflowCommands.filter(
 const currentFilePath = fileURLToPath(import.meta.url);
 const scriptDir = path.dirname(currentFilePath);
 const repoRoot = path.resolve(scriptDir, '..');
+const deletedDocsPathPatterns = [
+  /docs[\\/](?:dev|spec|ops|web|reports|superpowers|ErpDataGrid)(?:[\\/]|$)/,
+  /docs[\\/]list\.md\b/,
+];
+const baselineScanExtensions = new Set([
+  '.md',
+  '.ts',
+  '.tsx',
+  '.rs',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.sh',
+  '.sql',
+  '.json',
+  '.yaml',
+  '.yml',
+]);
+const baselineScanExcludedDirs = new Set([
+  '.git',
+  'node_modules',
+  'target',
+  'dist',
+  'build',
+  'vendor',
+  'coverage',
+  '.worktrees',
+  'tmp',
+]);
+const allowedDuplicateMigrationFiles = new Set([
+  '0060_stock_count_diff_reason.sql',
+  '0060_wms_pack_checks.sql',
+  '0073_marketing_management.sql',
+  '0073_procurement_management.sql',
+  '0074_after_sales_service_ops.sql',
+  '0074_logistics_fulfillment.sql',
+  '0074_product_master_data.sql',
+  '0079_ai1_platform_integration.sql',
+  '0079_global_status_fields.sql',
+  '0079_oms_order_statuses.sql',
+  '0095_multi_merchant_org_baseline.sql',
+  '0095_payment_reconcile_query_indexes.sql',
+]);
+const releaseGateRequiredStages = [
+  { label: '登录', patterns: ['loginAndSelectTenant'] },
+  { label: '订单', patterns: ['/orders/review', '/sales/order-query'] },
+  { label: '库存', patterns: ['/inventory'] },
+  { label: 'WMS', patterns: ['/wms/'] },
+  { label: '发货', patterns: ['/wms/ship', 'ship-title', 'ship-table'] },
+  { label: '售后', patterns: ['/after-sales'] },
+  { label: '财务', patterns: ['/finance'] },
+  { label: '报表', patterns: ['/stats', '/reports'] },
+];
 
 function fail(message) {
   console.error(message);
@@ -66,6 +119,131 @@ function readTextFile(relativePath) {
     fail(`缺少文件: ${relativePath}`);
   }
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function listFilesRecursively(startDir, shouldInclude) {
+  if (!fs.existsSync(startDir)) {
+    return [];
+  }
+  const result = [];
+  const entries = fs.readdirSync(startDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(startDir, entry.name);
+    if (entry.isDirectory()) {
+      if (!baselineScanExcludedDirs.has(entry.name)) {
+        result.push(...listFilesRecursively(fullPath, shouldInclude));
+      }
+      continue;
+    }
+    if (entry.isFile() && shouldInclude(fullPath)) {
+      result.push(fullPath);
+    }
+  }
+  return result;
+}
+
+function toRepoRelativePath(filePath) {
+  return path.relative(repoRoot, filePath).replaceAll(path.sep, '/');
+}
+
+function verifyDeletedDocsPathsAreNotReferenced() {
+  const files = listFilesRecursively(repoRoot, (filePath) => {
+    const relativePath = toRepoRelativePath(filePath);
+    if (relativePath === 'docs/ROADMAP.md') {
+      return false;
+    }
+    return baselineScanExtensions.has(path.extname(filePath));
+  });
+  const hits = [];
+  for (const filePath of files) {
+    const relativePath = toRepoRelativePath(filePath);
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      if (deletedDocsPathPatterns.some((pattern) => pattern.test(line))) {
+        hits.push(`${relativePath}:${index + 1}`);
+      }
+    });
+  }
+  if (hits.length > 0) {
+    fail(`发现已删除历史文档路径引用，请改用当前 docs 核心文档入口: ${hits.join(', ')}`);
+  }
+}
+
+function verifyMigrationVersionPrefixes() {
+  const migrationsDir = path.join(repoRoot, 'migrations');
+  if (!fs.existsSync(migrationsDir)) {
+    fail('缺少 migrations 目录');
+  }
+  const versionToFiles = new Map();
+  for (const fileName of fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'))) {
+    const match = fileName.match(/^(\d+)_/);
+    if (!match) {
+      fail(`迁移文件名缺少数字前缀: ${fileName}`);
+    }
+    const version = match[1];
+    const existing = versionToFiles.get(version) ?? [];
+    existing.push(fileName);
+    versionToFiles.set(version, existing);
+  }
+  const unexpectedDuplicateVersions = [...versionToFiles.entries()]
+    .filter(([, files]) => files.length > 1)
+    .map(([version, files]) => [
+      version,
+      files.filter((fileName) => !allowedDuplicateMigrationFiles.has(fileName)),
+    ])
+    .filter(([, unexpectedFiles]) => unexpectedFiles.length > 0)
+    .map(([version, unexpectedFiles]) => `${version}: ${unexpectedFiles.join(', ')}`);
+  if (unexpectedDuplicateVersions.length > 0) {
+    fail(`迁移编号前缀出现新的重复，请先合并或重新编号: ${unexpectedDuplicateVersions.join(' | ')}`);
+  }
+}
+
+function verifyReleaseGateP0Stages() {
+  const releaseGateFiles = [
+    'apps/erp-web/e2e/release-gate-main-chain.spec.ts',
+    'apps/erp-web/e2e/release-gate-cross-chain.spec.ts',
+  ];
+  const combinedContent = releaseGateFiles.map(readTextFile).join('\n');
+  const missingStages = releaseGateRequiredStages
+    .filter(({ patterns }) => !patterns.some((pattern) => combinedContent.includes(pattern)))
+    .map(({ label }) => label);
+  if (missingStages.length > 0) {
+    fail(`P0 Release Gate 缺少关键阶段覆盖: ${missingStages.join('、')}`);
+  }
+}
+
+function normalizeFrontendPath(pathValue) {
+  if (!pathValue || pathValue === '*') {
+    return pathValue;
+  }
+  return pathValue.startsWith('/') ? pathValue : `/${pathValue}`;
+}
+
+function extractSingleQuotedPropertyValues(content, propertyName) {
+  const values = [];
+  const pattern = new RegExp(`${propertyName}:\\s*'([^']+)'`, 'g');
+  let match = pattern.exec(content);
+  while (match) {
+    values.push(match[1]);
+    match = pattern.exec(content);
+  }
+  return values;
+}
+
+function verifyFrontendRouteRegistryReachability() {
+  const registryContent = readTextFile('apps/erp-web/src/app/routeRegistry.ts');
+  const routerContent = readTextFile('apps/erp-web/src/app/router.tsx');
+  const registryPaths = extractSingleQuotedPropertyValues(registryContent, 'path')
+    .map(normalizeFrontendPath)
+    .filter((routePath) => routePath && routePath !== '/login');
+  const routerPaths = new Set(
+    extractSingleQuotedPropertyValues(routerContent, 'path').map(normalizeFrontendPath),
+  );
+  const missingPaths = registryPaths.filter((routePath) => !routerPaths.has(routePath));
+  if (missingPaths.length > 0) {
+    fail(`前端路由注册表存在未挂载到 router 的路径: ${missingPaths.join(', ')}`);
+  }
 }
 
 function listWorkflowFiles() {
@@ -694,6 +872,10 @@ if (!noSpaceSeparatorBypassLines.every((line) => containsForbiddenRootPnpmTest(l
 
 verifyWorkflowParserRegressionContracts();
 verifyWorkflowConvergence();
+verifyDeletedDocsPathsAreNotReferenced();
+verifyMigrationVersionPrefixes();
+verifyReleaseGateP0Stages();
+verifyFrontendRouteRegistryReachability();
 
 const missingFiles = requiredFiles.filter(
   (file) => !fs.existsSync(path.join(repoRoot, file)),

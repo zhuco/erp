@@ -453,7 +453,9 @@ mod tests {
             "color_dict": {}
         }))
         .expect_err("apparel requires non-empty color/size dictionaries");
-        assert!(err.to_string().contains("color_dict must be non-empty object"));
+        assert!(err
+            .to_string()
+            .contains("color_dict must be non-empty object"));
     }
 
     #[test]

@@ -880,3 +880,905 @@ mod tests {
         assert_eq!(export_job_id, None);
     }
 }
+
+pub(super) async fn get_order_settlement_rule(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+
+    match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => (StatusCode::OK, Json(value)).into_response(),
+        Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    }
+}
+
+pub(super) async fn update_order_settlement_rule(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<OrderSettlementRuleUpdateRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+
+    let Some(stack_mode) = normalize_order_settlement_stack_mode(&req.stack_mode) else {
+        return bad_request("bad stack_mode").into_response();
+    };
+    if !(0..=100).contains(&req.member_discount_rate)
+        || !(0..=100).contains(&req.promo_discount_rate)
+        || !(0..=100).contains(&req.max_discount_rate)
+    {
+        return bad_request("discount rate out of range").into_response();
+    }
+
+    let repo = SettingsRepo::new(state.db.pool());
+    let value_json = serde_json::json!({
+        "stack_mode": stack_mode,
+        "member_discount_rate": req.member_discount_rate,
+        "promo_discount_rate": req.promo_discount_rate,
+        "max_discount_rate": req.max_discount_rate,
+    });
+    match repo
+        .upsert_setting(SettingUpsert {
+            tenant_id,
+            scope_type: "TENANT".to_string(),
+            scope_id: None,
+            key: OMS_SETTLEMENT_RULE_KEY.to_string(),
+            value_json,
+            expected_version: req.expected_version,
+        })
+        .await
+    {
+        Ok(setting) => (
+            StatusCode::OK,
+            Json(OrderSettlementRuleResponse {
+                stack_mode,
+                member_discount_rate: req.member_discount_rate,
+                promo_discount_rate: req.promo_discount_rate,
+                max_discount_rate: req.max_discount_rate,
+                version: setting.version,
+                updated_at: Some(setting.updated_at),
+            }),
+        )
+            .into_response(),
+        Err(error) => {
+            if error.to_string().contains("version conflict") {
+                return conflict("settlement rule version conflict").into_response();
+            }
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    }
+}
+
+pub(super) async fn list_order_settlements(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Query(query): Query<OrderSettlementListQuery>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+
+    let created_from = match parse_datetime_optional(query.created_from.as_deref(), "created_from")
+    {
+        Ok(value) => value,
+        Err(resp) => return resp.into_response(),
+    };
+    let created_to = match parse_datetime_optional(query.created_to.as_deref(), "created_to") {
+        Ok(value) => value,
+        Err(resp) => return resp.into_response(),
+    };
+    if let (Some(from), Some(to)) = (created_from, created_to) {
+        if from > to {
+            return bad_request("created_from after created_to").into_response();
+        }
+    }
+
+    let shop_id = match query.shop_id.as_deref().and_then(non_empty) {
+        Some(value) => match ShopId::from_str(&value) {
+            Ok(parsed) => {
+                if let Err(resp) = ensure_shop_access(&ctx, parsed) {
+                    return resp.into_response();
+                }
+                Some(uuid::Uuid::from(parsed))
+            }
+            Err(_) => return bad_request("bad shop_id").into_response(),
+        },
+        None => None,
+    };
+    let status = match query.status.as_deref().and_then(non_empty) {
+        Some(value) => Some(normalize_order_settlement_status(Some(value.as_str()))),
+        None => None,
+    };
+    let filters = OrderSettlementFilters {
+        platform: query.platform.as_deref().and_then(non_empty),
+        shop_id,
+        keyword: query.keyword.as_deref().and_then(non_empty),
+        status,
+        created_from,
+        created_to,
+    };
+    let offset = query.offset.unwrap_or(0).max(0) as usize;
+    let limit = query.limit.unwrap_or(50).clamp(1, 200) as usize;
+
+    let rule = match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let rows = match list_order_settlement_rows(&state, tenant_id, &filters).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let accessible_rows = rows
+        .into_iter()
+        .filter(|row| ensure_shop_access(&ctx, ShopId(row.shop_id)).is_ok())
+        .collect::<Vec<_>>();
+    let mut summary = OrderSettlementListSummaryResponse {
+        total_orders: 0,
+        open_orders: 0,
+        locked_orders: 0,
+        exported_orders: 0,
+        total_amount_cent: 0,
+        receivable_amount_cent: 0,
+    };
+    for row in &accessible_rows {
+        let preview = build_order_settlement_preview(row.total_amount_cent, &rule);
+        summary.total_orders += 1;
+        summary.total_amount_cent += row.total_amount_cent;
+        summary.receivable_amount_cent += preview.receivable_amount_cent;
+        match normalize_order_settlement_status(row.settlement_status.as_deref()).as_str() {
+            "LOCKED" => summary.locked_orders += 1,
+            "EXPORTED" => summary.exported_orders += 1,
+            _ => summary.open_orders += 1,
+        }
+    }
+
+    let paged_rows = accessible_rows
+        .iter()
+        .skip(offset)
+        .take(limit)
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut items = Vec::with_capacity(paged_rows.len());
+    for row in paged_rows {
+        let logs = match load_order_settlement_logs(&state, tenant_id, OrderId(row.order_id)).await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            }
+        };
+        items.push(build_order_settlement_summary_response(&row, &rule, &logs));
+    }
+
+    (
+        StatusCode::OK,
+        Json(OrderSettlementListResponse {
+            total: accessible_rows.len() as i64,
+            items,
+            summary,
+        }),
+    )
+        .into_response()
+}
+
+pub(super) async fn get_order_settlement_detail(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+
+    let Some(row) = (match load_order_settlement_row(&state, tenant_id, order_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    }) else {
+        return not_found("order settlement not found").into_response();
+    };
+    if let Err(resp) = ensure_shop_access(&ctx, ShopId(row.shop_id)) {
+        return resp.into_response();
+    }
+    let rule = match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    match build_order_settlement_detail_response(&state, tenant_id, order_id, &rule).await {
+        Ok(Some(value)) => (StatusCode::OK, Json(value)).into_response(),
+        Ok(None) => not_found("order settlement not found").into_response(),
+        Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    }
+}
+
+pub(super) async fn execute_order_settlement_action(
+    state: &AppState,
+    ctx: &AuthContext,
+    req_ctx: &RequestContext,
+    tenant_id: TenantId,
+    order_id: OrderId,
+    action: &str,
+    payload: OrderSettlementActionRequest,
+) -> Result<OrderSettlementSummaryResponse, Response> {
+    let Some(row) = load_order_settlement_row(state, tenant_id, order_id)
+        .await
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?
+    else {
+        return Err(not_found("order settlement not found").into_response());
+    };
+    if let Err(resp) = ensure_shop_access(ctx, ShopId(row.shop_id)) {
+        return Err(resp.into_response());
+    }
+
+    let orders_repo = OrdersRepo::new(state.db.pool());
+    let state_row = match orders_repo
+        .get_order_review_state(tenant_id, order_id)
+        .await
+    {
+        Ok(Some(v)) => v,
+        Ok(None) => return Err(not_found("order not found").into_response()),
+        Err(e) => {
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
+        }
+    };
+
+    let current_status = normalize_order_settlement_status(row.settlement_status.as_deref());
+    let operator_id = parse_optional_user_id(payload.operator_id.as_deref(), "operator_id")?
+        .unwrap_or(ctx.user_id);
+    let operator_id_string = operator_id.to_string();
+    let operator_name = trim_to_option(payload.operator_name.as_deref());
+    let initial_review_status = row.review_status.clone();
+    let initial_exception_flags = row.exception_flags.clone();
+    let now = Utc::now();
+    let (next_status, locked_at, export_job_id, action_code, message) = match action {
+        "LOCK" => {
+            if current_status == "EXPORTED" {
+                return Err(conflict("exported settlement cannot be locked").into_response());
+            }
+            (
+                "LOCKED".to_string(),
+                Some(now),
+                row.export_job_id.clone(),
+                OMS_SETTLEMENT_ACTION_LOCK,
+                "订单结算已锁定".to_string(),
+            )
+        }
+        "UNLOCK" => {
+            if current_status != "LOCKED" {
+                return Err(conflict("only locked settlement can be unlocked").into_response());
+            }
+            (
+                "OPEN".to_string(),
+                None,
+                row.export_job_id.clone(),
+                OMS_SETTLEMENT_ACTION_UNLOCK,
+                "订单结算已解锁".to_string(),
+            )
+        }
+        "EXPORT" => {
+            if current_status != "LOCKED" {
+                return Err(conflict("only locked settlement can be exported").into_response());
+            }
+            let export_job_id = payload
+                .export_job_id
+                .as_deref()
+                .and_then(non_empty)
+                .ok_or_else(|| bad_request("export_job_id is required").into_response())?;
+            (
+                "EXPORTED".to_string(),
+                row.locked_at.or(Some(now)),
+                Some(export_job_id),
+                OMS_SETTLEMENT_ACTION_EXPORT,
+                "订单结算已导出".to_string(),
+            )
+        }
+        _ => return Err(bad_request("bad action").into_response()),
+    };
+
+    upsert_order_settlement_record(
+        state,
+        tenant_id,
+        order_id,
+        &next_status,
+        locked_at,
+        export_job_id.clone(),
+    )
+    .await
+    .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?;
+    record_order_settlement_log(
+        state,
+        tenant_id,
+        order_id,
+        action_code,
+        Some(operator_id.clone()),
+        operator_name.clone(),
+        export_job_id.clone(),
+        message,
+    )
+    .await;
+
+    let request_payload = serde_json::json!({
+        "action": action,
+        "operator_id": operator_id_string.clone(),
+        "operator_name": operator_name.clone(),
+        "export_job_id": export_job_id.clone(),
+    });
+    let response_payload = serde_json::json!({
+        "current_settlement_status": current_status,
+        "next_settlement_status": next_status,
+        "export_job_id": export_job_id.clone(),
+    });
+
+    record_order_state_logs(
+        state,
+        req_ctx,
+        OrderStateLogInput {
+            tenant_id,
+            order_id,
+            action_code: action_code.to_string(),
+            from_status: state_row.order_status,
+            to_status: state_row.order_status,
+            operator_id: Some(operator_id),
+            reason: None,
+            request_payload,
+            response_payload,
+        },
+    )
+    .await;
+
+    record_audit_log(
+        state,
+        ctx,
+        req_ctx,
+        action_code,
+        "ORDER",
+        Some(order_id.to_string()),
+        Some(serde_json::json!({
+            "settlement_status": current_status,
+            "review_status": initial_review_status,
+            "exception_flags": initial_exception_flags,
+        })),
+        Some(serde_json::json!({
+            "settlement_status": next_status,
+            "export_job_id": export_job_id.clone(),
+            "operator_id": operator_id_string.clone(),
+            "operator_name": operator_name,
+        })),
+    )
+    .await;
+
+    let rule = load_order_settlement_rule(state, tenant_id)
+        .await
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?;
+    let row = load_order_settlement_row(state, tenant_id, order_id)
+        .await
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?
+        .ok_or_else(|| not_found("order settlement not found").into_response())?;
+    let logs = load_order_settlement_logs(state, tenant_id, order_id)
+        .await
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?;
+    Ok(build_order_settlement_summary_response(&row, &rule, &logs))
+}
+
+pub(super) async fn lock_order_settlement(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(payload): Json<OrderSettlementActionRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+    match execute_order_settlement_action(
+        &state, &ctx, &req_ctx, tenant_id, order_id, "LOCK", payload,
+    )
+    .await
+    {
+        Ok(value) => (StatusCode::OK, Json(value)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+pub(super) async fn unlock_order_settlement(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(payload): Json<OrderSettlementActionRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+    match execute_order_settlement_action(
+        &state, &ctx, &req_ctx, tenant_id, order_id, "UNLOCK", payload,
+    )
+    .await
+    {
+        Ok(value) => (StatusCode::OK, Json(value)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+pub(super) async fn export_order_settlement(
+    State(state): State<AppState>,
+    Path((tenant_id, order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(payload): Json<OrderSettlementActionRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let order_id = match OrderId::from_str(&order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad order_id").into_response(),
+    };
+    match execute_order_settlement_action(
+        &state, &ctx, &req_ctx, tenant_id, order_id, "EXPORT", payload,
+    )
+    .await
+    {
+        Ok(value) => (StatusCode::OK, Json(value)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+pub(super) async fn list_order_reconciliations(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Query(query): Query<OrderReconciliationListQuery>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+
+    let created_from = match parse_datetime_optional(query.created_from.as_deref(), "created_from")
+    {
+        Ok(value) => value,
+        Err(resp) => return resp.into_response(),
+    };
+    let created_to = match parse_datetime_optional(query.created_to.as_deref(), "created_to") {
+        Ok(value) => value,
+        Err(resp) => return resp.into_response(),
+    };
+    if let (Some(from), Some(to)) = (created_from, created_to) {
+        if from > to {
+            return bad_request("created_from after created_to").into_response();
+        }
+    }
+    let shop_id = match query.shop_id.as_deref().and_then(non_empty) {
+        Some(value) => match ShopId::from_str(&value) {
+            Ok(parsed) => {
+                if let Err(resp) = ensure_shop_access(&ctx, parsed) {
+                    return resp.into_response();
+                }
+                Some(uuid::Uuid::from(parsed))
+            }
+            Err(_) => return bad_request("bad shop_id").into_response(),
+        },
+        None => None,
+    };
+    let status_filter = query
+        .status
+        .as_deref()
+        .and_then(non_empty)
+        .map(|value| value.to_uppercase());
+    let filters = OrderSettlementFilters {
+        platform: query.platform.as_deref().and_then(non_empty),
+        shop_id,
+        keyword: query.keyword.as_deref().and_then(non_empty),
+        status: None,
+        created_from,
+        created_to,
+    };
+    let offset = query.offset.unwrap_or(0).max(0) as usize;
+    let limit = query.limit.unwrap_or(50).clamp(1, 200) as usize;
+
+    let rule = match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let rows = match list_order_settlement_rows(&state, tenant_id, &filters).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let mut grouped: HashMap<(String, uuid::Uuid), Vec<OrderSettlementRow>> = HashMap::new();
+    for row in rows {
+        if ensure_shop_access(&ctx, ShopId(row.shop_id)).is_err() {
+            continue;
+        }
+        grouped
+            .entry((row.platform.clone(), row.shop_id))
+            .or_default()
+            .push(row);
+    }
+
+    let mut batches = Vec::new();
+    for ((platform, shop_id), group_rows) in grouped {
+        let period_start = filters
+            .created_from
+            .map(|value| value.date_naive())
+            .unwrap_or_else(|| {
+                group_rows
+                    .iter()
+                    .map(|row| row.order_created_at.date_naive())
+                    .min()
+                    .unwrap_or_else(|| Utc::now().date_naive())
+            });
+        let period_end = filters
+            .created_to
+            .map(|value| value.date_naive())
+            .unwrap_or_else(|| {
+                group_rows
+                    .iter()
+                    .map(|row| row.order_created_at.date_naive())
+                    .max()
+                    .unwrap_or_else(|| Utc::now().date_naive())
+            });
+        let input = OrderReconciliationBatchInput {
+            batch_id: build_order_reconciliation_batch_id(
+                &platform,
+                shop_id,
+                period_start,
+                period_end,
+            ),
+            platform,
+            shop_id,
+            period_start,
+            period_end,
+        };
+        let persisted =
+            match load_order_reconciliation_persisted_row(&state, tenant_id, &input.batch_id).await
+            {
+                Ok(value) => value,
+                Err(error) => {
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                }
+            };
+        let batch = build_order_reconciliation_batch(&group_rows, &rule, &input, persisted);
+        if let Some(status) = status_filter.as_deref() {
+            if batch.summary.status.to_uppercase() != status {
+                continue;
+            }
+        }
+        batches.push(batch);
+    }
+
+    batches.sort_by(|left, right| {
+        right
+            .summary
+            .diff_cent
+            .cmp(&left.summary.diff_cent)
+            .then_with(|| right.summary.order_count.cmp(&left.summary.order_count))
+            .then_with(|| left.summary.batch_id.cmp(&right.summary.batch_id))
+    });
+
+    let summary = OrderReconciliationListSummaryResponse {
+        total_batches: batches.len() as i64,
+        pending_batches: batches
+            .iter()
+            .filter(|item| item.summary.status == "PENDING")
+            .count() as i64,
+        done_batches: batches
+            .iter()
+            .filter(|item| item.summary.status == "DONE")
+            .count() as i64,
+        expected_total_cent: batches.iter().map(|item| item.summary.expected_cent).sum(),
+        diff_total_cent: batches.iter().map(|item| item.summary.diff_cent).sum(),
+    };
+    let items = batches
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|item| item.summary)
+        .collect::<Vec<_>>();
+
+    (
+        StatusCode::OK,
+        Json(OrderReconciliationListResponse {
+            total: summary.total_batches,
+            summary,
+            items,
+        }),
+    )
+        .into_response()
+}
+
+pub(super) async fn get_order_reconciliation_detail(
+    State(state): State<AppState>,
+    Path((tenant_id, batch_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.read") {
+        return resp.into_response();
+    }
+    let batch = match parse_order_reconciliation_batch_id(&batch_id) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = ensure_shop_access(&ctx, ShopId(batch.shop_id)) {
+        return resp.into_response();
+    }
+
+    let rule = match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let rows = match list_order_settlement_rows(
+        &state,
+        tenant_id,
+        &OrderSettlementFilters {
+            platform: Some(batch.platform.clone()),
+            shop_id: Some(batch.shop_id),
+            keyword: None,
+            status: None,
+            created_from: Some(
+                batch
+                    .period_start
+                    .and_hms_opt(0, 0, 0)
+                    .expect("date should build")
+                    .and_utc(),
+            ),
+            created_to: Some(
+                batch
+                    .period_end
+                    .and_hms_opt(23, 59, 59)
+                    .expect("date should build")
+                    .and_utc(),
+            ),
+        },
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    if rows.is_empty() {
+        return not_found("order reconciliation not found").into_response();
+    }
+    let persisted =
+        match load_order_reconciliation_persisted_row(&state, tenant_id, &batch.batch_id).await {
+            Ok(value) => value,
+            Err(error) => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            }
+        };
+    let batch = build_order_reconciliation_batch(&rows, &rule, &batch, persisted);
+    (
+        StatusCode::OK,
+        Json(OrderReconciliationDetailResponse {
+            batch_id: batch.summary.batch_id,
+            platform: batch.summary.platform,
+            shop_id: batch.summary.shop_id,
+            period_start: batch.summary.period_start,
+            period_end: batch.summary.period_end,
+            order_count: batch.summary.order_count,
+            expected_cent: batch.summary.expected_cent,
+            actual_cent: batch.summary.actual_cent,
+            diff_cent: batch.summary.diff_cent,
+            status: batch.summary.status,
+            reasons: batch.summary.reasons,
+            settled_at: batch.summary.settled_at,
+            note: batch.note,
+            orders: batch.orders,
+        }),
+    )
+        .into_response()
+}
+
+pub(super) async fn settle_order_reconciliation(
+    State(state): State<AppState>,
+    Path((tenant_id, batch_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(payload): Json<OrderReconciliationActionRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let batch = match parse_order_reconciliation_batch_id(&batch_id) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = ensure_shop_access(&ctx, ShopId(batch.shop_id)) {
+        return resp.into_response();
+    }
+    let rows = match list_order_settlement_rows(
+        &state,
+        tenant_id,
+        &OrderSettlementFilters {
+            platform: Some(batch.platform.clone()),
+            shop_id: Some(batch.shop_id),
+            keyword: None,
+            status: None,
+            created_from: Some(
+                batch
+                    .period_start
+                    .and_hms_opt(0, 0, 0)
+                    .expect("date should build")
+                    .and_utc(),
+            ),
+            created_to: Some(
+                batch
+                    .period_end
+                    .and_hms_opt(23, 59, 59)
+                    .expect("date should build")
+                    .and_utc(),
+            ),
+        },
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    if rows.is_empty() {
+        return not_found("order reconciliation not found").into_response();
+    }
+    let operator_id = match parse_optional_user_id(payload.operator_id.as_deref(), "operator_id") {
+        Ok(value) => value.unwrap_or(ctx.user_id),
+        Err(resp) => return resp,
+    };
+    let operator_name = trim_to_option(payload.operator_name.as_deref());
+    let note = trim_to_option(payload.note.as_deref());
+    let settled_at = Utc::now();
+    if let Err(error) = sqlx::query(
+        r#"
+        insert into order_reconciliation_batches (
+            tenant_id, batch_id, platform, shop_id, period_start, period_end,
+            status, note, settled_at
+        ) values ($1, $2, $3, $4, $5, $6, 'DONE', $7, $8)
+        on conflict (tenant_id, batch_id)
+        do update set
+            status = 'DONE',
+            note = excluded.note,
+            settled_at = excluded.settled_at,
+            updated_at = now()
+        "#,
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(&batch.batch_id)
+    .bind(&batch.platform)
+    .bind(batch.shop_id)
+    .bind(batch.period_start)
+    .bind(batch.period_end)
+    .bind(note.clone())
+    .bind(settled_at)
+    .execute(state.db.pool())
+    .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+    }
+    record_order_reconciliation_log(
+        &state,
+        tenant_id,
+        &batch,
+        Some(operator_id),
+        operator_name,
+        note,
+    )
+    .await;
+
+    let rule = match load_order_settlement_rule(&state, tenant_id).await {
+        Ok(value) => value,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+        }
+    };
+    let persisted =
+        match load_order_reconciliation_persisted_row(&state, tenant_id, &batch.batch_id).await {
+            Ok(value) => value,
+            Err(error) => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            }
+        };
+    let batch = build_order_reconciliation_batch(&rows, &rule, &batch, persisted);
+    (StatusCode::OK, Json(batch.summary)).into_response()
+}
