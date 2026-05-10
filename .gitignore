@@ -29,6 +29,7 @@ status_*.png
 .tmp-*.log
 .codex-*.png
 apps/erp-web/.codex-*.png
+.playwright-cli/
 output/
 apps/erp-web/output/
 
