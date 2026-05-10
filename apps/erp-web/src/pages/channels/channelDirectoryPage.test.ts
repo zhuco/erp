@@ -14,8 +14,13 @@ describe('ChannelDirectoryPage source contract', () => {
     expect(source).toContain('<WorkbenchPageTemplate');
     expect(source).toContain('leftPanel={leftPanel}');
     expect(source).toContain('rightPanel={rightPanel}');
+    expect(source).toContain('bottomPanel={bottomPanel}');
+    expect(source).toContain('leftPanelVisible={true}');
+    expect(source).toContain('rightPanelVisible={true}');
+    expect(source).toContain('bottomPanelVisible={true}');
     expect(source).toContain('showFooterScrollbarRow={true}');
-    expect(source).not.toContain('bottomPanel=');
+    expect(source).not.toContain('buildChannelDirectoryHeaderFilters');
+    expect(source).not.toContain('headerFilters={headerFilters}');
     expect(source).not.toContain('return <ChannelsPage />');
   });
 
@@ -33,5 +38,12 @@ describe('ChannelDirectoryPage source contract', () => {
     expect(existsSync(resolve(__dirname, './channelDirectoryPage.css'))).toBe(true);
     expect(existsSync(resolve(__dirname, './ChannelServicePurchasePage.tsx'))).toBe(true);
     expect(existsSync(resolve(__dirname, './ChannelAuthorizePage.tsx'))).toBe(true);
+  });
+
+  it('keeps the channel directory main grid on single-line industrial cells instead of stacked primary cells', () => {
+    const source = readFileSync(resolve(__dirname, './channelDirectoryColumns.tsx'), 'utf8');
+
+    expect(source).toContain("field: 'channel_id'");
+    expect(source).not.toContain('channel-directory-cell-primary');
   });
 });

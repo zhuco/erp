@@ -27,7 +27,8 @@ import {
   markApPaymentPlanPaid,
   updateApPaymentPlan
 } from '@/api/finance';
-import { UiModule03MainTableSection, UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -347,7 +348,7 @@ export const ApManagementPage = () => {
   );
 
   return (
-    <UiModule07SettingsLayout title="应付管理与付款计划">
+    <SettingsPageTemplate title="应付管理与付款计划">
       <Tabs
         items={[
           {
@@ -426,6 +427,6 @@ export const ApManagementPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

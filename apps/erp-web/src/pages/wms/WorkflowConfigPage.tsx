@@ -8,7 +8,7 @@ import {
   type WarehouseWorkflowConfigPayload
 } from '@/api/workflowConfigs';
 import { listWarehouses } from '@/api/warehouses';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -81,8 +81,8 @@ export const WorkflowConfigPage = () => {
   };
 
   return (
-    <UiModule07SettingsLayout title="作业流程配置">
-      <UiModule07SettingsSection title="流程配置">
+    <SettingsPageTemplate title="作业流程配置">
+      <SettingsPageSection title="流程配置">
         <Form
           form={form}
           layout="vertical"
@@ -161,7 +161,7 @@ export const WorkflowConfigPage = () => {
             </Button>
           </Space>
         </Form>
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };

@@ -2,7 +2,7 @@ import { fetchWithAuth } from '@/api/client';
 import type { PlatformCode } from '@/features/platform';
 import { platformValues } from '@/features/platform';
 import { useSessionStore } from '@/features/sessionStore';
-import { apiBaseUrl } from '@/utils/env';
+import { apiBaseUrl, useMocks } from '@/utils/env';
 
 export type Capability = 'ship' | 'print_waybill' | 'refund_sync' | 'template_fetch';
 
@@ -47,6 +47,9 @@ const normalizeCapabilityMatrix = (
   }, {} as CapabilityMatrix);
 
 export const fetchCapabilityMatrix = async (tenantId: string): Promise<CapabilityMatrix> => {
+  if (useMocks) {
+    return defaultCapabilityMatrix;
+  }
   try {
     // TODO: replace with backend /feature_flags/capabilities API once available.
     const response = await fetchWithAuth(`${apiBaseUrl}/v1/tenants/${tenantId}/capabilities`);

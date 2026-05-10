@@ -9,6 +9,8 @@ describe('ShortcutToolbar industrial upgrade', () => {
 
     expect(source).toContain('destroyOnHidden');
     expect(source).not.toContain('destroyOnClose');
+    expect(source).toContain('orientation="vertical"');
+    expect(source).not.toContain('direction="vertical"');
   });
 
   it('renders the toolbar as an industrial panel instead of an inline white strip', () => {

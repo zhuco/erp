@@ -11,7 +11,7 @@
 - 多租户 RBAC/JWT 骨架
 - Web 管理端（React/Vite/Ant Design Pro）与 OpenAPI 生成
 - 系统管理：权限目录/角色/用户/数据权限、审计日志、配置中心、失败队列与 trace/metrics
-- 后续产品范围与路线图：以 `docs/PRODUCT_SCOPE.md` 和 `docs/ROADMAP.md` 为准
+- 后续产品范围与开发计划：以 `docs/PRODUCT_SCOPE.md` 和唯一计划入口 `docs/ROADMAP.md` 为准
 
 ## 服务与通路
 - `erp-channel`：接收 `/webhooks/{platform}/{shop_id}`，落库原始 payload，去重写入 `inbox_events`，产生 `outbox_events(INBOX_EVENT_RECEIVED)`
@@ -86,7 +86,7 @@ pnpm run accept:all
 ## 文档导航
 - `docs/README.md`: 文档中心、阅读顺序与维护规则
 - `docs/PRODUCT_SCOPE.md`: 产品范围、要实现的功能与优先级
-- `docs/ROADMAP.md`: 后续开发方向、阶段目标与近期重点
+- `docs/ROADMAP.md`: 唯一后续开发计划入口，包含当前评估、目标版本、近期执行队列与验收门禁
 - `docs/ARCHITECTURE.md`: 架构、服务职责、数据域、状态和接口约定
 - `docs/FRONTEND_GUIDE.md`: 前端页面、工作台、表格、测试和打印规范
 - `docs/OPERATIONS.md`: 本地运行、验收命令、发布门禁、安全、运维要求与版本更新记录

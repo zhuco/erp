@@ -32,7 +32,7 @@ import {
   type ReconcileJobItem,
   type StatementImportType
 } from '@/api/finance';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { platformOptions } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -472,7 +472,7 @@ export const ReconcilePage = () => {
   );
 
   return (
-    <UiModule07SettingsLayout title="对账管理">
+    <SettingsPageTemplate title="对账管理">
       <Card title="账单导入">
         <Form
           form={importForm}
@@ -719,6 +719,6 @@ export const ReconcilePage = () => {
           }}
         />
       </Card>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

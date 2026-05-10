@@ -29,7 +29,7 @@ import {
   resolveLogisticsExceptionWorkOrder,
   updateLogisticsExceptionType
 } from '@/api/logisticsExceptions';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -322,8 +322,8 @@ export const LogisticsExceptionsPage = () => {
 
   return (
     <div data-testid="logistics-exceptions-page">
-      <UiModule07SettingsLayout title="物流异常工单">
-        <UiModule07SettingsSection
+      <SettingsPageTemplate title="物流异常工单">
+        <SettingsPageSection
           title="异常类型配置"
           actions={
             <Button type="primary" disabled={!canWrite} onClick={() => openTypeModal()}>
@@ -338,16 +338,16 @@ export const LogisticsExceptionsPage = () => {
             pagination={false}
             loading={typesQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection title="异常处理工单">
+        </SettingsPageSection>
+        <SettingsPageSection title="异常处理工单">
           <Table
             rowKey="ticket_id"
             columns={orderColumns}
             dataSource={workOrders}
             loading={workOrdersQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Modal
         title={editingType ? '编辑异常类型' : '新增异常类型'}
         open={typeModalOpen}

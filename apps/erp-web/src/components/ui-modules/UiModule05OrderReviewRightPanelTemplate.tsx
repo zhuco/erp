@@ -366,7 +366,7 @@ export const UiModule05OrderReviewRightPanelTemplate = ({
                   placement="bottomRight"
                   open={markManagerOpen}
                   overlayClassName="ui-module-05-order-mark-manager-popover"
-                  destroyTooltipOnHide
+                  destroyOnHidden
                   content={markManagerContent}
                   onOpenChange={setMarkManagerOpen}
                 >
@@ -385,7 +385,7 @@ export const UiModule05OrderReviewRightPanelTemplate = ({
             key: 'detail',
             label: '订单详情',
             children: (
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                 {detailError ? <Typography.Text type="danger">详情加载失败</Typography.Text> : null}
                 <Descriptions size="small" column={1} bordered className="ui-module-05-order-review-descriptions">
                   <Descriptions.Item label="订单号">{orderId ?? '-'}</Descriptions.Item>

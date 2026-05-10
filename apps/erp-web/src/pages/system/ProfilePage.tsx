@@ -10,7 +10,7 @@ import {
   type CurrentUserProfile
 } from '@/api/auth';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useSessionStore } from '@/features/sessionStore';
 
 type ProfileFormValues = {
@@ -92,8 +92,8 @@ export const ProfilePage = () => {
   const profile = profileQuery.data?.user;
 
   return (
-    <UiModule07SettingsLayout title="个人信息">
-      <UiModule07SettingsSection title="个人信息">
+    <SettingsPageTemplate title="个人信息">
+      <SettingsPageSection title="个人信息">
         <LoadingState loading={profileQuery.isLoading} />
         <Descriptions column={3} bordered size="small" style={{ marginBottom: 16 }}>
           <Descriptions.Item label="用户ID">{profile?.user_id ?? '-'}</Descriptions.Item>
@@ -118,8 +118,8 @@ export const ProfilePage = () => {
             保存资料
           </Button>
         </Form>
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection title="修改密码">
+      </SettingsPageSection>
+      <SettingsPageSection title="修改密码">
         <Form layout="vertical" form={passwordForm} onFinish={handlePasswordSubmit}>
           <Form.Item
             label="当前密码"
@@ -157,7 +157,7 @@ export const ProfilePage = () => {
             更新密码
           </Button>
         </Form>
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };

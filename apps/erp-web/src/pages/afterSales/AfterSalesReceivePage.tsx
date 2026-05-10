@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { AfterSalesItem } from '@/api/afterSalesOps';
 import { getAfterSalesDetail, receiveAfterSales, redoAfterSalesReceive } from '@/api/afterSalesOps';
 import { listWarehouses } from '@/api/warehouses';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { useTenantId } from '@/features/tenant';
 import { buildReceiveModel, NO_WAREHOUSE_HINT } from './afterSalesReceiveModel';
 
@@ -90,24 +90,24 @@ export const AfterSalesReceivePage = () => {
 
   if (!data && isLoading) {
     return (
-      <UiModule07SettingsLayout>
+      <SettingsPageTemplate>
         {titleNode}
         <Typography.Text>加载中...</Typography.Text>
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   if (!data) {
     return (
-      <UiModule07SettingsLayout>
+      <SettingsPageTemplate>
         {titleNode}
         <Typography.Text type="danger">售后记录不存在</Typography.Text>
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout>
+    <SettingsPageTemplate>
       {titleNode}
       <Card>
         <Form form={form} layout="vertical" initialValues={{ putaway_done: false }}>
@@ -154,6 +154,6 @@ export const AfterSalesReceivePage = () => {
       <Card title="退货明细">
         <Table rowKey="sku_id" columns={columns} dataSource={data.items} pagination={false} />
       </Card>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

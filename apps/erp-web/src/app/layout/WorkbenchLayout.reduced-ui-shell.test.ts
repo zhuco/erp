@@ -14,6 +14,15 @@ describe('WorkbenchLayout reduced UI shell', () => {
     expect(isReducedUiPathAllowed('/warehouses')).toBe(true);
     expect(isReducedUiPathAllowed('/logistics-fees')).toBe(true);
     expect(isReducedUiPathAllowed('/suppliers')).toBe(true);
+    expect(isReducedUiPathAllowed('/customers/categories')).toBe(true);
+    expect(isReducedUiPathAllowed('/customers/member-levels')).toBe(true);
+    expect(isReducedUiPathAllowed('/customers/tags')).toBe(true);
+    expect(isReducedUiPathAllowed('/wms/containers')).toBe(true);
+    expect(isReducedUiPathAllowed('/wms/sender-addresses')).toBe(true);
+    expect(isReducedUiPathAllowed('/wms/warehouse-areas')).toBe(true);
+    expect(isReducedUiPathAllowed('/wms/warehouse-locations')).toBe(true);
+    expect(isReducedUiPathAllowed('/system/permissions')).toBe(true);
+    expect(isReducedUiPathAllowed('/system/roles')).toBe(true);
     expect(isReducedUiPathAllowed('/sales/order-query')).toBe(true);
     expect(isReducedUiPathAllowed('/orders/review')).toBe(true);
     expect(isReducedUiPathAllowed('/orders/recheck')).toBe(true);

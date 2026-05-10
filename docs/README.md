@@ -8,7 +8,7 @@
 
 1. `README.md`：项目定位、启动方式与仓库结构。
 2. `docs/PRODUCT_SCOPE.md`：约定要实现的产品能力、优先级与非目标。
-3. `docs/ROADMAP.md`：后续开发方向、阶段目标与近期优先事项。
+3. `docs/ROADMAP.md`：唯一后续开发计划入口，包含当前评估、目标版本、近期执行队列与验收门禁。
 4. `docs/ARCHITECTURE.md`：前后端、事件链路、数据边界与接口契约。
 5. `docs/FRONTEND_GUIDE.md`：前端页面、工作台、表格与测试规范。
 6. `docs/OPERATIONS.md`：本地运行、验收门禁、发布、安全与运维要求。
@@ -31,7 +31,7 @@
 
 ## 文档维护规则
 
-- 新增总览性结论时，优先更新 `docs/PRODUCT_SCOPE.md` 或 `docs/ROADMAP.md`，不要再创建新的总览文档。
+- 新增总览性结论时，优先更新 `docs/PRODUCT_SCOPE.md` 或 `docs/ROADMAP.md`；后续开发计划只能进入 `docs/ROADMAP.md`，不要再创建新的总览文档。
 - 新增技术约定时，优先更新 `docs/ARCHITECTURE.md`、`docs/FRONTEND_GUIDE.md` 或 `docs/OPERATIONS.md`。
 - 阶段报告、临时任务卡、并行开发记录、一次性验收快照不再放入 `docs/`；需要留痕时使用 Issue、PR 描述、Git 提交或临时目录。
 - 如果确实需要恢复旧文档，请从 Git 历史查询；当前工作树只保留长期维护入口。

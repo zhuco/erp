@@ -23,7 +23,7 @@ import { createIdempotencyKey, retryShipment, shipOrder } from '@/api/shipments'
 import { listWarehouses } from '@/api/warehouses';
 import { ShipmentStatusTag } from '@/components/ShipmentStatusTag';
 import { PlatformTag } from '@/components/PlatformTag';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { useOperationAccess } from '@/features/operations';
 import { useOrderAuditSettingsStore } from '@/features/orderAuditSettings';
 import { platformValues } from '@/features/platform';
@@ -305,7 +305,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
       data-testid="ship-drawer"
     >
       {order ? (
-        <UiModule07SettingsLayout>
+        <SettingsPageTemplate>
           <Card size="small">
             <Descriptions column={2} size="small">
               <Descriptions.Item label="订单号">
@@ -430,7 +430,7 @@ export const ShipOrderDrawer = ({ open, order, onClose }: ShipOrderDrawerProps) 
               ) : null}
             </Card>
           ) : null}
-        </UiModule07SettingsLayout>
+        </SettingsPageTemplate>
       ) : null}
     </Drawer>
   );

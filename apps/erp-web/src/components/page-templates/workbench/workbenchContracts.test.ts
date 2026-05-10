@@ -32,4 +32,41 @@ describe('workbench unified contracts', () => {
     expect(source).toContain('leftPanelVisible?: boolean;');
     expect(source).toContain('leftPanelSyncKey?: string | number;');
   });
+
+  it('keeps WorkbenchPageTemplate as the recommended page entry', () => {
+    const wrapperSource = readFileSync(resolve(__dirname, 'WorkbenchPageTemplate.tsx'), 'utf8');
+    const templateSource = readFileSync(
+      resolve(__dirname, '../../workbench/templates/OrderReviewWorkbenchTemplate.tsx'),
+      'utf8',
+    );
+
+    expect(wrapperSource).toContain('export const WorkbenchPageTemplate');
+    expect(wrapperSource).toContain("Omit<OrderReviewWorkbenchTemplateProps, 'toolbar'>");
+    expect(wrapperSource).toContain('type WorkbenchToolbarElement = ReactElement<WorkbenchToolbarProps, typeof WorkbenchToolbar>;');
+    expect(wrapperSource).toContain('toolbar?: WorkbenchToolbarElement | null;');
+    expect(wrapperSource).toContain('isWorkbenchToolbarElement');
+    expect(wrapperSource).toContain('toolbar.type === WorkbenchToolbar');
+    expect(wrapperSource).toContain('toolbar ???? WorkbenchToolbar');
+    expect(templateSource).not.toContain('toolbarLeft?: ReactNode;');
+    expect(templateSource).not.toContain('toolbarCenter?: ReactNode;');
+    expect(templateSource).not.toContain('toolbarRight?: ReactNode;');
+  });
+
+
+  it('keeps WorkbenchToolbar as the recommended toolbar entry', () => {
+    const source = readFileSync(resolve(__dirname, 'WorkbenchToolbar.tsx'), 'utf8');
+
+    expect(source).toContain('export const WorkbenchToolbar');
+    expect(source).toContain('<OrderReviewWorkbenchToolbarTemplate');
+    expect(source).toContain("WorkbenchToolbar.displayName = 'WorkbenchToolbar';");
+  });
+
+  it('keeps main-table section toolbar aligned to WorkbenchToolbar', () => {
+    const source = readFileSync(resolve(__dirname, '../../ui-modules/UiModule03MainTableSection.tsx'), 'utf8');
+
+    expect(source).toContain('type UiModule03ToolbarElement = ReactElement<WorkbenchToolbarProps, typeof WorkbenchToolbar>;');
+    expect(source).toContain('toolbar?: UiModule03ToolbarElement | null;');
+    expect(source).toContain('<WorkbenchToolbar');
+  });
+
 });

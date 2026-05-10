@@ -138,8 +138,6 @@ export const OrderReviewBottomPanel = ({
         width: 34,
         minWidth: 28,
         maxWidth: 42,
-        checkboxSelection: true,
-        headerCheckboxSelection: false,
         sortable: false,
         filter: false,
         resizable: true,
@@ -712,7 +710,7 @@ export const OrderReviewBottomPanel = ({
           size="small"
           activeKey={activeTab}
           animated={false}
-          destroyInactiveTabPane
+          destroyOnHidden
           onChange={setActiveTab}
           items={[
             {
@@ -732,11 +730,10 @@ export const OrderReviewBottomPanel = ({
                       getRowId={(params) => params.data.__localKey}
                       rowSelection={{
                         mode: 'multiRow',
-                        checkboxes: false,
+                        checkboxes: true,
                         headerCheckbox: false,
                         enableClickSelection: false,
                       }}
-                      suppressRowClickSelection
                       rowHeight={ORDER_WORKBENCH_GRID_ROW_HEIGHT}
                       headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}
                       animateRows={false}

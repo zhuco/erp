@@ -16,59 +16,133 @@ const shouldWriteBaseline = args.has('--write-baseline');
 const toPosixPath = (value) => value.split(path.sep).join('/');
 const srcRoot = path.join(projectRoot, 'src');
 
-const hasTemplateReference = (source) =>
-  source.includes("from '@/components/workbench/templates'") ||
-  source.includes('from "@/components/workbench/templates"') ||
-  source.includes("from '@/components/workbench/OrderReviewWorkbenchListPage'") ||
-  source.includes('from "@/components/workbench/OrderReviewWorkbenchListPage"') ||
-  source.includes('UiModule03MainTableSection');
+const recommendedTemplateTokens = [
+  'WorkbenchPageTemplate',
+  'SettingsPageTemplate',
+  'UiModule03MainTableSection',
+  'PlaceholderPage',
+];
+
+const resolveWrappedFile = async (basePath) => {
+  const candidates = [
+    basePath,
+    `${basePath}.tsx`,
+    `${basePath}.ts`,
+    path.join(basePath, 'index.tsx'),
+    path.join(basePath, 'index.ts'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
+
+const hasTemplateReference = async (source, file, visited = new Set()) => {
+  if (recommendedTemplateTokens.some((token) => source.includes(token))) {
+    return true;
+  }
+
+  const normalizedFile = toPosixPath(file);
+  if (visited.has(normalizedFile)) {
+    return false;
+  }
+  visited.add(normalizedFile);
+
+  const wrapperImportPattern = /import\s+\{\s*([^}]+)\s*\}\s+from\s+['"](\.\/[^'"]+)['"];?/g;
+  const wrapperMatches = Array.from(source.matchAll(wrapperImportPattern));
+
+  for (const match of wrapperMatches) {
+    const importedNames = match[1]
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => item.replace(/^type\s+/, ''))
+      .map((item) => item.split(/\s+as\s+/i).pop()?.trim() ?? '')
+      .filter(Boolean);
+
+    const referencedName = importedNames.find((name) => new RegExp(`<${name}\\b`).test(source));
+    if (!referencedName) {
+      continue;
+    }
+
+    const wrappedFile = await resolveWrappedFile(path.resolve(path.dirname(file), match[2]));
+    if (!wrappedFile) {
+      continue;
+    }
+
+    try {
+      const wrappedSource = await fs.readFile(wrappedFile, 'utf8');
+      if (await hasTemplateReference(wrappedSource, wrappedFile, visited)) {
+        return true;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return false;
+};
 
 const strictTemplateRules = [
   {
-    file: 'src/pages/channels/ChannelsPage.tsx',
-    requiredTokens: [
-      'OrderReviewWorkbenchTemplate',
-      'OrderWorkbenchMainGridEntry',
-      'variant="review"',
-      'UiModule03ContextMenu',
-      'toolbarPrimaryActions',
-    ],
+    file: 'src/pages/channels/ChannelDirectoryPage.tsx',
+    requiredTokens: ['WorkbenchPageTemplate', 'WorkbenchToolbar', 'UiModule03ContextMenu'],
     forbiddenTokens: [
+      'OrderReviewWorkbenchTemplate',
+      'OrderReviewWorkbenchToolbarTemplate',
       'ServerTable',
       'ColumnsType<',
       'LegacyWorkbenchListPage',
-      'variant="query"',
     ],
   },
   {
     file: 'src/pages/orders/OrderReviewPage.tsx',
     requiredTokens: [
-      'OrderReviewWorkbenchTemplate',
+      'WorkbenchPageTemplate',
+      'WorkbenchToolbar',
       'OrderWorkbenchMainGridEntry',
       'variant="review"',
       'UiModule03ContextMenu',
     ],
-    forbiddenTokens: ['ServerTable', 'LegacyWorkbenchListPage'],
+    forbiddenTokens: ['OrderReviewWorkbenchTemplate', 'OrderReviewWorkbenchToolbarTemplate', 'ServerTable', 'LegacyWorkbenchListPage'],
   },
   {
     file: 'src/pages/orders/OrderQueryPage.tsx',
     requiredTokens: [
-      'OrderReviewWorkbenchTemplate',
+      'WorkbenchPageTemplate',
+      'WorkbenchToolbar',
       'OrderWorkbenchMainGridEntry',
       'variant="query"',
-      'OrderReviewWorkbenchToolbarTemplate',
     ],
-    forbiddenTokens: ['ServerTable', 'LegacyWorkbenchListPage'],
+    forbiddenTokens: ['OrderReviewWorkbenchTemplate', 'OrderReviewWorkbenchToolbarTemplate', 'ServerTable', 'LegacyWorkbenchListPage'],
   },
   {
     file: 'src/pages/orders/OrderExceptionsPage.tsx',
     requiredTokens: [
-      'OrderReviewWorkbenchTemplate',
+      'WorkbenchPageTemplate',
+      'WorkbenchToolbar',
       'OrderWorkbenchMainGridEntry',
       'variant="recheck"',
       'UiModule03ContextMenu',
     ],
-    forbiddenTokens: ['ServerTable', 'LegacyWorkbenchListPage'],
+    forbiddenTokens: ['OrderReviewWorkbenchTemplate', 'OrderReviewWorkbenchToolbarTemplate', 'ServerTable', 'LegacyWorkbenchListPage'],
+  },
+  {
+    file: 'src/pages/sales/SalesSettingsPage.tsx',
+    requiredTokens: ['SettingsPageTemplate', 'SettingsPageSection'],
+    forbiddenTokens: ['UiModule07SettingsLayout', 'UiModule07SettingsSection'],
+  },
+  {
+    file: 'src/pages/system/SystemSettingsPage.tsx',
+    requiredTokens: ['SettingsPageTemplate', 'SettingsPageSection'],
+    forbiddenTokens: ['UiModule07SettingsLayout', 'UiModule07SettingsSection'],
   },
 ];
 
@@ -76,6 +150,17 @@ const forbiddenLegacyTemplateTokens = [
   'WorkbenchMainTableTemplate',
   'IndustrialListWorkbenchTemplate',
   'LegacyWorkbenchListPage',
+];
+
+const forbiddenPageTemplateImportTokens = [
+  "from '@/components/workbench/templates",
+  'from "@/components/workbench/templates',
+  "from '@/components/ui-modules/UiModule07SettingsLayout",
+  'from "@/components/ui-modules/UiModule07SettingsLayout',
+  'UiModule07SettingsLayout',
+  'UiModule07SettingsSection',
+  'OrderReviewWorkbenchTemplate',
+  'OrderReviewWorkbenchToolbarTemplate',
 ];
 
 const collectPageFiles = async (dir) => {
@@ -144,7 +229,7 @@ const allMissing = [];
 
 for (const file of pageFiles) {
   const source = await fs.readFile(file, 'utf8');
-  if (!hasTemplateReference(source)) {
+  if (!(await hasTemplateReference(source, file))) {
     allMissing.push(toPosixPath(path.relative(projectRoot, file)));
   }
 }
@@ -195,13 +280,18 @@ const legacyTemplateViolations = [];
 const sourceFiles = await collectSourceFiles(srcRoot);
 for (const file of sourceFiles) {
   const source = await fs.readFile(file, 'utf8');
+  const relativeFile = toPosixPath(path.relative(projectRoot, file));
   const hits = forbiddenLegacyTemplateTokens.filter((token) => source.includes(token));
-  if (!hits.length) {
+  const importHits = relativeFile.startsWith('src/pages/')
+    ? forbiddenPageTemplateImportTokens.filter((token) => source.includes(token))
+    : [];
+  const allHits = [...hits, ...importHits];
+  if (!allHits.length) {
     continue;
   }
   legacyTemplateViolations.push({
-    file: toPosixPath(path.relative(projectRoot, file)),
-    hits,
+    file: relativeFile,
+    hits: allHits,
   });
 }
 

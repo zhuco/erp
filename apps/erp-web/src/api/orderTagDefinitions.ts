@@ -1,6 +1,12 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
+import {
+  createMockOrderTagDefinition,
+  deleteMockOrderTagDefinition,
+  listMockOrderTagDefinitions,
+  updateMockOrderTagDefinition,
+} from '@/api/mocks';
 
 export type OrderTagDefinition = {
   tag_id: string;
@@ -83,7 +89,7 @@ export const listOrderTagDefinitions = async (
   query: OrderTagDefinitionListQuery
 ): Promise<OrderTagDefinitionListResponse> => {
   if (useMocks) {
-    return { items: [], total: 0 };
+    return listMockOrderTagDefinitions(query);
   }
   return requestJson<OrderTagDefinitionListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/order-tag-definitions${buildQueryString(query)}`,
@@ -97,18 +103,7 @@ export const createOrderTagDefinition = async (
   payload: OrderTagDefinitionCreatePayload
 ): Promise<OrderTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: `${Date.now()}`,
-      tenant_id: tenantId,
-      name: payload.name,
-      color: payload.color ?? null,
-      priority: payload.priority ?? 0,
-      status: payload.status ?? 'ACTIVE',
-      auto_apply: payload.auto_apply ?? false,
-      conditions_json: payload.conditions_json ?? [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return createMockOrderTagDefinition(tenantId, payload);
   }
   return requestJson<OrderTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/order-tag-definitions`,
@@ -130,18 +125,7 @@ export const updateOrderTagDefinition = async (
   payload: OrderTagDefinitionUpdatePayload
 ): Promise<OrderTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: tagId,
-      tenant_id: tenantId,
-      name: payload.name ?? 'mock',
-      color: payload.color ?? null,
-      priority: payload.priority ?? 0,
-      status: payload.status ?? 'ACTIVE',
-      auto_apply: payload.auto_apply ?? false,
-      conditions_json: payload.conditions_json ?? [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return updateMockOrderTagDefinition(tenantId, tagId, payload);
   }
   return requestJson<OrderTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/order-tag-definitions/${tagId}`,
@@ -162,18 +146,7 @@ export const deleteOrderTagDefinition = async (
   tagId: string
 ): Promise<OrderTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: tagId,
-      tenant_id: tenantId,
-      name: 'mock',
-      color: null,
-      priority: 0,
-      status: 'ACTIVE',
-      auto_apply: false,
-      conditions_json: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return deleteMockOrderTagDefinition(tenantId, tagId);
   }
   return requestJson<OrderTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/order-tag-definitions/${tagId}`,

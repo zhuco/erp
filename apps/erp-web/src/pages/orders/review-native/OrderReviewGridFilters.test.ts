@@ -6,6 +6,8 @@ import {
   extractMainGridColumnFilters,
   hasSameMainGridColumnFilters,
 } from './OrderReviewGridFilters';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 describe('OrderReviewGridFilters', () => {
   it('builds set-filter models with all selected values', () => {
@@ -51,5 +53,14 @@ describe('OrderReviewGridFilters', () => {
         },
       ),
     ).toBe(true);
+  });
+
+  it('uses popupRender for the set floating filter dropdown content', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderReviewGridFilters.tsx'), 'utf8');
+
+    expect(source).toContain('popupRender={() => (');
+    expect(source).not.toContain('dropdownRender={() => (');
+    expect(source).toContain('<Space orientation="vertical" size={4}>');
+    expect(source).not.toContain('<Space direction="vertical" size={4}>');
   });
 });

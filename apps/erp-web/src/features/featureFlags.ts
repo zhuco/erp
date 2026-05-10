@@ -1,7 +1,7 @@
 import { fetchWithAuth } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
 import { useSessionStore } from '@/features/sessionStore';
-import { apiBaseUrl } from '@/utils/env';
+import { apiBaseUrl, useMocks } from '@/utils/env';
 
 export type FeatureFlagKey =
   | 'orders.list'
@@ -92,6 +92,9 @@ const resolveCanonicalFeatureKey = (feature: FeatureFlagKey): FeatureFlagKey =>
   feature === PACK_PERFORMANCE_LEGACY_KEY ? PACK_PERFORMANCE_CANONICAL_KEY : feature;
 
 export const fetchFeatureFlags = async (tenantId: string): Promise<FeatureFlags> => {
+  if (useMocks) {
+    return defaultFeatureFlags;
+  }
   try {
     // TODO: replace with backend /feature_flags API once available.
     const response = await fetchWithAuth(

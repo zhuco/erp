@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Drawer,
+  Empty,
   Form,
   Input,
   Modal,
   Select,
   Space,
+  Table,
+  Tabs,
   Switch,
   Typography,
   message,
@@ -38,7 +41,7 @@ import {
   useWorkbenchViewStateController,
 } from '@/components/page-templates';
 import { ErpDataGridNext } from '@/components/ErpDataGridNext';
-import { UiModule03ContextMenu } from '@/components/ui-modules';
+import { UiModule03ContextMenu, UiModule04BottomTable } from '@/components/ui-modules';
 import { platformOptions, type PlatformCode } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useSessionStore } from '@/features/sessionStore';
@@ -46,13 +49,15 @@ import { useTenantId } from '@/features/tenant';
 import { useLeftFilterModule } from '@/pages/orders/shared/useLeftFilterModule';
 
 import { ChannelDirectoryLeftPanel, ChannelDirectoryRightPanel } from './ChannelDirectoryPanels';
-import { buildChannelDirectoryColumns, buildChannelDirectoryHeaderFilters } from './channelDirectoryColumns';
+import { buildChannelDirectoryColumns } from './channelDirectoryColumns';
 import {
   buildChannelDirectoryLeftCheckedKeys,
   buildChannelDirectoryLeftNodes,
   buildChannelDirectoryPieBackground,
+  buildChannelDirectoryGridFilterModel,
   createDefaultChannelDirectoryColumnFilters,
   createDefaultChannelDirectoryLeftFilters,
+  extractChannelDirectoryGridFilterModel,
   filterChannelsByColumnFilters,
   filterChannelsByKeyword,
   filterChannelsByLeftFilters,
@@ -93,6 +98,12 @@ const pageSizeOptions = ['20', '50', '100', '200'];
 const normalizeNullableText = (value?: string | null) => {
   const nextValue = String(value ?? '').trim();
   return nextValue || null;
+};
+
+type ChannelDetailRow = {
+  key: string;
+  field: string;
+  value: string;
 };
 
 export const ChannelDirectoryPage = () => {
@@ -137,6 +148,10 @@ export const ChannelDirectoryPage = () => {
   );
   const [columnFilters, setColumnFilters] = useState<ChannelDirectoryColumnFilters>(
     createDefaultChannelDirectoryColumnFilters,
+  );
+  const gridFilterModel = useMemo(
+    () => buildChannelDirectoryGridFilterModel(columnFilters),
+    [columnFilters],
   );
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
@@ -310,21 +325,8 @@ export const ChannelDirectoryPage = () => {
   );
 
   const columns = useMemo(
-    () => buildChannelDirectoryColumns(warehouseMap),
-    [warehouseMap],
-  );
-
-  const headerFilters = useMemo(
-    () =>
-      buildChannelDirectoryHeaderFilters({
-        filters: columnFilters,
-        warehouseOptions,
-        onPatchFilters: (patch) => {
-          resetPagination();
-          setColumnFilters((previous) => ({ ...previous, ...patch }));
-        },
-      }),
-    [columnFilters, resetPagination, warehouseOptions],
+    () => buildChannelDirectoryColumns(warehouseMap, warehouseOptions),
+    [warehouseMap, warehouseOptions],
   );
 
   const selectedChannelMap = useMemo(
@@ -658,11 +660,192 @@ export const ChannelDirectoryPage = () => {
     [activeRow?.channel_id, activeRow?.channel_type, activeRow?.status, activeRow?.updated_at],
   );
 
+  const [activeBottomTab, setActiveBottomTab] = useState('profile');
+
+  const bottomDetailColumns = useMemo(
+    () => [
+      {
+        title: '字段',
+        dataIndex: 'field',
+        key: 'field',
+        width: 180,
+      },
+      {
+        title: '值',
+        dataIndex: 'value',
+        key: 'value',
+        width: 320,
+      },
+    ],
+    [],
+  );
+
+  const channelProfileRows = useMemo<ChannelDetailRow[]>(() => {
+    if (!activeRow) {
+      return [];
+    }
+    return [
+      { key: 'contact_name', field: '联系人', value: activeRow.contact_name || '-' },
+      { key: 'contact_phone', field: '联系电话', value: activeRow.contact_phone || '-' },
+      { key: 'contact_address', field: '联系地址', value: activeRow.contact_address || '-' },
+      { key: 'department', field: '归属部门', value: activeRow.department || '-' },
+      { key: 'owner', field: '负责人', value: activeRow.owner || '-' },
+      {
+        key: 'default_warehouse_id',
+        field: '默认发货仓库',
+        value: activeRow.default_warehouse_id
+          ? warehouseMap.get(activeRow.default_warehouse_id) ?? activeRow.default_warehouse_id
+          : '-',
+      },
+    ];
+  }, [activeRow, warehouseMap]);
+
+  const channelCapabilityRows = useMemo<ChannelDetailRow[]>(() => {
+    if (!activeRow) {
+      return [];
+    }
+    return [
+      { key: 'channel_id', field: '渠道编号', value: activeRow.channel_id },
+      {
+        key: 'channel_type',
+        field: '渠道类型',
+        value: activeRow.channel_type === 'OFFLINE' ? '线下' : '线上',
+      },
+      {
+        key: 'platform',
+        field: '所属平台',
+        value: activeRow.platform ? String(activeRow.platform) : '线下渠道',
+      },
+      {
+        key: 'manual_order',
+        field: '允许手工销售单',
+        value: activeRow.allow_manual_order ? '允许' : '关闭',
+      },
+      {
+        key: 'manual_after_sales',
+        field: '允许手工售后单',
+        value: activeRow.allow_manual_after_sales ? '允许' : '关闭',
+      },
+      {
+        key: 'authorize',
+        field: '授权能力',
+        value: resolveChannelAuthorizationEnabled(activeRow) ? '需要授权' : '无需授权',
+      },
+      {
+        key: 'commission_formula',
+        field: '平台抽佣公式',
+        value: activeRow.commission_formula || '-',
+      },
+      {
+        key: 'status',
+        field: '当前状态',
+        value: activeRow.status === 'ACTIVE' ? '启用' : '停用',
+      },
+    ];
+  }, [activeRow]);
+
+  const channelTimelineRows = useMemo<ChannelDetailRow[]>(() => {
+    if (!activeRow) {
+      return [];
+    }
+    return [
+      {
+        key: 'created_at',
+        field: '创建时间',
+        value: String(activeRow.created_at ?? '-'),
+      },
+      {
+        key: 'updated_at',
+        field: '更新时间',
+        value: String(activeRow.updated_at ?? activeRow.created_at ?? '-'),
+      },
+      {
+        key: 'service_entry',
+        field: '服务入口',
+        value: '/channels/service-purchase',
+      },
+      {
+        key: 'authorize_entry',
+        field: '授权入口',
+        value: resolveChannelAuthorizationEnabled(activeRow) ? '/channels/authorize' : '线下渠道无需授权',
+      },
+    ];
+  }, [activeRow]);
+
+  const renderBottomTable = useCallback(
+    (rows: ChannelDetailRow[], emptyDescription: string, syncKey: string) =>
+      activeRow ? (
+        <UiModule04BottomTable syncKey={syncKey}>
+          <Table<ChannelDetailRow>
+            size="small"
+            rowKey="key"
+            columns={bottomDetailColumns}
+            dataSource={rows}
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            locale={{ emptyText: <Empty description={emptyDescription} /> }}
+          />
+        </UiModule04BottomTable>
+      ) : (
+        <Empty description="请选择渠道查看底部明细" />
+      ),
+    [activeRow, bottomDetailColumns],
+  );
+
+  const bottomPanel = useMemo(
+    () => (
+      <Tabs
+        size="small"
+        type="card"
+        activeKey={activeBottomTab}
+        onChange={setActiveBottomTab}
+        items={[
+          {
+            key: 'profile',
+            label: `基础资料 (${channelProfileRows.length})`,
+            children: renderBottomTable(
+              channelProfileRows,
+              '暂无基础资料',
+              `channel-profile-${activeRow?.channel_id ?? 'empty'}-${channelProfileRows.length}`,
+            ),
+          },
+          {
+            key: 'capability',
+            label: `业务能力 (${channelCapabilityRows.length})`,
+            children: renderBottomTable(
+              channelCapabilityRows,
+              '暂无业务能力信息',
+              `channel-capability-${activeRow?.channel_id ?? 'empty'}-${channelCapabilityRows.length}`,
+            ),
+          },
+          {
+            key: 'timeline',
+            label: `维护轨迹 (${channelTimelineRows.length})`,
+            children: renderBottomTable(
+              channelTimelineRows,
+              '暂无维护轨迹',
+              `channel-timeline-${activeRow?.channel_id ?? 'empty'}-${channelTimelineRows.length}`,
+            ),
+          },
+        ]}
+      />
+    ),
+    [
+      activeBottomTab,
+      activeRow?.channel_id,
+      channelCapabilityRows,
+      channelProfileRows,
+      channelTimelineRows,
+      renderBottomTable,
+    ],
+  );
+
   return (
     <WorkbenchPageTemplate
       pageTestId="channel-directory-workbench-page"
-      className="channel-directory-page"
+      className="order-review-page channel-directory-page"
       leftPanel={leftPanel}
+      leftPanelVisible={true}
       toolbar={toolbar}
       tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
@@ -671,11 +854,18 @@ export const ChannelDirectoryPage = () => {
             rows={pagedRows}
             columns={columns}
             rowKey={(channel) => channel.channel_id}
+            gridPreset="industrial-review-compact"
             columnSettingsKey="channels.directory.main-grid"
             dataTestId="channel-directory-grid"
-            headerFilters={headerFilters}
             enableRowModifierSelection
+            selectionCellMode="custom"
+            selectionHeaderMode="allInvert"
             showColumnSettings
+            gridFilterModel={gridFilterModel}
+            onGridFilterModelChange={(model) => {
+              resetPagination();
+              setColumnFilters(extractChannelDirectoryGridFilterModel(model));
+            }}
             selectedRowKeys={selectedRowKeys}
             activeRowKey={activeRowKey}
             onSelectionChange={(keys: Key[]) => {
@@ -732,7 +922,10 @@ export const ChannelDirectoryPage = () => {
       stateCacheKey={stateCacheKey}
       showFooterScrollbarRow={true}
       rightPanel={rightPanel}
+      rightPanelVisible={true}
       rightPanelSyncKey={rightPanelSyncKey}
+      bottomPanel={bottomPanel}
+      bottomPanelVisible={true}
       overlays={
         <>
           <UiModule03ContextMenu

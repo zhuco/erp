@@ -28,3 +28,4 @@ export * from './wms';
 export * from './marketing';
 export * from './stats';
 export * from './finance';
+export * from './tagDefinitions';

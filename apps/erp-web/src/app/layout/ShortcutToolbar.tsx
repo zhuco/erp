@@ -411,7 +411,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
         confirmLoading={updateMutation.isPending}
         destroyOnHidden
       >
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           {clearUndoSnapshot ? (
             <Alert
               type="warning"
@@ -439,7 +439,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                 }
                 extra={<Typography.Text type="secondary">共 {availableItems.length} 项</Typography.Text>}
               >
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                   <Input.Search
                     placeholder="搜索功能名称或路径"
                     value={searchText}
@@ -494,7 +494,7 @@ export const ShortcutToolbar = ({ menuItems }: ShortcutToolbarProps) => {
                   aria-label="已选快捷入口列表"
                   onKeyDown={handleDraftListKeyDown}
                 >
-                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  <Space orientation="vertical" style={{ width: '100%' }} size={8}>
                     {draftPaths.map((path, index) => {
                       const item = menuMap.get(path);
                       const label = item?.name ?? path;

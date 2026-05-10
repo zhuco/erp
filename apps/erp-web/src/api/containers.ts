@@ -49,6 +49,54 @@ const mockContainers: Container[] = [
     capacity: 120,
     created_at: new Date(Date.now() - 172800000).toISOString(),
     updated_at: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    container_id: 'CT-003',
+    code: 'TOTE-01',
+    container_type: '拣货筐',
+    capacity: 30,
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+    updated_at: new Date(Date.now() - 10800000).toISOString()
+  },
+  {
+    container_id: 'CT-004',
+    code: 'ROLL-01',
+    container_type: '笼车',
+    capacity: 200,
+    created_at: new Date(Date.now() - 345600000).toISOString(),
+    updated_at: new Date(Date.now() - 14400000).toISOString()
+  },
+  {
+    container_id: 'CT-005',
+    code: 'COLD-01',
+    container_type: '冷链箱',
+    capacity: 18,
+    created_at: new Date(Date.now() - 432000000).toISOString(),
+    updated_at: new Date(Date.now() - 18000000).toISOString()
+  },
+  {
+    container_id: 'CT-006',
+    code: 'BIN-01',
+    container_type: '料箱',
+    capacity: 24,
+    created_at: new Date(Date.now() - 518400000).toISOString(),
+    updated_at: new Date(Date.now() - 21600000).toISOString()
+  },
+  {
+    container_id: 'CT-007',
+    code: 'PALLET-02',
+    container_type: '托盘',
+    capacity: 150,
+    created_at: new Date(Date.now() - 604800000).toISOString(),
+    updated_at: new Date(Date.now() - 25200000).toISOString()
+  },
+  {
+    container_id: 'CT-008',
+    code: 'BOX-02',
+    container_type: '周转箱',
+    capacity: 65,
+    created_at: new Date(Date.now() - 691200000).toISOString(),
+    updated_at: new Date(Date.now() - 28800000).toISOString()
   }
 ];
 

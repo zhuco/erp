@@ -119,6 +119,87 @@
   height: min(58vh, 720px);
 }
 
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-row {
+  gap: 2px;
+  padding: 1px 0 2px;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell {
+  min-width: 84px;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell .ant-input,
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell .ant-input-affix-wrapper,
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell .ant-select-selector,
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell .ant-picker,
+.erp-data-grid--industrial-compact .erp-data-grid-header-filter-cell .ant-input-number {
+  min-height: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-shell .ag-header-cell {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-shell .ag-cell {
+  padding-left: 3px;
+  padding-right: 3px;
+  line-height: 15.36px;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-shell .ag-row.ag-row-selected {
+  background-color: #f0f5ff;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-next__row.erp-data-grid-next__row--active {
+  background-color: #e6f4ff;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-selection-col-header,
+.erp-data-grid--industrial-compact .erp-data-grid-selection-col-cell,
+.erp-data-grid--industrial-compact .ag-header-cell[col-id='__erpSelection'],
+.erp-data-grid--industrial-compact .ag-cell[col-id='__erpSelection'],
+.erp-data-grid--industrial-compact .ag-header-cell[col-id='__erpRowIndex'],
+.erp-data-grid--industrial-compact .ag-cell[col-id='__erpRowIndex'] {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  justify-content: center;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-selection-header-checkbox {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.erp-data-grid--industrial-compact .erp-data-grid-selection-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+}
+
+.erp-data-grid--industrial-compact .ag-body-horizontal-scroll,
+.erp-data-grid--industrial-compact .ag-body-horizontal-scroll-viewport,
+.erp-data-grid--industrial-compact .ag-body-horizontal-scroll-container {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  border: 0 !important;
+  height: 0 !important;
+}
+
+.erp-data-grid--industrial-compact .ag-horizontal-left-spacer,
+.erp-data-grid--industrial-compact .ag-horizontal-right-spacer {
+  overflow-x: hidden !important;
+}
+
 .erp-data-grid-next__row.erp-data-grid-next__row--active {
   background-color: #d9f7be;
 }

@@ -55,6 +55,29 @@ flowchart LR
 - `adapter-*` 只封装平台差异，不向上泄漏平台字段细节。
 - 前端不得绕过 API 直接依赖数据库结构。
 
+
+## 后端模块边界与分层约束
+
+后续开发必须以业务域和 bounded context 组织代码，避免把新能力继续堆回入口文件或巨型 handler。
+
+| 层级 | 职责 | 禁止事项 |
+| --- | --- | --- |
+| `router` | 只挂载路由、组合业务域 router、注入共享状态 | 不写业务编排、SQL、状态机或复杂参数转换 |
+| `handler` | 鉴权、租户解析、参数校验、调用 service、响应映射、错误码转换 | 不直接承载跨域事务和复杂业务规则 |
+| `service` | 业务事务、领域动作编排、幂等、补偿、跨 repo 协调 | 不处理 HTTP 展示细节 |
+| `repo` | 数据查询、持久化、行模型转换、测试夹具复用 | 不处理权限、页面语义或平台协议 |
+| `domain` | 状态机、枚举、业务守卫、纯规则和错误类型 | 不访问数据库、HTTP 请求或外部平台 |
+| `adapter` | 平台协议、签名、字段转换、API 调用和平台错误归一化 | 不向业务层泄漏平台原始字段 |
+
+模块规模约束：
+
+- `crates/erp-api/src/lib.rs` 当前作为历史兼容入口，必须保持在 `10,000` 行以内，并逐步只保留共享类型、兼容 re-export 和轻量 glue。
+- `crates/erp-api/src/router.rs` 必须继续拆为 `routes/` 下的业务域聚合模块，最终只保留顶层组合入口。
+- 除入口兼容文件外，API 单模块不得超过 `5,000` 行；超过阈值必须拆成子目录聚合模块。
+- 新增 P0 能力时，优先同时建立 route、handler、service、repo、domain 边界，不允许先堆到单文件再“以后拆”。
+- 模块化约束由 `cargo test -p erp-api --test app_modularization -- --nocapture` 和 `cargo test -p erp-worker --test worker_modularization -- --nocapture` 守护。
+
+
 ## 数据域边界
 
 | 数据域 | 核心对象 | 约定 |

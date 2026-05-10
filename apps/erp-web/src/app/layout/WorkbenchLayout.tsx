@@ -94,6 +94,15 @@ const reducedUiAllowedPaths = new Set([
   '/warehouses',
   '/logistics-fees',
   '/suppliers',
+  '/customers/categories',
+  '/customers/member-levels',
+  '/customers/tags',
+  '/wms/containers',
+  '/wms/sender-addresses',
+  '/wms/warehouse-areas',
+  '/wms/warehouse-locations',
+  '/system/permissions',
+  '/system/roles',
   '/sales/order-query',
   '/orders/review',
   '/orders/recheck',
@@ -2500,7 +2509,7 @@ export const WorkbenchLayout = () => {
           width={640}
           destroyOnHidden
         >
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Input
               ref={commandInputRef}
               value={commandKeyword}

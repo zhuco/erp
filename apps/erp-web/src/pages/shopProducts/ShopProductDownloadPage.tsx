@@ -41,9 +41,9 @@ import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import {
-  OrderReviewWorkbenchTemplate,
-  OrderReviewWorkbenchToolbarTemplate,
-} from '@/components/workbench/templates';
+  WorkbenchPageTemplate,
+  WorkbenchToolbar,
+} from '@/components/page-templates';
 import type { PlatformCode } from '@/features/platform';
 import { platformLabels } from '@/features/platform';
 import { useCan } from '@/features/rbac';
@@ -463,7 +463,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
   }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       className="order-review-toolbar"
       leftContent={
         <Space size={8} wrap className="shop-product-match-toolbar-left">
@@ -568,7 +568,7 @@ export const ShopProductDownloadPage = ({ title }: ShopProductDownloadPageProps)
 
   return (
     <>
-      <OrderReviewWorkbenchTemplate
+      <WorkbenchPageTemplate
         pageTestId="shop-products-page"
         className="order-review-page shop-product-match-page"
         toolbar={toolbar}

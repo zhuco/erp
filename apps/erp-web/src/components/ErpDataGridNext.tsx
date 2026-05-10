@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
+import type { FilterModel } from 'ag-grid-community';
 
 import {
   ErpDataGrid,
@@ -9,6 +10,8 @@ import {
   type SummaryField,
   type SummaryResolver,
 } from '@/components/ErpDataGrid';
+import { IndustrialWorkbenchGrid } from '@/components/IndustrialWorkbenchGrid';
+import { resolveErpGridPreset, type ErpGridPresetName } from '@/components/industrialGridPresets';
 
 import './ErpDataGridNext.css';
 
@@ -17,8 +20,18 @@ export type GridRowKey = string | number;
 export type ErpDataGridNextColumn<T> = {
   key: string;
   header: ReactNode;
+  field?: string;
   width?: number;
   minWidth?: number;
+  filter?: ErpDataGridColumn<T>['filter'];
+  filterParams?: ErpDataGridColumn<T>['filterParams'];
+  filterValueGetter?: ErpDataGridColumn<T>['filterValueGetter'];
+  valueGetter?: ErpDataGridColumn<T>['valueGetter'];
+  cellRenderer?: ErpDataGridColumn<T>['cellRenderer'];
+  cellStyle?: ErpDataGridColumn<T>['cellStyle'];
+  hozAlign?: ErpDataGridColumn<T>['hozAlign'];
+  frozen?: boolean;
+  headerSort?: boolean;
   render: (row: T, rowIndex: number) => ReactNode;
   sortValue?: (row: T) => string | number | null | undefined;
 };
@@ -27,6 +40,7 @@ export type ErpDataGridNextProps<T> = {
   rows: T[];
   columns: Array<ErpDataGridNextColumn<T> | ErpDataGridColumn<T>>;
   rowKey: (row: T) => GridRowKey;
+  gridPreset?: ErpGridPresetName;
   columnSettingsKey?: string;
   height?: number | string;
   dataTestId?: string;
@@ -61,6 +75,8 @@ export type ErpDataGridNextProps<T> = {
   onRowClick?: (row: T, event: ReactMouseEvent) => void;
   onRowDoubleClick?: (row: T, event: ReactMouseEvent) => void;
   onRowContextMenu?: (row: T, event: ReactMouseEvent) => void;
+  gridFilterModel?: FilterModel;
+  onGridFilterModelChange?: (model: FilterModel) => void;
 };
 
 const isPrebuiltErpColumn = <T,>(
@@ -72,6 +88,7 @@ export const ErpDataGridNext = <T,>({
   rows,
   columns,
   rowKey,
+  gridPreset,
   columnSettingsKey,
   dataTestId,
   showColumnSettings,
@@ -104,8 +121,11 @@ export const ErpDataGridNext = <T,>({
   onRowClick,
   onRowDoubleClick,
   onRowContextMenu,
+  gridFilterModel,
+  onGridFilterModelChange,
 }: ErpDataGridNextProps<T>) => {
   const [internalActiveRowKey, setInternalActiveRowKey] = useState<GridRowKey | null>(null);
+  const resolvedGridPreset = resolveErpGridPreset(gridPreset);
 
   const resolvedActiveRowKey = activeRowKey ?? internalActiveRowKey;
   const resolvedShowSelectionColumn = showSelectionColumn ?? enableRowModifierSelection;
@@ -119,12 +139,20 @@ export const ErpDataGridNext = <T,>({
         }
         return {
           key: column.key,
-          field: column.key,
+          field: column.field ?? column.key,
           title: column.header,
           width: column.width,
           minWidth: column.minWidth ?? column.width,
+          filter: column.filter,
+          filterParams: column.filterParams,
+          filterValueGetter: column.filterValueGetter,
+          valueGetter: column.valueGetter,
+          cellRenderer: column.cellRenderer,
+          cellStyle: column.cellStyle,
+          hozAlign: column.hozAlign,
+          frozen: column.frozen,
+          headerSort: column.headerSort ?? true,
           renderCell: (_value, record, rowIndex) => column.render(record, rowIndex),
-          headerSort: true,
           sorter:
             typeof column.sortValue === 'function'
               ? (left, right) => {
@@ -157,14 +185,20 @@ export const ErpDataGridNext = <T,>({
       rowKey: (record) => rowKey(record),
       columnSettingsKey,
       dataTestId,
+      className: resolvedGridPreset?.className,
       showColumnSettings,
       sortState,
       onSortChange,
-      selectionColumnWidth,
+      selectionColumnWidth: resolvedGridPreset?.selectionColumnWidth ?? selectionColumnWidth,
       showSelectionColumn: resolvedShowSelectionColumn,
       selectionMode: resolvedSelectionMode,
-      selectionCellMode,
-      selectionHeaderMode,
+      selectionCellMode: resolvedGridPreset?.selectionCellMode ?? selectionCellMode,
+      selectionHeaderMode: resolvedGridPreset?.selectionHeaderMode ?? selectionHeaderMode,
+      showRowIndex: resolvedGridPreset?.showRowIndex,
+      rowIndexWidth: resolvedGridPreset?.rowIndexWidth,
+      rowHeight: resolvedGridPreset?.rowHeight,
+      headerHeight: resolvedGridPreset?.headerHeight,
+      animateRows: resolvedGridPreset?.animateRows,
       headerFilters,
       selectedRowKeys,
       activeRowKey: resolvedActiveRowKey,
@@ -208,6 +242,7 @@ export const ErpDataGridNext = <T,>({
       loading,
       loadingTimeoutMs,
       mappedColumns,
+      gridPreset,
       onActiveRowChange,
       onRetry,
       onRowClick,
@@ -222,6 +257,7 @@ export const ErpDataGridNext = <T,>({
       resolvedShowSelectionColumn,
       rowKey,
       rows,
+      resolvedGridPreset,
       selectedRowKeys,
       showColumnSettings,
       sortState,
@@ -235,6 +271,42 @@ export const ErpDataGridNext = <T,>({
       columnSettingsKey,
     ],
   );
+
+  if (resolvedGridPreset?.structuralColumnStyle === 'order-review') {
+    return (
+      <IndustrialWorkbenchGrid<T>
+        className={resolvedGridPreset.className}
+        rows={rows}
+        columns={mappedColumns}
+        rowKey={(record) => rowKey(record)}
+        columnSettingsKey={columnSettingsKey}
+        dataTestId={dataTestId}
+        showColumnSettings={Boolean(showColumnSettings)}
+        selectedRowKeys={selectedRowKeys}
+        activeRowKey={resolvedActiveRowKey}
+        onSelectionChange={(keys, selectedRows) => {
+          onSelectionChange?.(keys as GridRowKey[], selectedRows);
+        }}
+        onActiveRowChange={onActiveRowChange}
+        onRowDoubleClick={(row, event) => {
+          onRowDoubleClick?.(row, event as unknown as React.MouseEvent);
+        }}
+        onRowContextMenu={(row, event) => {
+          onRowContextMenu?.(row, event as unknown as React.MouseEvent);
+        }}
+        emptyText={emptyText}
+        loading={loading}
+        error={error}
+        errorTitle={errorTitle}
+        onRetry={onRetry}
+        rowClassName={rowClassName}
+        gridFilterModel={gridFilterModel}
+        onGridFilterModelChange={onGridFilterModelChange}
+        rowHeight={resolvedGridPreset.rowHeight}
+        headerHeight={resolvedGridPreset.headerHeight}
+      />
+    );
+  }
 
   return <ErpDataGrid<T> {...baseProps} />;
 };

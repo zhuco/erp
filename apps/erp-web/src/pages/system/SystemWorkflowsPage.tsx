@@ -28,7 +28,7 @@ import {
 } from '@/api/systemWorkflows';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -456,14 +456,14 @@ export const SystemWorkflowsPage = () => {
 
   if (!tenantReady) {
     return (
-      <UiModule07SettingsLayout title="单据编号与流程配置">
+      <SettingsPageTemplate title="单据编号与流程配置">
         <EmptyState description="请先选择租户" />
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout title="单据编号与流程配置">
+    <SettingsPageTemplate title="单据编号与流程配置">
       {catalogQuery.isError ? (
         <ErrorState
           title="加载单据编号与流程配置失败"
@@ -471,7 +471,7 @@ export const SystemWorkflowsPage = () => {
           onRetry={() => void catalogQuery.refetch()}
         />
       ) : null}
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="编号规则"
         actions={
           <Button type="primary" disabled={writeDisabled} onClick={() => openRuleModal()}>
@@ -480,8 +480,8 @@ export const SystemWorkflowsPage = () => {
         }
       >
         <Table rowKey="rule_id" columns={ruleColumns} dataSource={rules} pagination={false} loading={tableLoading} />
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection
+      </SettingsPageSection>
+      <SettingsPageSection
         title="审批流程治理"
         actions={
           <Button type="primary" disabled={writeDisabled} onClick={() => openWorkflowModal()}>
@@ -497,7 +497,7 @@ export const SystemWorkflowsPage = () => {
           loading={tableLoading}
           data-testid="system-workflows-governance-table"
         />
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
       <Modal
         title={editingRule ? '编辑编号规则' : '新增编号规则'}
         open={ruleModalOpen}
@@ -655,6 +655,6 @@ export const SystemWorkflowsPage = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

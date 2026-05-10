@@ -1,6 +1,12 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
+import {
+  createMockSkuTagDefinition,
+  deleteMockSkuTagDefinition,
+  listMockSkuTagDefinitions,
+  updateMockSkuTagDefinition,
+} from '@/api/mocks';
 
 export type SkuTagDefinition = {
   tag_id: string;
@@ -77,7 +83,7 @@ export const listSkuTagDefinitions = async (
   query: SkuTagDefinitionListQuery
 ): Promise<SkuTagDefinitionListResponse> => {
   if (useMocks) {
-    return { items: [], total: 0 };
+    return listMockSkuTagDefinitions(query);
   }
   return requestJson<SkuTagDefinitionListResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/sku-tag-definitions${buildQueryString(query)}`,
@@ -91,16 +97,7 @@ export const createSkuTagDefinition = async (
   payload: SkuTagDefinitionCreatePayload
 ): Promise<SkuTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: `${Date.now()}`,
-      tenant_id: tenantId,
-      name: payload.name,
-      color: payload.color ?? null,
-      priority: payload.priority ?? 0,
-      status: payload.status ?? 'ACTIVE',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return createMockSkuTagDefinition(tenantId, payload);
   }
   return requestJson<SkuTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/sku-tag-definitions`,
@@ -122,16 +119,7 @@ export const updateSkuTagDefinition = async (
   payload: SkuTagDefinitionUpdatePayload
 ): Promise<SkuTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: tagId,
-      tenant_id: tenantId,
-      name: payload.name ?? 'mock',
-      color: payload.color ?? null,
-      priority: payload.priority ?? 0,
-      status: payload.status ?? 'ACTIVE',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return updateMockSkuTagDefinition(tenantId, tagId, payload);
   }
   return requestJson<SkuTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/sku-tag-definitions/${tagId}`,
@@ -152,16 +140,7 @@ export const deleteSkuTagDefinition = async (
   tagId: string
 ): Promise<SkuTagDefinition> => {
   if (useMocks) {
-    return {
-      tag_id: tagId,
-      tenant_id: tenantId,
-      name: 'mock',
-      color: null,
-      priority: 0,
-      status: 'ACTIVE',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    return deleteMockSkuTagDefinition(tenantId, tagId);
   }
   return requestJson<SkuTagDefinition>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/sku-tag-definitions/${tagId}`,

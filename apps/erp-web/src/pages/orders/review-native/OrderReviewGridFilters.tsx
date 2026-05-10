@@ -288,7 +288,7 @@ export const OrderReviewSetFloatingFilter = ({
     >
       <Dropdown
         trigger={['click']}
-        dropdownRender={() => (
+        popupRender={() => (
           <div
             className="order-review-floating-filter-dropdown"
             onClick={(event) => event.stopPropagation()}
@@ -312,7 +312,7 @@ export const OrderReviewSetFloatingFilter = ({
                 updateValues(values.map((value) => String(value)));
               }}
             >
-              <Space direction="vertical" size={4}>
+              <Space orientation="vertical" size={4}>
                 {normalizedOptions.map((option) => (
                   <Checkbox key={option.value} value={option.value}>
                     {option.label || option.value}

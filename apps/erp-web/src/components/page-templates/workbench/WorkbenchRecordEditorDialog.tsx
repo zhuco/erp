@@ -251,7 +251,7 @@ export const WorkbenchRecordEditorDialog = ({
       {!loading && !draft ? <Empty description="暂无可编辑记录" /> : null}
 
       {!loading && draft ? (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
             <Input value={draft.orderNo} addonBefore="订单号" readOnly />
             <Input value={draft.platformOrderId ?? ''} addonBefore="平台单号" readOnly />

@@ -91,7 +91,7 @@ export const LoginPage = () => {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 16px' }}>
       <Card style={{ width: 480 }}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <img
               src={brandLogo}

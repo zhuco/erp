@@ -4,10 +4,13 @@ import { RouterProvider } from 'react-router-dom';
 
 import { AppProviders } from '@/app/AppProviders';
 import { router } from '@/app/router';
+import { installAgGridLicenseLogFilter } from '@/utils/suppressAgGridLicenseLogs';
 import { apiBaseUrl, buildVersion } from '@/utils/env';
 import '@/styles/theme.css';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+installAgGridLicenseLogFilter();
 
 // Log version info to console for debugging
 console.log(`%c衡策云 Web UI v${buildVersion}`, 'font-weight: bold; font-size: 14px; color: #1f3a5f');
@@ -23,7 +26,7 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <AppProviders>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />
     </AppProviders>
   </StrictMode>
 );

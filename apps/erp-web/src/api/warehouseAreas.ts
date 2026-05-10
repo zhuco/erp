@@ -49,7 +49,7 @@ const mockWarehouseAreas: WarehouseArea[] = [
     area_id: 'AREA-001',
     warehouse_id: 'WH-DEFAULT',
     code: 'A01',
-    name: '常温区',
+    name: '常温存储区',
     area_type: 'STORAGE',
     status: 'ACTIVE',
     priority: 1,
@@ -61,11 +61,77 @@ const mockWarehouseAreas: WarehouseArea[] = [
     warehouse_id: 'WH-DEFAULT',
     code: 'B02',
     name: '拣货区',
-    area_type: 'PICK',
+    area_type: 'PICKING',
     status: 'ACTIVE',
     priority: 2,
     created_at: new Date(Date.now() - 172800000).toISOString(),
     updated_at: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    area_id: 'AREA-003',
+    warehouse_id: 'WH-EAST',
+    code: 'RCV-01',
+    name: '收货暂存区',
+    area_type: 'RECEIVING',
+    status: 'ACTIVE',
+    priority: 1,
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+    updated_at: new Date(Date.now() - 10800000).toISOString()
+  },
+  {
+    area_id: 'AREA-004',
+    warehouse_id: 'WH-EAST',
+    code: 'SHP-01',
+    name: '发货复核区',
+    area_type: 'SHIPPING',
+    status: 'ACTIVE',
+    priority: 2,
+    created_at: new Date(Date.now() - 345600000).toISOString(),
+    updated_at: new Date(Date.now() - 14400000).toISOString()
+  },
+  {
+    area_id: 'AREA-005',
+    warehouse_id: 'WH-SOUTH',
+    code: 'STO-02',
+    name: '快消品存储区',
+    area_type: 'STORAGE',
+    status: 'ACTIVE',
+    priority: 3,
+    created_at: new Date(Date.now() - 432000000).toISOString(),
+    updated_at: new Date(Date.now() - 18000000).toISOString()
+  },
+  {
+    area_id: 'AREA-006',
+    warehouse_id: 'WH-NORTH',
+    code: 'PICK-02',
+    name: '直播拣选区',
+    area_type: 'PICKING',
+    status: 'ACTIVE',
+    priority: 2,
+    created_at: new Date(Date.now() - 518400000).toISOString(),
+    updated_at: new Date(Date.now() - 21600000).toISOString()
+  },
+  {
+    area_id: 'AREA-007',
+    warehouse_id: 'WH-RETURN',
+    code: 'QA-01',
+    name: '退货质检区',
+    area_type: 'RECEIVING',
+    status: 'DISABLED',
+    priority: 4,
+    created_at: new Date(Date.now() - 604800000).toISOString(),
+    updated_at: new Date(Date.now() - 25200000).toISOString()
+  },
+  {
+    area_id: 'AREA-008',
+    warehouse_id: 'WH-CROSS',
+    code: 'BOND-01',
+    name: '保税备货区',
+    area_type: 'STORAGE',
+    status: 'ACTIVE',
+    priority: 1,
+    created_at: new Date(Date.now() - 691200000).toISOString(),
+    updated_at: new Date(Date.now() - 28800000).toISOString()
   }
 ];
 

@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { GridApi } from 'ag-grid-community';
 
 import {
+  resolveSpaceSelectionRowNode,
   suppressAgGridSpaceKeyboardEvent,
   suppressAgGridSpaceKeyboardEventOnKeyUp,
 } from './useAgGridWorkbenchSelection';
@@ -78,5 +80,64 @@ describe('useAgGridWorkbenchSelection keyboard guards', () => {
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
     expect(event.stopImmediatePropagation).toHaveBeenCalledTimes(1);
+  });
+});
+
+type DemoRow = {
+  key: string;
+};
+
+const buildGridApiStub = ({
+  focusedRowIndex,
+  rows,
+}: {
+  focusedRowIndex: number | null;
+  rows: DemoRow[];
+}) => {
+  const nodes = rows.map((row, rowIndex) => ({
+    data: row,
+    rowIndex,
+  }));
+
+  return {
+    forEachNode: (callback: (node: { data: DemoRow; rowIndex: number }) => void) => {
+      nodes.forEach((node) => callback(node));
+    },
+    getDisplayedRowAtIndex: (rowIndex: number) => nodes[rowIndex] ?? null,
+    getFocusedCell: () => (focusedRowIndex == null ? null : { rowIndex: focusedRowIndex }),
+  } as Pick<GridApi<DemoRow>, 'forEachNode' | 'getDisplayedRowAtIndex' | 'getFocusedCell'>;
+};
+
+describe('resolveSpaceSelectionRowNode', () => {
+  it('prefers the latest clicked row when the grid focused cell is still unavailable', () => {
+    const api = buildGridApiStub({
+      focusedRowIndex: null,
+      rows: [{ key: 'row-1' }, { key: 'row-2' }],
+    });
+
+    const rowNode = resolveSpaceSelectionRowNode({
+      api,
+      focusedRowKey: 'row-1',
+      recentRowKey: 'row-2',
+      resolveRowKey: (row) => row?.key ?? null,
+    });
+
+    expect(rowNode?.data?.key).toBe('row-2');
+  });
+
+  it('falls back to the external focused row when there is no immediate click context', () => {
+    const api = buildGridApiStub({
+      focusedRowIndex: null,
+      rows: [{ key: 'row-1' }, { key: 'row-2' }],
+    });
+
+    const rowNode = resolveSpaceSelectionRowNode({
+      api,
+      focusedRowKey: 'row-2',
+      recentRowKey: null,
+      resolveRowKey: (row) => row?.key ?? null,
+    });
+
+    expect(rowNode?.data?.key).toBe('row-2');
   });
 });

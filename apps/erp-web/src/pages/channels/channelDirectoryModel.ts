@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import type { DateFilterModel, FilterModel } from 'ag-grid-community';
 
 import type { Channel, ChannelStatus, ChannelType } from '@/api/channels';
 import { platformLabels, type PlatformCode } from '@/features/platform';
@@ -29,6 +30,8 @@ export type ChannelDirectoryColumnFilters = {
   phoneKeyword: string;
   status: 'ALL' | ChannelStatus;
   warehouseId: string;
+  updatedAtFrom?: string;
+  updatedAtTo?: string;
 };
 
 export type ChannelDirectorySummary = {
@@ -45,6 +48,88 @@ export type ChannelDirectorySummary = {
 const trimText = (value?: string | null) => String(value ?? '').trim();
 
 const normalizeText = (value?: string | null) => trimText(value).toLowerCase();
+
+const normalizeDateInput = (value?: string | null) => trimText(value).slice(0, 10);
+
+const normalizeSetValues = (values: Array<string | null | undefined>) =>
+  Array.from(
+    new Set(
+      values
+        .map((value) => trimText(value))
+        .filter(Boolean),
+    ),
+  );
+
+const readSetValues = (model: unknown) => {
+  if (!model || typeof model !== 'object' || !('values' in model)) {
+    return [] as string[];
+  }
+  const values = (model as { values?: unknown }).values;
+  return Array.isArray(values) ? normalizeSetValues(values as string[]) : [];
+};
+
+const readTextValue = (model: unknown) => {
+  if (!model || typeof model !== 'object' || !('filter' in model)) {
+    return '';
+  }
+  return trimText(String((model as { filter?: unknown }).filter ?? ''));
+};
+
+const readDateValue = (model: unknown, key: 'dateFrom' | 'dateTo') => {
+  if (!model || typeof model !== 'object' || !(key in model)) {
+    return '';
+  }
+  return normalizeDateInput(String((model as Record<'dateFrom' | 'dateTo', unknown>)[key] ?? ''));
+};
+
+const normalizeTextModel = (value?: string) => {
+  const normalized = trimText(value);
+  return normalized
+    ? {
+        filterType: 'text' as const,
+        type: 'contains' as const,
+        filter: normalized,
+      }
+    : null;
+};
+
+const normalizeSetModel = (values: string[]) => {
+  const normalized = normalizeSetValues(values);
+  return normalized.length > 0
+    ? {
+        filterType: 'set' as const,
+        values: normalized,
+      }
+    : null;
+};
+
+const normalizeDateRangeModel = (from?: string, to?: string): DateFilterModel | null => {
+  const normalizedFrom = normalizeDateInput(from);
+  const normalizedTo = normalizeDateInput(to);
+  if (!normalizedFrom && !normalizedTo) {
+    return null;
+  }
+  if (normalizedFrom && normalizedTo) {
+    return {
+      filterType: 'date',
+      type: 'inRange',
+      dateFrom: `${normalizedFrom} 00:00:00`,
+      dateTo: `${normalizedTo} 23:59:59`,
+    };
+  }
+  if (normalizedFrom) {
+    return {
+      filterType: 'date',
+      type: 'greaterThanOrEqual',
+      dateFrom: `${normalizedFrom} 00:00:00`,
+    };
+  }
+  return {
+    filterType: 'date',
+    type: 'lessThanOrEqual',
+    dateTo: `${normalizedTo} 23:59:59`,
+  };
+};
 
 const matchesKeyword = (value: string, keyword: string) => value.includes(keyword);
 
@@ -63,6 +148,8 @@ export const createDefaultChannelDirectoryColumnFilters = (): ChannelDirectoryCo
   phoneKeyword: '',
   status: 'ALL',
   warehouseId: '',
+  updatedAtFrom: '',
+  updatedAtTo: '',
 });
 
 export const resolveChannelRowKey = (channel: Channel | null | undefined) =>
@@ -344,9 +431,16 @@ export const filterChannelsByColumnFilters = (
   const nameKeyword = normalizeText(filters.nameKeyword);
   const contactKeyword = normalizeText(filters.contactKeyword);
   const phoneKeyword = normalizeText(filters.phoneKeyword);
+  const updatedAtFrom = normalizeDateInput(filters.updatedAtFrom);
+  const updatedAtTo = normalizeDateInput(filters.updatedAtTo);
 
   return channels.filter((channel) => {
-    if (nameKeyword && !normalizeText(channel.name).includes(nameKeyword)) {
+    if (
+      nameKeyword &&
+      ![channel.name, channel.channel_id]
+        .map((value) => normalizeText(value))
+        .some((value) => value.includes(nameKeyword))
+    ) {
       return false;
     }
     if (
@@ -377,9 +471,94 @@ export const filterChannelsByColumnFilters = (
     if (trimText(filters.warehouseId) && channel.default_warehouse_id !== trimText(filters.warehouseId)) {
       return false;
     }
+    if (updatedAtFrom || updatedAtTo) {
+      const updatedAt = normalizeDateInput(channel.updated_at ?? channel.created_at);
+      if (!updatedAt) {
+        return false;
+      }
+      if (updatedAtFrom && updatedAt < updatedAtFrom) {
+        return false;
+      }
+      if (updatedAtTo && updatedAt > updatedAtTo) {
+        return false;
+      }
+    }
 
     return true;
   });
+};
+
+export const buildChannelDirectoryGridFilterModel = (
+  filters: ChannelDirectoryColumnFilters,
+): FilterModel => {
+  const model: FilterModel = {};
+
+  const nameModel = normalizeTextModel(filters.nameKeyword);
+  if (nameModel) {
+    model.channel_id = nameModel;
+  }
+
+  const channelTypeValues =
+    filters.channelType === 'ALL' ? [] : normalizeSetValues([filters.channelType]);
+  if (channelTypeValues.length > 0) {
+    model.channel_type = normalizeSetModel(channelTypeValues);
+  }
+
+  const platformValues =
+    filters.platform === 'ALL' ? [] : normalizeSetValues([filters.platform]);
+  if (platformValues.length > 0) {
+    model.platform = normalizeSetModel(platformValues);
+  }
+
+  const contactModel = normalizeTextModel(filters.contactKeyword);
+  if (contactModel) {
+    model.contact_name = contactModel;
+  }
+
+  const phoneModel = normalizeTextModel(filters.phoneKeyword);
+  if (phoneModel) {
+    model.contact_phone = phoneModel;
+  }
+
+  const statusValues = filters.status === 'ALL' ? [] : normalizeSetValues([filters.status]);
+  if (statusValues.length > 0) {
+    model.status = normalizeSetModel(statusValues);
+  }
+
+  const warehouseValues = trimText(filters.warehouseId)
+    ? normalizeSetValues([filters.warehouseId])
+    : [];
+  if (warehouseValues.length > 0) {
+    model.default_warehouse_id = normalizeSetModel(warehouseValues);
+  }
+
+  const updatedAtModel = normalizeDateRangeModel(filters.updatedAtFrom, filters.updatedAtTo);
+  if (updatedAtModel) {
+    model.updated_at = updatedAtModel;
+  }
+
+  return model;
+};
+
+export const extractChannelDirectoryGridFilterModel = (
+  model: FilterModel | null | undefined,
+): ChannelDirectoryColumnFilters => {
+  const channelTypeValues = readSetValues(model?.channel_type);
+  const platformValues = readSetValues(model?.platform);
+  const statusValues = readSetValues(model?.status);
+  const warehouseValues = readSetValues(model?.default_warehouse_id);
+
+  return {
+    nameKeyword: readTextValue(model?.channel_id),
+    channelType: (channelTypeValues[0] as ChannelType | undefined) ?? 'ALL',
+    platform: (platformValues[0] as ChannelDirectoryColumnFilters['platform'] | undefined) ?? 'ALL',
+    contactKeyword: readTextValue(model?.contact_name),
+    phoneKeyword: readTextValue(model?.contact_phone),
+    status: (statusValues[0] as ChannelStatus | undefined) ?? 'ALL',
+    warehouseId: warehouseValues[0] ?? '',
+    updatedAtFrom: readDateValue(model?.updated_at, 'dateFrom'),
+    updatedAtTo: readDateValue(model?.updated_at, 'dateTo'),
+  };
 };
 
 export const formatChannelDateTime = (value?: string | null) =>

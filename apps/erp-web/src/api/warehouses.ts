@@ -1,7 +1,13 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders } from '@/api/client';
 import { ApiError, createApiError, handleApiError } from '@/api/errors';
-import { createMockWarehouse, getMockWarehouseList, setMockDefaultWarehouse } from '@/api/mocks';
+import {
+  createMockWarehouse,
+  deleteMockWarehouse,
+  getMockWarehouseList,
+  setMockDefaultWarehouse,
+  updateMockWarehouse,
+} from '@/api/mocks';
 
 export type Warehouse = {
   warehouse_id: string;
@@ -143,8 +149,7 @@ export const updateWarehouse = async (
   payload: WarehouseUpdatePayload
 ): Promise<Warehouse> => {
   if (useMocks) {
-    const created = createMockWarehouse({ name: payload.name ?? 'Warehouse', code: 'WH' });
-    return { ...created, ...payload, warehouse_id: warehouseId };
+    return updateMockWarehouse(warehouseId, payload);
   }
   return requestJson<Warehouse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/warehouses/${warehouseId}`,
@@ -164,6 +169,9 @@ export const deleteWarehouse = async (
   tenantId: string,
   warehouseId: string
 ): Promise<Warehouse> => {
+  if (useMocks) {
+    return deleteMockWarehouse(warehouseId);
+  }
   return requestJson<Warehouse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/warehouses/${warehouseId}`,
     {

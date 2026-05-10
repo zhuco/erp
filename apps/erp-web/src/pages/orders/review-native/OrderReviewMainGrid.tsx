@@ -450,7 +450,9 @@ export const OrderReviewMainGrid = ({
     }
 
     targetApi.clearFocusedCell?.();
-    targetApi.ensureIndexVisible(0, 'top');
+    if (targetApi.getDisplayedRowCount() > 0) {
+      targetApi.ensureIndexVisible(0, 'top');
+    }
     targetApi.resetRowHeights();
     const bodyViewport = shellRef.current?.querySelector<HTMLElement>('.ag-body-viewport');
     if (bodyViewport && bodyViewport.scrollTop !== 0) {
@@ -543,9 +545,15 @@ export const OrderReviewMainGrid = ({
     onFocus,
   });
 
+  const suppressKeyboardSpaceScroll = useCallback(
+    (params: SuppressKeyboardEventParams<OrderSummary>) =>
+      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
+    [],
+  );
+
   const defaultColDef = useMemo<ColDef<OrderSummary>>(
-    () => buildOrderReviewMainGridDefaultColDef(quickFilterExpanded),
-    [quickFilterExpanded],
+    () => buildOrderReviewMainGridDefaultColDef(quickFilterExpanded, suppressKeyboardSpaceScroll),
+    [quickFilterExpanded, suppressKeyboardSpaceScroll],
   );
   const columnStateStorageKey = useMemo(
     () =>
@@ -622,12 +630,6 @@ export const OrderReviewMainGrid = ({
     }
     return Array.from(resolveAgGridMainMenuItems(colId));
   }, []);
-
-  const suppressKeyboardSpaceScroll = useCallback(
-    (params: SuppressKeyboardEventParams<OrderSummary>) =>
-      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
-    [],
-  );
 
   const schedulePersistColumnState = useCallback(
     (api?: GridApi<OrderSummary> | null) => {
@@ -865,7 +867,6 @@ export const OrderReviewMainGrid = ({
             headerCheckbox: false,
             enableClickSelection: false,
           }}
-          suppressRowClickSelection
           suppressClickEdit
           singleClickEdit={false}
           readOnlyEdit
@@ -881,7 +882,6 @@ export const OrderReviewMainGrid = ({
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
-          suppressKeyboardEvent={suppressKeyboardSpaceScroll}
           getMainMenuItems={getMainMenuItems}
           onGridReady={(event: GridReadyEvent<OrderSummary>) => {
             apiRef.current = event.api;
@@ -934,7 +934,7 @@ export const OrderReviewMainGrid = ({
 
       {loading ? (
         <div className="order-review-main-grid-loading-mask">
-          <Spin size="large" tip="加载中..." />
+          <Spin size="large" />
         </div>
       ) : null}
 
@@ -952,7 +952,7 @@ export const OrderReviewMainGrid = ({
           data-selection-column-rendered-cells={String(selectionColumnSnapshot?.renderedSelectionCellCount ?? 0)}
           data-selection-column-rendered-checkboxes={String(selectionColumnSnapshot?.renderedCheckboxCount ?? 0)}
         >
-          {`${selectionDiagnostic?.summary ?? '点击诊断：等待操作'} | 选择列: ${
+          {`${selectionDiagnostic?.summary ?? '点击诊断：等待操作'} | 选择列 ${
             selectionColumnSnapshot?.columnExists ? '存在' : '缺失'
           }, 隐藏=${selectionColumnSnapshot?.columnHidden ? '是' : '否'}, 宽度=${
             selectionColumnSnapshot?.columnWidth ?? 0
@@ -1222,7 +1222,10 @@ export const buildOrderReviewMainGridColDefs = ({
       },
     ]);
 
-export const buildOrderReviewMainGridDefaultColDef = (quickFilterExpanded: boolean): ColDef<OrderSummary> => ({
+export const buildOrderReviewMainGridDefaultColDef = (
+  quickFilterExpanded: boolean,
+  suppressKeyboardSpaceScroll: (params: SuppressKeyboardEventParams<OrderSummary>) => boolean,
+): ColDef<OrderSummary> => ({
   filter: false,
   floatingFilter: quickFilterExpanded,
   resizable: true,
@@ -1232,4 +1235,6 @@ export const buildOrderReviewMainGridDefaultColDef = (quickFilterExpanded: boole
   headerClass: 'order-review-main-header-center',
   suppressHeaderMenuButton: true,
   suppressHeaderFilterButton: true,
+  suppressKeyboardEvent: suppressKeyboardSpaceScroll,
 });
+

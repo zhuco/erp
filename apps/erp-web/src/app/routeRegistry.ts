@@ -20,23 +20,16 @@ const normalizeRoutePath = (path: string): string => {
 export const appRouteRegistry: AppRouteRegistration[] = [
   { path: '/dashboard', title: '首页', maturity: 'p0-ready' },
   { path: '/channels', title: '渠道目录', permission: 'channels.read', maturity: 'p0-ready' },
-  {
-    path: '/channels/service-purchase',
-    title: '服务订购',
-    permission: 'channels.read',
-    maturity: 'wired',
-  },
-  {
-    path: '/channels/authorize',
-    title: '渠道授权',
-    permission: 'channels.read',
-    maturity: 'wired',
-  },
+  { path: '/channels/service-purchase', title: '服务订购', permission: 'channels.read', maturity: 'wired' },
+  { path: '/channels/authorize', title: '渠道授权', permission: 'channels.read', maturity: 'wired' },
   { path: '/couriers', title: '物流目录', permission: 'couriers.read', maturity: 'p0-ready' },
-  { path: '/tags', title: '记号目录', maturity: 'p0-ready' },
+  { path: '/tags', title: '标签目录', maturity: 'p0-ready' },
   { path: '/warehouses', title: '仓库目录', permission: 'warehouses.read', maturity: 'p0-ready' },
   { path: '/logistics-fees', title: '物流费目录', maturity: 'p0-ready' },
   { path: '/suppliers', title: '供应商目录', permission: 'suppliers.read', maturity: 'p0-ready' },
+  { path: '/customers/categories', title: '客户分类目录', permission: 'customers.read', maturity: 'p0-ready' },
+  { path: '/customers/member-levels', title: '会员等级目录', permission: 'customers.read', maturity: 'p0-ready' },
+  { path: '/customers/tags', title: '客户标签目录', permission: 'customers.read', maturity: 'p0-ready' },
   { path: '/sales/order-query', title: '订单查询', permission: 'orders.read', maturity: 'p0-ready' },
   { path: '/orders/review', title: '订单审核', permission: 'orders.read', maturity: 'p0-ready' },
   { path: '/orders/recheck', title: '订单复核', permission: 'orders.read', maturity: 'p0-ready' },
@@ -45,18 +38,12 @@ export const appRouteRegistry: AppRouteRegistration[] = [
   { path: '/inventory', title: '库存查询', permission: 'inventory.read', maturity: 'p0-ready' },
   { path: '/wms/waves', title: '波次执行', permission: 'wms.wave.read', maturity: 'p0-ready' },
   { path: '/wms/ship', title: '出库发货', permission: 'shipping.read', maturity: 'p0-ready' },
-  {
-    path: '/after-sales/exchanges',
-    title: '退换补发',
-    permission: 'aftersales.read',
-    maturity: 'p0-ready',
-  },
-  {
-    path: '/logistics/exceptions',
-    title: '物流异常',
-    permission: 'shipping.read',
-    maturity: 'p0-ready',
-  },
+  { path: '/wms/containers', title: '容器目录', permission: 'inventory.read', maturity: 'p0-ready' },
+  { path: '/wms/sender-addresses', title: '寄方目录', permission: 'shipping.read', maturity: 'p0-ready' },
+  { path: '/wms/warehouse-areas', title: '库区目录', permission: 'inventory.read', maturity: 'p0-ready' },
+  { path: '/wms/warehouse-locations', title: '货位目录', permission: 'inventory.read', maturity: 'p0-ready' },
+  { path: '/after-sales/exchanges', title: '退换补发', permission: 'aftersales.read', maturity: 'p0-ready' },
+  { path: '/logistics/exceptions', title: '物流异常', permission: 'shipping.read', maturity: 'p0-ready' },
   { path: '/finance/profit', title: '利润分析', permission: 'finance.read', maturity: 'p0-ready' },
   {
     path: '/planning/plan-execution',
@@ -66,6 +53,8 @@ export const appRouteRegistry: AppRouteRegistration[] = [
   },
   { path: '/stats/sales', title: '销售统计', permission: 'stats.read', maturity: 'p0-ready' },
   { path: '/system/observability', title: '系统观测', permission: 'settings.read', maturity: 'p0-ready' },
+  { path: '/system/permissions', title: '权限目录', permission: 'permissions.read', maturity: 'p0-ready' },
+  { path: '/system/roles', title: '角色目录', permission: 'roles.read', maturity: 'p0-ready' },
 ];
 
 export const registeredRoutePathSet = new Set(

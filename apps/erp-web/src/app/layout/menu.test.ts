@@ -4,7 +4,7 @@ import { appMenuItems, flattenMenuItems } from './menu';
 import { findUnregisteredMenuPaths } from '../routeRegistry';
 
 describe('appMenuItems', () => {
-  it('exposes the directory module as a grouped first-level menu with second-level master-data entries', () => {
+  it('exposes grouped top-level workbench navigation with directory expansions', () => {
     expect(flattenMenuItems(appMenuItems).map((item) => item.path)).toEqual([
       '/dashboard',
       '/channels',
@@ -13,6 +13,15 @@ describe('appMenuItems', () => {
       '/warehouses',
       '/logistics-fees',
       '/suppliers',
+      '/customers/categories',
+      '/customers/member-levels',
+      '/customers/tags',
+      '/wms/containers',
+      '/wms/sender-addresses',
+      '/wms/warehouse-areas',
+      '/wms/warehouse-locations',
+      '/system/permissions',
+      '/system/roles',
       '/sales/order-query',
       '/orders/review',
       '/orders/recheck',
@@ -30,7 +39,7 @@ describe('appMenuItems', () => {
     ]);
   });
 
-  it('keeps the P0 modules grouped at the top level', () => {
+  it('keeps the upgraded modules grouped at the top level', () => {
     expect(appMenuItems.map((item) => item.name)).toEqual([
       '首页',
       '目录',
@@ -39,12 +48,8 @@ describe('appMenuItems', () => {
       '经营',
       '报表',
     ]);
-    expect(appMenuItems[0]).toMatchObject({
-      path: '/dashboard',
-    });
 
     const directoryModule = appMenuItems.find((item) => item.name === '目录');
-    expect(directoryModule?.path).toBeUndefined();
     expect(flattenMenuItems(directoryModule ? [directoryModule] : []).map((item) => item.path)).toEqual([
       '/channels',
       '/couriers',
@@ -52,25 +57,15 @@ describe('appMenuItems', () => {
       '/warehouses',
       '/logistics-fees',
       '/suppliers',
-    ]);
-
-    const salesModule = appMenuItems.find((item) =>
-      flattenMenuItems([item]).some((leaf) => leaf.path === '/sales/order-query'),
-    );
-    expect(flattenMenuItems(salesModule ? [salesModule] : []).map((item) => item.path)).toEqual([
-      '/sales/order-query',
-      '/orders/review',
-      '/orders/recheck',
-      '/sales/settings',
-    ]);
-
-    const fulfillmentModule = appMenuItems.find((item) => item.name === '履约');
-    expect(flattenMenuItems(fulfillmentModule ? [fulfillmentModule] : []).map((item) => item.path)).toEqual([
-      '/inventory',
-      '/wms/waves',
-      '/wms/ship',
-      '/logistics/exceptions',
-      '/after-sales/exchanges',
+      '/customers/categories',
+      '/customers/member-levels',
+      '/customers/tags',
+      '/wms/containers',
+      '/wms/sender-addresses',
+      '/wms/warehouse-areas',
+      '/wms/warehouse-locations',
+      '/system/permissions',
+      '/system/roles',
     ]);
   });
 

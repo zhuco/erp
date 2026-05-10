@@ -49,6 +49,16 @@ export const useWorkbenchLayoutController = ({
   bottomPanelHeight,
 }: WorkbenchPanelVisibilityConfig) => {
   const workbenchPanels = useWorkbenchPanelsOptional();
+  const setLeftPanel = workbenchPanels?.setLeftPanel;
+  const setRightPanel = workbenchPanels?.setRightPanel;
+  const setBottomPanel = workbenchPanels?.setBottomPanel;
+  const setLeftPanelWidth = workbenchPanels?.setLeftPanelWidth;
+  const setRightPanelWidth = workbenchPanels?.setRightPanelWidth;
+  const setBottomPanelHeight = workbenchPanels?.setBottomPanelHeight;
+  const setLeftPanelCollapsed = workbenchPanels?.setLeftPanelCollapsed;
+  const setLeftPanelVisible = workbenchPanels?.setLeftPanelVisible;
+  const setRightPanelVisible = workbenchPanels?.setRightPanelVisible;
+  const setBottomPanelVisible = workbenchPanels?.setBottomPanelVisible;
 
   const layoutState = useMemo(
     () =>
@@ -64,64 +74,81 @@ export const useWorkbenchLayoutController = ({
   );
 
   useEffect(() => {
-    if (!workbenchPanels) {
+    if (!setLeftPanel || !setLeftPanelVisible) {
       return;
     }
-    if (typeof workbenchPanels.setLeftPanelCollapsed === 'function') {
-      workbenchPanels.setLeftPanelCollapsed(false);
-    }
-    workbenchPanels.setLeftPanel(layoutState.left.visible ? layoutState.left.panel : undefined);
-    workbenchPanels.setLeftPanelVisible(layoutState.left.visible);
+    setLeftPanelCollapsed?.(false);
+    setLeftPanel(layoutState.left.visible ? layoutState.left.panel : undefined);
+    setLeftPanelVisible(layoutState.left.visible);
     return () => {
-      workbenchPanels.setLeftPanel(undefined);
-      workbenchPanels.setLeftPanelVisible(false);
+      setLeftPanel(undefined);
+      setLeftPanelVisible(false);
     };
-  }, [layoutState.left.panel, layoutState.left.visible, leftPanelSyncKey, workbenchPanels]);
+  }, [
+    layoutState.left.panel,
+    layoutState.left.visible,
+    leftPanelSyncKey,
+    setLeftPanel,
+    setLeftPanelCollapsed,
+    setLeftPanelVisible,
+  ]);
 
   useEffect(() => {
-    if (!workbenchPanels) {
+    if (!setRightPanel || !setRightPanelVisible) {
       return;
     }
-    workbenchPanels.setRightPanel(layoutState.right.visible ? layoutState.right.panel : undefined);
-    workbenchPanels.setRightPanelVisible(layoutState.right.visible);
+    setRightPanel(layoutState.right.visible ? layoutState.right.panel : undefined);
+    setRightPanelVisible(layoutState.right.visible);
     return () => {
-      workbenchPanels.setRightPanel(undefined);
-      workbenchPanels.setRightPanelVisible(false);
+      setRightPanel(undefined);
+      setRightPanelVisible(false);
     };
-  }, [layoutState.right.panel, layoutState.right.visible, rightPanelSyncKey, workbenchPanels]);
+  }, [
+    layoutState.right.panel,
+    layoutState.right.visible,
+    rightPanelSyncKey,
+    setRightPanel,
+    setRightPanelVisible,
+  ]);
 
   useEffect(() => {
-    if (!workbenchPanels) {
+    if (!setBottomPanel || !setBottomPanelVisible) {
       return;
     }
-    workbenchPanels.setBottomPanel(layoutState.bottom.visible ? layoutState.bottom.panel : undefined);
-    workbenchPanels.setBottomPanelVisible(layoutState.bottom.visible);
+    setBottomPanel(layoutState.bottom.visible ? layoutState.bottom.panel : undefined);
+    setBottomPanelVisible(layoutState.bottom.visible);
     return () => {
-      workbenchPanels.setBottomPanel(undefined);
-      workbenchPanels.setBottomPanelVisible(false);
+      setBottomPanel(undefined);
+      setBottomPanelVisible(false);
     };
-  }, [bottomPanelSyncKey, layoutState.bottom.panel, layoutState.bottom.visible, workbenchPanels]);
+  }, [
+    bottomPanelSyncKey,
+    layoutState.bottom.panel,
+    layoutState.bottom.visible,
+    setBottomPanel,
+    setBottomPanelVisible,
+  ]);
 
   useEffect(() => {
-    if (!workbenchPanels || leftPanelWidth == null) {
+    if (!setLeftPanelWidth || leftPanelWidth == null) {
       return;
     }
-    workbenchPanels.setLeftPanelWidth(leftPanelWidth);
-  }, [leftPanelWidth, workbenchPanels]);
+    setLeftPanelWidth(leftPanelWidth);
+  }, [leftPanelWidth, setLeftPanelWidth]);
 
   useEffect(() => {
-    if (!workbenchPanels || rightPanelWidth == null) {
+    if (!setRightPanelWidth || rightPanelWidth == null) {
       return;
     }
-    workbenchPanels.setRightPanelWidth(rightPanelWidth);
-  }, [rightPanelWidth, workbenchPanels]);
+    setRightPanelWidth(rightPanelWidth);
+  }, [rightPanelWidth, setRightPanelWidth]);
 
   useEffect(() => {
-    if (!workbenchPanels || bottomPanelHeight == null) {
+    if (!setBottomPanelHeight || bottomPanelHeight == null) {
       return;
     }
-    workbenchPanels.setBottomPanelHeight(bottomPanelHeight);
-  }, [bottomPanelHeight, workbenchPanels]);
+    setBottomPanelHeight(bottomPanelHeight);
+  }, [bottomPanelHeight, setBottomPanelHeight]);
 
   return layoutState;
 };

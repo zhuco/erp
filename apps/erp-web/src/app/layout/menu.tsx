@@ -75,10 +75,25 @@ export const appMenuItems: AppMenuItem[] = [
       group('基础目录', [
         leaf('/channels', '渠道目录', { permission: 'channels.read' }),
         leaf('/couriers', '物流目录', { permission: 'couriers.read' }),
-        leaf('/tags', '记号目录'),
+        leaf('/tags', '标签目录'),
         leaf('/warehouses', '仓库目录', { permission: 'warehouses.read' }),
         leaf('/logistics-fees', '物流费目录'),
         leaf('/suppliers', '供应商目录', { permission: 'suppliers.read' }),
+      ]),
+      group('客户目录', [
+        leaf('/customers/categories', '客户分类目录', { permission: 'customers.read' }),
+        leaf('/customers/member-levels', '会员等级目录', { permission: 'customers.read' }),
+        leaf('/customers/tags', '客户标签目录', { permission: 'customers.read' }),
+      ]),
+      group('WMS 主数据', [
+        leaf('/wms/containers', '容器目录', { permission: 'inventory.read' }),
+        leaf('/wms/sender-addresses', '寄方目录', { permission: 'shipping.read' }),
+        leaf('/wms/warehouse-areas', '库区目录', { permission: 'inventory.read' }),
+        leaf('/wms/warehouse-locations', '货位目录', { permission: 'inventory.read' }),
+      ]),
+      group('系统目录', [
+        leaf('/system/permissions', '权限目录', { permission: 'permissions.read' }),
+        leaf('/system/roles', '角色目录', { permission: 'roles.read' }),
       ]),
     ],
   },

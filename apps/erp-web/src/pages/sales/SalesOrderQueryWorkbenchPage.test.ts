@@ -32,6 +32,8 @@ describe('SalesOrderQueryWorkbenchPage adoption', () => {
 
     expect(source).toContain('quickFilterExpanded');
     expect(source).toContain('columnFilters');
+    expect(source).toContain('const handleLeftFiltersChange = useCallback');
+    expect(source).toContain('onFiltersChange: handleLeftFiltersChange');
     expect(source).toContain('listOrderTagDefinitions');
     expect(source).toContain('addOrderTags');
     expect(source).toContain('createOrderTagDefinition');

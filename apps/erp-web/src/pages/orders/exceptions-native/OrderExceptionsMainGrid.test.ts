@@ -71,6 +71,37 @@ describe('OrderExceptionsMainGrid column config', () => {
     expect(element?.props?.singleLine).toBe(true);
   });
 
+  it('uses readable Chinese headers and filter labels for the recheck main grid', () => {
+    const colDefs = buildOrderExceptionsMainGridColDefs({
+      platformOptions: [{ label: '淘宝', value: 'TAOBAO' }],
+      shopOptions: [{ label: '旗舰店', value: 'SHOP-1' }],
+      warehouseOptions: [{ label: '华东仓', value: 'WH-1' }],
+      auditStatusOptions: [{ label: '待复核', value: 'UNDER_REVIEW' }],
+      exceptionStatusOptions: [{ label: '处理中', value: 'OPEN' }],
+      slaStatusOptions: [{ label: '正常', value: 'NORMAL' }],
+      assigneeOptions: [{ label: '张三', value: '张三' }],
+      onOpenColumnSettings: vi.fn(),
+      onToggleAllSelection: vi.fn(),
+      resolveAuditLabel: (value) => value ?? '-',
+      resolveExceptionLabel: (value) => value ?? '-',
+    });
+
+    const colDefMap = new Map(colDefs.map((colDef) => [String(colDef.colId ?? ''), colDef]));
+
+    expect(colDefMap.get('platform')?.headerName).toBe('平台');
+    expect(colDefMap.get('shop_id')?.headerName).toBe('店铺');
+    expect(colDefMap.get('total_amount_cent')?.headerName).toBe('金额');
+    expect(colDefMap.get('reserve_status')?.headerName).toBe('库存占用');
+    expect(colDefMap.get('sla_remaining_minutes')?.headerName).toBe('SLA 剩余');
+    expect(colDefMap.get('sla_deadline_at')?.headerName).toBe('SLA 截止');
+    expect(colDefMap.get('blocking_reason')?.headerName).toBe('阻断原因');
+
+    expect(colDefMap.get('platform')?.floatingFilterComponentParams?.emptyLabel).toBe('全部平台');
+    expect(colDefMap.get('shop_id')?.floatingFilterComponentParams?.emptyLabel).toBe('全部店铺');
+    expect(colDefMap.get('receiver_name')?.floatingFilterComponentParams?.placeholder).toBe('筛收件人');
+    expect(colDefMap.get('target_warehouse_id')?.floatingFilterComponentParams?.emptyLabel).toBe('全部仓库');
+  });
+
   it('uses unified compact row metrics for the industrial workbench grid', () => {
     const source = readFileSync(resolve(__dirname, 'OrderExceptionsMainGrid.tsx'), 'utf8');
 
@@ -81,9 +112,22 @@ describe('OrderExceptionsMainGrid column config', () => {
   it('suppresses space-key scrolling at the shared grid boundary without debouncing vertical scrollbar rendering', () => {
     const source = readFileSync(resolve(__dirname, 'OrderExceptionsMainGrid.tsx'), 'utf8');
 
-    expect(source).toContain('suppressKeyboardEvent={suppressKeyboardSpaceScroll}');
+    expect(source).not.toContain('suppressKeyboardEvent={suppressKeyboardSpaceScroll}');
+    expect(source).toContain('suppressKeyboardEvent: suppressKeyboardSpaceScroll');
     expect(source).toContain('onKeyUpCapture={handleSpaceKeyUpCapture}');
+    expect(source).not.toContain('suppressRowClickSelection');
+    expect(source).toContain('enableClickSelection: false');
     expect(source).not.toContain('debounceVerticalScrollbar');
+    expect(source).not.toContain('suppressCellFlash');
+    expect(source).not.toContain('volatile');
+  });
+
+  it('guards viewport reset on empty datasets and avoids standalone Spin tip usage', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderExceptionsMainGrid.tsx'), 'utf8');
+
+    expect(source).toContain('if (targetApi.getDisplayedRowCount() > 0) {');
+    expect(source).toContain('<Spin size="large" />');
+    expect(source).not.toContain('<Spin size="large" tip=');
   });
 
   it('persists sort state when business-column sorting changes', () => {

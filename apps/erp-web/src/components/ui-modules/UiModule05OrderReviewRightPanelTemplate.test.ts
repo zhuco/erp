@@ -15,7 +15,8 @@ describe('UiModule05OrderReviewRightPanelTemplate', () => {
     expect(source).toContain('记号库');
     expect(source).toContain('当前订单');
     expect(source).toContain('ui-module-05-order-mark-manager-popover');
-    expect(source).toContain('destroyTooltipOnHide');
+    expect(source).toContain('destroyOnHidden');
+    expect(source).not.toContain('destroyTooltipOnHide');
     expect(source).toContain('onMarkRemove');
     expect(source).toContain('onMarkCreate');
     expect(source).toContain('onMarkDefinitionDelete');

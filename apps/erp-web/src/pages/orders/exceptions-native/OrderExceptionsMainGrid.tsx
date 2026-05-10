@@ -161,9 +161,9 @@ const formatOrderExceptionSlaRemainingMinutes = (record: OrderExceptionSummary):
   }
   const minutes = Math.trunc(raw as number);
   if (minutes < 0) {
-    return `超时 ${Math.abs(minutes)} 分`;
+    return `超时 ${Math.abs(minutes)} 分钟`;
   }
-  return `${minutes} 分`;
+  return `${minutes} 分钟`;
 };
 
 export const OrderExceptionsMainGrid = ({
@@ -374,7 +374,9 @@ export const OrderExceptionsMainGrid = ({
     }
 
     targetApi.clearFocusedCell?.();
-    targetApi.ensureIndexVisible(0, 'top');
+    if (targetApi.getDisplayedRowCount() > 0) {
+      targetApi.ensureIndexVisible(0, 'top');
+    }
     targetApi.resetRowHeights();
     const bodyViewport = shellRef.current?.querySelector<HTMLElement>('.ag-body-viewport');
     if (bodyViewport && bodyViewport.scrollTop !== 0) {
@@ -531,6 +533,12 @@ export const OrderExceptionsMainGrid = ({
     onFocus,
   });
 
+  const suppressKeyboardSpaceScroll = useCallback(
+    (params: SuppressKeyboardEventParams<OrderExceptionSummary>) =>
+      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
+    [],
+  );
+
   const defaultColDef = useMemo<ColDef<OrderExceptionSummary>>(
     () => ({
       filter: false,
@@ -542,8 +550,9 @@ export const OrderExceptionsMainGrid = ({
       headerClass: 'order-review-main-header-center',
       suppressHeaderMenuButton: true,
       suppressHeaderFilterButton: true,
+      suppressKeyboardEvent: suppressKeyboardSpaceScroll,
     }),
-    [quickFilterExpanded],
+    [quickFilterExpanded, suppressKeyboardSpaceScroll],
   );
 
   const columnStateStorageKey = useMemo(
@@ -624,12 +633,6 @@ export const OrderExceptionsMainGrid = ({
     }
     return Array.from(resolveAgGridMainMenuItems(colId));
   }, []);
-
-  const suppressKeyboardSpaceScroll = useCallback(
-    (params: SuppressKeyboardEventParams<OrderExceptionSummary>) =>
-      suppressAgGridSpaceKeyboardEvent(params.event as KeyboardEvent),
-    [],
-  );
 
   const schedulePersistColumnState = useCallback(
     (api?: GridApi<OrderExceptionSummary> | null) => {
@@ -870,7 +873,6 @@ export const OrderExceptionsMainGrid = ({
             headerCheckbox: false,
             enableClickSelection: false,
           }}
-          suppressRowClickSelection
           suppressClickEdit
           singleClickEdit={false}
           readOnlyEdit
@@ -886,7 +888,6 @@ export const OrderExceptionsMainGrid = ({
           suppressRowVirtualisation={false}
           suppressColumnVirtualisation
           suppressRowTransform
-          suppressKeyboardEvent={suppressKeyboardSpaceScroll}
           getMainMenuItems={getMainMenuItems}
           onGridReady={(event: GridReadyEvent<OrderExceptionSummary>) => {
             apiRef.current = event.api;
@@ -938,7 +939,7 @@ export const OrderExceptionsMainGrid = ({
 
       {loading ? (
         <div className="order-review-main-grid-loading-mask">
-          <Spin size="large" tip="加载中..." />
+          <Spin size="large" />
         </div>
       ) : null}
 
@@ -956,7 +957,7 @@ export const OrderExceptionsMainGrid = ({
           data-selection-column-rendered-cells={String(selectionColumnSnapshot?.renderedSelectionCellCount ?? 0)}
           data-selection-column-rendered-checkboxes={String(selectionColumnSnapshot?.renderedCheckboxCount ?? 0)}
         >
-          {`${selectionDiagnostic?.summary ?? '点击诊断：等待操作'} | 选择列: ${
+          {`${selectionDiagnostic?.summary ?? '点击诊断：等待操作'} | 选择列 ${
             selectionColumnSnapshot?.columnExists ? '存在' : '缺失'
           }, 隐藏=${selectionColumnSnapshot?.columnHidden ? '是' : '否'}, 宽度=${
             selectionColumnSnapshot?.columnWidth ?? 0
@@ -1262,3 +1263,5 @@ export const buildOrderExceptionsMainGridColDefs = ({
     },
   ]);
 };
+
+

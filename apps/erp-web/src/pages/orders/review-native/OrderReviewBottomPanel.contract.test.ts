@@ -24,6 +24,13 @@ describe('OrderReviewBottomPanel', () => {
     expect(source).toContain('rowHeight={ORDER_WORKBENCH_GRID_ROW_HEIGHT}');
     expect(source).toContain('headerHeight={ORDER_WORKBENCH_GRID_HEADER_HEIGHT}');
     expect(source).toContain('showSorterTooltip={false}');
+    expect(source).toContain('destroyOnHidden');
+    expect(source).not.toContain('destroyInactiveTabPane');
+    expect(source).not.toContain('checkboxSelection: true');
+    expect(source).not.toContain('headerCheckboxSelection: false');
+    expect(source).not.toContain('suppressRowClickSelection');
+    expect(source).toContain('checkboxes: true');
+    expect(source).not.toContain('<Spin size="large" tip=');
     expect(source).toContain('bordered');
     expect(source).toContain('sortable: true');
     expect(source).toContain('className="order-workbench-bottom-panel order-review-bottom-panel"');

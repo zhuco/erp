@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select, Space, Typography, message } from 'antd';
 import type { MenuProps, SelectProps } from 'antd';
 import dayjs from 'dayjs';
-import type { Key } from 'react';
+import type { Dispatch, Key, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { listCouriers } from '@/api/couriers';
@@ -654,10 +654,18 @@ export const SalesOrderQueryWorkbenchPage = () => {
     [ordersQuery.isFetching, rows.length],
   );
 
+  const handleLeftFiltersChange = useCallback<Dispatch<SetStateAction<OrderQueryLeftFilters>>>(
+    (action) => {
+      setLeftFilters((previous) => (typeof action === 'function' ? action(previous) : action));
+      resetPagination();
+    },
+    [resetPagination],
+  );
+
   const { leftPanel } = useLeftFilterModule<OrderSummary, OrderQueryLeftFilters>({
     rows,
     filters: leftFilters,
-    onFiltersChange: (action) => setLeftFilters((previous) => (typeof action === 'function' ? action(previous) : action)),
+    onFiltersChange: handleLeftFiltersChange,
     initialExpandedKeys: ['query-scope-group', 'query-channel-group'],
     emptyRowLabel: '没有可用筛选项',
     hasManualFilter: hasOrderQueryLeftManualFilter,

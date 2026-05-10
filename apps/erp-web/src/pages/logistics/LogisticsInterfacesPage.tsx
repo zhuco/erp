@@ -17,7 +17,7 @@ import {
   listLogisticsInterfaces,
   updateLogisticsInterface
 } from '@/api/logisticsInterfaces';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -280,8 +280,8 @@ export const LogisticsInterfacesPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout title="物流接口配置">
-        <UiModule07SettingsSection
+      <SettingsPageTemplate title="物流接口配置">
+        <SettingsPageSection
           title="接口列表"
           actions={
             <Button
@@ -303,8 +303,8 @@ export const LogisticsInterfacesPage = () => {
             pagination={false}
             loading={interfacesQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Modal
         title={editing ? '编辑接口' : '新增接口'}
         open={modalOpen}

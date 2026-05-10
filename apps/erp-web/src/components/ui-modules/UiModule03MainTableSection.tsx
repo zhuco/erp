@@ -2,6 +2,7 @@ import type {
   HTMLAttributes,
   MouseEvent as ReactMouseEvent,
   MutableRefObject,
+  ReactElement,
   ReactNode,
   Ref
 } from 'react';
@@ -17,12 +18,15 @@ import {
 } from '@/components/ErpDataGrid';
 import type { ServerTableSortState } from '@/components/ServerTable';
 import {
-  OrderReviewWorkbenchTemplate,
-  OrderReviewWorkbenchToolbarTemplate
-} from '@/components/workbench/templates';
+  WorkbenchPageTemplate,
+  WorkbenchToolbar,
+  type WorkbenchToolbarProps
+} from '@/components/page-templates';
 import { OrderWorkbenchMainGridEntry } from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
 
 import './UiModule03MainTableSection.css';
+
+type UiModule03ToolbarElement = ReactElement<WorkbenchToolbarProps, typeof WorkbenchToolbar>;
 
 type UiModule03MainTableSectionProps<T extends object> = {
   className?: string;
@@ -31,7 +35,7 @@ type UiModule03MainTableSectionProps<T extends object> = {
   dataTestId?: string;
   rowClickSelects?: boolean;
   suppressInitialFocus?: boolean;
-  toolbar?: ReactNode;
+  toolbar?: UiModule03ToolbarElement | null;
   toolbarLeft?: ReactNode;
   toolbarCenter?: ReactNode;
   toolbarRight?: ReactNode;
@@ -157,7 +161,7 @@ export const UiModule03MainTableSection = <T extends object>({
     .filter(Boolean)
     .join(' ');
   const hasToolbarSlots = toolbarLeft != null || toolbarCenter != null || toolbarRight != null;
-  const resolvedToolbar = useMemo<ReactNode>(() => {
+  const resolvedToolbar = useMemo<UiModule03ToolbarElement | null | undefined>(() => {
     if (toolbar !== undefined) {
       return toolbar;
     }
@@ -165,7 +169,7 @@ export const UiModule03MainTableSection = <T extends object>({
       return undefined;
     }
     return (
-      <OrderReviewWorkbenchToolbarTemplate
+      <WorkbenchToolbar
         searchEnabled={false}
         canExport={false}
         leftContent={toolbarLeft}
@@ -400,7 +404,7 @@ export const UiModule03MainTableSection = <T extends object>({
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       className={className}
       tableClassName={resolvedTableClassName}
       tableContainerRef={handleTableContainerRef}

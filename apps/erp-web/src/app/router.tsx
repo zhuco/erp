@@ -132,6 +132,18 @@ const SuppliersPage = lazyNamedPage(
   () => import('@/pages/suppliers/SuppliersPage'),
   'SuppliersPage',
 );
+const CustomerCategoriesPage = lazyNamedPage(
+  () => import('@/pages/customers/CustomerCategoriesPage'),
+  'CustomerCategoriesPage',
+);
+const MemberLevelsPage = lazyNamedPage(
+  () => import('@/pages/customers/MemberLevelsPage'),
+  'MemberLevelsPage',
+);
+const CustomerTagsPage = lazyNamedPage(
+  () => import('@/pages/customers/CustomerTagsPage'),
+  'CustomerTagsPage',
+);
 const SalesOrderQueryWorkbenchPage = lazyNamedPage(() => import('@/pages/sales/SalesOrderQueryWorkbenchPage'), 'SalesOrderQueryWorkbenchPage');
 const OrderReviewPage = lazyNamedPage(() => import('@/pages/orders/OrderReviewPage'), 'OrderReviewPage');
 const OrderRecheckPage = lazyNamedPage(() => import('@/pages/orders/OrderRecheckPage'), 'OrderRecheckPage');
@@ -143,6 +155,10 @@ const SystemIntegrationsPage = lazyNamedPage(
 const InventoryPage = lazyNamedPage(() => import('@/pages/inventory/InventoryPage'), 'InventoryPage');
 const WmsWavesPage = lazyNamedPage(() => import('@/pages/wms/WmsWavesPage'), 'WmsWavesPage');
 const WmsShipPage = lazyNamedPage(() => import('@/pages/wms/WmsShipPage'), 'WmsShipPage');
+const ContainersPage = lazyNamedPage(() => import('@/pages/wms/ContainersPage'), 'ContainersPage');
+const SenderAddressesPage = lazyNamedPage(() => import('@/pages/wms/SenderAddressesPage'), 'SenderAddressesPage');
+const WarehouseAreasPage = lazyNamedPage(() => import('@/pages/wms/WarehouseAreasPage'), 'WarehouseAreasPage');
+const WarehouseLocationsPage = lazyNamedPage(() => import('@/pages/wms/WarehouseLocationsPage'), 'WarehouseLocationsPage');
 const AfterSalesExchangesPage = lazyNamedPage(
   () => import('@/pages/afterSales/AfterSalesExchangesPage'),
   'AfterSalesExchangesPage',
@@ -161,6 +177,8 @@ const ObservabilityPage = lazyNamedPage(
   () => import('@/pages/system/ObservabilityPage'),
   'ObservabilityPage',
 );
+const PermissionsPage = lazyNamedPage(() => import('@/pages/system/PermissionsPage'), 'PermissionsPage');
+const RolesPage = lazyNamedPage(() => import('@/pages/system/RolesPage'), 'RolesPage');
 
 const legacyRouteRedirects = routeAliases.map(({ legacyPath }) => ({
   path: toRelativeRoutePath(legacyPath),
@@ -259,6 +277,30 @@ const routeConfig = [
                 ),
               },
               {
+                path: 'customers/categories',
+                element: (
+                  <PermissionGuard permission="customers.read">
+                    <CustomerCategoriesPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'customers/member-levels',
+                element: (
+                  <PermissionGuard permission="customers.read">
+                    <MemberLevelsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'customers/tags',
+                element: (
+                  <PermissionGuard permission="customers.read">
+                    <CustomerTagsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
                 path: 'sales/order-query',
                 element: (
                   <PermissionGuard permission="orders.read">
@@ -323,6 +365,38 @@ const routeConfig = [
                 ),
               },
               {
+                path: 'wms/containers',
+                element: (
+                  <PermissionGuard permission="inventory.read">
+                    <ContainersPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'wms/sender-addresses',
+                element: (
+                  <PermissionGuard permission="shipping.read">
+                    <SenderAddressesPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'wms/warehouse-areas',
+                element: (
+                  <PermissionGuard permission="inventory.read">
+                    <WarehouseAreasPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'wms/warehouse-locations',
+                element: (
+                  <PermissionGuard permission="inventory.read">
+                    <WarehouseLocationsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
                 path: 'after-sales/exchanges',
                 element: (
                   <PermissionGuard permission="aftersales.read">
@@ -367,6 +441,22 @@ const routeConfig = [
                 element: (
                   <PermissionGuard permission="settings.read">
                     <ObservabilityPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'system/permissions',
+                element: (
+                  <PermissionGuard permission="permissions.read">
+                    <PermissionsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'system/roles',
+                element: (
+                  <PermissionGuard permission="roles.read">
+                    <RolesPage />
                   </PermissionGuard>
                 ),
               },

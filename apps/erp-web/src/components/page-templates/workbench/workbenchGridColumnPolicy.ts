@@ -95,7 +95,7 @@ export const applyWorkbenchGridColumnPolicy = <TRow,>(colDefs: ColDef<TRow>[]): 
       return nextColDef;
     }
 
-    if (nextColDef.filter === false || nextColDef.filter == null) {
+    if (nextColDef.filter == null) {
       nextColDef.filter = resolveDefaultFilterType(nextColDef);
     }
 

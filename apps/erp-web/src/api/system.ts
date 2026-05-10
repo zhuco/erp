@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { buildAuthHeaders } from '@/api/client';
 import { ApiError, createApiError, handleApiError, isErrorResponse } from '@/api/errors';
@@ -340,10 +342,37 @@ const parseMetricsText = (text: string): MetricsSnapshot => {
   return metrics;
 };
 
+const mockPermissionDefinitions: PermissionDefinition[] = [
+  { code: 'orders.review', name: '订单审核', module: '订单中心', description: '查看并处理订单审核工作台' },
+  { code: 'orders.read', name: '订单查询', module: '订单中心', description: '查看订单列表与订单详情' },
+  { code: 'inventory.write', name: '仓储主数据维护', module: 'WMS', description: '维护容器、库区、货位等仓储目录' },
+  { code: 'shipping.write', name: '寄方地址维护', module: '物流中心', description: '维护寄方目录与发运配置' },
+  { code: 'suppliers.write', name: '供应商维护', module: '采购中心', description: '维护供应商目录与启停用状态' },
+  { code: 'settings.read', name: '系统配置查看', module: '系统管理', description: '查看系统配置、权限与可观测页面' },
+  { code: 'system.roles.write', name: '角色维护', module: '系统管理', description: '维护角色与权限授权' },
+  { code: 'channels.read', name: '渠道目录查看', module: '渠道中心', description: '查看渠道目录与授权状态' }
+];
+
+const mockRoles: Role[] = [
+  { role_id: 'ROLE-001', tenant_id: '00000000-0000-0000-0000-000000000000', name: '系统管理员', created_at: dayjs().subtract(30, 'day').toISOString() },
+  { role_id: 'ROLE-002', tenant_id: '00000000-0000-0000-0000-000000000000', name: '运营主管', created_at: dayjs().subtract(24, 'day').toISOString() },
+  { role_id: 'ROLE-003', tenant_id: '00000000-0000-0000-0000-000000000000', name: '仓储经理', created_at: dayjs().subtract(20, 'day').toISOString() },
+  { role_id: 'ROLE-004', tenant_id: '00000000-0000-0000-0000-000000000000', name: '采购经理', created_at: dayjs().subtract(18, 'day').toISOString() },
+  { role_id: 'ROLE-005', tenant_id: '00000000-0000-0000-0000-000000000000', name: '客服组长', created_at: dayjs().subtract(12, 'day').toISOString() }
+];
+
+const mockRolePermissions = new Map<string, string[]>([
+  ['ROLE-001', mockPermissionDefinitions.map((item) => item.code)],
+  ['ROLE-002', ['orders.review', 'orders.read', 'channels.read', 'settings.read']],
+  ['ROLE-003', ['inventory.write', 'shipping.write', 'orders.read']],
+  ['ROLE-004', ['suppliers.write', 'orders.read', 'channels.read']],
+  ['ROLE-005', ['orders.read', 'orders.review']]
+]);
+
 export const listPermissions = async (tenantId: string): Promise<PermissionDefinition[]> => {
   void tenantId;
   if (useMocks) {
-    return [];
+    return mockPermissionDefinitions;
   }
   return requestJson<PermissionDefinition[]>(
     `${apiBaseUrl}/admin/permissions`,
@@ -355,7 +384,7 @@ export const listPermissions = async (tenantId: string): Promise<PermissionDefin
 export const listRoles = async (tenantId: string): Promise<Role[]> => {
   void tenantId;
   if (useMocks) {
-    return [];
+    return [...mockRoles].sort((left, right) => right.created_at.localeCompare(left.created_at));
   }
   return requestJson<Role[]>(
     `${apiBaseUrl}/admin/roles`,
@@ -369,12 +398,15 @@ export const createRole = async (
   payload: RoleCreateRequest
 ): Promise<Role> => {
   if (useMocks) {
-    return {
+    const created: Role = {
       role_id: `${Date.now()}`,
       tenant_id: tenantId,
       name: payload.name,
       created_at: new Date().toISOString()
     };
+    mockRoles.unshift(created);
+    mockRolePermissions.set(created.role_id, payload.permissions ?? []);
+    return created;
   }
   return requestJson<Role>(
     `${apiBaseUrl}/admin/roles`,
@@ -396,12 +428,26 @@ export const updateRole = async (
   payload: RoleUpdateRequest
 ): Promise<Role> => {
   if (useMocks) {
-    return {
-      role_id: roleId,
-      tenant_id: tenantId,
-      name: payload.name,
-      created_at: new Date().toISOString()
+    const index = mockRoles.findIndex((role) => role.role_id === roleId);
+    const base =
+      index >= 0
+        ? mockRoles[index]
+        : {
+            role_id: roleId,
+            tenant_id: tenantId,
+            name: payload.name,
+            created_at: new Date().toISOString()
+          };
+    const updated: Role = {
+      ...base,
+      name: payload.name
     };
+    if (index >= 0) {
+      mockRoles[index] = updated;
+    } else {
+      mockRoles.unshift(updated);
+    }
+    return updated;
   }
   return requestJson<Role>(
     `${apiBaseUrl}/admin/roles/${roleId}`,
@@ -421,8 +467,9 @@ export const listRolePermissions = async (
   tenantId: string,
   roleId: string
 ): Promise<string[]> => {
+  void tenantId;
   if (useMocks) {
-    return [];
+    return [...(mockRolePermissions.get(roleId) ?? [])];
   }
   return requestJson<string[]>(
     `${apiBaseUrl}/admin/roles/${roleId}/permissions`,
@@ -436,7 +483,9 @@ export const updateRolePermissions = async (
   roleId: string,
   payload: RolePermissionsRequest
 ): Promise<string[]> => {
+  void tenantId;
   if (useMocks) {
+    mockRolePermissions.set(roleId, payload.permissions);
     return payload.permissions;
   }
   return requestJson<string[]>(

@@ -80,6 +80,7 @@ import type {
 import type {
   Warehouse,
   WarehouseCreatePayload,
+  WarehouseUpdatePayload,
   WarehouseListQuery,
   WarehouseListResponse
 } from '../warehouses';
@@ -107,7 +108,11 @@ import {
 
 export const getMockWarehouseList = (query: WarehouseListQuery): WarehouseListResponse => {
   const normalizedKeyword = query.keyword?.trim().toLowerCase();
+  const normalizedStatus = query.status?.trim().toUpperCase();
   const filtered = mockWarehouses.filter((warehouse) => {
+    if (normalizedStatus && warehouse.status !== normalizedStatus) {
+      return false;
+    }
     if (!normalizedKeyword) {
       return true;
     }
@@ -130,7 +135,8 @@ export const createMockWarehouse = (payload: WarehouseCreatePayload): Warehouse 
     tenant_id: mockTenantId,
     name: payload.name,
     code: payload.code,
-    is_default: mockWarehouses.length === 0,
+    is_default: payload.is_default ?? mockWarehouses.length === 0,
+    status: payload.status ?? 'ACTIVE',
     created_at: now,
     updated_at: now
   };
@@ -142,6 +148,66 @@ export const createMockWarehouse = (payload: WarehouseCreatePayload): Warehouse 
   }
   mockWarehouses.unshift(warehouse);
   return warehouse;
+};
+
+export const updateMockWarehouse = (
+  warehouseId: string,
+  payload: WarehouseUpdatePayload
+): Warehouse => {
+  const now = dayjs().toISOString();
+  const index = mockWarehouses.findIndex((warehouse) => warehouse.warehouse_id === warehouseId);
+  const base =
+    index >= 0
+      ? mockWarehouses[index]
+      : ({
+          warehouse_id: warehouseId,
+          tenant_id: mockTenantId,
+          name: payload.name ?? '未命名仓库',
+          code: payload.code ?? warehouseId,
+          is_default: payload.is_default ?? false,
+          status: payload.status ?? 'ACTIVE',
+          created_at: now,
+          updated_at: now
+        } as Warehouse);
+  const updated: Warehouse = {
+    ...base,
+    name: payload.name ?? base.name,
+    code: payload.code ?? base.code,
+    is_default: payload.is_default ?? base.is_default,
+    status: payload.status ?? base.status ?? 'ACTIVE',
+    updated_at: now
+  };
+  if (updated.is_default) {
+    mockWarehouses.forEach((warehouse) => {
+      warehouse.is_default = warehouse.warehouse_id === updated.warehouse_id;
+      warehouse.updated_at = now;
+    });
+  }
+  if (index >= 0) {
+    mockWarehouses[index] = updated;
+  } else {
+    mockWarehouses.unshift(updated);
+  }
+  return updated;
+};
+
+export const deleteMockWarehouse = (warehouseId: string): Warehouse => {
+  const index = mockWarehouses.findIndex((warehouse) => warehouse.warehouse_id === warehouseId);
+  if (index >= 0) {
+    const [removed] = mockWarehouses.splice(index, 1);
+    return removed;
+  }
+  const now = dayjs().toISOString();
+  return {
+    warehouse_id: warehouseId,
+    tenant_id: mockTenantId,
+    name: '未知仓库',
+    code: warehouseId,
+    is_default: false,
+    status: 'DISABLED',
+    created_at: now,
+    updated_at: now
+  };
 };
 
 export const setMockDefaultWarehouse = (warehouseId: string): Warehouse | null => {
@@ -415,7 +481,9 @@ export const getMockSupplierList = (query: SupplierListQuery): SupplierListRespo
     if (!normalizedKeyword) {
       return true;
     }
-    return supplier.name.toLowerCase().includes(normalizedKeyword);
+    return [supplier.name, supplier.contact, supplier.settlement_terms, supplier.status]
+      .map((field) => String(field ?? '').toLowerCase())
+      .some((field) => field.includes(normalizedKeyword));
   });
   const items = applyPagination(filtered, query.offset, query.limit);
   return {
@@ -506,7 +574,12 @@ export const getMockCustomerCategoryList = (
   const normalizedKeyword = query.keyword?.trim().toLowerCase();
   const normalizedStatus = query.status?.trim().toUpperCase();
   const filtered = mockCustomerCategories.filter((category) => {
-    if (normalizedKeyword && !category.name.toLowerCase().includes(normalizedKeyword)) {
+    if (
+      normalizedKeyword &&
+      ![category.name, category.description ?? '']
+        .map((value) => value.toLowerCase())
+        .some((value) => value.includes(normalizedKeyword))
+    ) {
       return false;
     }
     if (normalizedStatus && category.status !== normalizedStatus) {
@@ -602,7 +675,12 @@ export const getMockMemberLevelList = (query: MemberLevelListQuery): MemberLevel
   const normalizedKeyword = query.keyword?.trim().toLowerCase();
   const normalizedStatus = query.status?.trim().toUpperCase();
   const filtered = mockMemberLevels.filter((level) => {
-    if (normalizedKeyword && !level.name.toLowerCase().includes(normalizedKeyword)) {
+    if (
+      normalizedKeyword &&
+      ![level.name, level.rules ?? '']
+        .map((value) => value.toLowerCase())
+        .some((value) => value.includes(normalizedKeyword))
+    ) {
       return false;
     }
     if (normalizedStatus && level.status !== normalizedStatus) {
@@ -706,7 +784,9 @@ export const getMockCustomerTagList = (query: CustomerTagListQuery): CustomerTag
     if (!normalizedKeyword) {
       return true;
     }
-    return tag.name.toLowerCase().includes(normalizedKeyword);
+    return [tag.name, tag.color ?? '']
+      .map((value) => value.toLowerCase())
+      .some((value) => value.includes(normalizedKeyword));
   });
   const items = applyPagination(filtered, query.offset, query.limit);
   return {

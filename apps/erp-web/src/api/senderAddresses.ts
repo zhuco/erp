@@ -54,14 +54,14 @@ const mockSenderAddresses: SenderAddress[] = [
     province: '上海',
     city: '上海市',
     district: '浦东新区',
-    address: '示例路 88 号',
+    address: '张江路 88 号',
     is_default: true,
     created_at: new Date(Date.now() - 86400000).toISOString(),
     updated_at: new Date(Date.now() - 3600000).toISOString()
   },
   {
     sender_address_id: 'SENDER-002',
-    name: '华东仓库',
+    name: '华东仓寄方',
     phone: '13700005678',
     province: '江苏',
     city: '苏州市',
@@ -70,6 +70,54 @@ const mockSenderAddresses: SenderAddress[] = [
     is_default: false,
     created_at: new Date(Date.now() - 172800000).toISOString(),
     updated_at: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    sender_address_id: 'SENDER-003',
+    name: '华南仓寄方',
+    phone: '13600002345',
+    province: '广东',
+    city: '广州市',
+    district: '白云区',
+    address: '机场路 168 号',
+    is_default: false,
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+    updated_at: new Date(Date.now() - 10800000).toISOString()
+  },
+  {
+    sender_address_id: 'SENDER-004',
+    name: '华北仓寄方',
+    phone: '13500003456',
+    province: '北京',
+    city: '北京市',
+    district: '顺义区',
+    address: '临空大道 66 号',
+    is_default: false,
+    created_at: new Date(Date.now() - 345600000).toISOString(),
+    updated_at: new Date(Date.now() - 14400000).toISOString()
+  },
+  {
+    sender_address_id: 'SENDER-005',
+    name: '退货中心',
+    phone: '13900004567',
+    province: '浙江',
+    city: '杭州市',
+    district: '钱塘区',
+    address: '海拓路 28 号',
+    is_default: false,
+    created_at: new Date(Date.now() - 432000000).toISOString(),
+    updated_at: new Date(Date.now() - 18000000).toISOString()
+  },
+  {
+    sender_address_id: 'SENDER-006',
+    name: '跨境保税仓寄方',
+    phone: '13400005678',
+    province: '广东',
+    city: '深圳市',
+    district: '盐田区',
+    address: '保税一路 9 号',
+    is_default: false,
+    created_at: new Date(Date.now() - 518400000).toISOString(),
+    updated_at: new Date(Date.now() - 21600000).toISOString()
   }
 ];
 
@@ -116,7 +164,7 @@ export const listSenderAddresses = async (
       return (
         item.name.toLowerCase().includes(keyword) ||
         item.phone.includes(keyword) ||
-        item.address.toLowerCase().includes(keyword)
+        `${item.province}${item.city}${item.district}${item.address}`.toLowerCase().includes(keyword)
       );
     });
     const offset = query.offset ?? 0;

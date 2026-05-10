@@ -57,7 +57,7 @@ export const WorkbenchColumnSettingsDialog = ({
         dataIndex: 'label',
         width: 220,
         render: (value: string, record) => (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Typography.Text strong>{value}</Typography.Text>
             <Typography.Text type="secondary">{record.colId}</Typography.Text>
           </Space>
@@ -128,7 +128,7 @@ export const WorkbenchColumnSettingsDialog = ({
       title="列显示与排序"
       width={760}
       className="workbench-column-settings-dialog"
-      destroyOnClose={false}
+      destroyOnHidden={false}
       onCancel={onCancel}
       footer={[
         <Button key="reset-current" className="workbench-column-settings-dialog__button" onClick={onReset}>

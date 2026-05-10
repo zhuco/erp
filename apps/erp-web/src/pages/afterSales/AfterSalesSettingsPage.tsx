@@ -41,8 +41,8 @@ import {
   updateAfterSalesQualityRule,
   updateAfterSalesReason
 } from '@/api/afterSalesSettings';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -498,10 +498,10 @@ export const AfterSalesSettingsPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout
+      <SettingsPageTemplate
         title={<span data-testid="after-sales-settings-title">售后璁剧疆</span>}
       >
-        <UiModule07SettingsSection title="售后鑷姩下载">
+        <SettingsPageSection title="售后鑷姩下载">
           <UiModule03MainTableSection<SalesShopConfig>
             rowKey="shop_id"
             columns={columns}
@@ -516,8 +516,8 @@ export const AfterSalesSettingsPage = () => {
             onPaginationChange={setPagination}
             columnSettingsKey="after-sales.settings.shop.columns"
           />
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection title="Return Inbound Link">
+        </SettingsPageSection>
+        <SettingsPageSection title="Return Inbound Link">
           <Space align="center" size={12}>
             <Switch
               checked={returnInboundLink}
@@ -532,8 +532,8 @@ export const AfterSalesSettingsPage = () => {
           <Typography.Text type="secondary">
             寮€鍚悗锛屽敭鍚庢敹璐т細鑷姩鐢熸垚閫€璐у叆搴撳崟骞跺悓姝ュ簱瀛樸€?
           </Typography.Text>
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection
+        </SettingsPageSection>
+        <SettingsPageSection
           title="售后鍘熷洜瀛楀吀"
           actions={
             <Button
@@ -559,8 +559,8 @@ export const AfterSalesSettingsPage = () => {
             onPaginationChange={setReasonPagination}
             columnSettingsKey="after-sales.settings.reasons.columns"
           />
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection
+        </SettingsPageSection>
+        <SettingsPageSection
           title="质检规则"
           actions={
             <Button
@@ -586,8 +586,8 @@ export const AfterSalesSettingsPage = () => {
             onPaginationChange={setRulePagination}
             columnSettingsKey="after-sales.settings.quality.columns"
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Drawer
         title={editingReason ? '编辑售后鍘熷洜' : '鏂板售后鍘熷洜'}
         open={reasonDrawerOpen}

@@ -1,20 +1,77 @@
 .tag-directory-page {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-height: 0;
 }
 
-.tag-directory-toolbar {
+.tag-directory-table-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.tag-directory-tab-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 8px;
+}
+
+.tag-directory-builtin-card {
+  max-width: 720px;
+}
+
+.tag-directory-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0 8px;
 }
 
-.tag-directory-table .ant-table-tbody > tr > td {
-  padding: 4px 6px;
+.tag-directory-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.tag-directory-table .ant-table-thead > tr > th {
-  padding: 4px 6px;
+.tag-directory-toolbar-actions {
+  align-items: center;
+}
+
+.tag-directory-right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tag-directory-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tag-directory-json-block {
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 8px;
+  background: #f7f8fa;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tag-directory-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-directory-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }

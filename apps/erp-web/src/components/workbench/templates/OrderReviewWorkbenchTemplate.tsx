@@ -1,3 +1,4 @@
+import '@/pages/orders/orderReviewPage.css';
 import './OrderReviewWorkbenchTemplate.css';
 
 import type { TablePaginationConfig } from 'antd';
@@ -13,9 +14,6 @@ export type OrderReviewWorkbenchTemplateProps = {
   pageTestId?: string;
   className?: string;
   toolbar?: ReactNode;
-  toolbarLeft?: ReactNode;
-  toolbarCenter?: ReactNode;
-  toolbarRight?: ReactNode;
   header?: ReactNode;
   actionBar?: ReactNode;
   leftPanel?: ReactNode;
@@ -79,9 +77,6 @@ export const OrderReviewWorkbenchTemplate = ({
   pageTestId = 'order-review-page',
   className = 'order-review-page',
   toolbar,
-  toolbarLeft,
-  toolbarCenter,
-  toolbarRight,
   header,
   actionBar,
   leftPanel,
@@ -158,16 +153,7 @@ export const OrderReviewWorkbenchTemplate = ({
     bottomPanelHeight,
   });
 
-  const hasToolbarSlots = Boolean(toolbarLeft || toolbarCenter || toolbarRight);
-  const resolvedToolbar = toolbar ? (
-    toolbar
-  ) : hasToolbarSlots ? (
-    <div className="order-workbench-toolbar">
-      {toolbarLeft ? <div className="order-workbench-toolbar-left">{toolbarLeft}</div> : null}
-      {toolbarCenter ? <div className="order-workbench-toolbar-center">{toolbarCenter}</div> : null}
-      {toolbarRight ? <div className="order-workbench-toolbar-right">{toolbarRight}</div> : null}
-    </div>
-  ) : null;
+  const resolvedToolbar = toolbar ?? null;
 
   useEffect(() => {
     if (!stateCacheKey || typeof window === 'undefined') {

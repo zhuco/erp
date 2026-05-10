@@ -18,7 +18,7 @@ import {
   UiModule03MainTableSection,
   type UiModule01LogisticsQueryValues
 } from '@/components/ui-modules';
-import { useWorkbenchTablePagination } from '@/components/workbench/templates';
+import { useWorkbenchTablePagination } from '@/components/page-templates';
 import { useTenantId } from '@/features/tenant';
 
 type FilterValues = UiModule01LogisticsQueryValues;

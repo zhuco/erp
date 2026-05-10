@@ -7,11 +7,11 @@ import { OrderTagBadges } from '@/components/OrderTagBadges';
 import { buildOrderManagementColumns } from './orderManagementColumns';
 
 describe('buildOrderManagementColumns', () => {
-  it('renames the tag column to 记号', () => {
+  it('uses readable Chinese titles for the main order query columns', () => {
     const columns = buildOrderManagementColumns({
       rowOffset: 0,
       orderStatusMeta: {},
-      formatCurrency: () => '楼0.00',
+      formatCurrency: () => '¥0.00',
       formatDateTime: () => '-',
       resolveOrderNo: () => '-',
       resolveShopName: () => '-',
@@ -25,15 +25,28 @@ describe('buildOrderManagementColumns', () => {
       resolveTags: () => '-',
     });
 
-    const markColumn = columns.find((column) => column.key === 'tags');
-    expect(markColumn?.title).toBe('记号');
+    const titleByKey = new Map(
+      columns.map((column) => [
+        String(column.key ?? (Array.isArray(column.dataIndex) ? column.dataIndex.join('.') : column.dataIndex ?? '')),
+        column.title,
+      ]),
+    );
+
+    expect(titleByKey.get('tags')).toBe('记号');
+    expect(titleByKey.get('id')).toBe('订单编号');
+    expect(titleByKey.get('shop_id')).toBe('销售渠道');
+    expect(titleByKey.get('platform')).toBe('销售平台');
+    expect(titleByKey.get('created_at')).toBe('付款时间');
+    expect(titleByKey.get('receiver_address')).toBe('收货地址');
+    expect(titleByKey.get('logistics_company')).toBe('物流公司');
+    expect(titleByKey.get('platform_order_id')).toBe('网店订单号');
   });
 
   it('renders standardized builtin mark badges in the exceptions column', () => {
     const columns = buildOrderManagementColumns({
       rowOffset: 0,
       orderStatusMeta: {},
-      formatCurrency: () => '楼0.00',
+      formatCurrency: () => '¥0.00',
       formatDateTime: () => '-',
       resolveOrderNo: () => '-',
       resolveShopName: () => '-',

@@ -40,8 +40,9 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(colDefs[1]?.resizable).toBe(false);
     expect(colDefs[1]?.sortable).toBe(false);
     expect(colDefs[1]?.filter).toBe('agTextColumnFilter');
-    expect(colDefs[1]?.suppressCellFlash).toBe(true);
-    expect(colDefs[1]?.volatile).toBe(true);
+    expect(colDefs[1]?.enableCellChangeFlash).toBe(false);
+    expect(colDefs[1]?.suppressCellFlash).toBeUndefined();
+    expect(colDefs[1]?.volatile).toBeUndefined();
     expect(typeof colDefs[1]?.cellRenderer).toBe('function');
     expect(typeof colDefs[1]?.floatingFilterComponent).toBe('function');
     expect((colDefs[1]?.floatingFilterComponentParams as { buttonLabel?: string } | undefined)?.buttonLabel).toBe('');
@@ -74,8 +75,9 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(colDefs[1]?.suppressMovable).toBe(true);
     expect(colDefs[1]?.resizable).toBe(false);
     expect(colDefs[1]?.sortable).toBe(false);
-    expect(colDefs[1]?.suppressCellFlash).toBe(true);
-    expect(colDefs[1]?.volatile).toBe(true);
+    expect(colDefs[1]?.enableCellChangeFlash).toBe(false);
+    expect(colDefs[1]?.suppressCellFlash).toBeUndefined();
+    expect(colDefs[1]?.volatile).toBeUndefined();
     expect(typeof colDefs[1]?.cellRenderer).toBe('function');
     expect(
       typeof (colDefs[1]?.floatingFilterComponentParams as { onOpenColumnSettings?: unknown } | undefined)

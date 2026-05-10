@@ -100,6 +100,75 @@ export const suppressAgGridSpaceKeyboardEventOnKeyUp = (
   event: KeyboardEventLike | null | undefined,
 ) => suppressAgGridSpaceKeyboardEvent(event);
 
+type GridRowNodeLike<TRow> = ReturnType<GridApi<TRow>['getDisplayedRowAtIndex']>;
+
+type ResolveSpaceSelectionRowNodeOptions<TRow> = {
+  api: Pick<GridApi<TRow>, 'forEachNode' | 'getDisplayedRowAtIndex' | 'getFocusedCell'>;
+  focusedRowKey: string | null;
+  recentRowKey: string | null;
+  resolveRowKey: (record: TRow) => string | null;
+};
+
+const findRowNodeByKey = <TRow,>({
+  api,
+  targetRowKey,
+  resolveRowKey,
+}: {
+  api: Pick<GridApi<TRow>, 'forEachNode'>;
+  targetRowKey: string | null;
+  resolveRowKey: (record: TRow) => string | null;
+}) => {
+  if (!targetRowKey) {
+    return null as GridRowNodeLike<TRow> | null;
+  }
+
+  let matchedRowNode = null as GridRowNodeLike<TRow> | null;
+  api.forEachNode((node) => {
+    if (matchedRowNode || !node.data) return;
+    const rowKey = resolveRowKey(node.data);
+    if (rowKey && rowKey === targetRowKey) {
+      matchedRowNode = node;
+    }
+  });
+  return matchedRowNode;
+};
+
+export const resolveSpaceSelectionRowNode = <TRow>({
+  api,
+  focusedRowKey,
+  recentRowKey,
+  resolveRowKey,
+}: ResolveSpaceSelectionRowNodeOptions<TRow>) => {
+  const focusedCell = api.getFocusedCell();
+  if (focusedCell) {
+    const focusedRowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex);
+    if (focusedRowNode?.data) {
+      return focusedRowNode;
+    }
+  }
+
+  const recentRowNode = findRowNodeByKey({
+    api,
+    targetRowKey: recentRowKey,
+    resolveRowKey,
+  });
+  if (recentRowNode?.data) {
+    return recentRowNode;
+  }
+
+  const trackedFocusedRowNode = findRowNodeByKey({
+    api,
+    targetRowKey: focusedRowKey,
+    resolveRowKey,
+  });
+  if (trackedFocusedRowNode?.data) {
+    return trackedFocusedRowNode;
+  }
+
+  const firstRowNode = api.getDisplayedRowAtIndex(0);
+  return firstRowNode?.data ? firstRowNode : null;
+};
+
 export const useAgGridWorkbenchSelection = <TRow>({
   apiRef,
   debugKey,
@@ -112,6 +181,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
 }: UseAgGridWorkbenchSelectionOptions<TRow>) => {
   const rangeAnchorRowIndexRef = useRef<number | null>(null);
   const lastFocusedRowKeyRef = useRef<string | null>(null);
+  const recentInteractionRowKeyRef = useRef<string | null>(null);
   const diagnosticSequenceRef = useRef(0);
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDraggedRef = useRef(false);
@@ -167,10 +237,11 @@ export const useAgGridWorkbenchSelection = <TRow>({
 
   const activateRecord = useCallback(
     (record: TRow) => {
+      recentInteractionRowKeyRef.current = resolveRowKey(record);
       onRowActive(record);
       onFocus(record);
     },
-    [onFocus, onRowActive],
+    [onFocus, onRowActive, resolveRowKey],
   );
 
   const commitSelectionKeys = useCallback(
@@ -440,6 +511,7 @@ export const useAgGridWorkbenchSelection = <TRow>({
       }
 
       lastFocusedRowKeyRef.current = rowKey;
+      recentInteractionRowKeyRef.current = rowKey;
       activateRecord(record);
     },
     [activateRecord, resolveRowKey],
@@ -542,25 +614,12 @@ export const useAgGridWorkbenchSelection = <TRow>({
       event.preventDefault();
       event.stopPropagation();
 
-      let rowNode = null as ReturnType<GridApi<TRow>['getDisplayedRowAtIndex']> | null;
-      const focusedCell = api.getFocusedCell();
-      if (focusedCell) {
-        rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex);
-      }
-
-      if (!rowNode && focusedRowKey) {
-        api.forEachNode((node) => {
-          if (rowNode || !node.data) return;
-          const rowKey = resolveRowKey(node.data);
-          if (rowKey && rowKey === focusedRowKey) {
-            rowNode = node;
-          }
-        });
-      }
-
-      if (!rowNode) {
-        rowNode = api.getDisplayedRowAtIndex(0);
-      }
+      const rowNode = resolveSpaceSelectionRowNode({
+        api,
+        focusedRowKey,
+        recentRowKey: recentInteractionRowKeyRef.current,
+        resolveRowKey,
+      });
       if (!rowNode?.data) return;
 
       toggleRowNodeSelection(api, rowNode);

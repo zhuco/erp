@@ -21,6 +21,9 @@ describe('routeRegistry', () => {
       expect.arrayContaining([
         '/dashboard',
         '/channels',
+        '/customers/categories',
+        '/customers/member-levels',
+        '/customers/tags',
         '/sales/order-query',
         '/orders/review',
         '/orders/recheck',
@@ -30,4 +33,3 @@ describe('routeRegistry', () => {
     expect(appRouteRegistry.every((route) => route.title.length > 0)).toBe(true);
   });
 });
-

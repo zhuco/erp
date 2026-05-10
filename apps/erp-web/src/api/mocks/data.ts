@@ -266,8 +266,14 @@ const mockTenantId = '00000000-0000-0000-0000-000000000000';
 const mockUserId = 'USER-0001';
 
 const mockWarehouseSeeds = [
-  { warehouse_id: 'WH-DEFAULT', name: '默认仓', code: 'DEFAULT', is_default: true },
-  { warehouse_id: 'WH-EAST', name: '华东仓', code: 'EAST', is_default: false }
+  { warehouse_id: 'WH-DEFAULT', name: '默认仓', code: 'DEFAULT', is_default: true, status: 'ACTIVE' },
+  { warehouse_id: 'WH-EAST', name: '华东仓', code: 'EAST', is_default: false, status: 'ACTIVE' },
+  { warehouse_id: 'WH-SOUTH', name: '华南仓', code: 'SOUTH', is_default: false, status: 'ACTIVE' },
+  { warehouse_id: 'WH-NORTH', name: '华北仓', code: 'NORTH', is_default: false, status: 'ACTIVE' },
+  { warehouse_id: 'WH-CENTRAL', name: '华中中转仓', code: 'CENTRAL', is_default: false, status: 'DISABLED' },
+  { warehouse_id: 'WH-WEST', name: '西南备货仓', code: 'WEST', is_default: false, status: 'ACTIVE' },
+  { warehouse_id: 'WH-CROSS', name: '跨境保税仓', code: 'CROSS', is_default: false, status: 'DISABLED' },
+  { warehouse_id: 'WH-RETURN', name: '退货质检仓', code: 'RETURN', is_default: false, status: 'ACTIVE' }
 ];
 
 const buildWarehouse = (
@@ -279,6 +285,7 @@ const buildWarehouse = (
   name: seed.name,
   code: seed.code,
   is_default: seed.is_default,
+  status: seed.status,
   created_at: dayjs().subtract(index + 1, 'day').toISOString(),
   updated_at: dayjs().subtract(index, 'hour').toISOString()
 });
@@ -464,94 +471,149 @@ const mockChannels: Channel[] = mockChannelSeeds.map((seed, index) => ({
   updated_at: dayjs().subtract(index, 'hour').toISOString(),
 }));
 
-const mockSupplierSeeds = ['华东供应商', '华南供应商', '海外供应商'];
+const mockSupplierSeeds: Array<{
+  name: string;
+  contact: string;
+  settlement_terms: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}> = [
+  { name: '华东供应商', contact: 'Linda / 13810001111', settlement_terms: 'Net 45', status: 'ACTIVE' },
+  { name: '华南供应商', contact: 'Jason / 13810002222', settlement_terms: 'Weekly', status: 'ACTIVE' },
+  { name: '海外供应商', contact: 'Mia / 13810003333', settlement_terms: 'Net 60', status: 'ACTIVE' },
+  { name: '包装辅料供应商', contact: 'Eric / 13810004444', settlement_terms: 'Monthly', status: 'ACTIVE' },
+  { name: '冷链耗材供应商', contact: 'Sophie / 13810005555', settlement_terms: 'Net 30', status: 'INACTIVE' },
+  { name: '赠品采购供应商', contact: 'Kevin / 13810006666', settlement_terms: 'Weekly', status: 'ACTIVE' },
+  { name: '海外品牌联采', contact: 'Nina / 13810007777', settlement_terms: 'Net 90', status: 'INACTIVE' },
+  { name: '直播专供供应商', contact: 'Olivia / 13810008888', settlement_terms: 'Net 45', status: 'ACTIVE' }
+];
 
-const mockSuppliers: Supplier[] = mockSupplierSeeds.map((name, index) => ({
+const mockSuppliers: Supplier[] = mockSupplierSeeds.map((seed, index) => ({
   supplier_id: `SUP-${index + 1}`,
   tenant_id: mockTenantId,
-  name,
-  contact: `Contact ${index + 1}`,
-  settlement_terms: index % 2 === 0 ? 'Monthly' : 'Weekly',
-  status: 'ACTIVE',
+  name: seed.name,
+  contact: seed.contact,
+  settlement_terms: seed.settlement_terms,
+  status: seed.status,
   created_at: dayjs().subtract(index + 3, 'day').toISOString(),
   updated_at: dayjs().subtract(index, 'hour').toISOString()
 }));
 
-const mockCustomerCategorySeeds = ['零售客户', '批发客户', '会员客户'];
+const mockCustomerCategorySeeds: Array<{
+  name: string;
+  description: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}> = [
+  { name: '零售客户', description: '线上零售与门店零售客户池', status: 'ACTIVE' },
+  { name: '批发客户', description: '区域批发合作客户', status: 'ACTIVE' },
+  { name: '会员客户', description: 'VIP 会员分层运营客户', status: 'ACTIVE' },
+  { name: '企微私域客户', description: '企微社群沉淀客户池', status: 'ACTIVE' },
+  { name: '直播渠道客户', description: '直播间专场成交客户', status: 'INACTIVE' },
+  { name: '沉睡召回客户', description: '90 天未复购客户召回池', status: 'INACTIVE' }
+];
 const mockCustomerCategories: CustomerCategory[] = mockCustomerCategorySeeds.map(
-  (name, index) => ({
+  (seed, index) => ({
     category_id: `CAT-${index + 1}`,
     tenant_id: mockTenantId,
-    name,
-    description: index === 0 ? '线上零售' : index === 1 ? '批发合作' : '会员客户',
-    status: 'ACTIVE',
+    name: seed.name,
+    description: seed.description,
+    status: seed.status,
     created_at: dayjs().subtract(index + 5, 'day').toISOString(),
     updated_at: dayjs().subtract(index, 'hour').toISOString()
   })
 );
 
-const mockMemberLevels: MemberLevel[] = [
+const mockMemberLevelSeeds: Array<{
+  level_id: string;
+  name: string;
+  level_rank: number;
+  discount_rate: number | null;
+  rules: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}> = [
   {
     level_id: 'LEVEL-1',
-    tenant_id: mockTenantId,
     name: '普通会员',
     level_rank: 1,
     discount_rate: null,
     rules: '默认等级',
-    status: 'ACTIVE',
-    created_at: dayjs().subtract(10, 'day').toISOString(),
-    updated_at: dayjs().subtract(1, 'day').toISOString()
+    status: 'ACTIVE'
   },
   {
     level_id: 'LEVEL-2',
-    tenant_id: mockTenantId,
     name: '银卡会员',
     level_rank: 2,
     discount_rate: 0.95,
     rules: '消费满 2000',
-    status: 'ACTIVE',
-    created_at: dayjs().subtract(8, 'day').toISOString(),
-    updated_at: dayjs().subtract(2, 'day').toISOString()
+    status: 'ACTIVE'
   },
   {
     level_id: 'LEVEL-3',
-    tenant_id: mockTenantId,
     name: '金卡会员',
     level_rank: 3,
     discount_rate: 0.9,
     rules: '消费满 5000',
-    status: 'ACTIVE',
-    created_at: dayjs().subtract(6, 'day').toISOString(),
-    updated_at: dayjs().subtract(3, 'day').toISOString()
+    status: 'ACTIVE'
+  },
+  {
+    level_id: 'LEVEL-4',
+    name: '企微专享会员',
+    level_rank: 4,
+    discount_rate: 0.88,
+    rules: '企微社群 30 天成交 3 单',
+    status: 'ACTIVE'
+  },
+  {
+    level_id: 'LEVEL-5',
+    name: '黑金会员',
+    level_rank: 5,
+    discount_rate: 0.82,
+    rules: '年度消费满 20000',
+    status: 'ACTIVE'
+  },
+  {
+    level_id: 'LEVEL-6',
+    name: '沉睡保级会员',
+    level_rank: 6,
+    discount_rate: 0.97,
+    rules: '企微唤醒任务保级中',
+    status: 'INACTIVE'
   }
 ];
 
-const mockCustomerTags: CustomerTag[] = [
-  {
-    tag_id: 'CTAG-1',
-    tenant_id: mockTenantId,
-    name: 'VIP',
-    color: 'gold',
-    created_at: dayjs().subtract(7, 'day').toISOString(),
-    updated_at: dayjs().subtract(1, 'day').toISOString()
-  },
-  {
-    tag_id: 'CTAG-2',
-    tenant_id: mockTenantId,
-    name: '回头客',
-    color: 'blue',
-    created_at: dayjs().subtract(6, 'day').toISOString(),
-    updated_at: dayjs().subtract(2, 'day').toISOString()
-  },
-  {
-    tag_id: 'CTAG-3',
-    tenant_id: mockTenantId,
-    name: '黑名单',
-    color: 'red',
-    created_at: dayjs().subtract(5, 'day').toISOString(),
-    updated_at: dayjs().subtract(3, 'day').toISOString()
-  }
+const mockMemberLevels: MemberLevel[] = mockMemberLevelSeeds.map((seed, index) => ({
+  level_id: seed.level_id,
+  tenant_id: mockTenantId,
+  name: seed.name,
+  level_rank: seed.level_rank,
+  discount_rate: seed.discount_rate,
+  rules: seed.rules,
+  status: seed.status,
+  created_at: dayjs().subtract(10 - index, 'day').toISOString(),
+  updated_at: dayjs().subtract(index + 1, 'day').toISOString()
+}));
+
+const mockCustomerTagSeeds: Array<{
+  tag_id: string;
+  name: string;
+  color: string | null;
+}> = [
+  { tag_id: 'CTAG-1', name: 'VIP', color: 'gold' },
+  { tag_id: 'CTAG-2', name: '回头客', color: 'blue' },
+  { tag_id: 'CTAG-3', name: '黑名单', color: 'red' },
+  { tag_id: 'CTAG-4', name: '直播高潜', color: 'orange' },
+  { tag_id: 'CTAG-5', name: '企微复购', color: 'green' },
+  { tag_id: 'CTAG-6', name: '价保敏感', color: 'purple' },
+  { tag_id: 'CTAG-7', name: '待激活', color: null }
 ];
+
+const mockCustomerTags: CustomerTag[] = mockCustomerTagSeeds.map((seed, index) => ({
+  tag_id: seed.tag_id,
+  tenant_id: mockTenantId,
+  name: seed.name,
+  color: seed.color,
+  created_at: dayjs().subtract(7 - index, 'day').toISOString(),
+  updated_at: dayjs().subtract(index + 1, 'day').toISOString()
+}));
 
 const buildCustomer = (index: number): Customer => {
   const category = mockCustomerCategories[index % mockCustomerCategories.length];
