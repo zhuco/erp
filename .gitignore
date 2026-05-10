@@ -10,6 +10,7 @@ target/
 
 # 日志与临时文件
 *.log
+logs/
 tmp/
 temp/
 test-results/
@@ -24,6 +25,12 @@ tmp.review.json
 .diff-backups/
 .superpowers/
 status_*.png
+.codex-*.log
+.tmp-*.log
+.codex-*.png
+apps/erp-web/.codex-*.png
+output/
+apps/erp-web/output/
 
 # Web 前端实验构建目录
 apps/erp-web/dist-*/
