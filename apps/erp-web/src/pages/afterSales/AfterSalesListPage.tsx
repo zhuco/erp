@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Form,
@@ -17,7 +16,6 @@ import {
   Upload,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
@@ -151,11 +149,11 @@ export const AfterSalesListPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [createForm] = Form.useForm<CreateValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
-  const [jobPagination, setJobPagination] = useState<TablePaginationConfig>({
+  const [jobPagination, setJobPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 10
   });
@@ -438,61 +436,73 @@ export const AfterSalesListPage = () => {
     }
   };
 
-  const header = (
+  const toolbarLeft = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="after-sales-title">
+      <Typography.Title level={3} style={{ margin: 0 }} data-testid="after-sales-title">
         售后处理
       </Typography.Title>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="after_sales_type" label="类型">
-                <Select allowClear options={typeOptions} placeholder="选择类型" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="order_id" label="订单号">
-                <Input allowClear placeholder="输入订单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="created_range" label="创建时间">
-                <DatePicker.RangePicker
-                  allowClear
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-                {canWrite && (
-                  <>
-                    <Button type="dashed" onClick={() => setCreateOpen(true)}>
-                      新建售后
-                    </Button>
-                    <Button type="dashed" onClick={() => setImportOpen(true)}>
-                      导入售后
-                    </Button>
-                  </>
-                )}
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+      <Typography.Text type="secondary">
+        汇总售后申请、审核流转与 SLA 状态，支持快速筛选和导入处理。
+      </Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button onClick={() => void refetch()} loading={isFetching}>
+        刷新
+      </Button>
+      {canWrite && (
+        <>
+          <Button type="dashed" onClick={() => setCreateOpen(true)}>
+            新建售后
+          </Button>
+          <Button type="dashed" onClick={() => setImportOpen(true)}>
+            导入售后
+          </Button>
+        </>
+      )}
+    </Space>
+  );
+
+  const header = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item name="status" label="状态">
+            <Select allowClear options={statusOptions} placeholder="选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="after_sales_type" label="类型">
+            <Select allowClear options={typeOptions} placeholder="选择类型" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="order_id" label="订单号">
+            <Input allowClear placeholder="输入订单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="created_range" label="创建时间">
+            <DatePicker.RangePicker
+              allowClear
+              showTime
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
   const bottomTabs = (
@@ -532,6 +542,8 @@ export const AfterSalesListPage = () => {
   return (
     <>
       <UiModule03MainTableSection<AfterSalesSummary>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="id"
         columns={columns}
@@ -544,6 +556,11 @@ export const AfterSalesListPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="after-sales-list-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="after-sales.table.columns"
         bottomPanel={bottomTabs}
       />

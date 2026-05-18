@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -14,13 +13,12 @@ import {
   Select,
   Space,
   Switch,
-  Table,
   Tag,
   Tooltip,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { ExportOutlined, ReloadOutlined, SafetyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -70,6 +68,8 @@ type RecalcFormValues = {
 };
 
 type PolicyFormValues = NegativeStockPolicyUpdatePayload;
+type InventoryLockDocument = InventoryLockDetail['documents'][number];
+type InventoryLockAuditEntry = InventoryLockDetail['audit_trail'][number];
 
 const exportThreshold = 5000;
 
@@ -344,7 +344,7 @@ export const InventoryLocksPage = () => {
     [warehouseMap]
   );
 
-  const docColumns = useMemo<ColumnsType<InventoryLockDetail['documents'][number]>>(
+  const docColumns = useMemo<ColumnsType<InventoryLockDocument>>(
     () => [
       { title: '单据类型', dataIndex: 'doc_type' },
       { title: '单据号', dataIndex: 'doc_no' },
@@ -355,7 +355,7 @@ export const InventoryLocksPage = () => {
     []
   );
 
-  const auditColumns = useMemo<ColumnsType<InventoryLockDetail['audit_trail'][number]>>(
+  const auditColumns = useMemo<ColumnsType<InventoryLockAuditEntry>>(
     () => [
       { title: '时间', dataIndex: 'created_at', render: (value) => formatDateTime(value) },
       { title: '操作', dataIndex: 'action' },
@@ -545,37 +545,10 @@ export const InventoryLocksPage = () => {
   };
 
   const detail = detailQuery.data;
+  const policyRows = policyQuery.data?.items ?? [];
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          库存锁定
-        </Typography.Title>
-        <Space>
-          <Tooltip title={!canWrite ? '暂无权限' : undefined}>
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleOpenRecalc}
-              loading={recalcMutation.isPending}
-              disabled={!canWrite}
-            >
-              重算锁定
-            </Button>
-          </Tooltip>
-          <Tooltip title={!canExport ? '暂无权限' : undefined}>
-            <Button
-              icon={<ExportOutlined />}
-              onClick={handleExport}
-              loading={exporting}
-              disabled={!canExport}
-            >
-              导出
-            </Button>
-          </Tooltip>
-        </Space>
-      </Row>
+    <>
       {!inventoryFeature.enabled ? (
         <Alert
           type="warning"
@@ -584,77 +557,6 @@ export const InventoryLocksPage = () => {
           description="请先在系统设置中启用库存管理后使用锁定诊断。"
         />
       ) : null}
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="选择仓库"
-                  loading={warehouseQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_id" label="SKU ID">
-                <Input allowClear placeholder="输入 SKU ID" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_code" label="SKU 编码">
-                <Input allowClear placeholder="输入 SKU 编码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="doc_no" label="来源单号">
-                <Input allowClear placeholder="输入单据号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="lock_type" label="锁定类型">
-                <Select allowClear options={lockTypeOptions} placeholder="选择类型" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={10}>
-              <Form.Item name="time_range" label="日期范围">
-                <DatePicker.RangePicker
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space wrap>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-                <Button
-                  icon={<SafetyOutlined />}
-                  onClick={() => {
-                    policyForm.resetFields();
-                    setPolicyOpen(true);
-                  }}
-                >
-                  负库存策略
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-      <Card size="small" title="锁定模型">
-        <Space direction="vertical" size={6}>
-          {lockModelNotes.map((item) => (
-            <Typography.Text key={item.title}>
-              {item.title}：{item.description}
-            </Typography.Text>
-          ))}
-        </Space>
-      </Card>
       {warehouseQuery.error ? (
         <ErrorState
           title="仓库加载失败"
@@ -663,6 +565,123 @@ export const InventoryLocksPage = () => {
         />
       ) : null}
       <UiModule03MainTableSection<InventoryLockLog>
+        toolbarLeft={
+          <Space direction="vertical" size={2}>
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              库存锁定
+            </Typography.Title>
+            <Typography.Text type="secondary">锁定日志、占用来源与释放审计统一诊断。</Typography.Text>
+          </Space>
+        }
+        toolbarRight={
+          <Space>
+            <Tooltip title={!canWrite ? '暂无权限' : undefined}>
+              <Button
+                data-testid="inventory-locks-recalc-button"
+                type="primary"
+                icon={<ReloadOutlined />}
+                onClick={handleOpenRecalc}
+                loading={recalcMutation.isPending}
+                disabled={!canWrite}
+              >
+                重算锁定
+              </Button>
+            </Tooltip>
+            <Tooltip title={!canExport ? '暂无权限' : undefined}>
+              <Button
+                data-testid="inventory-locks-export-button"
+                icon={<ExportOutlined />}
+                onClick={handleExport}
+                loading={exporting}
+                disabled={!canExport}
+              >
+                导出
+              </Button>
+            </Tooltip>
+          </Space>
+        }
+        actionBar={
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Form
+              data-testid="inventory-locks-filter-form"
+              form={form}
+              layout="vertical"
+              onFinish={handleSearch}
+            >
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={6}>
+                  <Form.Item name="warehouse_id" label="仓库">
+                    <Select
+                      allowClear
+                      options={warehouseOptions}
+                      placeholder="选择仓库"
+                      loading={warehouseQuery.isFetching}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="sku_id" label="SKU ID">
+                    <Input allowClear placeholder="输入 SKU ID" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="sku_code" label="SKU 编码">
+                    <Input allowClear placeholder="输入 SKU 编码" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="doc_no" label="来源单号">
+                    <Input allowClear placeholder="输入单据号" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="lock_type" label="锁定类型">
+                    <Select allowClear options={lockTypeOptions} placeholder="选择类型" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={10}>
+                  <Form.Item name="time_range" label="日期范围">
+                    <DatePicker.RangePicker
+                      showTime
+                      style={{ width: '100%' }}
+                      placeholder={['开始时间', '结束时间']}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'end' }}>
+                  <Space wrap>
+                    <Button data-testid="inventory-locks-search-button" type="primary" htmlType="submit">
+                      查询
+                    </Button>
+                    <Button data-testid="inventory-locks-reset-button" onClick={handleReset}>
+                      重置
+                    </Button>
+                    <Button
+                      data-testid="inventory-locks-policy-button"
+                      icon={<SafetyOutlined />}
+                      onClick={() => {
+                        policyForm.resetFields();
+                        setPolicyOpen(true);
+                      }}
+                    >
+                      负库存策略
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </Form>
+            <Space direction="vertical" size={6}>
+              {lockModelNotes.map((item) => (
+                <Typography.Text key={item.title} type="secondary">
+                  {item.title}：{item.description}
+                </Typography.Text>
+              ))}
+            </Space>
+          </Space>
+        }
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         rowKey="lock_id"
         columns={columns}
         data={logQuery.data?.items ?? []}
@@ -675,6 +694,8 @@ export const InventoryLocksPage = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="inventory.locks.table.columns"
+        showColumnSettings={true}
+        dataTestId="inventory-locks-main-grid"
         enablePanels={false}
       />
       <Drawer
@@ -738,24 +759,62 @@ export const InventoryLocksPage = () => {
                 {formatDateTime(detail.updated_at)}
               </Descriptions.Item>
             </Descriptions>
-            <Card size="small" title="关联单据">
-              <Table
-                rowKey={(record) => `${record.doc_type}-${record.doc_no}`}
-                columns={docColumns}
-                dataSource={detail.documents}
-                pagination={false}
-                size="small"
-              />
-            </Card>
-            <Card size="small" title="审计记录">
-              <Table
-                rowKey={(record) => `${record.action}-${record.created_at}`}
-                columns={auditColumns}
-                dataSource={detail.audit_trail}
-                pagination={false}
-                size="small"
-              />
-            </Card>
+            <UiModule03MainTableSection<InventoryLockDocument>
+              toolbarLeft={
+                <Space direction="vertical" size={2}>
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    关联单据
+                  </Typography.Title>
+                  <Typography.Text type="secondary">查看锁定来源单据与优先级。</Typography.Text>
+                </Space>
+              }
+              gridPreset="industrial-review-compact"
+              selectionCellMode="custom"
+              selectionHeaderMode="allInvert"
+              rowKey={(record) => `${record.doc_type}-${record.doc_no}`}
+              columns={docColumns}
+              data={detail.documents}
+              loading={false}
+              error={null}
+              onRetry={() => undefined}
+              emptyText="暂无关联单据"
+              total={detail.documents.length}
+              pagination={{ current: 1, pageSize: detail.documents.length || 10 }}
+              onPaginationChange={() => undefined}
+              showColumnSettings={false}
+              showQueryRow={false}
+              tableFooter={null}
+              dataTestId="inventory-locks-documents-grid"
+              enablePanels={false}
+            />
+            <UiModule03MainTableSection<InventoryLockAuditEntry>
+              toolbarLeft={
+                <Space direction="vertical" size={2}>
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    审计记录
+                  </Typography.Title>
+                  <Typography.Text type="secondary">查看锁定变更、释放与抢占审计。</Typography.Text>
+                </Space>
+              }
+              gridPreset="industrial-review-compact"
+              selectionCellMode="custom"
+              selectionHeaderMode="allInvert"
+              rowKey={(record) => `${record.action}-${record.created_at}`}
+              columns={auditColumns}
+              data={detail.audit_trail}
+              loading={false}
+              error={null}
+              onRetry={() => undefined}
+              emptyText="暂无审计记录"
+              total={detail.audit_trail.length}
+              pagination={{ current: 1, pageSize: detail.audit_trail.length || 10 }}
+              onPaginationChange={() => undefined}
+              showColumnSettings={false}
+              showQueryRow={false}
+              tableFooter={null}
+              dataTestId="inventory-locks-audit-grid"
+              enablePanels={false}
+            />
           </Space>
         ) : (
           <EmptyState description="暂无锁定详情" />
@@ -856,26 +915,40 @@ export const InventoryLocksPage = () => {
               </Col>
             </Row>
           </Form>
-          {policyQuery.error ? (
-            <ErrorState
-              title="负库存策略加载失败"
-              error={policyQuery.error}
-              onRetry={() => policyQuery.refetch()}
-            />
-          ) : (
-            <Table<NegativeStockPolicy>
-              rowKey="policy_id"
-              columns={policyColumns}
-              dataSource={policyQuery.data?.items ?? []}
-              pagination={false}
-              size="small"
-              onRow={(record) => ({
-                onClick: () => handlePolicyRowClick(record)
-              })}
-            />
-          )}
+          <UiModule03MainTableSection<NegativeStockPolicy>
+            toolbarLeft={
+              <Space direction="vertical" size={2}>
+                <Typography.Title level={5} style={{ margin: 0 }}>
+                  现行策略
+                </Typography.Title>
+                <Typography.Text type="secondary">点击行可回填上方策略配置。</Typography.Text>
+              </Space>
+            }
+            gridPreset="industrial-review-compact"
+            selectionCellMode="custom"
+            selectionHeaderMode="allInvert"
+            rowKey="policy_id"
+            columns={policyColumns}
+            data={policyRows}
+            loading={policyQuery.isFetching}
+            error={policyQuery.error}
+            onRetry={() => policyQuery.refetch()}
+            errorTitle="负库存策略加载失败"
+            emptyText="暂无负库存策略"
+            total={policyRows.length}
+            pagination={{ current: 1, pageSize: policyRows.length || 10 }}
+            onPaginationChange={() => undefined}
+            showColumnSettings={false}
+            showQueryRow={false}
+            tableFooter={null}
+            dataTestId="inventory-locks-policy-grid"
+            enablePanels={false}
+            onRow={(record) => ({
+              onClick: () => handlePolicyRowClick(record)
+            })}
+          />
         </Space>
       </Modal>
-    </Space>
+    </>
   );
 };

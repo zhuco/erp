@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Drawer,
@@ -16,7 +15,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -49,6 +47,7 @@ import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { openPrintJobOutput, waitForPrintJob } from '@/features/printing/printJobFlow';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   warehouse_id?: string;
@@ -416,7 +415,7 @@ export const WmsWavesPage = () => {
           data-testid="wms-wave-disabled-alert"
         />
       ) : null}
-      <Card>
+      <IndustrialCard>
         <Form
           form={filterForm}
           layout="vertical"
@@ -454,7 +453,7 @@ export const WmsWavesPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -475,6 +474,10 @@ export const WmsWavesPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="wms.waves.table.columns"
       />
       <Drawer
@@ -501,7 +504,7 @@ export const WmsWavesPage = () => {
                 打印拣货单
               </Button>
             </Space>
-            <Card size="small" title="波次发货">
+            <IndustrialCard size="small" title="波次发货">
               <Form<WaveShipFormValues>
                 form={shipForm}
                 layout="vertical"
@@ -557,7 +560,7 @@ export const WmsWavesPage = () => {
                       ))}
                 </Space>
               ) : null}
-            </Card>
+            </IndustrialCard>
             <Typography.Text>波次：{detail.wave.wave_id}</Typography.Text>
             <Typography.Text>仓库：{detail.wave.warehouse_id}</Typography.Text>
             <Typography.Text>状态：{detail.wave.status}</Typography.Text>

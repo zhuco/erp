@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Descriptions,
   Divider,
@@ -14,7 +13,6 @@ import {
   Tag,
   Timeline,
   Typography,
-  TablePaginationConfig,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,10 +26,11 @@ import { useTenantId } from '@/features/tenant';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { PlatformTag } from '@/components/PlatformTag';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { useShopProductSkus } from '@/api/hooks';
 import type { ShopProductSku, ShopProductSkuListQuery } from '@/api/shopProducts';
 import { listShops, type Shop } from '@/api/shops';
+import { IndustrialCard } from '@/components/industrial';
 
 type DiffFilters = {
   platform?: PlatformCode;
@@ -80,13 +79,6 @@ const conflictReasonLabelMap: Record<string, string> = {
   SKU_INACTIVE: 'SKU不可用',
 };
 
-const matchStatusLabelMap: Record<string, string> = {
-  MATCHED: '已匹配',
-  UNMATCHED: '未匹配',
-  AUTO: '自动匹配',
-  MANUAL: '手动匹配',
-};
-
 const mappingStatusLabelMap: Record<string, string> = {
   ACTIVE: '正常',
   CONFLICT: '冲突',
@@ -120,7 +112,7 @@ const formatTimestamp = (value?: string | null) =>
 export const ProductDiffPage = () => {
   const tenantId = useTenantId();
   const [filters, setFilters] = useState<DiffFilters>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20,
   });
@@ -332,15 +324,15 @@ export const ProductDiffPage = () => {
   const leftPanel = useMemo(
     () => (
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Card size="small" title="????">
+        <IndustrialCard size="small" title="????">
           <Typography.Paragraph style={{ marginBottom: 8 }}>
             ?????????????????????????????
           </Typography.Paragraph>
           <Typography.Paragraph style={{ marginBottom: 0 }}>
             ?????????????????????????????
           </Typography.Paragraph>
-        </Card>
-        <Card size="small" title="????">
+        </IndustrialCard>
+        <IndustrialCard size="small" title="????">
           <Typography.Paragraph style={{ marginBottom: 6 }}>
             ?????{records.length}
           </Typography.Paragraph>
@@ -350,7 +342,7 @@ export const ProductDiffPage = () => {
           <Typography.Paragraph style={{ marginBottom: 0 }}>
             ????{shopOptions.length}
           </Typography.Paragraph>
-        </Card>
+        </IndustrialCard>
       </Space>
     ),
     [conflictSummary.length, records.length, shopOptions.length],
@@ -377,7 +369,7 @@ export const ProductDiffPage = () => {
   };
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={
         <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-diff-title">
           ??????
@@ -394,7 +386,7 @@ export const ProductDiffPage = () => {
   );
 
   const rightPanel = (
-    <Card size="small" title="????">
+    <IndustrialCard size="small" title="????">
       <Typography.Paragraph style={{ marginBottom: 6 }}>
         ????{data?.total ?? 0}
       </Typography.Paragraph>
@@ -404,7 +396,7 @@ export const ProductDiffPage = () => {
       <Typography.Paragraph style={{ marginBottom: 0 }}>
         ?????{conflictSummary[0] ? `${conflictReasonLabelMap[conflictSummary[0][0]] ?? conflictSummary[0][0]} ? ${conflictSummary[0][1]}` : '??'}
       </Typography.Paragraph>
-    </Card>
+    </IndustrialCard>
   );
 
   const bottomPanel = (
@@ -439,12 +431,12 @@ export const ProductDiffPage = () => {
 
   return (
     <>
-      <OrderReviewWorkbenchTemplate
+      <WorkbenchPageTemplate
         pageTestId="product-diff-page"
         toolbar={toolbar}
         tableContent={
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card>
+            <IndustrialCard>
               <Form
                 form={form}
                 layout="vertical"
@@ -502,8 +494,8 @@ export const ProductDiffPage = () => {
                   </Col>
                 </Row>
               </Form>
-            </Card>
-            <Card title="????">
+            </IndustrialCard>
+            <IndustrialCard title="????">
               <UiModule03MainTableSection<ShopProductSku>
                 dataTestId="product-diff-table"
                 rowKey="sku_record_id"
@@ -518,8 +510,12 @@ export const ProductDiffPage = () => {
                 onPaginationChange={setPagination}
                 columnSettingsKey="product.diff.table.columns"
                 enablePanels={false}
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
               />
-            </Card>
+            </IndustrialCard>
           </Space>
         }
         rightPanel={rightPanel}

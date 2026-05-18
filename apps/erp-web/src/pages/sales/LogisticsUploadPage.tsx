@@ -1,24 +1,22 @@
 import {
   Badge,
   Button,
-  Empty,
   Input,
   Select,
   Space,
-  Table,
   Tabs,
   Tag,
   Tree,
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
 import type { Key } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BellOutlined, DownloadOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import type { ServerTableColumns } from '@/components/ServerTable';
 import {
   UiModule03MainTableSection,
@@ -599,14 +597,14 @@ export const LogisticsUploadPage = () => {
           activeRow?.logs.length ?? 0
         }`}
       >
-        <Table
-          size="small"
-          rowKey="id"
+        <ErpDataGrid<LogisticsUploadLog>
+          rowKey={(record) => record.id}
           columns={logColumns}
-          dataSource={activeRow?.logs ?? []}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: <Empty description="暂无日志" /> }}
+          data={activeRow?.logs ?? []}
+          compact
+          showRowIndex={false}
+          emptyText="暂无日志"
+          data-testid="logistics-upload-logs-grid"
         />
       </UiModule04BottomTable>
     ),
@@ -618,14 +616,14 @@ export const LogisticsUploadPage = () => {
       <UiModule04BottomTable
         syncKey={`${activeRowId ?? 'none'}-goods-${activeRow?.goods.length ?? 0}`}
       >
-        <Table
-          size="small"
-          rowKey="id"
+        <ErpDataGrid<LogisticsUploadGoods>
+          rowKey={(record) => record.id}
           columns={goodsColumns}
-          dataSource={activeRow?.goods ?? []}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: <Empty description="暂无货品" /> }}
+          data={activeRow?.goods ?? []}
+          compact
+          showRowIndex={false}
+          emptyText="暂无货品"
+          data-testid="logistics-upload-goods-grid"
         />
       </UiModule04BottomTable>
     ),
@@ -722,6 +720,10 @@ export const LogisticsUploadPage = () => {
   const tableFooter = (
     <UiModule03TableFooter
       tableContainerRef={tableContainerRef}
+      dataTestId="logistics-upload-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
       syncKey={`${pagination.current ?? 1}-${pagination.pageSize ?? 0}-${filteredRows.length}`}
       summary={
         <Space size={12}>
@@ -754,6 +756,8 @@ export const LogisticsUploadPage = () => {
       total={filteredRows.length}
       pagination={pagination}
       onPaginationChange={(next) => setPagination((prev) => ({ ...prev, ...next }))}
+      columnSettingsKey="sales.logistics-upload.main-grid"
+      showColumnSettings
       rowKey="id"
       rowSelection={{
         selectedRowKeys,

@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Drawer,
   Form,
   Input,
@@ -8,11 +7,10 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -32,8 +30,9 @@ import type {
   StockCountSummary
 } from '@/api/stockCounts';
 import { listWarehouses } from '@/api/warehouses';
-import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { ErrorState } from '@/components/QueryState';
+import { ServerTable } from '@/components/ServerTable';
+import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
+import { ErrorState, LoadingNotice } from '@/components/QueryState';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
 const formatDateTime = (value?: string | null) =>
@@ -430,11 +429,22 @@ export const StockCountsPage = () => {
   }, [detailOpen, entryForm]);
 
   const toolbarLeft = (
-    <Space align="center" size={12} wrap>
+    <Space direction="vertical" size={2}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         盘点管理
       </Typography.Title>
-      <Button type="primary" onClick={() => setCreateOpen(true)}>
+      <Typography.Text type="secondary">
+        统一查看盘点任务、录入实盘数量并处理库存差异
+      </Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space align="center" size={8} wrap>
+      <Button onClick={() => listQueryState.refetch()} loading={listQueryState.isFetching}>
+        刷新
+      </Button>
+      <Button type="primary" onClick={() => setCreateOpen(true)} data-testid="stock-counts-create-button">
         新建盘点
       </Button>
     </Space>
@@ -451,7 +461,11 @@ export const StockCountsPage = () => {
   return (
     <>
       <UiModule03MainTableSection<StockCountSummary>
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="count_id"
         columns={columns}
@@ -464,6 +478,9 @@ export const StockCountsPage = () => {
         total={listQueryState.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        columnSettingsKey="wms.stock-counts.table.columns"
+        showColumnSettings={true}
+        dataTestId="stock-counts-main-grid"
       />
       <Modal
         title="新建盘点单"
@@ -560,7 +577,7 @@ export const StockCountsPage = () => {
         destroyOnHidden
       >
         {detailQuery.isLoading ? (
-          <Card loading />
+          <LoadingNotice title="盘点详情加载中" />
         ) : detail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Typography.Text type="secondary">
@@ -626,13 +643,19 @@ export const StockCountsPage = () => {
                 应用盘点
               </Button>
             </Space>
-            <Table
-              rowKey="count_item_id"
-              columns={detailColumns}
-              dataSource={detailItems}
-              pagination={false}
-              size="small"
-            />
+            <UiModule04BottomTable syncKey={`${detail.count.count_id}-${detailItems.length}`}>
+              <ServerTable<StockCountItem & { id: string }>
+                rowKey="count_item_id"
+                columns={detailColumns}
+                data={detailItems.map((item) => ({ ...item, id: item.count_item_id }))}
+                loading={false}
+                total={detailItems.length}
+                pagination={{ current: 1, pageSize: detailItems.length || 1 }}
+                onPaginationChange={() => undefined}
+                emptyText="暂无盘点明细"
+                enablePanels={false}
+              />
+            </UiModule04BottomTable>
           </Space>
         ) : null}
       </Drawer>

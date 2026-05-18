@@ -469,7 +469,6 @@ export const LogisticsFeeDirectoryPage = () => {
             onHelp={() => message.info('物流费目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<LogisticsFeeRow>
             rowKey={(record) => record.fee_id}

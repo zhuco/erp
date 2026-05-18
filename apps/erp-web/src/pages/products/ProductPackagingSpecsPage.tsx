@@ -1,4 +1,4 @@
-import { Button, Card, Form, InputNumber, Select, Space, Table, Tag, message } from 'antd';
+import { Button, Form, InputNumber, Select, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import {
   upsertDefaultProductPackagingSpec
 } from '@/api/productPackagingSpecs';
 import { searchSkus } from '@/api/skus';
-import { ErrorState } from '@/components/QueryState';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -24,17 +24,17 @@ type FormValues = {
 };
 
 const columns: ColumnsType<ProductPackagingSpec> = [
-  { title: 'Level', dataIndex: 'level_code' },
-  { title: 'Unit', dataIndex: 'unit_name' },
-  { title: 'Units/Level', dataIndex: 'units_per_level' },
-  { title: 'Length(mm)', dataIndex: 'length_mm' },
-  { title: 'Width(mm)', dataIndex: 'width_mm' },
-  { title: 'Height(mm)', dataIndex: 'height_mm' },
-  { title: 'Weight(g)', dataIndex: 'weight_gram' },
+  { title: '层级', dataIndex: 'level_code' },
+  { title: '单位', dataIndex: 'unit_name' },
+  { title: '每层数量', dataIndex: 'units_per_level' },
+  { title: '长(mm)', dataIndex: 'length_mm' },
+  { title: '宽(mm)', dataIndex: 'width_mm' },
+  { title: '高(mm)', dataIndex: 'height_mm' },
+  { title: '重量(g)', dataIndex: 'weight_gram' },
   {
-    title: 'Default',
+    title: '默认规格',
     dataIndex: 'is_default',
-    render: (value: boolean) => (value ? <Tag color="green">DEFAULT</Tag> : <Tag>-</Tag>)
+    render: (value: boolean) => (value ? <Tag color="green">默认</Tag> : <Tag>-</Tag>)
   }
 ];
 
@@ -64,6 +64,11 @@ export const ProductPackagingSpecsPage = () => {
     [skuSearchQuery.data?.items]
   );
 
+  const selectedSkuLabel = useMemo(
+    () => skuOptions.find((item) => item.value === selectedSkuId)?.label ?? selectedSkuId,
+    [selectedSkuId, skuOptions]
+  );
+
   const specsQuery = useQuery({
     queryKey: ['product-packaging-specs', tenantId, selectedSkuId],
     queryFn: () => listProductPackagingSpecs(tenantId, selectedSkuId ?? ''),
@@ -73,11 +78,11 @@ export const ProductPackagingSpecsPage = () => {
 
   const handleSave = async () => {
     if (!tenantId || !selectedSkuId) {
-      message.warning('Please select one SKU first');
+      message.warning('请先选择一个 SKU');
       return;
     }
     if (!canWrite) {
-      message.warning('No permission to update packaging specs');
+      message.warning('当前账号无权维护包装规格');
       return;
     }
     try {
@@ -92,7 +97,7 @@ export const ProductPackagingSpecsPage = () => {
         height_mm: values.height_mm ?? null,
         weight_gram: values.weight_gram ?? null
       });
-      message.success('Packaging spec saved');
+      message.success('包装规格已保存');
       await queryClient.invalidateQueries({
         queryKey: ['product-packaging-specs', tenantId, selectedSkuId]
       });
@@ -105,6 +110,8 @@ export const ProductPackagingSpecsPage = () => {
     }
   };
 
+  const tableData = specsQuery.data?.items ?? [];
+
   return (
     <Space
       direction="vertical"
@@ -112,12 +119,11 @@ export const ProductPackagingSpecsPage = () => {
       style={{ width: '100%' }}
       data-testid="product-packaging-specs-page"
     >
-      <Card title="Packaging Spec Governance" size="small">
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Select
             data-testid="packaging-specs-sku-select"
             showSearch
-            placeholder="Search SKU by code/name (at least 2 chars)"
+            placeholder="按编码或名称搜索 SKU（至少输入 2 个字符）"
             value={selectedSkuId}
             onSearch={setSkuKeyword}
             onChange={setSelectedSkuId}
@@ -136,52 +142,52 @@ export const ProductPackagingSpecsPage = () => {
             }}
           >
             <Form.Item
-              label="Level"
+              label="包装层级"
               name="level_code"
-              rules={[{ required: true, message: 'Required' }]}
+              rules={[{ required: true, message: '必填' }]}
             >
               <Select
-                style={{ width: 120 }}
+                style={{ width: 132 }}
                 options={[
-                  { label: 'EA', value: 'EA' },
-                  { label: 'INNER', value: 'INNER' },
-                  { label: 'CASE', value: 'CASE' },
-                  { label: 'PALLET', value: 'PALLET' }
+                  { label: '单件（EA）', value: 'EA' },
+                  { label: '内包装（INNER）', value: 'INNER' },
+                  { label: '箱（CASE）', value: 'CASE' },
+                  { label: '托盘（PALLET）', value: 'PALLET' }
                 ]}
               />
             </Form.Item>
             <Form.Item
-              label="Unit"
+              label="单位名称"
               name="unit_name"
-              rules={[{ required: true, message: 'Required' }]}
+              rules={[{ required: true, message: '必填' }]}
             >
               <Select
                 style={{ width: 120 }}
                 options={[
-                  { label: 'Each', value: 'Each' },
-                  { label: 'Inner', value: 'Inner' },
-                  { label: 'Box', value: 'Box' },
-                  { label: 'Pallet', value: 'Pallet' }
+                  { label: '单件', value: 'Each' },
+                  { label: '内包装', value: 'Inner' },
+                  { label: '箱', value: 'Box' },
+                  { label: '托盘', value: 'Pallet' }
                 ]}
               />
             </Form.Item>
             <Form.Item
-              label="Units/Level"
+              label="每层数量"
               name="units_per_level"
-              rules={[{ required: true, message: 'Required' }]}
+              rules={[{ required: true, message: '必填' }]}
             >
               <InputNumber min={1} />
             </Form.Item>
-            <Form.Item label="L(mm)" name="length_mm">
+            <Form.Item label="长(mm)" name="length_mm">
               <InputNumber min={0} />
             </Form.Item>
-            <Form.Item label="W(mm)" name="width_mm">
+            <Form.Item label="宽(mm)" name="width_mm">
               <InputNumber min={0} />
             </Form.Item>
-            <Form.Item label="H(mm)" name="height_mm">
+            <Form.Item label="高(mm)" name="height_mm">
               <InputNumber min={0} />
             </Form.Item>
-            <Form.Item label="Weight(g)" name="weight_gram">
+            <Form.Item label="重量(g)" name="weight_gram">
               <InputNumber min={0} />
             </Form.Item>
             <Form.Item>
@@ -192,31 +198,52 @@ export const ProductPackagingSpecsPage = () => {
                 disabled={!canWrite}
                 data-testid="packaging-specs-save-button"
               >
-                Save As Default
+                保存为默认规格
               </Button>
             </Form.Item>
           </Form>
         </Space>
-      </Card>
 
-      <Card title="Packaging Specs" size="small">
-        {specsQuery.error ? (
-          <ErrorState
-            title="Failed to load packaging specs"
-            error={specsQuery.error}
-            onRetry={() => specsQuery.refetch()}
-          />
-        ) : (
-          <Table<ProductPackagingSpec>
-            data-testid="packaging-specs-table"
-            rowKey="spec_id"
-            columns={columns}
-            dataSource={specsQuery.data?.items ?? []}
-            loading={specsQuery.isLoading || specsQuery.isFetching}
-            pagination={false}
-          />
-        )}
-      </Card>
+      <UiModule03MainTableSection<ProductPackagingSpec>
+        toolbarLeft={
+          <Typography.Title level={3} data-testid="product-packaging-specs-title" style={{ margin: 0 }}>
+            包装规格主表
+          </Typography.Title>
+        }
+        toolbarRight={
+          <Space size={8}>
+            <Tag color={selectedSkuId ? 'blue' : 'default'}>
+              {selectedSkuId ? `已选 SKU：${selectedSkuLabel}` : '未选择 SKU'}
+            </Tag>
+            <Button
+              size="small"
+              data-testid="product-packaging-specs-refresh-button"
+              disabled={!selectedSkuId}
+              loading={specsQuery.isFetching}
+              onClick={() => specsQuery.refetch()}
+            >
+              刷新
+            </Button>
+          </Space>
+        }
+        rowKey="spec_id"
+        columns={columns}
+        data={tableData}
+        loading={specsQuery.isLoading || specsQuery.isFetching}
+        error={specsQuery.error}
+        onRetry={() => specsQuery.refetch()}
+        errorTitle="包装规格加载失败"
+        emptyText="暂无包装规格"
+        total={tableData.length}
+        pagination={{ current: 1, pageSize: 50, total: tableData.length, hideOnSinglePage: true }}
+        onPaginationChange={() => undefined}
+        dataTestId="product-packaging-specs-main-grid"
+        columnSettingsKey="products.packaging-specs.table.columns"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+      />
     </Space>
   );
 };

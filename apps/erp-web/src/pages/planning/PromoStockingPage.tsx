@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Form, Input, InputNumber, Space, Table, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Space, Tag, message, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import {
   listPlanningPromoStocking,
   type PlanningPromoStockingCampaign
 } from '@/api/planning';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -74,7 +75,10 @@ export const PromoStockingPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="planning-promo-page">
-      <Card title="Promo Stocking Campaign" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Promo Stocking Campaign
+        </Typography.Title>
         <Form
           form={form}
           layout="inline"
@@ -108,9 +112,12 @@ export const PromoStockingPage = () => {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </section>
 
-      <Card title="Promo Stocking Campaign List" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Promo Stocking Campaign List
+        </Typography.Title>
         {listQuery.error ? (
           <ErrorState
             title="Failed to load promo stocking campaigns"
@@ -118,16 +125,17 @@ export const PromoStockingPage = () => {
             onRetry={() => listQuery.refetch()}
           />
         ) : (
-          <Table<PlanningPromoStockingCampaign>
+          <ErpDataGrid<PlanningPromoStockingCampaign>
             data-testid="planning-promo-table"
-            rowKey="campaign_id"
+            rowKey={(record) => record.campaign_id}
             loading={listQuery.isLoading || listQuery.isFetching}
             columns={columns}
-            dataSource={listQuery.data?.items ?? []}
-            pagination={false}
+            data={listQuery.data?.items ?? []}
+            compact
+            showRowIndex={false}
           />
         )}
-      </Card>
+      </section>
     </Space>
   );
 };

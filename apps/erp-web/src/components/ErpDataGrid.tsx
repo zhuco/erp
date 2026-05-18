@@ -1568,7 +1568,6 @@ export const ErpDataGrid = <T extends object>({
               localeText={ERP_AG_GRID_LOCALE_TEXT_ZH_CN}
               getRowId={getRowId}
               rowSelection={resolvedRowSelection}
-              suppressRowClickSelection={!rowClickSelects}
               animateRows={animateRows}
               rowHeight={rowHeight}
               headerHeight={headerHeight}
@@ -1660,7 +1659,9 @@ export const ErpDataGrid = <T extends object>({
 
             {loading ? (
               <div className="erp-data-grid-loading-mask">
-                <Spin size="large" tip="加载中..." />
+                <Spin size="large" tip="加载中...">
+                  <div style={{ width: 1, height: 1 }} />
+                </Spin>
               </div>
             ) : null}
           </div>

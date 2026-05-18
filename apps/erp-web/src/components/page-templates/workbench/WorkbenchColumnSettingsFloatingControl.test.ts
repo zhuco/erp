@@ -10,7 +10,7 @@ describe('WorkbenchColumnSettingsFloatingControl', () => {
   it('renders as a pure icon button with accessibility labels when no text is configured', () => {
     const markup = renderToStaticMarkup(
       createElement(WorkbenchColumnSettingsFloatingControl, {
-        ariaLabel: '\u5217\u8bbe\u7f6e',
+        ariaLabel: '列设置',
         buttonLabel: '',
         onOpenColumnSettings: vi.fn(),
         testId: 'workbench-column-settings-trigger',
@@ -18,9 +18,9 @@ describe('WorkbenchColumnSettingsFloatingControl', () => {
     );
 
     expect(markup).toContain('workbench-column-settings-floating-button');
-    expect(markup).toContain('aria-label="\u5217\u8bbe\u7f6e"');
-    expect(markup).toContain('title="\u5217\u8bbe\u7f6e"');
-    expect(markup).not.toContain('<span>\u5217\u8bbe\u7f6e</span>');
+    expect(markup).toContain('aria-label="列设置"');
+    expect(markup).toContain('title="列设置"');
+    expect(markup).not.toContain('<span>列设置</span>');
   });
 
   it('supports additional wrapper and button classes for shared structural column alignment', () => {

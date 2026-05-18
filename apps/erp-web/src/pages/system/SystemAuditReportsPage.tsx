@@ -26,7 +26,7 @@ import {
 import { getSystemWorkflowCatalog } from '@/api/systemWorkflows';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -208,14 +208,14 @@ export const SystemAuditReportsPage = () => {
 
   if (!tenantReady) {
     return (
-      <UiModule07SettingsLayout title="审计报告">
+      <SettingsPageTemplate title="审计报告">
         <EmptyState description="请先选择租户" />
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout title="审计报告">
+    <SettingsPageTemplate title="审计报告">
       {catalogQuery.isError ? (
         <ErrorState
           title="加载审计报告失败"
@@ -223,7 +223,7 @@ export const SystemAuditReportsPage = () => {
           onRetry={() => void catalogQuery.refetch()}
         />
       ) : null}
-      <UiModule07SettingsSection title="审计报告">
+      <SettingsPageSection title="审计报告">
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Space wrap data-testid="system-audit-reports-governance-summary">
             <Tag color="blue">治理链路</Tag>
@@ -271,8 +271,8 @@ export const SystemAuditReportsPage = () => {
             loading={tableLoading}
           />
         </Space>
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection title="告警规则">
+      </SettingsPageSection>
+      <SettingsPageSection title="告警规则">
         <Table
           rowKey="rule_id"
           columns={ruleColumns}
@@ -280,7 +280,7 @@ export const SystemAuditReportsPage = () => {
           pagination={false}
           loading={tableLoading}
         />
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };

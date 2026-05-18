@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -8,7 +7,6 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message
@@ -19,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useCan } from '@/features/rbac';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import type { TablePaginationConfig } from 'antd';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type JobStatus = 'RUNNING' | 'PAUSED' | 'FAILED' | 'SUCCESS';
 type JobMode = 'FULL' | 'INCREMENTAL';
@@ -302,7 +300,7 @@ export const SystemSyncJobsPage = () => {
       <Typography.Title level={3} style={{ margin: 0 }}>
         同步任务
       </Typography.Title>
-      <Card>
+      <IndustrialCard>
         <Form layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={10}>
@@ -350,7 +348,7 @@ export const SystemSyncJobsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -404,7 +402,7 @@ export const SystemSyncJobsPage = () => {
           </Button>
         ]}
       >
-        <Table<JobLog>
+        <IndustrialTable<JobLog>
           rowKey="log_id"
           dataSource={activeLogs}
           pagination={false}

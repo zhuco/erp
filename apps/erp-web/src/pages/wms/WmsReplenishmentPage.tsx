@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -8,7 +8,7 @@ import {
   listWmsReplenishmentTasks,
   type WmsReplenishmentTask
 } from '@/api/wmsExecution';
-import { ErrorState } from '@/components/QueryState';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 const statusColorMap: Record<WmsReplenishmentTask['status'], string> = {
@@ -94,30 +94,32 @@ export const WmsReplenishmentPage = () => {
     }
   ];
 
-  if (query.error) {
-    return (
-      <ErrorState
-        title="补货任务加载失败"
-        error={query.error}
-        onRetry={() => query.refetch()}
-      />
-    );
-  }
+  const tableData = query.data?.items ?? [];
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="wms-replenishment-title" style={{ margin: 0 }}>
-        补货任务执行台
-      </Typography.Title>
-      <div data-testid="wms-replenishment-table">
-        <Table<WmsReplenishmentTask>
-          rowKey="task_id"
-          loading={query.isLoading || query.isFetching}
-          dataSource={query.data?.items ?? []}
-          columns={columns}
-          pagination={false}
-        />
-      </div>
-    </Space>
+    <UiModule03MainTableSection<WmsReplenishmentTask>
+      toolbarLeft={
+        <Typography.Title level={3} data-testid="wms-replenishment-title" style={{ margin: 0 }}>
+          补货任务执行台
+        </Typography.Title>
+      }
+      rowKey="task_id"
+      columns={columns}
+      data={tableData}
+      loading={query.isLoading || query.isFetching}
+      error={query.error}
+      onRetry={() => query.refetch()}
+      errorTitle="补货任务加载失败"
+      emptyText="暂无补货任务"
+      total={tableData.length}
+      pagination={{ current: 1, pageSize: 50 }}
+      onPaginationChange={() => undefined}
+      dataTestId="wms-replenishment-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      columnSettingsKey="wms.replenishment.table.columns"
+    />
   );
 };

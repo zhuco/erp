@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Space, Tabs } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Row, Space, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -14,8 +13,9 @@ import {
   listCustomerStoredValueLedgers
 } from '@/api/customerLoyalty';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type LedgerFilters = {
   keyword?: string;
@@ -39,7 +39,7 @@ const PointsLedgerPanel = () => {
   const tenantId = useTenantId();
   const [form] = Form.useForm<LedgerFilters>();
   const [filters, setFilters] = useState<LedgerFilters>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -107,7 +107,7 @@ const PointsLedgerPanel = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
@@ -134,7 +134,7 @@ const PointsLedgerPanel = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
       <UiModule03MainTableSection<CustomerPointLedger>
         rowKey="ledger_id"
         columns={columns}
@@ -148,6 +148,11 @@ const PointsLedgerPanel = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="customer.points.table.columns"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
     </Space>
   );
@@ -157,7 +162,7 @@ const StoredValueLedgerPanel = () => {
   const tenantId = useTenantId();
   const [form] = Form.useForm<LedgerFilters>();
   const [filters, setFilters] = useState<LedgerFilters>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -226,7 +231,7 @@ const StoredValueLedgerPanel = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
@@ -253,7 +258,7 @@ const StoredValueLedgerPanel = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
       <UiModule03MainTableSection<CustomerStoredValueLedger>
         rowKey="ledger_id"
         columns={columns}
@@ -267,14 +272,19 @@ const StoredValueLedgerPanel = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="customer.storedValue.table.columns"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
     </Space>
   );
 };
 
 export const CustomerLoyaltyPage = () => (
-  <UiModule07SettingsLayout title="Points and Stored Value">
-    <UiModule07SettingsSection title="璐︽埛娴佹按">
+  <SettingsPageTemplate title="Points and Stored Value">
+    <SettingsPageSection title="璐︽埛娴佹按">
       <Tabs
         items={[
           {
@@ -289,7 +299,7 @@ export const CustomerLoyaltyPage = () => (
           }
         ]}
       />
-    </UiModule07SettingsSection>
-  </UiModule07SettingsLayout>
+    </SettingsPageSection>
+  </SettingsPageTemplate>
 );
 

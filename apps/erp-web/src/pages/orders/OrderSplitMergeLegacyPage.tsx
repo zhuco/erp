@@ -1,6 +1,6 @@
 
 import { Alert, Button, Descriptions, Empty, Form, Input, InputNumber, Modal, Select, Space, Spin, Tabs, Typography, message } from 'antd';
-import type { MenuProps, TablePaginationConfig } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   AppstoreOutlined,
   CheckSquareFilled,
@@ -204,7 +204,7 @@ export const OrderReviewPage = ({ mode = 'review' }: OrderReviewPageProps = {}) 
   } = useWorkbenchPanels();
   const queryClient = useQueryClient();
 
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: defaultPageSize,
     pageSizeOptions,

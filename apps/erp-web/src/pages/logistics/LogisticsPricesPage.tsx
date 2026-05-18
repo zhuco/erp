@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -14,7 +13,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -35,6 +33,7 @@ import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   carrier_code?: string;
@@ -66,7 +65,7 @@ export const LogisticsPricesPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [drawerForm] = Form.useForm<FormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -291,7 +290,7 @@ export const LogisticsPricesPage = () => {
           新建物流价格
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -324,7 +323,7 @@ export const LogisticsPricesPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -345,6 +344,11 @@ export const LogisticsPricesPage = () => {
         columnSettingsKey="logistics-prices.table.columns"
         rowKey="price_id"
         enablePanels={false}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
       <Drawer
         title={editingPrice ? '编辑物流价格' : '新建物流价格'}

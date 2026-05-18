@@ -28,6 +28,12 @@ describe('routeRegistry', () => {
         '/orders/review',
         '/orders/recheck',
         '/sales/settings',
+        '/goods/products/new',
+        '/goods/products/query',
+        '/goods/products/:productId/edit',
+        '/goods/kits/new',
+        '/goods/kits/query',
+        '/goods/kits/:kitSkuId/edit',
       ]),
     );
     expect(appRouteRegistry.every((route) => route.title.length > 0)).toBe(true);

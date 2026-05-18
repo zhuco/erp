@@ -8,7 +8,7 @@ import { listInbounds } from '@/api/inbounds';
 import { listWarehouses } from '@/api/warehouses';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useQuery } from '@tanstack/react-query';
 
@@ -216,7 +216,7 @@ export const InboundQuickReceivePage = () => {
   );
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={toolbarLeft}
       searchValue={toolbarSearchInput}
       onSearchChange={setToolbarSearchInput}
@@ -256,7 +256,7 @@ export const InboundQuickReceivePage = () => {
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContent={tableContent}
       rightPanel={rightPanel}

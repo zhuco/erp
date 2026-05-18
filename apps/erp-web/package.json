@@ -16,8 +16,11 @@
     "test:e2e:perf": "playwright test e2e/order-review-performance-budget.spec.ts --project=chromium",
     "test:e2e:latency": "playwright test e2e/order-review-interaction-latency-evaluation.spec.ts --project=chromium",
     "test:e2e:release-gate": "node ./scripts/run_release_gate_e2e.mjs",
+    "test:ui-contract": "pnpm run lint:page-templates && pnpm run assess:ui-uniformity -- --json && vitest --run src/app/layout/visibleText.test.ts src/app/layout/visibleTextEncoding.test.ts src/components/page-templates/workbench/workbenchContracts.test.ts src/components/page-templates/workbench/workbenchTemplateMetrics.test.ts src/pages/orders/shared/workbenchUnifiedTemplateAdoption.test.ts src/pages/shared/workbenchIndustrialGridAdoption.test.ts src/pages/shared/workbenchIndustrialDirectoryExpansion.test.ts",
+    "test:e2e:workbench-uniformity": "playwright test e2e/workbench-a11y.spec.ts e2e/workbench-typography.spec.ts e2e/workbench-layout-presets.spec.ts e2e/workbench-main-table-visibility.spec.ts e2e/order-workbench-pages.spec.ts e2e/order-unified-workbench-footer-contract.spec.ts --project=chromium",
     "test:e2e:critical": "playwright test --project=chromium -g \"Critical User Paths\"",
-    "generate:api": "pnpm -C ../.. run openapi:bundle && openapi-typescript ../../openapi/erp_api_v1.yaml -o src/api/generated/schema.ts"
+    "generate:api": "pnpm -C ../.. run openapi:bundle && openapi-typescript ../../openapi/erp_api_v1.yaml -o src/api/generated/schema.ts",
+    "assess:ui-uniformity": "node ./scripts/assess-ui-uniformity.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",

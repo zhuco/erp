@@ -619,7 +619,6 @@ export const WarehouseLocationsPage = () => {
             onHelp={() => message.info('货位目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<WarehouseLocation>
             rowKey={(record) => record.location_id}

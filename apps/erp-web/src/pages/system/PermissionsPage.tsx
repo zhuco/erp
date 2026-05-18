@@ -496,7 +496,6 @@ export const PermissionsPage = () => {
           onHelp={() => message.info('权限目录帮助文档待接入')}
         />
       }
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <ErpDataGridNext<PermissionDefinition>
           rowKey={(record) => record.code}

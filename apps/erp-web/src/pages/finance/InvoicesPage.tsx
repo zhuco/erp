@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Form,
   Input,
   Select,
@@ -9,7 +8,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -76,8 +75,8 @@ export const InvoicesPage = () => {
 
   const handleApply = async (values: InvoiceFormValues) => {
     if (!tenantId) {
-        message.error('请先选择商家');
-        return;
+      message.error('请先选择商家');
+      return;
     }
     setSubmitting(true);
     try {
@@ -107,57 +106,79 @@ export const InvoicesPage = () => {
     []
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
+  const invoiceTableTitle = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={4} style={{ margin: 0 }}>
         发票管理
       </Typography.Title>
-      <Card title="开票申请">
-        <Form form={form} layout="inline" onFinish={handleApply}>
-          <Form.Item name="order_id" label="订单ID" rules={[{ required: true }]}>
-            <Input style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="invoice_title" label="抬头" rules={[{ required: true }]}>
-            <Input style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="tax_no" label="税号">
-            <Input style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={submitting} disabled={!canWrite}>
-              申请
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Card>
-        <Space wrap>
-          <Select
-            allowClear
-            placeholder="状态"
-            style={{ width: 160 }}
-            options={statusOptions}
-            onChange={(value) => {
-              setFilters((prev) => ({ ...prev, status: value || undefined }));
-              setPagination((prev) => ({ ...prev, current: 1 }));
-            }}
-          />
-          <Input
-            placeholder="订单ID"
-            style={{ width: 220 }}
-            value={filters.order_id}
-            onChange={(event) =>
-              setFilters((prev) => ({ ...prev, order_id: event.target.value || undefined }))
-            }
-          />
-        </Space>
-      </Card>
+      <Typography.Text type="secondary">管理开票申请、开票状态与订单发票记录</Typography.Text>
     </Space>
+  );
+
+  const invoiceTableActions = (
+    <Space wrap>
+      <Button onClick={() => listQuery.refetch()} loading={listQuery.isFetching}>
+        刷新
+      </Button>
+      <Button
+        type="primary"
+        htmlType="submit"
+        form="finance-invoice-apply-form"
+        loading={submitting}
+        disabled={!canWrite}
+      >
+        开票申请
+      </Button>
+    </Space>
+  );
+
+  const invoiceFilterBar = (
+    <Space wrap>
+      <Select
+        allowClear
+        placeholder="状态"
+        style={{ width: 160 }}
+        options={statusOptions}
+        onChange={(value) => {
+          setFilters((prev) => ({ ...prev, status: value || undefined }));
+          setPagination((prev) => ({ ...prev, current: 1 }));
+        }}
+      />
+      <Input
+        placeholder="订单ID"
+        style={{ width: 220 }}
+        value={filters.order_id}
+        onChange={(event) =>
+          setFilters((prev) => ({ ...prev, order_id: event.target.value || undefined }))
+        }
+      />
+    </Space>
+  );
+
+  const header = (
+      <Form id="finance-invoice-apply-form" form={form} layout="inline" onFinish={handleApply}>
+        <Form.Item name="order_id" label="订单ID" rules={[{ required: true }]}>
+          <Input style={{ width: 220 }} />
+        </Form.Item>
+        <Form.Item name="invoice_title" label="抬头" rules={[{ required: true }]}>
+          <Input style={{ width: 220 }} />
+        </Form.Item>
+        <Form.Item name="tax_no" label="税号">
+          <Input style={{ width: 220 }} />
+        </Form.Item>
+      </Form>
   );
 
   return (
     <UiModule03MainTableSection<Invoice>
+      dataTestId="finance-invoices-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      toolbarLeft={invoiceTableTitle}
+      toolbarRight={invoiceTableActions}
       header={header}
+      actionBar={invoiceFilterBar}
       rowKey="invoice_id"
       columns={columns}
       data={listQuery.data?.items ?? []}
@@ -170,6 +191,7 @@ export const InvoicesPage = () => {
       pagination={pagination}
       onPaginationChange={setPagination}
       columnSettingsKey="finance.invoices.table.columns"
+      showColumnSettings
     />
   );
 };

@@ -28,7 +28,7 @@ import {
   listLogisticsWarehouseSuggestions,
   updateLogisticsWarehouseStrategy
 } from '@/api/logisticsOptimization';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -260,8 +260,8 @@ export const WarehouseOptimizationPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout title="仓配优化与成本控制">
-        <UiModule07SettingsSection
+      <SettingsPageTemplate title="仓配优化与成本控制">
+        <SettingsPageSection
           title="优化策略"
           actions={
             <Button type="primary" disabled={!canWrite} onClick={() => openStrategyModal()}>
@@ -276,16 +276,16 @@ export const WarehouseOptimizationPage = () => {
             pagination={false}
             loading={strategiesQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection title="优化建议">
+        </SettingsPageSection>
+        <SettingsPageSection title="优化建议">
           <Table
             rowKey="suggestion_id"
             columns={suggestionColumns}
             dataSource={suggestions}
             loading={suggestionsQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Modal
         title={editingStrategy ? '编辑策略' : '新增策略'}
         open={strategyModalOpen}

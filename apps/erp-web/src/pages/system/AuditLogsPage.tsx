@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Space, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Row, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,6 +12,7 @@ import {
   resolveAuditEntityTypeLabel,
   resolveOperationActionLabel
 } from '@/utils/logLabels';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   action?: string;
@@ -39,7 +39,7 @@ export const AuditLogsPage = () => {
   const tenantReady = isTenantSelected(tenantId);
   const [form] = Form.useForm<FilterValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -124,7 +124,7 @@ export const AuditLogsPage = () => {
       <Typography.Title level={3} style={{ margin: 0 }}>
         审计日志
       </Typography.Title>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col span={6}>
@@ -167,7 +167,7 @@ export const AuditLogsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -186,6 +186,11 @@ export const AuditLogsPage = () => {
       onPaginationChange={setPagination}
       rowKey="audit_id"
       enablePanels={false}
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      dataTestId="industrial-main-grid"
     />
   );
 };

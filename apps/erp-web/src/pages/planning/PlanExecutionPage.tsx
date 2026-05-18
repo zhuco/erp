@@ -1,8 +1,9 @@
-import { Card, Progress, Space, Table, Tag, Typography } from 'antd';
+import { Progress, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 
 import { listPlanningPlanExecutions, type PlanningPlanExecution } from '@/api/planning';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
 import { useTenantId } from '@/features/tenant';
 
@@ -54,7 +55,10 @@ export const PlanExecutionPage = () => {
       style={{ width: '100%' }}
       data-testid="planning-execution-page"
     >
-      <Card title="Execution Overview" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Execution Overview
+        </Typography.Title>
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <Typography.Text>Purchase Plans</Typography.Text>
           <Progress percent={purchaseProgress} />
@@ -63,9 +67,12 @@ export const PlanExecutionPage = () => {
           <Typography.Text>Promo Stocking</Typography.Text>
           <Progress percent={promoProgress} status="active" />
         </Space>
-      </Card>
+      </section>
 
-      <Card title="Execution Tracker" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Execution Tracker
+        </Typography.Title>
         {query.error ? (
           <ErrorState
             title="Failed to load plan execution rows"
@@ -73,16 +80,17 @@ export const PlanExecutionPage = () => {
             onRetry={() => query.refetch()}
           />
         ) : (
-          <Table<PlanningPlanExecution>
+          <ErpDataGrid<PlanningPlanExecution>
             data-testid="planning-execution-table"
-            rowKey="execution_id"
+            rowKey={(record) => record.execution_id}
             loading={query.isLoading || query.isFetching}
             columns={columns}
-            dataSource={items}
-            pagination={false}
+            data={items}
+            compact
+            showRowIndex={false}
           />
         )}
-      </Card>
+      </section>
     </Space>
   );
 };

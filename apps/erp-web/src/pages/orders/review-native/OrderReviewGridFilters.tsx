@@ -468,7 +468,8 @@ export const OrderReviewDateRangeFloatingFilter = ({
       >
         清
       </button>
-      <div className="order-review-floating-filter-date-picker-anchor" aria-hidden="true">
+      {pickerOpen ? (
+        <div className="order-review-floating-filter-date-picker-anchor">
         <DatePicker.RangePicker
           open={pickerOpen}
           value={pickerValue}
@@ -492,7 +493,8 @@ export const OrderReviewDateRangeFloatingFilter = ({
             setPickerOpen(false);
           }}
         />
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 };

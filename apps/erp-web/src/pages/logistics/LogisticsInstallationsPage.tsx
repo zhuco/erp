@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Descriptions,
   Drawer,
@@ -9,7 +8,6 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Tag,
   message
 } from 'antd';
@@ -25,9 +23,10 @@ import {
   listLogisticsInstallationTasks,
   updateLogisticsInstallationTask
 } from '@/api/logisticsInstallations';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type TaskFormValues = {
   order_id: string;
@@ -227,8 +226,8 @@ export const LogisticsInstallationsPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout title="配送安装服务">
-        <UiModule07SettingsSection
+      <SettingsPageTemplate title="配送安装服务">
+        <SettingsPageSection
           title="安装任务"
           actions={
             <Button type="primary" disabled={!canWrite} onClick={() => setTaskModalOpen(true)}>
@@ -236,14 +235,14 @@ export const LogisticsInstallationsPage = () => {
             </Button>
           }
         >
-          <Table
+          <IndustrialTable
             rowKey="task_id"
             columns={columns}
             dataSource={tasks}
             loading={tasksQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Modal
         title="新增安装任务"
         open={taskModalOpen}
@@ -333,8 +332,8 @@ export const LogisticsInstallationsPage = () => {
                 {activeTask.exception_note ?? '-'}
               </Descriptions.Item>
             </Descriptions>
-            <Card size="small" title="预约记录">
-              <Table
+            <IndustrialCard size="small" title="预约记录">
+              <IndustrialTable
                 rowKey="appointment_id"
                 pagination={false}
                 dataSource={activeTask.appointments ?? []}
@@ -343,7 +342,7 @@ export const LogisticsInstallationsPage = () => {
                   { title: '状态', dataIndex: 'status' }
                 ]}
               />
-            </Card>
+            </IndustrialCard>
           </Space>
         ) : null}
       </Drawer>

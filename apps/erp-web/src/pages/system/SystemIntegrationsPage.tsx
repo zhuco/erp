@@ -36,7 +36,7 @@ import { getSystemWorkflowCatalog } from '@/api/systemWorkflows';
 import { requestTokenRefresh } from '@/api/shops';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -632,16 +632,16 @@ export const SystemIntegrationsPage = () => {
 
   if (!tenantReady) {
     return (
-      <UiModule07SettingsLayout
+      <SettingsPageTemplate
         title={<span data-testid="system-integrations-title">接口与集成</span>}
       >
         <EmptyState description="请先选择租户" />
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout
+    <SettingsPageTemplate
       title={<span data-testid="system-integrations-title">接口与集成</span>}
     >
       {catalogQuery.isError ? (
@@ -651,7 +651,7 @@ export const SystemIntegrationsPage = () => {
           onRetry={() => void catalogQuery.refetch()}
         />
       ) : null}
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="平台店铺接入总览"
         actions={
           <Button onClick={() => void overviewQuery.refetch()} loading={overviewQuery.isFetching}>
@@ -720,8 +720,8 @@ export const SystemIntegrationsPage = () => {
             </div>
           </Space>
         )}
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection
+      </SettingsPageSection>
+      <SettingsPageSection
         title="集成清单"
         actions={
           <Button type="primary" disabled={writeDisabled} onClick={() => openModal()}>
@@ -738,7 +738,7 @@ export const SystemIntegrationsPage = () => {
           loading={tableLoading}
           />
         </div>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
       <Modal
         title={editing ? '编辑集成' : '新增集成'}
         open={modalOpen}
@@ -816,6 +816,6 @@ export const SystemIntegrationsPage = () => {
           ]}
         />
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

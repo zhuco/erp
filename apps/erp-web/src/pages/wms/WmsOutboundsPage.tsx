@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -13,7 +12,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -240,7 +238,7 @@ export const WmsOutboundsPage = () => {
 
   const toolbarLeft = (
     <Space align="center" size={12} wrap={false}>
-      <Button type="primary" onClick={() => setCreateOpen(true)}>
+      <Button type="primary" onClick={() => setCreateOpen(true)} data-testid="wms-outbounds-create-button">
         新建出库单
       </Button>
     </Space>
@@ -255,10 +253,10 @@ export const WmsOutboundsPage = () => {
   );
 
   const header = (
-    <Card>
       <Form
         form={filterForm}
         layout="vertical"
+        data-testid="wms-outbounds-filter-form"
         onFinish={(values) => {
           setFilters(values);
           setPagination((prev) => ({ ...prev, current: 1 }));
@@ -287,10 +285,11 @@ export const WmsOutboundsPage = () => {
           </Col>
           <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" htmlType="submit" data-testid="wms-outbounds-search-button">
                 查询
               </Button>
               <Button
+                data-testid="wms-outbounds-reset-button"
                 onClick={() => {
                   filterForm.resetFields();
                   setFilters({});
@@ -303,12 +302,12 @@ export const WmsOutboundsPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   return (
     <>
       <UiModule03MainTableSection<WmsOutboundDoc>
+        dataTestId="wms-outbounds-main-grid"
         toolbarLeft={toolbarLeft}
         toolbarRight={toolbarRight}
         header={header}
@@ -323,6 +322,10 @@ export const WmsOutboundsPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="wms.outbounds.table.columns"
       />
       <Drawer

@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   DatePicker,
@@ -12,7 +11,6 @@ import {
   Select,
   Space,
   Switch,
-  TablePaginationConfig,
   Tag,
   Tabs,
   Typography,
@@ -415,7 +413,6 @@ export const ShipmentPreprocessStrategiesPage = () => {
   );
 
   const strategyHeader = (
-    <Card>
       <Form form={form} layout="vertical" onFinish={handleSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -433,11 +430,9 @@ export const ShipmentPreprocessStrategiesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   const hitHeader = (
-    <Card>
       <Form form={hitForm} layout="vertical" onFinish={handleHitSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -465,7 +460,6 @@ export const ShipmentPreprocessStrategiesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   return (
@@ -492,6 +486,11 @@ export const ShipmentPreprocessStrategiesPage = () => {
                 total={listQueryState.data?.total ?? 0}
                 pagination={pagination}
                 onPaginationChange={setPagination}
+                dataTestId="wms-shipment-preprocess-strategies-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.shipment-preprocess-strategies.table.columns"
               />
             )
@@ -514,6 +513,11 @@ export const ShipmentPreprocessStrategiesPage = () => {
                 total={hitQueryState.data?.total ?? 0}
                 pagination={hitPagination}
                 onPaginationChange={setHitPagination}
+                dataTestId="wms-shipment-preprocess-hits-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.shipment-preprocess-hits.table.columns"
               />
             )

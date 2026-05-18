@@ -32,6 +32,6 @@ test.describe('workbench accessibility gate', () => {
   });
 
   test('order query workbench has no blocking accessibility violations', async ({ page }) => {
-    await assertWorkbenchA11y(page, '/orders', '[data-testid="orders-grid"]');
+    await assertWorkbenchA11y(page, '/orders', '[data-testid="order-review-data-grid"]');
   });
 });

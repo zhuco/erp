@@ -25,6 +25,7 @@ import {
   SHARED_SUBMENU_VERTICAL_GAP,
   type SharedAnchorRect,
 } from '@/app/layout/headerSharedSubmenu';
+import { normalizeVisibleText } from './visibleText';
 
 export type FunctionSearchOption = NonNullable<SelectProps['options']>[number];
 
@@ -177,6 +178,19 @@ export const ModuleHeader = ({
     maxHeight: number;
   } | null>(null);
   const [panelContentHeight, setPanelContentHeight] = useState(0);
+  const displayUserName = normalizeVisibleText(userName);
+  const displayModules = resolvedModules.map((module) => ({
+    ...module,
+    label: normalizeVisibleText(module.label),
+    groups: module.groups.map((group) => ({
+      ...group,
+      label: normalizeVisibleText(group.label),
+      items: group.items.map((item) => ({
+        ...item,
+        label: normalizeVisibleText(item.label),
+      })),
+    })),
+  }));
   const searchInputRef = useRef<InputRef | null>(null);
   const searchBlurTimerRef = useRef<number | null>(null);
   const moduleMenuShellRef = useRef<HTMLDivElement | null>(null);
@@ -415,7 +429,7 @@ export const ModuleHeader = ({
         data-testid="workbench-module-menu-anchor"
       >
         <div className="workbench-module-menu">
-          {resolvedModules.map((module) => {
+          {displayModules.map((module) => {
             const hasGroups = module.groups.length > 0;
             const isOpen = openModuleKey === module.key;
             const buttonClassName = `workbench-module-item ${
@@ -605,10 +619,10 @@ export const ModuleHeader = ({
           </Tooltip>
         </Space>
         <Dropdown menu={{ items: userMenuItems, onClick: onUserMenuClick }}>
-          <Button type="text" className="workbench-user-trigger" aria-label={`用户菜单：${userName}`}>
+          <Button type="text" className="workbench-user-trigger" aria-label={`用户菜单：${displayUserName}`}>
             <Space size={6}>
-              <Avatar size={24}>{userName.slice(0, 1).toUpperCase()}</Avatar>
-              <span>{userName}</span>
+              <Avatar size={24}>{displayUserName.slice(0, 1).toUpperCase()}</Avatar>
+              <span>{displayUserName}</span>
               <DownOutlined aria-hidden="true" />
             </Space>
           </Button>

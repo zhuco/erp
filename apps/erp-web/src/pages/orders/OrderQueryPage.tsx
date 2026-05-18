@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   Descriptions,
   Empty,
@@ -11,7 +10,6 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Tabs,
   Tag,
   Tooltip,
@@ -62,11 +60,11 @@ import { buildOrderQuickFilterCells } from '@/components/ErpDataGrid';
 import type { ErpDataGridNextColumn } from '@/components/ErpDataGridNext';
 import { buildOrderEditableMarkMenuItems, resolveOrderDisplayTags } from '@/features/orderTags';
 import {
-  OrderReviewWorkbenchTemplate,
+  WorkbenchPageTemplate,
+  WorkbenchToolbar,
   useWorkbenchSavedViewState,
-  OrderReviewWorkbenchToolbarTemplate,
   useWorkbenchTablePagination,
-} from '@/components/workbench/templates';
+} from '@/components/page-templates';
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { fetchAllOrdersByScan } from '@/pages/orders/shared/fetchAllOrdersByScan';
 import {
@@ -93,6 +91,7 @@ import {
 import { buildOrderManagementColumns } from './components/orderManagementColumns';
 
 import './orderQueryPage.css';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type OrdersPageDefaults = Partial<OrderListQuery> & {
   exception_flags?: string[] | string;
@@ -2373,7 +2372,7 @@ export const OrderQueryPage = ({
     () =>
       renderDetailContent(
         <UiModule04BottomTable syncKey={`${activeBottomTab}-${detailGoodsRows.length}`}>
-          <Table
+          <IndustrialTable
             size="small"
             rowKey={(record) => record.__localKey}
             columns={goodsColumns}
@@ -2393,7 +2392,7 @@ export const OrderQueryPage = ({
         <UiModule04BottomTable
           syncKey={`${activeBottomTab}-${detailData?.audit_logs?.length ?? 0}`}
         >
-          <Table
+          <IndustrialTable
             size="small"
             rowKey={(record) => record.audit_id}
             columns={auditColumns}
@@ -2433,7 +2432,7 @@ export const OrderQueryPage = ({
               const packageQuery = packageQueries[index];
               const packages = packagesMap.get(shipment.shipment_id) ?? [];
               return (
-                <Card
+                <IndustrialCard
                   key={shipment.shipment_id}
                   size="small"
                   title={`包裹 ${shipment.shipment_no ?? shipment.shipment_id}`}
@@ -2488,7 +2487,7 @@ export const OrderQueryPage = ({
                       <Typography.Text type="secondary">暂无包裹明细</Typography.Text>
                     )}
                   </Space>
-                </Card>
+                </IndustrialCard>
               );
             })
           )}
@@ -2534,7 +2533,7 @@ export const OrderQueryPage = ({
   );
 
   const queryToolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={
         <OrderQueryToolbarLeft
           form={form}
@@ -2574,7 +2573,7 @@ export const OrderQueryPage = ({
 
   return (
     <>
-      <OrderReviewWorkbenchTemplate
+      <WorkbenchPageTemplate
         pageTestId="order-query-page"
         className="order-query-page"
         tableClassName={queryTableClassName}

@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -13,7 +12,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -29,6 +27,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   keyword?: string;
@@ -67,7 +66,7 @@ export const CustomerSegmentsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [drawerForm] = Form.useForm<FormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -246,7 +245,7 @@ export const CustomerSegmentsPage = () => {
           新建分群
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form
           form={form}
           layout="vertical"
@@ -279,7 +278,7 @@ export const CustomerSegmentsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -301,6 +300,10 @@ export const CustomerSegmentsPage = () => {
         columnSettingsKey="customer.segments.table.columns"
         enablePanels={false}
         dataTestId="customer-segments-table"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
       />
       <Drawer
         title={editingSegment ? '编辑客户分群' : '鏂板缓客户分群'}

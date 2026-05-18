@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Space, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Row, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -18,6 +17,7 @@ import {
   resolveOperationActionLabel,
   resolveOperationRefTypeLabel
 } from '@/utils/logLabels';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   action?: string;
@@ -44,7 +44,7 @@ export const OperationLogsPage = () => {
   const tenantReady = isTenantSelected(tenantId);
   const [form] = Form.useForm<FilterValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -142,7 +142,7 @@ export const OperationLogsPage = () => {
       <Typography.Title level={3} style={{ margin: 0 }}>
         操作日志
       </Typography.Title>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col span={6}>
@@ -185,7 +185,7 @@ export const OperationLogsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -204,6 +204,11 @@ export const OperationLogsPage = () => {
       onPaginationChange={setPagination}
       rowKey="log_id"
       enablePanels={false}
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      dataTestId="industrial-main-grid"
     />
   );
 };

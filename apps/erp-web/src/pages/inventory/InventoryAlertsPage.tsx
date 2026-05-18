@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -14,15 +13,13 @@ import {
   Select,
   Skeleton,
   Space,
-  Statistic,
   Switch,
-  Table,
   Tabs,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import {
   ExportOutlined,
   QuestionCircleOutlined,
@@ -31,16 +28,26 @@ import {
 } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { createExportJob } from '@/api/exports';
 import type {
+  InventoryAbcItem,
+  InventoryAgeBucket,
   InventoryAlertLevel,
   InventoryAlertRecord,
   InventoryAlertRule,
+  InventoryAlertListQuery,
   InventoryAlertRulePayload,
-  InventoryAlertType
+  InventoryAlertType,
+  InventoryAmountRanking,
+  InventoryAmountTrendPoint,
+  InventoryDeadStockItem,
+  InventorySlowMovingItem,
+  InventoryTrendPoint,
+  InventoryTurnoverBucket
 } from '@/api/inventoryInsights';
 import {
   createInventoryAlertRule,
@@ -73,6 +80,57 @@ type FilterValues = {
 };
 
 type RuleFormValues = InventoryAlertRulePayload;
+type AnalysisRow =
+  | InventoryAmountRanking
+  | InventoryAmountTrendPoint
+  | InventoryTurnoverBucket
+  | InventorySlowMovingItem
+  | InventoryTrendPoint
+  | InventoryAgeBucket
+  | InventoryDeadStockItem
+  | InventoryAbcItem;
+
+const modulePagination: TablePaginationConfig = { current: 1, pageSize: 1000 };
+
+type InventoryAlertsSectionProps = {
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+};
+
+const InventoryAlertsSection = ({ title, description, children }: InventoryAlertsSectionProps) => (
+  <section className="inventory-alerts-section">
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <div className="inventory-alerts-section-header">
+        <Space direction="vertical" size={2}>
+          <Typography.Title level={4}>{title}</Typography.Title>
+          {description ? (
+            <Typography.Text type="secondary" className="inventory-alerts-section-description">
+              {description}
+            </Typography.Text>
+          ) : null}
+        </Space>
+      </div>
+      {children}
+    </Space>
+  </section>
+);
+
+const resolveColumnKey = <T extends object>(column: ColumnsType<T>[number], index: number) => {
+  if (column.key != null) {
+    return column.key;
+  }
+  if ('dataIndex' in column && column.dataIndex != null) {
+    return Array.isArray(column.dataIndex) ? column.dataIndex.join('.') : String(column.dataIndex);
+  }
+  return `column-${index}`;
+};
+
+const normalizeGridColumns = <T extends object,>(columns: ColumnsType<T>): ColumnsType<T> =>
+  columns.map((column, index) => ({
+    ...column,
+    key: resolveColumnKey(column, index)
+  }));
 
 const alertTypeLabels: Record<InventoryAlertType, string> = {
   OUT_OF_STOCK: '缺货',
@@ -114,7 +172,7 @@ export const InventoryAlertsPage = () => {
   const canExport = useCan('exports.write');
   const [form] = Form.useForm<FilterValues>();
   const [ruleForm] = Form.useForm<RuleFormValues>();
-  const defaultFilters = useMemo(
+  const defaultFilters = useMemo<FilterValues>(
     () => ({
       dateRange: [dayjs().subtract(30, 'day'), dayjs()]
     }),
@@ -172,11 +230,11 @@ export const InventoryAlertsPage = () => {
     retry: false
   });
 
-  const listQuery = useMemo(() => {
+  const listQuery = useMemo<InventoryAlertListQuery>(() => {
     const current = pagination.current ?? 1;
     const pageSize = pagination.pageSize ?? 10;
     const sortField = sortState.field;
-    const sortOrder =
+    const sortOrder: InventoryAlertListQuery['sort_order'] =
       sortState.order === 'ascend'
         ? 'asc'
         : sortState.order === 'descend'
@@ -420,7 +478,7 @@ export const InventoryAlertsPage = () => {
     []
   );
 
-  const rankingColumns: ColumnsType<Record<string, unknown>> = [
+  const rankingColumns: ColumnsType<InventoryAmountRanking> = [
     {
       title: '排名',
       dataIndex: 'rank',
@@ -442,7 +500,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const shareColumns: ColumnsType<Record<string, unknown>> = [
+  const shareColumns: ColumnsType<InventoryAmountRanking> = [
     { title: '对象', dataIndex: 'dimension_name' },
     {
       title: '库存量',
@@ -463,7 +521,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const trendColumns: ColumnsType<Record<string, unknown>> = [
+  const trendColumns: ColumnsType<InventoryAmountTrendPoint> = [
     { title: '月份', dataIndex: 'period' },
     {
       title: '库存金额',
@@ -473,7 +531,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const turnoverBucketsColumns: ColumnsType<Record<string, unknown>> = [
+  const turnoverBucketsColumns: ColumnsType<InventoryTurnoverBucket> = [
     { title: '区间', dataIndex: 'label' },
     {
       title: 'SKU数量',
@@ -494,7 +552,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const slowMovingColumns: ColumnsType<Record<string, unknown>> = [
+  const slowMovingColumns: ColumnsType<InventorySlowMovingItem> = [
     { title: '品牌', dataIndex: 'dimension_name' },
     {
       title: '平均周转天数',
@@ -505,7 +563,7 @@ export const InventoryAlertsPage = () => {
     { title: 'SKU数量', dataIndex: 'sku_count', align: 'right' }
   ];
 
-  const historyColumns: ColumnsType<Record<string, unknown>> = [
+  const historyColumns: ColumnsType<InventoryTrendPoint> = [
     { title: '日期', dataIndex: 'date' },
     { title: '结存数量', dataIndex: 'inventory_qty', align: 'right' },
     {
@@ -516,7 +574,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const deadColumns: ColumnsType<Record<string, unknown>> = [
+  const deadColumns: ColumnsType<InventoryDeadStockItem> = [
     { title: '货品/SKU', dataIndex: 'sku_code' },
     { title: '货品名称', dataIndex: 'sku_name' },
     { title: '仓库', dataIndex: 'warehouse_name' },
@@ -535,7 +593,7 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const abcColumns: ColumnsType<Record<string, unknown>> = [
+  const abcColumns: ColumnsType<InventoryAbcItem> = [
     { title: '分级', dataIndex: 'level' },
     { title: '指标维度', dataIndex: 'metric' },
     { title: 'SKU数量', dataIndex: 'sku_count', align: 'right' },
@@ -597,22 +655,147 @@ export const InventoryAlertsPage = () => {
     }
   ];
 
-  const renderAnalysisTable = (
-    columns: ColumnsType<Record<string, unknown>>,
-    data: unknown[],
+  const renderAnalysisTable = <T extends AnalysisRow>(
+    columns: ColumnsType<T>,
+    data: T[],
     emptyText: string,
     loading = false
   ) => (
-    <Table
-      size="small"
-      rowKey={(record, index) => (record as { dimension_id?: string }).dimension_id ?? index ?? 0}
-      columns={columns}
-      dataSource={data}
-      pagination={false}
+    <UiModule03MainTableSection<T>
+      className="inventory-alerts-analysis-table-section"
+      tableClassName="inventory-alerts-analysis-table"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      rowKey={(record, index) =>
+        'dimension_id' in record ? record.dimension_id : 'sku_id' in record ? record.sku_id : index ?? 0
+      }
+      columns={normalizeGridColumns(columns)}
+      data={data}
       loading={loading}
-      locale={{
-        emptyText: <EmptyState description={emptyText} />
-      }}
+      onRetry={() => undefined}
+      emptyText={emptyText}
+      total={data.length}
+      pagination={modulePagination}
+      onPaginationChange={() => undefined}
+      tableFooter={null}
+      enablePanels={false}
+    />
+  );
+
+  const mainTableHeader = (
+    <Form
+      data-testid="inventory-alerts-filter-form"
+      form={form}
+      layout="vertical"
+      onFinish={handleSearch}
+      initialValues={defaultFilters}
+    >
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="dateRange" label="时间范围">
+            <DatePicker.RangePicker allowClear style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select allowClear placeholder="选择仓库" options={warehouseOptions} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="category" label="分类">
+            <Select
+              allowClear
+              placeholder="货品分类"
+              options={categoryOptions.map((item) => ({ value: item, label: item }))}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="brand" label="品牌">
+            <Select
+              allowClear
+              placeholder="品牌"
+              options={brandOptions.map((item) => ({ value: item, label: item }))}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8}>
+          <Form.Item name="keyword" label="关键词">
+            <Input placeholder="货品名称/SKU" allowClear />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="alert_level" label="预警等级">
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="等级"
+              options={(Object.keys(alertLevelLabels) as InventoryAlertLevel[]).map((value) => ({
+                value,
+                label: alertLevelLabels[value]
+              }))}
+            />
+          </Form.Item>
+        </Col>
+        <Col
+          xs={24}
+          md={10}
+          style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
+        >
+          <Space>
+            <Button data-testid="inventory-alerts-search-button" type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button data-testid="inventory-alerts-reset-button" onClick={handleReset}>
+              重置
+            </Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
+  const mainTableToolbarLeft = (
+    <Space direction="vertical" size={0}>
+      <Typography.Text strong>预警明细</Typography.Text>
+      <Typography.Text type="secondary">
+        当前：{alertTypeLabels[activeAlertType]} · 共 {alertsQuery.data?.total ?? 0} 条
+      </Typography.Text>
+    </Space>
+  );
+
+  const mainTableToolbarRight = (
+    <Space size={8} wrap>
+      <Button
+        data-testid="inventory-alerts-export-button"
+        icon={<ExportOutlined />}
+        onClick={handleExport}
+        loading={exporting}
+      >
+        导出
+      </Button>
+      <Button data-testid="inventory-alerts-refresh-button" icon={<ReloadOutlined />} onClick={handleRefresh}>
+        刷新
+      </Button>
+      <Button
+        data-testid="inventory-alerts-rule-settings-button"
+        icon={<SettingOutlined />}
+        onClick={handleOpenRuleDrawer}
+      >
+        配置预警规则
+      </Button>
+      <Button icon={<QuestionCircleOutlined />} onClick={() => message.info('查看帮助文档')}>
+        帮助
+      </Button>
+    </Space>
+  );
+
+  const mainTableActionBar = (
+    <Tabs
+      activeKey={activeAlertType}
+      items={alertTabs}
+      onChange={(key) => handleKpiClick(key as InventoryAlertType)}
     />
   );
 
@@ -622,20 +805,6 @@ export const InventoryAlertsPage = () => {
         <Typography.Title level={3} style={{ margin: 0 }}>
           库存预警看板
         </Typography.Title>
-        <Space size={8} wrap>
-          <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
-            导出
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-            刷新
-          </Button>
-          <Button icon={<SettingOutlined />} onClick={handleOpenRuleDrawer}>
-            配置预警规则
-          </Button>
-          <Button icon={<QuestionCircleOutlined />} onClick={() => message.info('查看帮助文档')}>
-            帮助
-          </Button>
-        </Space>
       </Row>
 
       {!insightsFeature.enabled ? (
@@ -647,73 +816,6 @@ export const InventoryAlertsPage = () => {
         />
       ) : null}
 
-      <Card size="small">
-        <Form form={form} layout="vertical" onFinish={handleSearch} initialValues={defaultFilters}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="dateRange" label="时间范围">
-                <DatePicker.RangePicker allowClear style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select allowClear placeholder="选择仓库" options={warehouseOptions} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="category" label="分类">
-                <Select
-                  allowClear
-                  placeholder="货品分类"
-                  options={categoryOptions.map((item) => ({ value: item, label: item }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="brand" label="品牌">
-                <Select
-                  allowClear
-                  placeholder="品牌"
-                  options={brandOptions.map((item) => ({ value: item, label: item }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键词">
-                <Input placeholder="货品名称/SKU" allowClear />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="alert_level" label="预警等级">
-                <Select
-                  mode="multiple"
-                  allowClear
-                  placeholder="等级"
-                  options={(Object.keys(alertLevelLabels) as InventoryAlertLevel[]).map(
-                    (value) => ({
-                      value,
-                      label: alertLevelLabels[value]
-                    })
-                  )}
-                />
-              </Form.Item>
-            </Col>
-            <Col
-              xs={24}
-              md={10}
-              style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
-            >
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-
       {summaryQuery.error ? (
         <ErrorState
           title="预警概览加载失败"
@@ -721,64 +823,69 @@ export const InventoryAlertsPage = () => {
           onRetry={() => summaryQuery.refetch()}
         />
       ) : (
-        <Card size="small">
+        <InventoryAlertsSection title="预警概览" description="按预警类型查看库存风险">
           {summaryQuery.isFetching ? (
             <Skeleton active paragraph={{ rows: 1 }} />
           ) : (
             <Row gutter={[16, 16]}>
               {kpiCards.map((card) => (
                 <Col xs={24} sm={12} md={6} key={card.type}>
-                  <Card
-                    size="small"
-                    hoverable
+                  <button
+                    type="button"
                     onClick={() => handleKpiClick(card.type)}
                     className={`inventory-alerts-kpi-card${
                       activeAlertType === card.type ? ' is-active' : ''
                     }`}
                   >
-                    <Statistic title={card.label} value={card.value} />
-                  </Card>
+                    <Typography.Text type="secondary">{card.label}</Typography.Text>
+                    <Typography.Text strong className="inventory-alerts-kpi-value">
+                      {card.value}
+                    </Typography.Text>
+                  </button>
                 </Col>
               ))}
             </Row>
           )}
-        </Card>
+        </InventoryAlertsSection>
       )}
 
-      <Card size="small" className="inventory-alerts-table-card">
-        <Tabs
-          activeKey={activeAlertType}
-          items={alertTabs}
-          onChange={(key) => handleKpiClick(key as InventoryAlertType)}
-        />
-        <UiModule03MainTableSection<InventoryAlertRecord>
-          rowKey={(record) => record.alert_id}
-          columns={alertColumns}
-          data={alertsQuery.data?.items ?? []}
-          loading={alertsQuery.isFetching}
-          error={alertsQuery.error}
-          onRetry={() => alertsQuery.refetch()}
-          errorTitle="预警明细加载失败"
-          emptyText="暂无符合条件的预警记录"
-          total={alertsQuery.data?.total ?? 0}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          onSortChange={setSortState}
-          sortState={sortState}
-          rowClassName={(record) =>
-            record.alert_id === selectedAlert?.alert_id ? 'inventory-alerts-row-active' : ''
+      <UiModule03MainTableSection<InventoryAlertRecord>
+        toolbarLeft={mainTableToolbarLeft}
+        toolbarRight={mainTableToolbarRight}
+        header={mainTableHeader}
+        actionBar={mainTableActionBar}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        rowKey={(record) => record.alert_id}
+        columns={alertColumns}
+        data={alertsQuery.data?.items ?? []}
+        loading={alertsQuery.isFetching}
+        error={alertsQuery.error}
+        onRetry={() => alertsQuery.refetch()}
+        errorTitle="预警明细加载失败"
+        emptyText="暂无符合条件的预警记录"
+        total={alertsQuery.data?.total ?? 0}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        onSortChange={setSortState}
+        sortState={sortState}
+        showColumnSettings={true}
+        columnSettingsKey="inventory.alerts.table.columns"
+        dataTestId="inventory-alerts-main-grid"
+        rowClassName={(record) =>
+          record.alert_id === selectedAlert?.alert_id ? 'inventory-alerts-row-active' : ''
+        }
+        onRow={(record) => ({
+          onClick: () => {
+            setSelectedAlert(record);
+            setDetailDrawerOpen(true);
           }
-          onRow={(record) => ({
-            onClick: () => {
-              setSelectedAlert(record);
-              setDetailDrawerOpen(true);
-            }
-          })}
-          enablePanels={false}
-        />
-      </Card>
+        })}
+        enablePanels={false}
+      />
 
-      <Card size="small" title="库存金额分析">
+      <InventoryAlertsSection title="库存金额分析">
         {amountAnalysisQuery.error ? (
           <ErrorState
             title="库存金额分析加载失败"
@@ -841,9 +948,9 @@ export const InventoryAlertsPage = () => {
             ]}
           />
         )}
-      </Card>
+      </InventoryAlertsSection>
 
-      <Card size="small" title="周转 & 库龄 & 呆滞 & ABC">
+      <InventoryAlertsSection title="周转 & 库龄 & 呆滞 & ABC">
         {turnoverQuery.error ? (
           <ErrorState
             title="周转分析加载失败"
@@ -921,7 +1028,7 @@ export const InventoryAlertsPage = () => {
             ]}
           />
         )}
-      </Card>
+      </InventoryAlertsSection>
 
       <Drawer
         width={520}
@@ -991,20 +1098,27 @@ export const InventoryAlertsPage = () => {
               onRetry={() => rulesQuery.refetch()}
             />
           ) : (
-            <Table
-              size="small"
+            <UiModule03MainTableSection<InventoryAlertRule>
+              className="inventory-alerts-rule-table-section"
+              tableClassName="inventory-alerts-rule-table"
+              gridPreset="industrial-review-compact"
+              selectionCellMode="custom"
+              selectionHeaderMode="allInvert"
               rowKey="rule_id"
-              columns={ruleColumns}
-              dataSource={rulesQuery.data?.items ?? []}
-              pagination={false}
+              columns={normalizeGridColumns(ruleColumns)}
+              data={rulesQuery.data?.items ?? []}
               loading={rulesQuery.isFetching}
-              locale={{
-                emptyText: <EmptyState description="暂无预警规则" />
-              }}
+              onRetry={() => rulesQuery.refetch()}
+              emptyText="暂无预警规则"
+              total={rulesQuery.data?.items.length ?? 0}
+              pagination={modulePagination}
+              onPaginationChange={() => undefined}
+              tableFooter={null}
+              enablePanels={false}
             />
           )}
 
-          <Card size="small" title={editingRule ? '编辑规则' : '新增规则'}>
+          <InventoryAlertsSection title={editingRule ? '编辑规则' : '新增规则'}>
             <Form
               layout="vertical"
               form={ruleForm}
@@ -1100,7 +1214,7 @@ export const InventoryAlertsPage = () => {
                 <Button onClick={handleRuleReset}>重置</Button>
               </Space>
             </Form>
-          </Card>
+          </InventoryAlertsSection>
         </Space>
       </Drawer>
     </Space>

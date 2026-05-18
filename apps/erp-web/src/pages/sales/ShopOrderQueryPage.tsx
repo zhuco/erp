@@ -1,13 +1,11 @@
 import {
   Button,
-  Card,
   DatePicker,
   Divider,
   Empty,
   Input,
   Select,
   Space,
-  Table,
   Tabs,
   Tag,
   Typography,
@@ -26,12 +24,11 @@ import type { OrderDetail, OrderListQuery, OrderSummary } from '@/api/orders';
 import { getOrderDetail } from '@/api/orders';
 import { listShops } from '@/api/shops';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
-import { UiModule03MainTableSection } from '@/components/ui-modules';
-import {
-  useWorkbenchTablePagination,
-} from '@/components/workbench/templates';
-import { buildOrderQuickFilterCells } from '@/components/ErpDataGrid';
+import { useWorkbenchTablePagination } from '@/components/page-templates';
+import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
+import { buildOrderQuickFilterCells, type ErpDataGridColumn } from '@/components/ErpDataGrid';
 import { useTenantId } from '@/features/tenant';
+import { OrderWorkbenchMainGridEntry } from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
 
 import './shopOrderQueryPage.css';
 
@@ -526,52 +523,52 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
     [detailMap, shopMap]
   );
 
-  const goodsColumns = useMemo<ColumnsType<ShopOrderGoodsRow>>(
+  const goodsColumns = useMemo<ErpDataGridColumn<ShopOrderGoodsRow>[]>(
     () => [
-      { title: '网店商品编码', dataIndex: 'item_code', key: 'item_code', width: 120 },
-      { title: '网店规格编码', dataIndex: 'spec_code', key: 'spec_code', width: 120 },
-      { title: '交易名称', dataIndex: 'title', key: 'title', width: 220 },
-      { title: '交易规格', dataIndex: 'spec', key: 'spec', width: 140 },
+      { title: '网店商品编码', field: 'item_code', key: 'item_code', width: 120 },
+      { title: '网店规格编码', field: 'spec_code', key: 'spec_code', width: 120 },
+      { title: '交易名称', field: 'title', key: 'title', width: 220 },
+      { title: '交易规格', field: 'spec', key: 'spec', width: 140 },
       {
         title: '数量',
-        dataIndex: 'quantity',
+        field: 'quantity',
         key: 'quantity',
         width: 80,
-        align: 'right'
+        hozAlign: 'right'
       },
       {
         title: '单价',
-        dataIndex: 'unit_price',
+        field: 'unit_price',
         key: 'unit_price',
         width: 80,
-        align: 'right',
-        render: (value: number | null) => formatCurrency(value == null ? null : value)
+        hozAlign: 'right',
+        renderCell: (_, record) => formatCurrency(record.unit_price)
       },
       {
         title: '优惠',
-        dataIndex: 'discount',
+        field: 'discount',
         key: 'discount',
         width: 80,
-        align: 'right',
-        render: (value: number | null) => formatCurrency(value == null ? null : value)
+        hozAlign: 'right',
+        renderCell: (_, record) => formatCurrency(record.discount)
       },
       {
         title: '金额',
-        dataIndex: 'amount',
+        field: 'amount',
         key: 'amount',
         width: 80,
-        align: 'right',
-        render: (value: number | null) => formatCurrency(value == null ? null : value)
+        hozAlign: 'right',
+        renderCell: (_, record) => formatCurrency(record.amount)
       },
-      { title: '交易状态', dataIndex: 'trade_status', key: 'trade_status', width: 120 },
-      { title: '退款状态', dataIndex: 'refund_status', key: 'refund_status', width: 120 },
-      { title: '发货状态', dataIndex: 'ship_status', key: 'ship_status', width: 120 },
+      { title: '交易状态', field: 'trade_status', key: 'trade_status', width: 120 },
+      { title: '退款状态', field: 'refund_status', key: 'refund_status', width: 120 },
+      { title: '发货状态', field: 'ship_status', key: 'ship_status', width: 120 },
       {
         title: '发货时间',
-        dataIndex: 'shipped_at',
+        field: 'shipped_at',
         key: 'shipped_at',
         width: 140,
-        render: (value?: string) => formatDateTime(value ?? null)
+        renderCell: (_, record) => formatDateTime(record.shipped_at ?? null)
       }
     ],
     []
@@ -747,7 +744,7 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
 
   const leftPanel = useMemo(
     () => (
-      <Card size="small" className="shop-order-query-left">
+      <div className="shop-order-query-left">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Typography.Text strong>过滤</Typography.Text>
           <Tree
@@ -784,16 +781,25 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
               onChange={(value) => setLeftShopId(value)}
             />
             <Space size={8}>
-              <Button size="small" type="primary" onClick={handleApplyLeftFilters}>
+              <Button
+                size="small"
+                type="primary"
+                onClick={handleApplyLeftFilters}
+                data-testid="shop-order-query-left-apply"
+              >
                 应用筛选
               </Button>
-              <Button size="small" onClick={handleResetLeftFilters}>
+              <Button
+                size="small"
+                onClick={handleResetLeftFilters}
+                data-testid="shop-order-query-left-reset"
+              >
                 重置
               </Button>
             </Space>
           </Space>
         </Space>
-      </Card>
+      </div>
     ),
     [
       handleApplyLeftFilters,
@@ -817,14 +823,22 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
               key: 'goods',
               label: '货品',
               children: activeOrderDetail ? (
-                <Table
-                  size="small"
-                  rowKey="id"
-                  columns={goodsColumns}
-                  dataSource={goodsRows}
-                  pagination={false}
-                  scroll={{ x: 'max-content' }}
-                />
+                <UiModule04BottomTable
+                  syncKey={`shop-order-query-goods-${activeOrderId ?? 'none'}-${goodsRows.length}`}
+                >
+                  <OrderWorkbenchMainGridEntry<ShopOrderGoodsRow>
+                    variant="query"
+                    rows={goodsRows}
+                    columns={goodsColumns}
+                    rowKey={(record) => record.id}
+                    dataTestId="shop-order-query-goods-grid"
+                    gridPreset="industrial-review-compact"
+                    emptyText="暂无货品明细"
+                    showStatusBar={false}
+                    rowClickSelects={false}
+                    suppressInitialFocus
+                  />
+                </UiModule04BottomTable>
               ) : (
                 <Empty description="请选择订单查看货品明细" />
               )
@@ -853,7 +867,7 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
         />
       </div>
     ),
-    [activeOrderDetail, goodsColumns, goodsRows]
+    [activeOrderDetail, activeOrderId, goodsColumns, goodsRows]
   );
 
   useEffect(() => {
@@ -897,16 +911,17 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
       onChange={handleSearchChange}
       onSearch={handleSearch}
       className="shop-order-query-search"
+      data-testid="shop-order-query-search"
       placeholder="网店订单号/客户账号/交易名称/手机号"
     />
   );
 
   const toolbarRight = (
     <Space size={8}>
-      <Button size="small" onClick={() => message.info('导出功能待接入')}>
+      <Button size="small" onClick={() => message.info('导出功能待接入')} data-testid="shop-order-query-export-button">
         导出
       </Button>
-      <Button size="small" onClick={() => message.info('帮助文档待接入')}>
+      <Button size="small" onClick={() => message.info('帮助文档待接入')} data-testid="shop-order-query-help-button">
         帮助
       </Button>
     </Space>
@@ -924,6 +939,10 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
     <UiModule03MainTableSection<ShopOrderSummary>
       className="shop-order-query-page"
       tableContainerRef={tableContainerRef}
+      dataTestId="shop-order-query-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
       toolbarLeft={toolbarLeft}
       toolbarCenter={toolbarCenter}
       toolbarRight={toolbarRight}
@@ -938,7 +957,7 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
       pagination={pagination}
       onPaginationChange={handlePaginationChange}
       columnSettingsKey="sales.shop-order-query.main-grid"
-      showColumnSettings={false}
+      showColumnSettings
       queryCells={queryCells}
       rowKey="id"
       rowSelection={{
@@ -961,4 +980,3 @@ const resolveUploadStatus = (record: ShopOrderSummary, detailMap: Map<string, Or
       />
   );
 };
-

@@ -53,6 +53,14 @@ export const getMockProductList = (query: ProductListQuery): ProductListResponse
   };
 };
 
+export const getMockProduct = (productId: string): Product => {
+  const product = mockProducts.find((item) => item.product_id === productId);
+  if (!product) {
+    throw new Error('商品不存在');
+  }
+  return product;
+};
+
 export const createMockProduct = (payload: ProductCreateRequest): Product => {
   const now = dayjs().toISOString();
   const product: Product = {

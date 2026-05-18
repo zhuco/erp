@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -10,7 +10,7 @@ import {
   startWmsLaborTask,
   type WmsLaborTask
 } from '@/api/wmsExecution';
-import { ErrorState } from '@/components/QueryState';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 const statusColorMap: Record<WmsLaborTask['status'], string> = {
@@ -152,26 +152,32 @@ export const WmsLaborPage = () => {
     }
   ];
 
-  if (query.error) {
-    return (
-      <ErrorState title="labor 任务加载失败" error={query.error} onRetry={() => query.refetch()} />
-    );
-  }
+  const tableData = query.data?.items ?? [];
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="wms-labor-title" style={{ margin: 0 }}>
-        Labor 作业任务池
-      </Typography.Title>
-      <div data-testid="wms-labor-table">
-        <Table<WmsLaborTask>
-          rowKey="task_id"
-          loading={query.isLoading || query.isFetching}
-          dataSource={query.data?.items ?? []}
-          columns={columns}
-          pagination={false}
-        />
-      </div>
-    </Space>
+    <UiModule03MainTableSection<WmsLaborTask>
+      toolbarLeft={
+        <Typography.Title level={3} data-testid="wms-labor-title" style={{ margin: 0 }}>
+          人工作业任务
+        </Typography.Title>
+      }
+      rowKey="task_id"
+      columns={columns}
+      data={tableData}
+      loading={query.isLoading || query.isFetching}
+      error={query.error}
+      onRetry={() => query.refetch()}
+      errorTitle="人工作业任务加载失败"
+      emptyText="暂无人工作业任务"
+      total={tableData.length}
+      pagination={{ current: 1, pageSize: 50 }}
+      onPaginationChange={() => undefined}
+      dataTestId="wms-labor-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      columnSettingsKey="wms.labor.table.columns"
+    />
   );
 };

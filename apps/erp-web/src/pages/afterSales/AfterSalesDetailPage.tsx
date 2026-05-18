@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Descriptions, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -23,10 +23,11 @@ import {
   cancelAfterSalesReceive,
   putawayAfterSales
 } from '@/api/afterSalesOps';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 import { getAfterSalesActionFlags } from './afterSalesActionGuards';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 const statusLabelMap: Record<AfterSalesStatus, string> = {
   OPEN: '待审核',
@@ -290,7 +291,7 @@ export const AfterSalesDetailPage = () => {
   });
   const latestAuditLog = detail.audit_logs?.[0];
   return (
-    <UiModule07SettingsLayout>
+    <SettingsPageTemplate>
       <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
         <Typography.Title level={3} data-testid="after-sales-detail-title">
           售后详情
@@ -339,7 +340,7 @@ export const AfterSalesDetailPage = () => {
           )}
         </Space>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Descriptions column={2} bordered size="small">
           <Descriptions.Item label="售后单号">{afterSales.id}</Descriptions.Item>
           <Descriptions.Item label="订单号">
@@ -366,8 +367,8 @@ export const AfterSalesDetailPage = () => {
             {formatDateTime(afterSales.updated_at)}
           </Descriptions.Item>
         </Descriptions>
-      </Card>
-      <Card title="工业级闭环证据">
+      </IndustrialCard>
+      <IndustrialCard title="工业级闭环证据">
         <Descriptions
           column={2}
           bordered
@@ -401,16 +402,16 @@ export const AfterSalesDetailPage = () => {
               : '-'}
           </Descriptions.Item>
         </Descriptions>
-      </Card>
-      <Card title="售后明细">
-        <Table
+      </IndustrialCard>
+      <IndustrialCard title="售后明细">
+        <IndustrialTable
           rowKey="sku_id"
           columns={columns}
           dataSource={detail.items}
           pagination={false}
         />
-      </Card>
-      <Card title="退货收货">
+      </IndustrialCard>
+      <IndustrialCard title="退货收货">
         {receipt ? (
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="收货单号">{receipt.id}</Descriptions.Item>
@@ -422,10 +423,10 @@ export const AfterSalesDetailPage = () => {
         ) : (
           <Typography.Text type="secondary">暂无收货记录</Typography.Text>
         )}
-      </Card>
-      <Card title="换货/补发发货记录">
+      </IndustrialCard>
+      <IndustrialCard title="换货/补发发货记录">
         {detail.shipments && detail.shipments.length > 0 ? (
-          <Table
+          <IndustrialTable
             rowKey="shipment_id"
             columns={shipmentColumns}
             dataSource={detail.shipments}
@@ -434,8 +435,8 @@ export const AfterSalesDetailPage = () => {
         ) : (
           <Typography.Text type="secondary">暂无发货记录</Typography.Text>
         )}
-      </Card>
-      <Card title="退款信息" extra={<Link to="/refund-docs">退款处理</Link>}>
+      </IndustrialCard>
+      <IndustrialCard title="退款信息" extra={<Link to="/refund-docs">退款处理</Link>}>
         {refundDoc ? (
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="退款单号">{refundDoc.id}</Descriptions.Item>
@@ -451,8 +452,8 @@ export const AfterSalesDetailPage = () => {
         ) : (
           <Typography.Text type="secondary">暂无退款记录</Typography.Text>
         )}
-      </Card>
-      <Card title="原始数据">
+      </IndustrialCard>
+      <IndustrialCard title="原始数据">
         {detail.raw_json ? (
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
             {JSON.stringify(detail.raw_json, null, 2)}
@@ -460,10 +461,10 @@ export const AfterSalesDetailPage = () => {
         ) : (
           <Typography.Text type="secondary">暂无原始数据</Typography.Text>
         )}
-      </Card>
-      <Card title="处理记录">
+      </IndustrialCard>
+      <IndustrialCard title="处理记录">
         {detail.audit_logs && detail.audit_logs.length > 0 ? (
-          <Table
+          <IndustrialTable
             rowKey="audit_id"
             columns={auditColumns}
             dataSource={detail.audit_logs}
@@ -472,7 +473,7 @@ export const AfterSalesDetailPage = () => {
         ) : (
           <Typography.Text type="secondary">暂无处理记录</Typography.Text>
         )}
-      </Card>
-    </UiModule07SettingsLayout>
+      </IndustrialCard>
+    </SettingsPageTemplate>
   );
 };

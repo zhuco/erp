@@ -1,18 +1,15 @@
 import {
   Button,
-  Card,
   Col,
   Form,
   Input,
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -288,81 +285,117 @@ export const ProductChannelAvailabilityPage = () => {
     [canWrite],
   );
 
+  const mainTableToolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Text strong>可售清单</Typography.Text>
+      <Typography.Text type="secondary">按渠道、仓库和 SKU 管理商品可售状态</Typography.Text>
+    </Space>
+  );
+
+  const mainTableToolbarRight = (
+    <Space>
+      <Button onClick={() => refetch()} loading={isFetching}>
+        刷新
+      </Button>
+    </Space>
+  );
+
+  const mainTableActionBar = (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={handleSearch}
+      data-testid="product-channel-filter-form"
+    >
+      <Row gutter={16}>
+        <Col xs={24} md={8}>
+          <Form.Item name="keyword" label="关键词">
+            <Input allowClear placeholder="SKU/商品名称" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="channel" label="渠道">
+            <Select allowClear options={channelOptions} placeholder="全部渠道" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse" label="仓库">
+            <Select allowClear options={warehouseOptions} placeholder="全部仓库" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="product-channel-search-button">
+              查询
+            </Button>
+            <Button onClick={handleReset} data-testid="product-channel-reset-button">重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
+  const rulesTableToolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Text strong>渠道上架规则</Typography.Text>
+      <Typography.Text type="secondary">统一查看各渠道安全库存、价格约束和自动下架策略</Typography.Text>
+    </Space>
+  );
+
+  const ruleColumns: ColumnsType<ChannelRule> = [
+    { title: '渠道', dataIndex: 'channel' },
+    { title: '安全库存', dataIndex: 'stock_threshold' },
+    { title: '价格约束', dataIndex: 'price_guard' },
+    {
+      title: '自动下架',
+      dataIndex: 'auto_unlist',
+      render: (value: boolean) => (value ? '是' : '否'),
+    },
+  ];
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-channel-title">
         商品渠道可售与上架
       </Typography.Title>
-      <Card title="渠道上架规则">
-        <Table
-          rowKey="channel"
-          size="small"
-          pagination={false}
-          dataSource={channelRules}
-          data-testid="product-channel-rules-table"
-          columns={[
-            { title: '渠道', dataIndex: 'channel' },
-            { title: '安全库存', dataIndex: 'stock_threshold' },
-            { title: '价格约束', dataIndex: 'price_guard' },
-            {
-              title: '自动下架',
-              dataIndex: 'auto_unlist',
-              render: (value: boolean) => (value ? '是' : '否'),
-            },
-          ]}
-        />
-      </Card>
-      <Card>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSearch}
-          data-testid="product-channel-filter-form"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键词">
-                <Input allowClear placeholder="SKU/商品名称" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="channel" label="渠道">
-                <Select allowClear options={channelOptions} placeholder="全部渠道" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse" label="仓库">
-                <Select allowClear options={warehouseOptions} placeholder="全部仓库" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-      <Card title="可售清单">
-        <UiModule03MainTableSection<AvailabilityRecord>
-          dataTestId="product-channel-table"
-          rowKey="id"
-          columns={columns}
-          data={filteredData}
-          loading={isLoading || isFetching}
-          onRetry={() => refetch()}
-          errorTitle="渠道可售加载失败"
-          emptyText="暂无可售记录"
-          total={filteredData.length}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          columnSettingsKey="product.channel.availability.table.columns"
-          enablePanels={false}
-        />
-      </Card>
+      <UiModule03MainTableSection<ChannelRule>
+        toolbarLeft={rulesTableToolbarLeft}
+        dataTestId="product-channel-rules-table"
+        gridPreset="industrial-review-compact"
+        rowKey="channel"
+        columns={ruleColumns}
+        data={channelRules}
+        loading={false}
+        onRetry={() => undefined}
+        emptyText="暂无渠道规则"
+        total={channelRules.length}
+        pagination={{ current: 1, pageSize: channelRules.length }}
+        onPaginationChange={() => undefined}
+        enablePanels={false}
+        showStatusBar={false}
+      />
+      <UiModule03MainTableSection<AvailabilityRecord>
+        toolbarLeft={mainTableToolbarLeft}
+        toolbarRight={mainTableToolbarRight}
+        actionBar={mainTableActionBar}
+        dataTestId="product-channel-table"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        rowKey="id"
+        columns={columns}
+        data={filteredData}
+        loading={isLoading || isFetching}
+        onRetry={() => refetch()}
+        errorTitle="渠道可售加载失败"
+        emptyText="暂无可售记录"
+        total={filteredData.length}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        columnSettingsKey="product.channel.availability.table.columns"
+        showColumnSettings
+        enablePanels={false}
+      />
     </Space>
   );
 };

@@ -13,6 +13,7 @@ import type { ColumnsType } from 'antd/es/table';
 
 import {
   type ErpDataGridColumn,
+  type ErpDataGridProps,
   type SummaryField,
   type SummaryResolver
 } from '@/components/ErpDataGrid';
@@ -22,7 +23,10 @@ import {
   WorkbenchToolbar,
   type WorkbenchToolbarProps
 } from '@/components/page-templates';
-import { OrderWorkbenchMainGridEntry } from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
+import {
+  OrderWorkbenchMainGridEntry,
+  type OrderQueryMainGridProps
+} from '@/pages/orders/shared/OrderWorkbenchMainGridEntry';
 
 import './UiModule03MainTableSection.css';
 
@@ -55,6 +59,15 @@ type UiModule03MainTableSectionProps<T extends object> = {
   sortState?: ServerTableSortState;
   columnSettingsKey?: string;
   showColumnSettings?: boolean;
+  gridPreset?: OrderQueryMainGridProps<T>['gridPreset'];
+  selectionCellMode?: OrderQueryMainGridProps<T>['selectionCellMode'];
+  selectionHeaderMode?: OrderQueryMainGridProps<T>['selectionHeaderMode'];
+  showRowIndex?: ErpDataGridProps<T>['showRowIndex'];
+  rowIndexWidth?: ErpDataGridProps<T>['rowIndexWidth'];
+  rowHeight?: ErpDataGridProps<T>['rowHeight'];
+  headerHeight?: ErpDataGridProps<T>['headerHeight'];
+  floatingFilter?: ErpDataGridProps<T>['floatingFilter'];
+  animateRows?: ErpDataGridProps<T>['animateRows'];
   emptyAction?: ReactNode;
   loadingTimeoutMs?: number;
   virtual?: boolean;
@@ -105,7 +118,16 @@ export const UiModule03MainTableSection = <T extends object>({
   onSortChange,
   sortState,
   columnSettingsKey,
-  showColumnSettings,
+  showColumnSettings = true,
+  gridPreset = 'industrial-review-compact',
+  selectionCellMode = 'custom',
+  selectionHeaderMode = 'allInvert',
+  showRowIndex,
+  rowIndexWidth,
+  rowHeight,
+  headerHeight,
+  floatingFilter,
+  animateRows,
   emptyAction,
   loadingTimeoutMs,
   queryCells,
@@ -387,6 +409,18 @@ export const UiModule03MainTableSection = <T extends object>({
     [onRow, resolveRowIndex]
   );
 
+  const industrialGridContractProps = {
+    gridPreset,
+    selectionCellMode,
+    selectionHeaderMode,
+    showRowIndex,
+    rowIndexWidth,
+    rowHeight,
+    headerHeight,
+    floatingFilter,
+    animateRows
+  };
+
   const handleRowContextMenu = useCallback(
     (record: T, event: ReactMouseEvent) => {
       const rowIndex = resolveRowIndex(record);
@@ -414,6 +448,7 @@ export const UiModule03MainTableSection = <T extends object>({
       tableContent={
         <OrderWorkbenchMainGridEntry
           variant="query"
+          {...industrialGridContractProps}
           rows={data}
           columns={dataGridColumns}
           rowKey={resolveDataGridRowKey}

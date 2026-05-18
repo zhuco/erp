@@ -13,7 +13,7 @@ import {
 import { listCustomerCategories } from '@/api/customerCategories';
 import { listCustomerTags } from '@/api/customerTags';
 import { listMemberLevels } from '@/api/memberLevels';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -174,20 +174,20 @@ export const CustomerDetailPage = () => {
 
   if (error) {
     return (
-      <UiModule07SettingsLayout title="客户详情">
-        <UiModule07SettingsSection title="客户详情">
+      <SettingsPageTemplate title="客户详情">
+        <SettingsPageSection title="客户详情">
           <Space direction="vertical">
             <div>加载客户失败</div>
             <Button onClick={() => refetch()}>重试</Button>
           </Space>
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout title="客户详情">
-      <UiModule07SettingsSection
+    <SettingsPageTemplate title="客户详情">
+      <SettingsPageSection
         title="客户信息"
         actions={
           <Space>
@@ -226,8 +226,8 @@ export const CustomerDetailPage = () => {
             {customer?.note ?? '-'}
           </Descriptions.Item>
         </Descriptions>
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection title="客户标签">
+      </SettingsPageSection>
+      <SettingsPageSection title="客户标签">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Select
             mode="multiple"
@@ -246,7 +246,7 @@ export const CustomerDetailPage = () => {
             保存标签
           </Button>
         </Space>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
       <Drawer
         title="编辑客户"
         open={drawerOpen}
@@ -290,6 +290,6 @@ export const CustomerDetailPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

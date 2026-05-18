@@ -1,18 +1,16 @@
 import {
   Button,
-  Card,
   DatePicker,
   Form,
   Input,
   Select,
-  Table,
   Tag,
   Typography,
   Upload,
   message
 } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,6 +31,7 @@ import {
   type StatementImportType
 } from '@/api/finance';
 import { SettingsPageTemplate } from '@/components/page-templates';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { platformOptions } from '@/features/platform';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -412,6 +411,11 @@ export const ReconcilePage = () => {
     []
   );
 
+  const reconcileJobHeader = <Typography.Title level={5}>对账任务</Typography.Title>;
+  const reconcileItemHeader = <Typography.Title level={5}>差异明细</Typography.Title>;
+  const paymentJobHeader = <Typography.Title level={5}>支付对账任务</Typography.Title>;
+  const paymentItemHeader = <Typography.Title level={5}>支付对账差异</Typography.Title>;
+
   const paymentJobColumns = useMemo<ColumnsType<PaymentReconcileJob>>(
     () => [
       { title: '任务ID', dataIndex: 'job_id', ellipsis: true },
@@ -473,7 +477,10 @@ export const ReconcilePage = () => {
 
   return (
     <SettingsPageTemplate title="对账管理">
-      <Card title="账单导入">
+      <div className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          账单导入
+        </Typography.Title>
         <Form
           form={importForm}
           layout="inline"
@@ -526,9 +533,12 @@ export const ReconcilePage = () => {
           </Form.Item>
           {statementId ? <Text>最新平台账单ID: {statementId}</Text> : null}
         </Form>
-      </Card>
+      </div>
 
-      <Card title="运行对账">
+      <div className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          运行对账
+        </Typography.Title>
         <Form
           form={reconcileForm}
           layout="inline"
@@ -570,30 +580,37 @@ export const ReconcilePage = () => {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </div>
 
-      <Card title="对账任务">
-        <Table
-          rowKey="job_id"
-          columns={jobColumns}
-          dataSource={jobList.data?.items ?? []}
-          loading={jobList.isFetching}
-          pagination={{
-            ...jobPagination,
-            total: jobList.data?.total ?? 0,
-            onChange: (page, pageSize) => setJobPagination({ current: page, pageSize })
-          }}
-          rowSelection={{
-            type: 'radio',
-            selectedRowKeys: selectedJobId ? [selectedJobId] : [],
-            onChange: (keys) => setSelectedJobId(keys[0] as string)
-          }}
-        />
-      </Card>
+      <UiModule03MainTableSection<ReconcileJob>
+        toolbarLeft={reconcileJobHeader}
+        rowKey="job_id"
+        columns={jobColumns}
+        data={jobList.data?.items ?? []}
+        loading={jobList.isFetching}
+        total={jobList.data?.total ?? 0}
+        pagination={jobPagination}
+        onPaginationChange={setJobPagination}
+        error={jobList.error}
+        onRetry={() => jobList.refetch()}
+        rowSelection={{
+          type: 'radio',
+          selectedRowKeys: selectedJobId ? [selectedJobId] : [],
+          onChange: (keys) => setSelectedJobId(keys[0] as string)
+        }}
+        rowClickSelects
+        dataTestId="finance-reconcile-main-grid"
+        columnSettingsKey="finance.reconcile.main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        emptyText="暂无对账任务"
+      />
 
-      <Card
-        title="差异明细"
-        extra={
+      <UiModule03MainTableSection<ReconcileJobItem>
+        toolbarLeft={reconcileItemHeader}
+        toolbarRight={
           <Button
             disabled={!selectedJobId || !canExport}
             onClick={handleExport}
@@ -602,20 +619,25 @@ export const ReconcilePage = () => {
             创建导出任务
           </Button>
         }
-      >
-        <Table
-          rowKey={(record) => `${record.ref_type}-${record.ref_id}`}
-          columns={itemColumns}
-          dataSource={itemList.data?.items ?? []}
-          loading={itemList.isFetching}
-          pagination={{
-            ...itemPagination,
-            total: itemList.data?.total ?? 0,
-            onChange: (page, pageSize) => setItemPagination({ current: page, pageSize })
-          }}
-        />
-      </Card>
-      <Card title="支付账单导入">
+        rowKey={(record) => `${record.ref_type}-${record.ref_id}`}
+        columns={itemColumns}
+        data={itemList.data?.items ?? []}
+        loading={itemList.isFetching}
+        total={itemList.data?.total ?? 0}
+        pagination={itemPagination}
+        onPaginationChange={setItemPagination}
+        error={itemList.error}
+        onRetry={() => itemList.refetch()}
+        dataTestId="finance-reconcile-items-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        emptyText="暂无差异明细"
+      />
+      <div className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          支付账单导入
+        </Typography.Title>
         <Form form={paymentImportForm} layout="inline" onFinish={handlePaymentImport}>
           <Form.Item name="channel" label="支付渠道" rules={[{ required: true }]}>
             <Input style={{ width: 180 }} placeholder="ALIPAY / WECHAT…" autoComplete="off" />
@@ -647,9 +669,12 @@ export const ReconcilePage = () => {
             <Text>最新支付账单ID: {paymentStatementId}</Text>
           ) : null}
         </Form>
-      </Card>
+      </div>
 
-      <Card title="运行支付对账">
+      <div className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          运行支付对账
+        </Typography.Title>
         <Form form={paymentReconcileForm} layout="inline" onFinish={handlePaymentRun}>
           <Form.Item name="statement_id" label="账单ID" rules={[{ required: true }]}>
             <Input
@@ -669,11 +694,11 @@ export const ReconcilePage = () => {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </div>
 
-      <Card
-        title="支付对账任务"
-        extra={
+      <UiModule03MainTableSection<PaymentReconcileJob>
+        toolbarLeft={paymentJobHeader}
+        toolbarRight={
           <Input
             allowClear
             style={{ width: 320 }}
@@ -687,38 +712,45 @@ export const ReconcilePage = () => {
             aria-label="支付账单ID筛选"
           />
         }
-      >
-        <Table
-          rowKey="job_id"
-          columns={paymentJobColumns}
-          dataSource={paymentJobList.data?.items ?? []}
-          loading={paymentJobList.isFetching}
-          pagination={{
-            ...paymentJobPagination,
-            total: paymentJobList.data?.total ?? 0,
-            onChange: (page, pageSize) => setPaymentJobPagination({ current: page, pageSize })
-          }}
-          rowSelection={{
-            type: 'radio',
-            selectedRowKeys: selectedPaymentJobId ? [selectedPaymentJobId] : [],
-            onChange: (keys) => setSelectedPaymentJobId(keys[0] as string)
-          }}
-        />
-      </Card>
+        rowKey="job_id"
+        columns={paymentJobColumns}
+        data={paymentJobList.data?.items ?? []}
+        loading={paymentJobList.isFetching}
+        total={paymentJobList.data?.total ?? 0}
+        pagination={paymentJobPagination}
+        onPaginationChange={setPaymentJobPagination}
+        error={paymentJobList.error}
+        onRetry={() => paymentJobList.refetch()}
+        rowSelection={{
+          type: 'radio',
+          selectedRowKeys: selectedPaymentJobId ? [selectedPaymentJobId] : [],
+          onChange: (keys) => setSelectedPaymentJobId(keys[0] as string)
+        }}
+        rowClickSelects
+        dataTestId="finance-payment-reconcile-jobs-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        emptyText="暂无支付对账任务"
+      />
 
-      <Card title="支付对账差异">
-        <Table
-          rowKey={(record) => `${record.platform_order_id}-${record.job_id}`}
-          columns={paymentItemColumns}
-          dataSource={paymentItemList.data?.items ?? []}
-          loading={paymentItemList.isFetching}
-          pagination={{
-            ...paymentItemPagination,
-            total: paymentItemList.data?.total ?? 0,
-            onChange: (page, pageSize) => setPaymentItemPagination({ current: page, pageSize })
-          }}
-        />
-      </Card>
+      <UiModule03MainTableSection<PaymentReconcileItem>
+        toolbarLeft={paymentItemHeader}
+        rowKey={(record) => `${record.platform_order_id}-${record.job_id}`}
+        columns={paymentItemColumns}
+        data={paymentItemList.data?.items ?? []}
+        loading={paymentItemList.isFetching}
+        total={paymentItemList.data?.total ?? 0}
+        pagination={paymentItemPagination}
+        onPaginationChange={setPaymentItemPagination}
+        error={paymentItemList.error}
+        onRetry={() => paymentItemList.refetch()}
+        dataTestId="finance-payment-reconcile-items-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        emptyText="暂无支付对账差异"
+      />
     </SettingsPageTemplate>
   );
 };

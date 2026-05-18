@@ -85,31 +85,13 @@ const WORKBENCH_RESIZE_KEYBOARD_STEP = 16;
 const WORKBENCH_RESIZE_KEYBOARD_LARGE_STEP = 48;
 const reducedUiAllowedPaths = new Set([
   '/',
-  '/dashboard',
-  '/channels',
-  '/channels/service-purchase',
-  '/channels/authorize',
-  '/couriers',
-  '/tags',
-  '/warehouses',
-  '/logistics-fees',
-  '/suppliers',
-  '/customers/categories',
-  '/customers/member-levels',
-  '/customers/tags',
-  '/wms/containers',
-  '/wms/sender-addresses',
-  '/wms/warehouse-areas',
-  '/wms/warehouse-locations',
-  '/system/permissions',
-  '/system/roles',
-  '/sales/order-query',
-  '/orders/review',
-  '/orders/recheck',
-  '/sales/settings',
+  ...flattenMenuItems(appMenuItems).map((item) => item.path),
 ]);
 
-export const isReducedUiPathAllowed = (pathname: string) => reducedUiAllowedPaths.has(pathname);
+export const isReducedUiPathAllowed = (pathname: string) =>
+  reducedUiAllowedPaths.has(pathname) ||
+  /^\/goods\/products\/[^/]+\/edit$/.test(pathname) ||
+  /^\/goods\/kits\/[^/]+\/edit$/.test(pathname);
 const WORKBENCH_RESIZE_SNAP_THRESHOLD = 20;
 const LAYOUT_LEFT_COLLAPSED_QUERY_KEY = 'leftCollapsed';
 const LAYOUT_RIGHT_COLLAPSED_QUERY_KEY = 'rightCollapsed';
@@ -303,7 +285,7 @@ const toPathTestId = (path: string, prefix: string) => {
 };
 
 const resolveFunctionSearchSourceLabel = (source: FunctionRecommendation['source']) =>
-  source === 'recent' ? '\u6700\u8fd1\u4f7f\u7528' : '\u5e38\u7528\u529f\u80fd';
+  source === 'recent' ? '最近使用' : '常用功能';
 
 const buildFunctionSearchGroupLabel = (label: string, count: number) => (
   <div className="workbench-function-search-group-label">
@@ -382,7 +364,7 @@ const buildHeaderGroups = (items: AppMenuItem[], moduleKey: string): ModuleGroup
   if (directLinks.length > 0) {
     groups.unshift({
       key: `${moduleKey}-common`,
-      label: '\u5e38\u7528\u529f\u80fd',
+      label: '常用功能',
       items: buildHeaderLinks(directLinks, `${moduleKey}-common`),
     });
   }
@@ -547,10 +529,6 @@ export const WorkbenchLayout = () => {
   const menuTitleMap = useMemo(() => {
     return new Map(menuLeafItems.map((item) => [item.path, item.name]));
   }, [menuLeafItems]);
-
-  if (!isReducedUiPathAllowed(location.pathname)) {
-    return <NotFoundPage />;
-  }
 
   const headerModules = useMemo(() => resolveHeaderModules(menuRoutes), [menuRoutes]);
   const [functionSearch, setFunctionSearch] = useState('');
@@ -2205,6 +2183,10 @@ export const WorkbenchLayout = () => {
     },
     [filteredWorkbenchCommands, runWorkbenchCommand],
   );
+
+  if (!isReducedUiPathAllowed(location.pathname)) {
+    return <NotFoundPage />;
+  }
 
   return (
     <ConfigProvider theme={workbenchThemeConfig}>

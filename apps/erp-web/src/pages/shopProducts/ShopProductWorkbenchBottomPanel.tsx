@@ -1,5 +1,4 @@
 import { Card, Empty, Table, Tabs, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 
 import type { ShopProductMatchFailure, ShopProductTask } from '@/api/shopProducts';
 import { UiModule04BottomTable } from '@/components/ui-modules';

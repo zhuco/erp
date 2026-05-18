@@ -27,7 +27,7 @@ import type { SkuKind, SkuSearchItem } from '@/api/skus';
 import { searchSkus } from '@/api/skus';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { useTenantId } from '@/features/tenant';
 
 type ComponentFormValues = {
@@ -475,7 +475,7 @@ export const KitEditorPage = () => {
   }
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={
         <Space align="center" size={10} wrap>
           <Typography.Title level={3} data-testid="kit-editor-title" style={{ margin: 0 }}>
@@ -498,7 +498,7 @@ export const KitEditorPage = () => {
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContent={
         <Space direction="vertical" size={16} style={{ width: '100%' }}>

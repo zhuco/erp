@@ -22,7 +22,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -92,7 +91,7 @@ type TemplateOption = {
 };
 
 type SearchState = Record<TagDirectoryTab, string>;
-type PaginationState = Record<TagDirectoryTab, TablePaginationConfig>;
+type PaginationState = Record<TagDirectoryTab>;
 type KeyState = Record<TagDirectoryTab, string | null>;
 type SelectionState = Record<TagDirectoryTab, string[]>;
 type LeftFilterValue = {
@@ -569,7 +568,6 @@ export const TagDirectoryWorkbench = ({
 
   const {
     filteredRows: currentDisplayRows,
-    hasManualFilterActive,
     leftPanel,
   } = useLeftFilterModule<AnyTagRow, LeftFilterValue>({
     rows: currentSourceRows,
@@ -1625,7 +1623,6 @@ export const TagDirectoryWorkbench = ({
           onHelp={() => message.info('记号目录帮助文档待接入')}
         />
       }
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={tableContent}
       footerSummary={
         <>

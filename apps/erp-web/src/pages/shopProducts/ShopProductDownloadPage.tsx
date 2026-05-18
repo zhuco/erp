@@ -15,7 +15,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import dayjs from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';

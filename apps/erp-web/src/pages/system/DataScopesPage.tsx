@@ -11,7 +11,7 @@ import {
 } from '@/api/system';
 import { listShops } from '@/api/shops';
 import { listWarehouses } from '@/api/warehouses';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
 type ScopeFormValues = {
@@ -132,8 +132,8 @@ export const DataScopesPage = () => {
   };
 
   return (
-    <UiModule07SettingsLayout title="数据权限">
-      <UiModule07SettingsSection
+    <SettingsPageTemplate title="数据权限">
+      <SettingsPageSection
         title="用户数据权限"
         actions={
           <Button type="primary" onClick={handleSave} loading={saving}>
@@ -175,7 +175,7 @@ export const DataScopesPage = () => {
             </Form.Item>
           </Form>
         </Space>
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };

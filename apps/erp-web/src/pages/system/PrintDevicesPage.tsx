@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -14,7 +13,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -34,6 +32,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   fingerprint?: string;
@@ -78,7 +77,7 @@ export const PrintDevicesPage = () => {
   const [drawerForm] = Form.useForm<FormValues>();
   const [registerForm] = Form.useForm<RegisterFormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -310,7 +309,7 @@ export const PrintDevicesPage = () => {
           </Button>
         </Space>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
@@ -333,7 +332,7 @@ export const PrintDevicesPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -354,6 +353,11 @@ export const PrintDevicesPage = () => {
         onPaginationChange={setPagination}
         columnSettingsKey="print-devices.table.columns"
         enablePanels={false}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
       <Drawer
         title={editingDevice ? '编辑打印设备' : '新建打印设备'}

@@ -1,13 +1,11 @@
 import {
   Button,
-  Card,
   Col,
   Input,
   Row,
   Select,
   Space,
   Statistic,
-  Table,
   Tag,
   Typography,
 } from 'antd';
@@ -36,7 +34,7 @@ import {
   subscribeRouteLoadingDiagnostics,
 } from '@/app/navigation/routeLoadingDiagnostics';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useTenantId } from '@/features/tenant';
 
 import type {
@@ -58,6 +56,7 @@ import {
   buildFrontendRouteTrendRows,
   buildFrontendRouteVersionRows,
 } from './frontendRouteObservability';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
@@ -937,8 +936,8 @@ export const ObservabilityPage = () => {
   };
 
   return (
-    <UiModule07SettingsLayout title="系统可观测性">
-      <UiModule07SettingsSection
+    <SettingsPageTemplate title="系统可观测性">
+      <SettingsPageSection
         title="关键指标"
         description="汇总后端链路健康、基础设施接入状态与核心操作指标。"
         actions={<Button onClick={handleRefresh}>刷新</Button>}
@@ -964,7 +963,7 @@ export const ObservabilityPage = () => {
           <Row gutter={[16, 16]}>
             {metricGroups.map((group) => (
               <Col xs={24} md={12} xl={8} key={group.title}>
-                <Card size="small" title={group.title}>
+                <IndustrialCard size="small" title={group.title}>
                   <Row gutter={[16, 12]}>
                     {group.items.map((item) => (
                       <Col xs={12} key={item.label}>
@@ -972,14 +971,14 @@ export const ObservabilityPage = () => {
                       </Col>
                     ))}
                   </Row>
-                </Card>
+                </IndustrialCard>
               </Col>
             ))}
           </Row>
         )}
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="前端路由"
         description="聚焦当前浏览器窗口的首开懒加载、路由超时与预热命中情况，问题路由会自动排在前面。"
       >
@@ -996,39 +995,39 @@ export const ObservabilityPage = () => {
           data-testid="observability-frontend-route-summary"
         >
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="已跟踪路由" value={routeHealthSummary.trackedRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="正常路由" value={routeHealthSummary.readyRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="加载中" value={routeHealthSummary.loadingRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="超时路由" value={routeHealthSummary.timeoutRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="异常路由" value={routeHealthSummary.errorRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="慢路由" value={routeHealthSummary.slowRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="命中预热" value={routeHealthSummary.prefetchedRoutes} />
-            </Card>
+            </IndustrialCard>
           </Col>
         </Row>
         <Row
@@ -1037,58 +1036,58 @@ export const ObservabilityPage = () => {
           data-testid="observability-frontend-route-efficiency"
         >
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic title="已测首开" value={routeEfficiencySummary.measuredFirstLoads} />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic
                 title="首开成功率"
                 value={routeEfficiencySummary.firstLoadSuccessRate}
                 suffix="%"
               />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic
                 title="首开均耗时"
                 value={routeEfficiencySummary.firstLoadAvgDurationMs ?? '-'}
                 suffix={routeEfficiencySummary.firstLoadAvgDurationMs ? 'ms' : undefined}
               />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic
                 title="预热命中率"
                 value={routeEfficiencySummary.prefetchHitRate}
                 suffix="%"
               />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic
                 title="预热命中次数"
                 value={routeEfficiencySummary.prefetchHitCount}
               />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={12} md={8} xl={4}>
-            <Card size="small">
+            <IndustrialCard size="small">
               <Statistic
                 title="重复预热短路"
                 value={routeEfficiencySummary.prefetchShortCircuitCount}
               />
-            </Card>
+            </IndustrialCard>
           </Col>
         </Row>
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={14}>
-            <Card title="路由健康" size="small">
-              <Table<FrontendRouteHealthRow>
+            <IndustrialCard title="路由健康" size="small">
+              <IndustrialTable<FrontendRouteHealthRow>
                 rowKey="key"
                 columns={routeHealthColumns}
                 dataSource={routeHealthRows}
@@ -1097,11 +1096,11 @@ export const ObservabilityPage = () => {
                 scroll={{ x: 1340 }}
                 locale={{ emptyText: '当前窗口还没有产生路由诊断数据' }}
               />
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={24} xl={10}>
-            <Card title="最近事件" size="small">
-              <Table<FrontendRouteEventRow>
+            <IndustrialCard title="最近事件" size="small">
+              <IndustrialTable<FrontendRouteEventRow>
                 rowKey="key"
                 columns={routeEventColumns}
                 dataSource={routeEventRows.slice(0, 12)}
@@ -1110,12 +1109,12 @@ export const ObservabilityPage = () => {
                 scroll={{ x: 720 }}
                 locale={{ emptyText: '当前窗口还没有路由事件' }}
               />
-            </Card>
+            </IndustrialCard>
           </Col>
         </Row>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="前端留痕"
         description="查看已写入后端观测体系的前端路由历史，可按页面、状态和事件类型聚合分析跨页面首开问题。"
         actions={
@@ -1174,52 +1173,52 @@ export const ObservabilityPage = () => {
               data-testid="observability-frontend-route-backend-summary"
             >
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="历史事件"
                     value={frontendRouteBackendSummary?.totalEvents ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="影响页面"
                     value={frontendRouteBackendSummary?.uniqueRoutes ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="影响会话"
                     value={frontendRouteBackendSummary?.affectedSessions ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="异常事件"
                     value={frontendRouteBackendSummary?.errorEvents ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="超时事件"
                     value={frontendRouteBackendSummary?.timeoutEvents ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={8} xl={4}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="预热命中"
                     value={frontendRouteBackendSummary?.prefetchHits ?? 0}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
             </Row>
             <Row
@@ -1228,24 +1227,24 @@ export const ObservabilityPage = () => {
               data-testid="observability-frontend-route-backend-efficiency"
             >
               <Col xs={12} md={12} xl={6}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="历史首开样本"
                     value={frontendRouteBackendEfficiencySummary.measuredFirstLoads}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={12} xl={6}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="首开成功率"
                     value={frontendRouteBackendEfficiencySummary.firstLoadSuccessRate}
                     suffix="%"
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={12} xl={6}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="历史首开均耗时"
                     value={frontendRouteBackendEfficiencySummary.firstLoadAvgDurationMs ?? '-'}
@@ -1253,22 +1252,22 @@ export const ObservabilityPage = () => {
                       frontendRouteBackendEfficiencySummary.firstLoadAvgDurationMs ? 'ms' : undefined
                     }
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={12} md={12} xl={6}>
-                <Card size="small">
+                <IndustrialCard size="small">
                   <Statistic
                     title="预热短路复用"
                     value={frontendRouteBackendEfficiencySummary.prefetchShortCircuitCount}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
             </Row>
             <Row gutter={[16, 16]} style={{ marginBottom: 8 }}>
               <Col xs={24} xl={10}>
-                <Card title="趋势回放" size="small">
+                <IndustrialCard title="趋势回放" size="small">
                   <div data-testid="observability-frontend-route-backend-trend">
-                    <Table<FrontendRouteTrendRow>
+                    <IndustrialTable<FrontendRouteTrendRow>
                       rowKey="key"
                       columns={frontendRouteTrendColumns}
                       dataSource={frontendRouteTrendRows}
@@ -1279,11 +1278,11 @@ export const ObservabilityPage = () => {
                       locale={{ emptyText: '当前时间窗暂无趋势样本' }}
                     />
                   </div>
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={24} xl={7}>
-                <Card title="异常排行" size="small">
-                  <Table<FrontendRoutePathRankRow>
+                <IndustrialCard title="异常排行" size="small">
+                  <IndustrialTable<FrontendRoutePathRankRow>
                     rowKey="key"
                     columns={frontendRoutePathRankColumns}
                     dataSource={frontendRoutePathRankRows.slice(0, 6)}
@@ -1293,11 +1292,11 @@ export const ObservabilityPage = () => {
                     scroll={{ x: 700 }}
                     locale={{ emptyText: '当前筛选条件下暂无异常排行' }}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={24} xl={7}>
-                <Card title="版本画像" size="small">
-                  <Table<FrontendRouteVersionRow>
+                <IndustrialCard title="版本画像" size="small">
+                  <IndustrialTable<FrontendRouteVersionRow>
                     rowKey="key"
                     columns={frontendRouteVersionColumns}
                     dataSource={frontendRouteVersionRows.slice(0, 6)}
@@ -1307,14 +1306,14 @@ export const ObservabilityPage = () => {
                     scroll={{ x: 640 }}
                     locale={{ emptyText: '当前筛选条件下暂无版本画像' }}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
             </Row>
             <Row gutter={[16, 16]}>
               <Col xs={24} xl={15}>
-                <Card title="页面聚合" size="small">
+                <IndustrialCard title="页面聚合" size="small">
                   <div data-testid="observability-frontend-route-backend-table">
-                    <Table<FrontendRouteDiagnosticsPathSummary>
+                    <IndustrialTable<FrontendRouteDiagnosticsPathSummary>
                       rowKey="path"
                       columns={frontendRouteBackendPathColumns}
                       dataSource={frontendRouteBackendPaths}
@@ -1325,11 +1324,11 @@ export const ObservabilityPage = () => {
                       locale={{ emptyText: '当前筛选条件下暂无前端留痕' }}
                     />
                   </div>
-                </Card>
+                </IndustrialCard>
               </Col>
               <Col xs={24} xl={9}>
-                <Card title="最近留痕事件" size="small">
-                  <Table<FrontendRouteDiagnosticReport>
+                <IndustrialCard title="最近留痕事件" size="small">
+                  <IndustrialTable<FrontendRouteDiagnosticReport>
                     rowKey={(record) =>
                       `${record.session_id}-${record.path}-${record.event_type}-${record.event_at}`
                     }
@@ -1341,20 +1340,20 @@ export const ObservabilityPage = () => {
                     scroll={{ x: 920 }}
                     locale={{ emptyText: '当前筛选条件下暂无留痕事件' }}
                   />
-                </Card>
+                </IndustrialCard>
               </Col>
             </Row>
           </>
         )}
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="异常队列"
         description="集中查看待处理死信与失败 Outbox 事件，便于排查异步链路阻塞。"
       >
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={12}>
-            <Card
+            <IndustrialCard
               title="待处理死信"
               extra={
                 <Button type="link" onClick={() => navigate('/failure-queue')}>
@@ -1369,7 +1368,7 @@ export const ObservabilityPage = () => {
                   onRetry={() => deadLettersQuery.refetch()}
                 />
               ) : (
-                <Table<DeadLetter>
+                <IndustrialTable<DeadLetter>
                   rowKey="dead_letter_id"
                   columns={deadLetterColumns}
                   dataSource={deadLetters}
@@ -1379,10 +1378,10 @@ export const ObservabilityPage = () => {
                   locale={{ emptyText: '暂无待处理死信' }}
                 />
               )}
-            </Card>
+            </IndustrialCard>
           </Col>
           <Col xs={24} lg={12}>
-            <Card
+            <IndustrialCard
               title="Outbox 异常事件"
               extra={
                 <Button type="link" onClick={() => navigate('/failure-queue')}>
@@ -1397,7 +1396,7 @@ export const ObservabilityPage = () => {
                   onRetry={() => outboxEventsQuery.refetch()}
                 />
               ) : (
-                <Table<OutboxEvent>
+                <IndustrialTable<OutboxEvent>
                   rowKey="outbox_id"
                   columns={outboxColumns}
                   dataSource={outboxEvents}
@@ -1407,11 +1406,11 @@ export const ObservabilityPage = () => {
                   locale={{ emptyText: '暂无 Outbox 异常事件' }}
                 />
               )}
-            </Card>
+            </IndustrialCard>
           </Col>
         </Row>
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };
 

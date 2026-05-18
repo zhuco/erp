@@ -22,7 +22,7 @@ import { createProduct } from '@/api/products';
 import type { Sku } from '@/api/skus';
 import { createSku, listSkus, updateSku } from '@/api/skus';
 import { EmptyState } from '@/components/EmptyState';
-import { OrderReviewWorkbenchTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -398,7 +398,7 @@ export const SkuPage = () => {
 
   return (
     <>
-      <OrderReviewWorkbenchTemplate
+      <WorkbenchPageTemplate
         header={<Typography.Title level={3}>商品 SKU</Typography.Title>}
         tableContent={
           <Space direction="vertical" size={16} style={{ width: '100%' }}>

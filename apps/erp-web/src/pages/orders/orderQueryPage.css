@@ -9,6 +9,16 @@
   margin: -4px;
 }
 
+
+.order-query-page .ag-theme-quartz,
+.order-query-page .ag-root-wrapper,
+.order-query-page .ag-root,
+.order-query-page .ag-header,
+.order-query-page .ag-row,
+.order-query-page .ag-cell {
+  font-size: var(--erp-font-size-body);
+}
+
 .order-query-page .order-workbench-toolbar {
   height: 32px;
   min-height: 32px;

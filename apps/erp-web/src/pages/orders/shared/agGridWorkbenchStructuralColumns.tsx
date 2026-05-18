@@ -121,7 +121,7 @@ const WorkbenchRowIndexCell = <TRow,>(params: ICellRendererParams<TRow>) => {
 export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
   onOpenColumnSettings,
   onToggleAllSelection,
-  rowIndexHeaderName = '\u5e8f',
+  rowIndexHeaderName = '序',
   pinLeft = false,
 }: BuildAgGridWorkbenchStructuralColDefsOptions): ColDef<TRow>[] => [
   {
@@ -165,7 +165,7 @@ export const buildAgGridWorkbenchStructuralColDefs = <TRow,>({
     resizable: false,
     floatingFilterComponent: WorkbenchColumnSettingsFloatingControl,
     floatingFilterComponentParams: {
-      ariaLabel: '\u5217\u8bbe\u7f6e',
+      ariaLabel: '列设置',
       buttonLabel: '',
       onOpenColumnSettings,
       testId: 'workbench-column-settings-trigger',

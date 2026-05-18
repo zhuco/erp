@@ -1,5 +1,5 @@
-import { Button, Card, DatePicker, Form, Input, Select, Space, Typography } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { Button, DatePicker, Form, Input, Select, Space, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -78,39 +78,57 @@ export const ProfitPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         利润分析
       </Typography.Title>
-      <Card title="利润过滤">
-        <Form form={form} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="shop_id" label="店铺">
-            <Select allowClear style={{ width: 200 }} options={shopOptions} showSearch />
-          </Form.Item>
-          <Form.Item name="sku_id" label="SKU">
-            <Input style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="created_range" label="下单时间">
-            <DatePicker.RangePicker showTime />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+      <Typography.Text type="secondary">按店铺、SKU 与下单时间查看利润快照。</Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space size={8}>
+      <Button size="small" onClick={() => listQuery.refetch()} loading={listQuery.isFetching}>
+        刷新
+      </Button>
+      <Button size="small" disabled>
+        导出
+      </Button>
+    </Space>
+  );
+
+  const header = (
+    <Form form={form} layout="inline" onFinish={handleSearch}>
+      <Form.Item name="shop_id" label="店铺">
+        <Select allowClear style={{ width: 200 }} options={shopOptions} showSearch />
+      </Form.Item>
+      <Form.Item name="sku_id" label="SKU">
+        <Input style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="created_range" label="下单时间">
+        <DatePicker.RangePicker showTime />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
     <UiModule03MainTableSection<ProfitSnapshot>
+      toolbarLeft={toolbarLeft}
+      toolbarRight={toolbarRight}
       header={header}
       dataTestId="finance-profit-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
       rowKey="order_id"
       columns={columns}
       data={listQuery.data?.items ?? []}
@@ -123,6 +141,7 @@ export const ProfitPage = () => {
       pagination={pagination}
       onPaginationChange={setPagination}
       columnSettingsKey="finance.profit.table.columns"
+      showColumnSettings
     />
   );
 };

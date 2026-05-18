@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Descriptions,
   Drawer,
   Form,
@@ -45,6 +44,7 @@ import {
   trimText,
   type DirectoryBottomDetailRow,
 } from '@/pages/shared/directoryWorkbenchUtils';
+import { IndustrialCard } from '@/components/industrial';
 
 type CustomerTagFormValues = {
   name: string;
@@ -442,9 +442,9 @@ export const CustomerTagsPage = () => {
       ]}
     />
   ) : (
-    <Card size="small" title="标签详情">
+    <IndustrialCard size="small" title="标签详情">
       <Typography.Text type="secondary">请选择一条客户标签记录查看详情。</Typography.Text>
-    </Card>
+    </IndustrialCard>
   );
 
   const profileRows: DirectoryBottomDetailRow[] = activeTag
@@ -582,7 +582,6 @@ export const CustomerTagsPage = () => {
             onHelp={() => message.info('客户标签目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<CustomerTag>
             rowKey={(record) => record.tag_id}

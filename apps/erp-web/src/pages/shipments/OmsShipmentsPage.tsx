@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -13,12 +12,10 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tooltip,
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -41,6 +38,7 @@ import { useOperationAccess } from '@/features/operations';
 import { useCan } from '@/features/rbac';
 import type { PlatformCode } from '@/features/platform';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type FilterValues = {
   order_id?: string;
@@ -121,7 +119,7 @@ export const OmsShipmentsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [shipForm] = Form.useForm<ShipFormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -197,7 +195,7 @@ export const OmsShipmentsPage = () => {
   );
 
   const header = (
-    <Card>
+    <IndustrialCard>
       <Form form={form} layout="vertical" onFinish={handleSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -230,7 +228,7 @@ export const OmsShipmentsPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
+    </IndustrialCard>
   );
 
   const openDrawer = (shipment: OmsShipmentSummary) => {
@@ -417,6 +415,11 @@ export const OmsShipmentsPage = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="oms-shipments.table.columns"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
       <Drawer
         title="包裹详情"
@@ -463,18 +466,18 @@ export const OmsShipmentsPage = () => {
               </Descriptions.Item>
             </Descriptions>
             {shipmentDetail.items ? (
-              <Card size="small" title="包裹明细">
-                <Table<OmsShipmentItem>
+              <IndustrialCard size="small" title="包裹明细">
+                <IndustrialTable<OmsShipmentItem>
                   rowKey={(record) => `${record.order_item_id}-${record.sku_id}`}
                   columns={itemColumns}
                   dataSource={shipmentDetail.items}
                   pagination={false}
                   size="small"
                 />
-              </Card>
+              </IndustrialCard>
             ) : null}
             {shipmentDetail.status !== 'SHIPPED' ? (
-              <Card size="small" title="发货确认">
+              <IndustrialCard size="small" title="发货确认">
                 <Form form={shipForm} layout="vertical" onFinish={handleShip}>
                   <Form.Item
                     name="carrier_code"
@@ -518,7 +521,7 @@ export const OmsShipmentsPage = () => {
                     description={shipError}
                   />
                 ) : null}
-              </Card>
+              </IndustrialCard>
             ) : null}
           </Space>
         ) : null}

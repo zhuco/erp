@@ -13,6 +13,14 @@ describe('routeAliases', () => {
         legacyPath: '/orders/exceptions',
         canonicalPath: '/orders/recheck',
       },
+      {
+        legacyPath: '/products',
+        canonicalPath: '/goods/products/query',
+      },
+      {
+        legacyPath: '/kits',
+        canonicalPath: '/goods/kits/query',
+      },
     ]);
   });
 
@@ -26,6 +34,9 @@ describe('routeAliases', () => {
       '/sales/order-query?tab=main#summary',
     );
     expect(getLegacyRedirectTarget('/orders/exceptions')).toBe('/orders/recheck');
+    expect(getLegacyRedirectTarget('/products')).toBe('/goods/products/query');
+    expect(getLegacyRedirectTarget('/kits')).toBe('/goods/kits/query');
+    expect(getLegacyRedirectTarget('/kits/KIT-001')).toBe('/goods/kits/KIT-001/edit');
   });
 
   it('returns original paths for the five preserved routes', () => {

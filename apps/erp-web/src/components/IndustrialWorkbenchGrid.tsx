@@ -216,16 +216,24 @@ const buildBusinessColDefs = <T,>(columns: ErpDataGridColumn<T>[]): ColDef<T>[] 
     const path = resolveColumnPath(source, String(source.key ?? `col_${index}`));
     const headerName = resolveColumnTitle(source, `列${index + 1}`);
     const {
-      key: _key,
-      title: _title,
-      renderCell: _renderCell,
-      headerSort: _headerSort,
-      sorter: _sorter,
-      frozen: _frozen,
-      hozAlign: _hozAlign,
-      headerHozAlign: _headerHozAlign,
+      key,
+      title,
+      renderCell,
+      headerSort,
+      sorter,
+      frozen,
+      hozAlign,
+      headerHozAlign,
       ...restSource
     } = source as ErpDataGridColumn<T>;
+    void key;
+    void title;
+    void renderCell;
+    void headerSort;
+    void sorter;
+    void frozen;
+    void hozAlign;
+    void headerHozAlign;
     const sourceValueGetter =
       typeof (source as { valueGetter?: unknown }).valueGetter === 'function'
         ? ((source as { valueGetter: ColDef<T>['valueGetter'] }).valueGetter ?? undefined)

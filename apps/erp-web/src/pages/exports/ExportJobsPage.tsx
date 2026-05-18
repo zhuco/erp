@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Form,
   Input,
@@ -11,7 +10,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -21,6 +20,7 @@ import type { components } from '@/api/generated/schema';
 import { createExportJob, listExportJobs } from '@/api/exports';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { apiBaseUrl } from '@/utils/env';
+import { IndustrialCard } from '@/components/industrial';
 
 type ExportJob = components['schemas']['ExportJob'];
 
@@ -54,7 +54,7 @@ const statusColor = (status: string) => {
 export const ExportJobsPage = () => {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<ExportFormValues>();
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20,
   });
@@ -164,7 +164,7 @@ export const ExportJobsPage = () => {
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3}>Export Jobs</Typography.Title>
-      <Card>
+      <IndustrialCard>
         <Form
           form={form}
           layout="inline"
@@ -195,7 +195,7 @@ export const ExportJobsPage = () => {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -213,6 +213,11 @@ export const ExportJobsPage = () => {
       onPaginationChange={setPagination}
       emptyText="No export jobs"
       columnSettingsKey="exports.jobs.columns"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      dataTestId="industrial-main-grid"
     />
   );
 };

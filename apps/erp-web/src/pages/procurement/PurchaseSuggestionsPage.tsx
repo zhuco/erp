@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Form,
@@ -14,7 +13,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -218,17 +217,22 @@ export const PurchaseSuggestionsPage = () => {
     warehouseQuery.refetch();
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        Purchase Suggestions
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+    Refresh
+    </Button>
+  );
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Purchase Suggestions
-        </Typography.Title>
-        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-          Refresh
-        </Button>
-      </Row>
-      <Card>
         <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
           <Row gutter={[16, 16]}>
             <Col xs={24} md={8}>
@@ -255,13 +259,14 @@ export const PurchaseSuggestionsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<PurchaseSuggestion>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="sku_id"
         columns={columns}
@@ -274,6 +279,11 @@ export const PurchaseSuggestionsPage = () => {
         total={suggestionQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="purchase-suggestions-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="purchase-suggestions.table.columns"
       />
       <Modal

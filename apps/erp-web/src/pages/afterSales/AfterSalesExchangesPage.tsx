@@ -1,5 +1,5 @@
-import { Button, Card, Col, Form, Row, Select, Space, Tag, Typography, message } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { Button, Col, Form, Row, Select, Space, Tag, Typography, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -64,7 +64,7 @@ export const AfterSalesExchangesPage = () => {
     type: 'ALL',
     status: 'ALL'
   });
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -189,61 +189,66 @@ export const AfterSalesExchangesPage = () => {
   );
 
   const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title
-        level={3}
-        style={{ marginBottom: 0 }}
-        data-testid="after-sales-exchanges-title"
-      >
-        换货/补发流程
-      </Typography.Title>
-      <Card>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            type: 'ALL',
-            status: 'ALL'
-          }}
-          onFinish={handleSearch}
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item label="类型" name="type">
-                <Select allowClear options={typeOptions} placeholder="选择类型" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="状态" name="status">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-    </Space>
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={{
+        type: 'ALL',
+        status: 'ALL'
+      }}
+      onFinish={handleSearch}
+    >
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item label="类型" name="type">
+            <Select allowClear options={typeOptions} placeholder="选择类型" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="状态" name="status">
+            <Select allowClear options={statusOptions} placeholder="选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
-  const tableFooter = (
-    <Card>
-      <Typography.Text type="secondary">
-        支持从售后单生成换货/补发包裹，发货后可在出库与物流模块追踪状态。
-      </Typography.Text>
-    </Card>
+  const actionBar = (
+    <Typography.Text type="secondary">
+      支持从售后单生成换货/补发包裹，发货后可在出库与物流模块追踪状态。
+    </Typography.Text>
   );
 
   return (
     <div data-testid="after-sales-exchanges-table">
       <UiModule03MainTableSection<AfterSalesSummary>
+        toolbarLeft={
+          <Typography.Title
+            level={3}
+            style={{ margin: 0 }}
+            data-testid="after-sales-exchanges-title"
+          >
+            换货/补发流程
+          </Typography.Title>
+        }
+        toolbarRight={
+          <Button
+            onClick={() => refetch()}
+            data-testid="after-sales-exchanges-refresh-button"
+          >
+            刷新
+          </Button>
+        }
         header={header}
+        actionBar={actionBar}
         rowKey="id"
         columns={columns}
         data={data?.items ?? []}
@@ -255,8 +260,12 @@ export const AfterSalesExchangesPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="after-sales-exchanges-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="after-sales.exchanges.columns"
-        tableFooter={tableFooter}
       />
     </div>
   );

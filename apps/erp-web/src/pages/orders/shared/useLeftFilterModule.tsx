@@ -100,7 +100,6 @@ export const useLeftFilterModule = <TRow, TFilters>({
   filters: controlledFilters,
   onFiltersChange,
   initialExpandedKeys,
-  leftPanelWidth: _leftPanelWidth,
   emptyRowLabel = '无匹配项',
   hasManualFilter,
   filterRows,

@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Select, Space, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Row, Select, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -65,7 +64,7 @@ export const AfterSaleCaseListPage = () => {
   const tenantId = useTenantId();
   const [form] = Form.useForm<FilterValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -152,58 +151,72 @@ export const AfterSaleCaseListPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3}>售后 Case 列表</Typography.Title>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item name="platform" label="平台">
-                <Select allowClear options={platformOptions} placeholder="选择平台" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="shop_id" label="店铺">
-                <Input allowClear placeholder="输入店铺 ID" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="case_status" label="售后状态">
-                <Input allowClear placeholder="输入售后状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="platform_order_id" label="平台订单号">
-                <Input allowClear placeholder="输入平台订单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item name="updated_range" label="更新时间">
-                <DatePicker.RangePicker
-                  allowClear
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        售后 Case 列表
+      </Typography.Title>
+      <Typography.Text type="secondary">
+        汇总平台售后 Case，支持按订单、状态与更新时间快速定位。
+      </Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Button onClick={() => void refetch()} loading={isFetching}>
+      刷新
+    </Button>
+  );
+
+  const header = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item name="platform" label="平台">
+            <Select allowClear options={platformOptions} placeholder="选择平台" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="shop_id" label="店铺">
+            <Input allowClear placeholder="输入店铺 ID" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="case_status" label="售后状态">
+            <Input allowClear placeholder="输入售后状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="platform_order_id" label="平台订单号">
+            <Input allowClear placeholder="输入平台订单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12}>
+          <Form.Item name="updated_range" label="更新时间">
+            <DatePicker.RangePicker
+              allowClear
+              showTime
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
   return (
     <UiModule03MainTableSection<AfterSaleCaseSummary>
+      toolbarLeft={toolbarLeft}
+      toolbarRight={toolbarRight}
       header={header}
       rowKey={resolveCaseId}
       columns={columns}
@@ -216,6 +229,11 @@ export const AfterSaleCaseListPage = () => {
       total={data?.total ?? 0}
       pagination={pagination}
       onPaginationChange={setPagination}
+      dataTestId="after-sale-case-list-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
       columnSettingsKey="after-sales.table.columns"
     />
   );

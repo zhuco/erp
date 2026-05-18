@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -12,7 +11,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -201,41 +200,56 @@ export const CostingPage = () => {
     [canWrite]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          成本核算与库存成本
-        </Typography.Title>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
-          新建核算
-        </Button>
-      </Space>
-      <Card>
-        <Form form={form} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="method" label="方法">
-            <Select allowClear options={methodOptions} placeholder="全部" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        成本核算与库存成本
+      </Typography.Title>
+      <Typography.Text type="secondary">核算运行、期间库存成本与差异结果跟踪</Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button loading={listQuery.isFetching} onClick={() => void listQuery.refetch()}>
+        刷新
+      </Button>
+      <Button onClick={() => message.info('成本核算导出能力待接入')}>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+        新建核算
+      </Button>
+    </Space>
+  );
+
+  const filterForm = (
+    <Form form={form} layout="inline" onFinish={handleSearch}>
+      <Form.Item name="method" label="方法">
+        <Select allowClear options={methodOptions} placeholder="全部" style={{ width: 160 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<InventoryCostingRun>
-        header={header}
+        dataTestId="finance-costing-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
+        header={filterForm}
         rowKey="costing_id"
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -248,6 +262,7 @@ export const CostingPage = () => {
         errorTitle="成本核算加载失败"
         emptyText="暂无核算记录"
         columnSettingsKey="finance.costing.table.columns"
+        showColumnSettings
       />
       <Drawer
         title={editing ? '编辑核算' : '新建核算'}

@@ -168,12 +168,12 @@ test('订单审核首开后主表格可见并完成截图回归', async ({ page 
 test('订单查询首开后主表格可见并完成截图回归', async ({ page }, testInfo) => {
   await captureGridVisibleSnapshot(page, testInfo, {
     route: '/orders',
-    readyGridTestId: 'orders-grid',
+    readyGridTestId: 'order-review-data-grid',
     screenshotName: '02-orders-query-main-grid.png',
     searchSetup: async () => {
-      await expect(page.getByTestId('orders-keyword-input')).toBeVisible();
-      await page.getByTestId('orders-keyword-input').fill('PLAT-TEST-');
-      const searchButton = page.getByTestId('orders-search-submit');
+      await expect(page.getByTestId('sales-order-query-search-input')).toBeVisible();
+      await page.getByTestId('sales-order-query-search-input').fill('PLAT-TEST-');
+      const searchButton = page.getByTestId('sales-order-query-search-trigger');
       await searchButton.scrollIntoViewIfNeeded();
       await searchButton.click({ trial: true });
       await searchButton.click();

@@ -179,6 +179,30 @@ const ObservabilityPage = lazyNamedPage(
 );
 const PermissionsPage = lazyNamedPage(() => import('@/pages/system/PermissionsPage'), 'PermissionsPage');
 const RolesPage = lazyNamedPage(() => import('@/pages/system/RolesPage'), 'RolesPage');
+const GoodsProductCreatePage = lazyNamedPage(
+  () => import('@/pages/goods/product-form/GoodsProductCreatePage'),
+  'GoodsProductCreatePage',
+);
+const GoodsProductEditPage = lazyNamedPage(
+  () => import('@/pages/goods/product-form/GoodsProductEditPage'),
+  'GoodsProductEditPage',
+);
+const GoodsProductsQueryPage = lazyNamedPage(
+  () => import('@/pages/goods/products-query/GoodsProductsQueryPage'),
+  'GoodsProductsQueryPage',
+);
+const GoodsKitCreatePage = lazyNamedPage(
+  () => import('@/pages/goods/kit-form/GoodsKitCreatePage'),
+  'GoodsKitCreatePage',
+);
+const GoodsKitEditPage = lazyNamedPage(
+  () => import('@/pages/goods/kit-form/GoodsKitEditPage'),
+  'GoodsKitEditPage',
+);
+const GoodsKitsQueryPage = lazyNamedPage(
+  () => import('@/pages/goods/kits-query/GoodsKitsQueryPage'),
+  'GoodsKitsQueryPage',
+);
 
 const legacyRouteRedirects = routeAliases.map(({ legacyPath }) => ({
   path: toRelativeRoutePath(legacyPath),
@@ -204,6 +228,16 @@ const routeConfig = [
       {
         path: '/404',
         element: <NotFoundPage />,
+      },
+      {
+        element: <TenantGuard />,
+        children: [
+          {
+            path: '/kits/:kit_sku_id',
+            element: <LegacyRouteRedirect />,
+          },
+          ...legacyRouteRedirects,
+        ],
       },
       {
         element: <TenantGuard />,
@@ -329,6 +363,54 @@ const routeConfig = [
                 element: (
                   <PermissionGuard permission="settings.read">
                     <SalesSettingsPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/products/new',
+                element: (
+                  <PermissionGuard permission="products.write">
+                    <GoodsProductCreatePage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/products/query',
+                element: (
+                  <PermissionGuard permission="skus.read">
+                    <GoodsProductsQueryPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/products/:productId/edit',
+                element: (
+                  <PermissionGuard permission="products.write">
+                    <GoodsProductEditPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/kits/new',
+                element: (
+                  <PermissionGuard permission="kits.write">
+                    <GoodsKitCreatePage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/kits/query',
+                element: (
+                  <PermissionGuard permission="kits.read">
+                    <GoodsKitsQueryPage />
+                  </PermissionGuard>
+                ),
+              },
+              {
+                path: 'goods/kits/:kitSkuId/edit',
+                element: (
+                  <PermissionGuard permission="kits.write">
+                    <GoodsKitEditPage />
                   </PermissionGuard>
                 ),
               },
@@ -460,7 +542,6 @@ const routeConfig = [
                   </PermissionGuard>
                 ),
               },
-              ...legacyRouteRedirects,
               {
                 path: '*',
                 element: <NotFoundPage />,

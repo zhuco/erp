@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Form,
@@ -13,7 +12,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
@@ -33,6 +31,7 @@ import { getWarehouseWorkflowConfig } from '@/api/workflowConfigs';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   warehouse_id?: string;
@@ -268,7 +267,7 @@ export const WmsShipPage = () => {
           description="系统将跳过验货流程。"
         />
       ) : null}
-      <Card>
+      <IndustrialCard>
         <Form
           form={filterForm}
           layout="vertical"
@@ -307,7 +306,7 @@ export const WmsShipPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -328,6 +327,11 @@ export const WmsShipPage = () => {
           total={data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          dataTestId="wms-ship-main-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="wms.ship.table.columns"
         />
       </div>

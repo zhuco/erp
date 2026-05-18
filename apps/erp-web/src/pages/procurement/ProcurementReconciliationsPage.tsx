@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -13,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -248,17 +247,22 @@ export const ProcurementReconciliationsPage = () => {
     [canWrite, deleteMutation, supplierMap]
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        供应商对账
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button type="primary" onClick={handleCreate} disabled={!canWrite}>
+    新建对账
+    </Button>
+  );
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          供应商对账
-        </Typography.Title>
-        <Button type="primary" onClick={handleCreate} disabled={!canWrite}>
-          新建对账
-        </Button>
-      </Space>
-      <Card>
         <Form
           form={filterForm}
           layout="inline"
@@ -290,13 +294,14 @@ export const ProcurementReconciliationsPage = () => {
             </Space>
           </Form.Item>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<ProcurementReconciliation>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -308,6 +313,11 @@ export const ProcurementReconciliationsPage = () => {
         total={listQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="procurement-reconciliations-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="procurement-reconciliations.table.columns"
         rowKey="reconciliation_id"
       />

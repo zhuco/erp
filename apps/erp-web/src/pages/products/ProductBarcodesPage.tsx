@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -11,12 +10,10 @@ import {
   Select,
   Space,
   Switch,
-  Table,
   Tag,
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -30,7 +27,9 @@ import {
   updateProductBarcode,
 } from '@/api/productBarcodes';
 import { listSkus } from '@/api/skus';
-import { UiModule03MainTableSection } from '@/components/ui-modules';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
+import type { ErpDataGridColumn } from '@/components/ErpDataGrid';
+import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -124,6 +123,19 @@ const packagingSamples: PackagingSample[] = [
     barcode_rule: '箱规唯一',
     print_template: '批次条码模板',
   },
+];
+
+const packagingSampleColumns: ErpDataGridColumn<PackagingSample>[] = [
+  { title: '层级', field: 'level', width: 120 },
+  { title: '单位', field: 'unit', width: 120 },
+  {
+    title: '换算',
+    field: 'ratio',
+    width: 180,
+    renderCell: (_value, record) => `1${record.unit} = ${record.ratio}${baseUnit}`,
+  },
+  { title: '条码规则', field: 'barcode_rule', minWidth: 220 },
+  { title: '打印模板', field: 'print_template', minWidth: 180 },
 ];
 
 export const ProductBarcodesPage = () => {
@@ -423,65 +435,84 @@ export const ProductBarcodesPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-barcodes-title">
-          条码与包装层级管理
-        </Typography.Title>
-        <Space>
-          <Button onClick={() => message.info('批量导入模板已准备')}>批量导入</Button>
-          <Button
-            type="primary"
-            onClick={openCreateDrawer}
-            disabled={!canWrite}
-            data-testid="product-barcodes-create-button"
-          >
-            新增条码
-          </Button>
-        </Space>
-      </Space>
-      <Card>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSearch}
-          data-testid="product-barcodes-filter-form"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item name="keyword" label="关键词">
-                <Input allowClear placeholder="SKU/商品/条码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="level" label="层级">
-                <Select allowClear options={levelOptions} placeholder="全部层级" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select
-                  allowClear
-                  options={[
-                    { label: '启用', value: 'ACTIVE' },
-                    { label: '停用', value: 'INACTIVE' },
-                  ]}
-                  placeholder="全部状态"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
       <UiModule03MainTableSection<BarcodeRecord>
+        toolbarLeft={
+          <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-barcodes-title">
+            条码与包装层级管理
+          </Typography.Title>
+        }
+        toolbarRight={
+          <Space>
+            <Button
+              onClick={() => message.info('批量导入模板已准备')}
+              data-testid="product-barcodes-import-button"
+            >
+              批量导入
+            </Button>
+            <Button
+              onClick={() => void refetch()}
+              loading={isFetching}
+              data-testid="product-barcodes-refresh-button"
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              onClick={openCreateDrawer}
+              disabled={!canWrite}
+              data-testid="product-barcodes-create-button"
+            >
+              新增条码
+            </Button>
+          </Space>
+        }
+        header={
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSearch}
+            data-testid="product-barcodes-filter-form"
+          >
+            <Row gutter={16}>
+              <Col xs={24} md={8}>
+                <Form.Item name="keyword" label="关键词">
+                  <Input allowClear placeholder="SKU/商品/条码" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="level" label="层级">
+                  <Select allowClear options={levelOptions} placeholder="全部层级" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="status" label="状态">
+                  <Select
+                    allowClear
+                    options={[
+                      { label: '启用', value: 'ACTIVE' },
+                      { label: '停用', value: 'INACTIVE' },
+                    ]}
+                    placeholder="全部状态"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
+                <Space>
+                  <Button type="primary" htmlType="submit" data-testid="product-barcodes-search-button">
+                    查询
+                  </Button>
+                  <Button onClick={handleReset} data-testid="product-barcodes-reset-button">
+                    重置
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Form>
+        }
         dataTestId="product-barcodes-table"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         rowKey="id"
         columns={columns}
         data={filteredData}
@@ -493,27 +524,30 @@ export const ProductBarcodesPage = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="product.barcodes.table.columns"
+        showColumnSettings
         enablePanels={false}
       />
-      <Card title="包装层级示例">
-        <Table
-          rowKey="level"
-          size="small"
-          pagination={false}
-          dataSource={packagingSamples}
-          data-testid="product-barcodes-samples-table"
-          columns={[
-            { title: '层级', dataIndex: 'level' },
-            { title: '单位', dataIndex: 'unit' },
-            {
-              title: '换算',
-              render: (_, record) => `1${record.unit} = ${record.ratio}${baseUnit}`,
-            },
-            { title: '条码规则', dataIndex: 'barcode_rule' },
-            { title: '打印模板', dataIndex: 'print_template' },
-          ]}
-        />
-      </Card>
+      <section
+        aria-labelledby="product-barcodes-samples-title"
+        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+      >
+        <Typography.Title id="product-barcodes-samples-title" level={5} style={{ margin: 0 }}>
+          包装层级示例
+        </Typography.Title>
+        <UiModule04BottomTable syncKey="product-barcodes-samples">
+          <ErpDataGrid<PackagingSample>
+            rowKey={(record) => record.level}
+            data={packagingSamples}
+            columns={packagingSampleColumns}
+            dataTestId="product-barcodes-samples-table"
+            emptyText="暂无包装层级示例"
+            rowHeight={32}
+            headerHeight={34}
+            enableRangeSelection={false}
+            suppressContextMenu
+          />
+        </UiModule04BottomTable>
+      </section>
       <Drawer
         title={editingBarcode ? '编辑条码' : '新增条码'}
         open={drawerOpen}

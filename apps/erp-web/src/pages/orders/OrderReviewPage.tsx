@@ -2445,6 +2445,8 @@ export const OrderReviewPage = () => {
 
   return (
     <WorkbenchPageTemplate
+      pageTestId="order-review-page"
+      className="order-review-page"
       leftPanel={leftPanel}
       toolbar={toolbar}
       tableContainerRef={tableRef}

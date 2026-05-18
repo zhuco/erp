@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Checkbox,
   Col,
   Descriptions,
@@ -15,7 +14,6 @@ import {
   Select,
   Space,
   Switch,
-  Table,
   Tabs,
   Tag,
   Tooltip,
@@ -23,11 +21,12 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { InputRef, MenuProps, TablePaginationConfig } from 'antd';
+import type { InputRef, MenuProps } from 'antd';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Key, type ReactElement, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { ErpDataGrid, type ErpDataGridColumn } from '@/components/ErpDataGrid';
 import { createProduct, deleteProduct, listProducts, updateProduct } from '@/api/products';
 import type { Product, ProductCreateRequest, ProductListQuery } from '@/api/products';
 import { createProductBrand, listProductBrands, type ProductBrand } from '@/api/productBrands';
@@ -249,6 +248,116 @@ const buildSkuLabel = (sku: SkuSearchItem) => {
   const name = sku.name ? ` ${sku.name}` : '';
   const barcode = sku.barcode ? ` (${sku.barcode})` : '';
   return `${sku.sku_code}${name}${barcode}`;
+};
+
+type ProductTableColumn<T extends object> = ColumnsType<T>[number];
+
+const resolveProductTableColumnKey = <T extends object>(column: ProductTableColumn<T>, index: number) => {
+  if (column.key != null) {
+    return String(column.key);
+  }
+  if ('dataIndex' in column && column.dataIndex != null) {
+    return Array.isArray(column.dataIndex) ? column.dataIndex.join('.') : String(column.dataIndex);
+  }
+  return `column-${index}`;
+};
+
+const resolveProductTableColumnField = <T extends object>(column: ProductTableColumn<T>) => {
+  if (!('dataIndex' in column) || column.dataIndex == null) {
+    return undefined;
+  }
+  return Array.isArray(column.dataIndex) ? column.dataIndex.join('.') : String(column.dataIndex);
+};
+
+const readProductTableCellValue = <T extends object>(record: T, field?: string) => {
+  if (!field) {
+    return undefined;
+  }
+  return field.split('.').filter(Boolean).reduce<unknown>((current, segment) => {
+    if (current && typeof current === 'object' && segment in current) {
+      return (current as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, record);
+};
+
+const normalizeProductTableRenderResult = (value: unknown): ReactNode => {
+  if (value && typeof value === 'object' && 'children' in value) {
+    return (value as { children?: ReactNode }).children ?? null;
+  }
+  return value as ReactNode;
+};
+
+const toProductGridColumns = <T extends object>(columns: ColumnsType<T>): ErpDataGridColumn<T>[] =>
+  columns.map((column, index) => {
+    const key = resolveProductTableColumnKey(column, index);
+    const field = resolveProductTableColumnField(column) ?? key;
+    const width = typeof column.width === 'number' ? column.width : undefined;
+    const align = 'align' in column ? column.align : undefined;
+    const children = 'children' in column && column.children ? toProductGridColumns(column.children) : undefined;
+    return {
+      key,
+      field,
+      title: 'title' in column ? column.title : key,
+      width,
+      minWidth: width,
+      hozAlign: align === 'right' || align === 'center' || align === 'left' ? align : undefined,
+      headerSort: false,
+      columns: children,
+      renderCell: (_value, record, rowIndex) => {
+        const cellValue = readProductTableCellValue(record, field);
+        if ('render' in column && typeof column.render === 'function') {
+          return normalizeProductTableRenderResult(column.render(cellValue, record, rowIndex));
+        }
+        return cellValue as ReactNode;
+      },
+    };
+  });
+
+type ProductModuleTableProps<T extends object> = {
+  columns: ColumnsType<T>;
+  data: T[];
+  dataTestId: string;
+  emptyText: string;
+  loading?: boolean;
+  rowKey: keyof T | ((record: T) => Key);
+};
+
+const ProductModuleTable = <T extends object>({
+  columns,
+  data,
+  dataTestId,
+  emptyText,
+  loading,
+  rowKey,
+}: ProductModuleTableProps<T>) => {
+  const gridColumns = useMemo(() => toProductGridColumns(columns), [columns]);
+  const resolveRowKey = useCallback(
+    (record: T) => {
+      if (typeof rowKey === 'function') {
+        return rowKey(record);
+      }
+      return record[rowKey] as Key;
+    },
+    [rowKey],
+  );
+
+  return (
+    <ErpDataGrid<T>
+      className="products-module-table-grid"
+      data={data}
+      columns={gridColumns}
+      rowKey={resolveRowKey}
+      loading={loading}
+      emptyText={emptyText}
+      dataTestId={dataTestId}
+      rowClickSelects={false}
+      suppressInitialFocus
+      showSelectionColumn={false}
+      rowHeight={32}
+      headerHeight={32}
+    />
+  );
 };
 
 export const ProductsPage = () => {
@@ -1853,16 +1962,25 @@ export const ProductsPage = () => {
           </Button>
         </span>
       </Tooltip>
-      <Button onClick={handleCopySelected} disabled={!canWrite || !selectedProduct}>
+      <Button
+        onClick={handleCopySelected}
+        disabled={!canWrite || !selectedProduct}
+        data-testid="products-copy-button"
+      >
         复制
       </Button>
-      <Button onClick={handleEditSelected} disabled={!canWrite || !selectedProduct}>
+      <Button
+        onClick={handleEditSelected}
+        disabled={!canWrite || !selectedProduct}
+        data-testid="products-edit-button"
+      >
         修改
       </Button>
       <Button
         danger
         onClick={handleDeleteSelected}
         disabled={!canWrite || (!hasSelection && !selectedProduct)}
+        data-testid="products-delete-button"
       >
         删除
       </Button>
@@ -1876,7 +1994,7 @@ export const ProductsPage = () => {
     </Space>
   );
 
-  const toolbarCenter = quickFilters;
+  const actionBar = quickFilters;
 
   const toolbarRight = (
     <UiModule02ToolbarRight
@@ -2006,15 +2124,13 @@ export const ProductsPage = () => {
                 <UiModule04BottomTable
                   syncKey={`warehouses-${panelWarehouses.length}-${selectedProduct.product_id}`}
                 >
-                  <Table
-                    size="small"
+                  <ProductModuleTable<ProductWarehouse>
                     rowKey="warehouse_id"
                     columns={panelWarehouseColumns}
-                    dataSource={panelWarehouses}
+                    data={panelWarehouses}
                     loading={panelWarehouseQuery.isFetching}
-                    pagination={false}
-                    scroll={{ x: 'max-content' }}
-                    locale={{ emptyText: <Empty description="暂无仓库配置" /> }}
+                    emptyText="暂无仓库配置"
+                    dataTestId="products-bottom-warehouses-grid"
                   />
                 </UiModule04BottomTable>
               ) : (
@@ -2028,15 +2144,13 @@ export const ProductsPage = () => {
                 <UiModule04BottomTable
                   syncKey={`kits-${panelKits.length}-${selectedProduct.product_id}`}
                 >
-                  <Table
-                    size="small"
+                  <ProductModuleTable<KitSummary>
                     rowKey="kit_sku_id"
                     columns={panelKitColumns}
-                    dataSource={panelKits}
+                    data={panelKits}
                     loading={panelKitQuery.isFetching}
-                    pagination={false}
-                    scroll={{ x: 'max-content' }}
-                    locale={{ emptyText: <Empty description="暂无组合装" /> }}
+                    emptyText="暂无组合装"
+                    dataTestId="products-bottom-kits-grid"
                   />
                 </UiModule04BottomTable>
               ) : (
@@ -2050,15 +2164,13 @@ export const ProductsPage = () => {
                 <UiModule04BottomTable
                   syncKey={`logs-${panelLogs.length}-${selectedProduct.product_id}`}
                 >
-                  <Table
-                    size="small"
+                  <ProductModuleTable<OperationLog>
                     rowKey="log_id"
                     columns={logColumns}
-                    dataSource={panelLogs}
+                    data={panelLogs}
                     loading={panelLogQuery.isFetching}
-                    pagination={false}
-                    scroll={{ x: 'max-content' }}
-                    locale={{ emptyText: <Empty description="暂无日志" /> }}
+                    emptyText="暂无日志"
+                    dataTestId="products-bottom-logs-grid"
                   />
                 </UiModule04BottomTable>
               ) : (
@@ -2135,10 +2247,13 @@ export const ProductsPage = () => {
           tableClassName="products-table"
           tableContainerRef={tableContainerRef}
           dataTestId="products-data-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
           suppressInitialFocus
           toolbarLeft={toolbarLeft}
-          toolbarCenter={toolbarCenter}
           toolbarRight={toolbarRight}
+          actionBar={actionBar}
           columns={columns}
           data={listItems}
           loading={isLoading || isFetching}
@@ -2150,6 +2265,7 @@ export const ProductsPage = () => {
           pagination={pagination}
           onPaginationChange={handlePaginationChange}
           columnSettingsKey="products.table.columns"
+          showColumnSettings
           queryCells={columnQueryCells}
           rowKey="product_id"
           rowSelection={rowSelection}
@@ -2690,7 +2806,8 @@ export const ProductsPage = () => {
               label: '存放仓库',
               children: editingProduct ? (
                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                  <Card size="small" title="新增仓库">
+                  <div className="products-warehouse-action-module">
+                    <Typography.Text type="secondary">新增仓库</Typography.Text>
                     <Form form={warehouseForm} layout="inline">
                       <Form.Item
                         name="warehouse_id"
@@ -2719,15 +2836,17 @@ export const ProductsPage = () => {
                         </Button>
                       </Form.Item>
                     </Form>
-                  </Card>
-                  <Table
-                    size="small"
-                    rowKey="warehouse_id"
-                    columns={warehouseColumns}
-                    dataSource={productWarehouses}
-                    loading={warehouseQuery.isLoading || warehouseQuery.isFetching}
-                    pagination={false}
-                  />
+                  </div>
+                  <UiModule04BottomTable syncKey={`edit-warehouses-${productWarehouses.length}`}>
+                    <ProductModuleTable<ProductWarehouse>
+                      rowKey="warehouse_id"
+                      columns={warehouseColumns}
+                      data={productWarehouses}
+                      loading={warehouseQuery.isLoading || warehouseQuery.isFetching}
+                      emptyText="暂无仓库配置"
+                      dataTestId="products-edit-warehouses-grid"
+                    />
+                  </UiModule04BottomTable>
                 </Space>
               ) : (
                 <Empty description="请先保存货品后配置仓库" />
@@ -2744,14 +2863,16 @@ export const ProductsPage = () => {
                       新增组合装
                     </Button>
                   </Space>
-                  <Table
-                    size="small"
-                    rowKey="kit_sku_id"
-                    columns={kitColumns}
-                    dataSource={productKits}
-                    loading={kitQuery.isLoading || kitQuery.isFetching}
-                    pagination={false}
-                  />
+                  <UiModule04BottomTable syncKey={`edit-kits-${productKits.length}`}>
+                    <ProductModuleTable<KitSummary>
+                      rowKey="kit_sku_id"
+                      columns={kitColumns}
+                      data={productKits}
+                      loading={kitQuery.isLoading || kitQuery.isFetching}
+                      emptyText="暂无组合装"
+                      dataTestId="products-edit-kits-grid"
+                    />
+                  </UiModule04BottomTable>
                 </Space>
               ) : (
                 <Empty description="请先保存货品后查看组合装" />
@@ -2761,15 +2882,16 @@ export const ProductsPage = () => {
               key: 'logs',
               label: '日志',
               children: editingProduct ? (
-                <Table
-                  size="small"
-                  rowKey="log_id"
-                  columns={logColumns}
-                  dataSource={productLogs}
-                  loading={logQuery.isLoading || logQuery.isFetching}
-                  pagination={false}
-                  locale={{ emptyText: <Empty description="暂无日志" /> }}
-                />
+                <UiModule04BottomTable syncKey={`edit-logs-${productLogs.length}`}>
+                  <ProductModuleTable<OperationLog>
+                    rowKey="log_id"
+                    columns={logColumns}
+                    data={productLogs}
+                    loading={logQuery.isLoading || logQuery.isFetching}
+                    emptyText="暂无日志"
+                    dataTestId="products-edit-logs-grid"
+                  />
+                </UiModule04BottomTable>
               ) : (
                 <Empty description="请先保存货品后查看日志" />
               ),

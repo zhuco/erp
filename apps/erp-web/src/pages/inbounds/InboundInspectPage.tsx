@@ -8,7 +8,7 @@ import type { InboundDocItem } from '@/api/inbounds';
 import { createOperationId, getInboundDetail, inspectInbound } from '@/api/inbounds';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -277,7 +277,7 @@ export const InboundInspectPage = () => {
   );
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={toolbarLeft}
       searchValue={toolbarSearchInput}
       onSearchChange={setToolbarSearchInput}
@@ -343,7 +343,7 @@ export const InboundInspectPage = () => {
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContent={tableContent}
       rightPanel={rightPanel}

@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -14,7 +13,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -73,7 +71,7 @@ export const AfterSalesSlaPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [ruleForm] = Form.useForm<RuleValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -235,66 +233,76 @@ export const AfterSalesSlaPage = () => {
     [canWrite, deletingRule]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="after-sales-sla-title">
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }} data-testid="after-sales-sla-title">
         售后 SLA 配置
       </Typography.Title>
-      <Card>
-        <Space align="center" size={24} wrap>
-          <div>
-            <Typography.Text type="secondary">规则总数</Typography.Text>
-            <div>{rules.length}</div>
-          </div>
-          <div>
-            <Typography.Text type="secondary">启用规则</Typography.Text>
-            <div>{activeCount}</div>
-          </div>
-          <div>
-            <Typography.Text type="secondary">停用规则</Typography.Text>
-            <div>{disabledCount}</div>
-          </div>
-        </Space>
-      </Card>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item label="售后类型" name="after_sales_type">
-                <Select allowClear options={typeOptions} placeholder="选择售后类型" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="状态" name="status">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-                {canWrite ? (
-                  <Button
-                    type="dashed"
-                    data-testid="after-sales-sla-create"
-                    onClick={() => openRuleModal()}
-                  >
-                    新增规则
-                  </Button>
-                ) : null}
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+      <Typography.Text type="secondary">
+        维护不同售后类型的 SLA 响应、关闭与升级规则。
+      </Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button onClick={() => void refetch()} loading={isFetching}>
+        刷新
+      </Button>
+      {canWrite ? (
+        <Button type="primary" data-testid="after-sales-sla-create" onClick={() => openRuleModal()}>
+          新增规则
+        </Button>
+      ) : null}
+    </Space>
+  );
+
+  const header = (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Space align="center" size={24} wrap>
+        <div>
+          <Typography.Text type="secondary">规则总数</Typography.Text>
+          <div>{rules.length}</div>
+        </div>
+        <div>
+          <Typography.Text type="secondary">启用规则</Typography.Text>
+          <div>{activeCount}</div>
+        </div>
+        <div>
+          <Typography.Text type="secondary">停用规则</Typography.Text>
+          <div>{disabledCount}</div>
+        </div>
+      </Space>
+      <Form form={form} layout="vertical" onFinish={handleSearch}>
+        <Row gutter={16}>
+          <Col xs={24} md={6}>
+            <Form.Item label="售后类型" name="after_sales_type">
+              <Select allowClear options={typeOptions} placeholder="选择售后类型" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={6}>
+            <Form.Item label="状态" name="status">
+              <Select allowClear options={statusOptions} placeholder="选择状态" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                查询
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+            </Space>
+          </Col>
+        </Row>
+      </Form>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<AfterSalesSlaRule>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="rule_id"
         columns={columns}
@@ -307,6 +315,11 @@ export const AfterSalesSlaPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="after-sales-sla-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="after-sales.sla.columns"
       />
       <Modal

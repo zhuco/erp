@@ -10,7 +10,7 @@ import { createInboundRejects } from '@/api/inboundRejects';
 import { searchSkus, type SkuSearchItem } from '@/api/skus';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
 import { ErrorState } from '@/components/QueryState';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -454,7 +454,7 @@ export const InboundReceivePage = () => {
   );
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={toolbarLeft}
       searchValue={toolbarSearchInput}
       onSearchChange={setToolbarSearchInput}
@@ -563,7 +563,7 @@ export const InboundReceivePage = () => {
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContent={tableContent}
       rightPanel={rightPanel}

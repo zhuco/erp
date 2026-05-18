@@ -1,5 +1,4 @@
-import { Button, Card, Col, Form, Input, Row, Space, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, Form, Input, Row, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -72,7 +71,6 @@ export const LocationBalancesPage = () => {
   );
 
   const header = (
-    <Card>
       <Form
         form={filterForm}
         layout="vertical"
@@ -115,7 +113,6 @@ export const LocationBalancesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   return (
@@ -133,6 +130,11 @@ export const LocationBalancesPage = () => {
       total={data?.total ?? 0}
       pagination={pagination}
       onPaginationChange={setPagination}
+      dataTestId="location-balances-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
       columnSettingsKey="location-balances.table.columns"
     />
   );

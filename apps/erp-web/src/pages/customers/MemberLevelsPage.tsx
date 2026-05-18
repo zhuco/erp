@@ -648,7 +648,6 @@ export const MemberLevelsPage = () => {
             onHelp={() => message.info('会员等级目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<MemberLevel>
             rowKey={(record) => record.level_id}

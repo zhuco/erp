@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Descriptions,
   Drawer,
@@ -9,12 +8,10 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -34,6 +31,7 @@ import { ErrorState, LoadingState } from '@/components/QueryState';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { retryPrintJobAndPrint } from '@/features/printing/printJobFlow';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type FilterValues = {
   status?: PrintJobStatus;
@@ -283,7 +281,7 @@ export const PrintJobsPage = () => {
       <Typography.Title level={3} data-testid="print-jobs-title">
         打印任务
       </Typography.Title>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -316,7 +314,7 @@ export const PrintJobsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
       <UiModule03MainTableSection<PrintJobSummary>
         rowKey="job_id"
         columns={columns}
@@ -416,7 +414,7 @@ export const PrintJobsPage = () => {
                 重试打印
               </Button>
             ) : null}
-            <Table<PrintJobEvent>
+            <IndustrialTable<PrintJobEvent>
               rowKey={(record) => `${record.status}-${record.created_at}`}
               columns={eventColumns}
               dataSource={detail.events}

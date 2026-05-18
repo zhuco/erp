@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import YAML from 'yaml';
@@ -153,6 +154,29 @@ function countPlaceholderReferences() {
   };
 }
 
+function collectTemplateAdoptionMetrics() {
+  const scriptPath = path.join(repoRoot, 'apps', 'erp-web', 'scripts', 'check-page-template-usage.mjs');
+  ensureFileExists(scriptPath, 'page template usage script');
+
+  const result = spawnSync('node', [scriptPath], {
+    cwd: path.join(repoRoot, 'apps', 'erp-web'),
+    encoding: 'utf8',
+  });
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  const match = output.match(
+    /applicable pages: (\d+), template pages: (\d+), adoption rate: ([\d.]+)%/,
+  );
+
+  return {
+    status: result.status === 0 ? 'ready' : 'failing',
+    applicable_template_pages: match ? Number(match[1]) : null,
+    template_compliant_pages: match ? Number(match[2]) : null,
+    template_adoption_rate: match ? Number(match[3]) / 100 : null,
+    page_template_gate_status: result.status === 0 ? 'passing' : 'failing',
+    output: output.trim().split(/\r?\n/).slice(-12),
+  };
+}
+
 function ensureParentDir(filePath) {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
@@ -172,6 +196,7 @@ function main() {
     },
     gates: buildGateStatuses(),
     placeholder_route_references: countPlaceholderReferences(),
+    template_adoption: collectTemplateAdoptionMetrics(),
   };
 
   ensureParentDir(outPath);

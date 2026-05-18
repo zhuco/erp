@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -13,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -224,41 +223,56 @@ export const ConsignmentPage = () => {
     [canWrite, deleteMutation, settleMutation]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          代销结算管理
-        </Typography.Title>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
-          新建结算单
-        </Button>
-      </Space>
-      <Card>
-        <Form form={form} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="keyword" label="关键词">
-            <Input allowClear placeholder="合作方/协议号" style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        代销结算管理
+      </Typography.Title>
+      <Typography.Text type="secondary">代销结算单的创建、审核与结算状态跟踪</Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button loading={listQuery.isFetching} onClick={() => void listQuery.refetch()}>
+        刷新
+      </Button>
+      <Button onClick={() => message.info('代销结算导出能力待接入')}>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+        新建结算单
+      </Button>
+    </Space>
+  );
+
+  const filterActionBar = (
+    <Form form={form} layout="inline" onFinish={handleSearch}>
+      <Form.Item name="keyword" label="关键词">
+        <Input allowClear placeholder="合作方/协议号" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<ConsignmentSettlement>
-        header={header}
+        dataTestId="finance-consignment-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
+        actionBar={filterActionBar}
         rowKey="settlement_id"
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -271,6 +285,7 @@ export const ConsignmentPage = () => {
         errorTitle="代销结算加载失败"
         emptyText="暂无结算记录"
         columnSettingsKey="finance.consignment.table.columns"
+        showColumnSettings
       />
       <Drawer
         title={editing ? '编辑结算单' : '新建结算单'}

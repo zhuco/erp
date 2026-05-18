@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Descriptions,
   Drawer,
@@ -17,14 +16,12 @@ import {
   Space,
   Spin,
   Switch,
-  Table,
   Tag,
   Tooltip,
   Typography,
   Upload,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -61,6 +58,7 @@ import { UiModule03MainTableSection, UiModule03TableFooter } from '@/components/
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type FilterValues = {
   product_id?: string;
@@ -997,7 +995,7 @@ export const SkuListPage = () => {
             </span>
           </Tooltip>
         </Space>
-        <Card>
+        <IndustrialCard>
           <Form form={form} layout="vertical" onFinish={handleSearch}>
             <Row gutter={16}>
               <Col xs={24} md={6}>
@@ -1034,7 +1032,7 @@ export const SkuListPage = () => {
               </Col>
             </Row>
           </Form>
-        </Card>
+        </IndustrialCard>
         <UiModule03MainTableSection<Sku>
           tableContainerRef={tableContainerRef}
           rowKey="sku_id"
@@ -1075,15 +1073,15 @@ export const SkuListPage = () => {
               </div>
             }
           />
-          <Card size="small">
+          <IndustrialCard size="small">
             <Space direction="vertical" size={8}>
               <Typography.Text strong>1. 下载模板</Typography.Text>
               <Button onClick={handleDownloadTemplate} disabled={!canWrite}>
                 下载模板
               </Button>
             </Space>
-          </Card>
-          <Card size="small">
+          </IndustrialCard>
+          <IndustrialCard size="small">
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Typography.Text strong>2. 上传文件</Typography.Text>
               <Upload
@@ -1100,8 +1098,8 @@ export const SkuListPage = () => {
               </Upload>
               <Typography.Text type="secondary">支持 Excel/CSV 文件</Typography.Text>
             </Space>
-          </Card>
-          <Card size="small">
+          </IndustrialCard>
+          <IndustrialCard size="small">
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Typography.Text strong>3. 导入设置</Typography.Text>
               <Space>
@@ -1115,8 +1113,8 @@ export const SkuListPage = () => {
                 />
               </Space>
             </Space>
-          </Card>
-          <Card size="small">
+          </IndustrialCard>
+          <IndustrialCard size="small">
             <Space direction="vertical" size={8}>
               <Typography.Text strong>4. 开始导入</Typography.Text>
               <Button
@@ -1128,9 +1126,9 @@ export const SkuListPage = () => {
                 开始导入
               </Button>
             </Space>
-          </Card>
+          </IndustrialCard>
           {importJob ? (
-            <Card size="small">
+            <IndustrialCard size="small">
               <Space direction="vertical" size={8} style={{ width: '100%' }}>
                 <Typography.Text strong>5. 导入结果</Typography.Text>
                 <Progress
@@ -1158,7 +1156,7 @@ export const SkuListPage = () => {
                   </Space>
                 ) : null}
               </Space>
-            </Card>
+            </IndustrialCard>
           ) : null}
         </Space>
       </Modal>
@@ -1169,7 +1167,7 @@ export const SkuListPage = () => {
         width={720}
         destroyOnHidden
       >
-        <Table<SkuImportFailureRow>
+        <IndustrialTable<SkuImportFailureRow>
           rowKey={(record) => `${record.row}-${record.field ?? 'NA'}`}
           columns={failureColumns}
           dataSource={failureRows}

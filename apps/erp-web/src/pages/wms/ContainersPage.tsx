@@ -599,7 +599,6 @@ export const ContainersPage = () => {
             onHelp={() => message.info('容器目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<Container>
             rowKey={(record) => record.container_id}

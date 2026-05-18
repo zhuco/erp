@@ -12,6 +12,7 @@ const baselineFile = path.join(__dirname, 'page-template-baseline.json');
 
 const args = new Set(process.argv.slice(2));
 const shouldWriteBaseline = args.has('--write-baseline');
+const REQUIRED_TEMPLATE_ADOPTION_RATE = 0.95;
 
 const toPosixPath = (value) => value.split(path.sep).join('/');
 const srcRoot = path.join(projectRoot, 'src');
@@ -22,6 +23,33 @@ const recommendedTemplateTokens = [
   'UiModule03MainTableSection',
   'PlaceholderPage',
 ];
+
+const componentOnlyPathSegments = [
+  '/components/',
+  '/shared/',
+  '/review-native/',
+  '/exceptions-native/',
+  '/goods/product-form/',
+  '/goods/kit-form/',
+];
+
+const isApplicableTemplatePage = (relativeFile) => {
+  if (!relativeFile.startsWith('src/pages/') || !relativeFile.endsWith('.tsx')) {
+    return false;
+  }
+  if (relativeFile.endsWith('.test.tsx') || relativeFile.endsWith('.test.ts')) {
+    return false;
+  }
+  if (componentOnlyPathSegments.some((segment) => relativeFile.includes(segment))) {
+    return false;
+  }
+  if (/\/(components|shared)\//.test(relativeFile)) {
+    return false;
+  }
+  return /(?:Page|Workbench)\.tsx$/.test(relativeFile);
+};
+
+const formatRate = (rate) => `${(rate * 100).toFixed(2)}%`;
 
 const resolveWrappedFile = async (basePath) => {
   const candidates = [
@@ -55,7 +83,7 @@ const hasTemplateReference = async (source, file, visited = new Set()) => {
   }
   visited.add(normalizedFile);
 
-  const wrapperImportPattern = /import\s+\{\s*([^}]+)\s*\}\s+from\s+['"](\.\/[^'"]+)['"];?/g;
+  const wrapperImportPattern = /import\s+\{\s*([^}]+)\s*\}\s+from\s+['"]((?:\.\.?\/)[^'"]+)['"];?/g;
   const wrapperMatches = Array.from(source.matchAll(wrapperImportPattern));
 
   for (const match of wrapperMatches) {
@@ -248,6 +276,17 @@ const baseline = await readBaseline();
 const baselineSet = new Set(baseline);
 const missingWithoutBaseline = allMissing.filter((item) => !baselineSet.has(item));
 const staleBaseline = baseline.filter((item) => !allMissing.includes(item));
+const applicablePages = pageFiles
+  .map((file) => toPosixPath(path.relative(projectRoot, file)))
+  .filter(isApplicableTemplatePage)
+  .filter((item) => !baselineSet.has(item))
+  .sort();
+const missingSet = new Set(allMissing);
+const compliantApplicablePages = applicablePages.filter((item) => !missingSet.has(item));
+const templateAdoptionRate = applicablePages.length
+  ? compliantApplicablePages.length / applicablePages.length
+  : 1;
+const adoptionRateViolation = templateAdoptionRate < REQUIRED_TEMPLATE_ADOPTION_RATE;
 
 const strictViolations = [];
 for (const rule of strictTemplateRules) {
@@ -279,6 +318,9 @@ for (const rule of strictTemplateRules) {
 const legacyTemplateViolations = [];
 const sourceFiles = await collectSourceFiles(srcRoot);
 for (const file of sourceFiles) {
+  if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) {
+    continue;
+  }
   const source = await fs.readFile(file, 'utf8');
   const relativeFile = toPosixPath(path.relative(projectRoot, file));
   const hits = forbiddenLegacyTemplateTokens.filter((token) => source.includes(token));
@@ -298,9 +340,20 @@ for (const file of sourceFiles) {
 if (
   missingWithoutBaseline.length ||
   staleBaseline.length ||
+  adoptionRateViolation ||
   strictViolations.length ||
   legacyTemplateViolations.length
 ) {
+  console.error(
+    `[page-template] applicable pages: ${applicablePages.length}, template pages: ${compliantApplicablePages.length}, adoption rate: ${formatRate(templateAdoptionRate)} (required ${formatRate(REQUIRED_TEMPLATE_ADOPTION_RATE)})`,
+  );
+
+  if (adoptionRateViolation) {
+    console.error(
+      `[page-template] adoption rate below required ${formatRate(REQUIRED_TEMPLATE_ADOPTION_RATE)}`,
+    );
+  }
+
   if (missingWithoutBaseline.length) {
     console.error('[page-template] files missing template reference (not in baseline):');
     missingWithoutBaseline.forEach((item) => console.error(`  - ${item}`));
@@ -343,5 +396,5 @@ if (
 }
 
 console.log(
-  `[page-template] ok. checked ${pageFiles.length} pages, baseline exceptions: ${baseline.length}`,
+  `[page-template] ok. checked ${pageFiles.length} pages, applicable pages: ${applicablePages.length}, template pages: ${compliantApplicablePages.length}, adoption rate: ${formatRate(templateAdoptionRate)}, baseline exceptions: ${baseline.length}`,
 );

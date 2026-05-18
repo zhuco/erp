@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Descriptions,
   Drawer,
   Input,
@@ -10,7 +9,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -57,7 +56,7 @@ export const ApDocsPage = () => {
   const canWrite = useCan('finance.write');
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<ApDocFilters>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 10
   });
@@ -153,7 +152,7 @@ export const ApDocsPage = () => {
       {
         title: '操作',
         render: (_, record) => (
-          <Button size="small" onClick={() => handleView(record)}>
+          <Button size="small" onClick={() => handleView(record)} data-testid="finance-ap-docs-detail-button">
             详情
           </Button>
         )
@@ -166,40 +165,58 @@ export const ApDocsPage = () => {
   const canMarkPaid = detail?.status === 'OPEN';
   const canClose = detail?.status === 'PAID';
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+  const mainTableToolbarLeft = (
+    <Space direction="vertical" size={2}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         应付列表
       </Typography.Title>
-      <Card>
-        <Space wrap>
-          <Select
-            allowClear
-            placeholder="状态"
-            style={{ width: 140 }}
-            options={statusOptions}
-            onChange={(value) => {
-              setFilters((prev) => ({ ...prev, status: value || undefined }));
-              setPagination((prev) => ({ ...prev, current: 1 }));
-            }}
-          />
-          <Input
-            placeholder="供应商ID"
-            style={{ width: 220 }}
-            value={filters.supplier_id}
-            onChange={(event) =>
-              setFilters((prev) => ({ ...prev, supplier_id: event.target.value || undefined }))
-            }
-          />
-        </Space>
-      </Card>
+      <Typography.Text type="secondary">
+        统一查看供应商应付单据、付款状态与结算进度。
+      </Typography.Text>
+    </Space>
+  );
+
+  const mainTableToolbarRight = (
+    <Space>
+      <Button loading={listQuery.isFetching} onClick={() => void listQuery.refetch()}>
+        刷新
+      </Button>
+    </Space>
+  );
+
+  const filtersActionBar = (
+    <Space wrap>
+      <Select
+        allowClear
+        placeholder="状态"
+        style={{ width: 140 }}
+        options={statusOptions}
+        onChange={(value) => {
+          setFilters((prev) => ({ ...prev, status: value || undefined }));
+          setPagination((prev) => ({ ...prev, current: 1 }));
+        }}
+      />
+      <Input
+        placeholder="供应商ID"
+        style={{ width: 220 }}
+        value={filters.supplier_id}
+        onChange={(event) =>
+          setFilters((prev) => ({ ...prev, supplier_id: event.target.value || undefined }))
+        }
+      />
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<ApDoc>
-        header={header}
+        dataTestId="finance-ap-docs-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={mainTableToolbarLeft}
+        toolbarRight={mainTableToolbarRight}
+        actionBar={filtersActionBar}
         rowKey="ap_id"
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -212,6 +229,7 @@ export const ApDocsPage = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="finance-ap-docs.table.columns"
+        showColumnSettings
       />
       <Drawer
         title="应付详情"

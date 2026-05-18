@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Drawer,
   Form,
   Input,
@@ -8,11 +7,10 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,14 +23,16 @@ import {
 } from '@/api/stockAdjustments';
 import type {
   StockAdjustDetail,
+  StockAdjustItem,
   StockAdjustItemCreate,
   StockAdjustListQuery,
   StockAdjustSummary
 } from '@/api/stockAdjustments';
 import { listWarehouses } from '@/api/warehouses';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { ErrorState } from '@/components/QueryState';
+import { ErrorState, LoadingState } from '@/components/QueryState';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
+
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
@@ -165,6 +165,7 @@ export const StockAdjustmentsPage = () => {
         render: (_, record) => (
           <Button
             size="small"
+            data-testid="stock-adjustments-detail-button"
             onClick={() => {
               setActiveAdjustId(record.adjust_id);
               setDetailOpen(true);
@@ -180,13 +181,35 @@ export const StockAdjustmentsPage = () => {
 
   const detail: StockAdjustDetail | undefined = detailQuery.data;
 
+  const detailItemColumns = useMemo<ColumnsType<StockAdjustItem>>(
+    () => [
+      { title: 'SKU ID', dataIndex: 'sku_id' },
+      { title: '??', dataIndex: 'qty' }
+    ],
+    []
+  );
+
+  const detailItemsPagination = useMemo<TablePaginationConfig>(
+    () => ({ current: 1, pageSize: Math.max(detail?.items.length ?? 0, 1) }),
+    [detail?.items.length]
+  );
+
   const toolbarLeft = (
-    <Space align="center" size={12} wrap>
+    <Space direction="vertical" size={2}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         库存调整
       </Typography.Title>
-      <Button type="primary" onClick={() => setCreateOpen(true)}>
-        新建调整
+      <Typography.Text type="secondary">
+        统一跟踪库存报损、报溢调整与应用状态
+      </Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space align="center" size={8} wrap>
+      <Button onClick={() => listQueryState.refetch()}>??</Button>
+      <Button type="primary" onClick={() => setCreateOpen(true)} data-testid="stock-adjustments-create-button">
+        库存调整
       </Button>
     </Space>
   );
@@ -202,7 +225,12 @@ export const StockAdjustmentsPage = () => {
   return (
     <>
       <UiModule03MainTableSection<StockAdjustSummary>
+        dataTestId="stock-adjustments-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="adjust_id"
         columns={columns}
@@ -215,6 +243,8 @@ export const StockAdjustmentsPage = () => {
         total={listQueryState.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        columnSettingsKey="wms.stock-adjustments.table.columns"
+        showColumnSettings
       />
       <Modal
         title="新建调整单"
@@ -275,7 +305,11 @@ export const StockAdjustmentsPage = () => {
         destroyOnHidden
       >
         {detailQuery.isLoading ? (
-          <Card loading />
+          <LoadingState
+            loading
+            message="正在加载调整单详情"
+            onRetry={() => detailQuery.refetch()}
+          />
         ) : detail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Space>
@@ -288,15 +322,25 @@ export const StockAdjustmentsPage = () => {
                 应用调整
               </Button>
             </Space>
-            <Table
+            <UiModule03MainTableSection<StockAdjustItem>
+              dataTestId="stock-adjustments-detail-items-grid"
+              gridPreset="industrial-review-compact"
+              selectionCellMode="custom"
+              selectionHeaderMode="allInvert"
               rowKey="adjust_item_id"
-              columns={[
-                { title: 'SKU ID', dataIndex: 'sku_id' },
-                { title: '数量', dataIndex: 'qty' }
-              ]}
-              dataSource={detail.items}
-              pagination={false}
-              size="small"
+              columns={detailItemColumns}
+              data={detail.items}
+              loading={false}
+              error={detailQuery.error}
+              onRetry={() => detailQuery.refetch()}
+              errorTitle="调整明细加载失败"
+              emptyText="暂无调整明细"
+              total={detail.items.length}
+              pagination={detailItemsPagination}
+              onPaginationChange={() => undefined}
+              columnSettingsKey="wms.stock-adjustments.detail-items.columns"
+              showColumnSettings
+              tableFooter={null}
             />
           </Space>
         ) : null}

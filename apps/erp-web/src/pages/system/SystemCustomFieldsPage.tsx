@@ -27,7 +27,7 @@ import {
 import { getSystemWorkflowCatalog } from '@/api/systemWorkflows';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -269,14 +269,14 @@ export const SystemCustomFieldsPage = () => {
 
   if (!tenantReady) {
     return (
-      <UiModule07SettingsLayout title="自定义字段">
+      <SettingsPageTemplate title="自定义字段">
         <EmptyState description="请先选择租户" />
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     );
   }
 
   return (
-    <UiModule07SettingsLayout title="自定义字段">
+    <SettingsPageTemplate title="自定义字段">
       {catalogQuery.isError ? (
         <ErrorState
           title="加载自定义字段失败"
@@ -284,7 +284,7 @@ export const SystemCustomFieldsPage = () => {
           onRetry={() => void catalogQuery.refetch()}
         />
       ) : null}
-      <UiModule07SettingsSection
+      <SettingsPageSection
         title="字段列表"
         actions={
           <Space>
@@ -333,7 +333,7 @@ export const SystemCustomFieldsPage = () => {
             loading={tableLoading}
           />
         </Space>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
       <Modal
         title={editingField ? '编辑字段' : '新增字段'}
         open={modalOpen}
@@ -418,6 +418,6 @@ export const SystemCustomFieldsPage = () => {
           ]}
         />
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

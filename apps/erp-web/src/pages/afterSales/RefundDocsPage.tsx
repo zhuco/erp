@@ -1,5 +1,4 @@
-import { Button, Card, Col, Form, Input, Row, Select, Space, Tag, Typography, message } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, Form, Input, Row, Select, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -45,7 +44,7 @@ export const RefundDocsPage = () => {
   const canWrite = useCan('aftersales.write');
   const [form] = Form.useForm<FilterValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -138,41 +137,55 @@ export const RefundDocsPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="refund-docs-title">
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} data-testid="refund-docs-title" style={{ margin: 0 }}>
         退款处理
       </Typography.Title>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="after_sales_id" label="售后单号">
-                <Input allowClear placeholder="输入售后单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+      <Typography.Text type="secondary">
+        统一跟踪退款状态、退款渠道与失败重试，支撑售后退款闭环。
+      </Typography.Text>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button loading={isFetching} onClick={() => void refetch()}>
+        刷新
+      </Button>
+    </Space>
+  );
+
+  const filterForm = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item name="status" label="状态">
+            <Select allowClear options={statusOptions} placeholder="选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="after_sales_id" label="售后单号">
+            <Input allowClear placeholder="输入售后单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
   return (
     <UiModule03MainTableSection<RefundDoc>
-      header={header}
+      toolbarLeft={toolbarLeft}
+      toolbarRight={toolbarRight}
+      header={filterForm}
       rowKey="id"
       columns={columns}
       data={data?.items ?? []}
@@ -184,6 +197,11 @@ export const RefundDocsPage = () => {
       total={data?.total ?? 0}
       pagination={pagination}
       onPaginationChange={setPagination}
+      dataTestId="refund-docs-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
       columnSettingsKey="refund-docs.table.columns"
     />
   );

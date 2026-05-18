@@ -1,4 +1,4 @@
-import { Button, Card, Form, Select, Space, Switch, Table, Typography, message } from 'antd';
+import { Button, Form, Select, Space, Switch, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -6,8 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { AfterSalesItem } from '@/api/afterSalesOps';
 import { getAfterSalesDetail, receiveAfterSales, redoAfterSalesReceive } from '@/api/afterSalesOps';
-import { listWarehouses } from '@/api/warehouses';
 import { SettingsPageTemplate } from '@/components/page-templates';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
+import { listWarehouses } from '@/api/warehouses';
 import { useTenantId } from '@/features/tenant';
 import { buildReceiveModel, NO_WAREHOUSE_HINT } from './afterSalesReceiveModel';
 
@@ -17,7 +18,13 @@ export const AfterSalesReceivePage = () => {
   const { after_sales_id } = useParams<{ after_sales_id: string }>();
   const [form] = Form.useForm<{ warehouse_id: string; putaway_done: boolean }>();
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    error,
+    isFetching,
+    isLoading,
+    refetch
+  } = useQuery({
     queryKey: ['after-sales-detail', tenantId, after_sales_id],
     queryFn: () => getAfterSalesDetail(tenantId, after_sales_id ?? ''),
     enabled: Boolean(after_sales_id)
@@ -40,6 +47,16 @@ export const AfterSalesReceivePage = () => {
       }
     ],
     []
+  );
+
+  const receivePagination = useMemo<IndustrialTablePaginationConfig>(
+    () => ({
+      current: 1,
+      pageSize: Math.max(data?.items.length ?? 0, 1),
+      total: data?.items.length ?? 0,
+      showSizeChanger: false
+    }),
+    [data?.items.length]
   );
 
   const model = buildReceiveModel({
@@ -106,54 +123,83 @@ export const AfterSalesReceivePage = () => {
     );
   }
 
-  return (
-    <SettingsPageTemplate>
+  const header = (
+    <Space direction="vertical" size={4}>
       {titleNode}
-      <Card>
-        <Form form={form} layout="vertical" initialValues={{ putaway_done: false }}>
-          <Form.Item
-            name="warehouse_id"
-            label="收货仓库"
-            rules={[{ required: true, message: '请选择仓库' }]}
-          >
-            <Select
-              data-testid="after-sales-receive-warehouse"
-              options={(warehouses?.items ?? []).map((wh) => ({
-                label: wh.name,
-                value: wh.warehouse_id
-              }))}
-              placeholder="选择仓库"
-              disabled={!model.canSubmit}
-            />
-          </Form.Item>
-          {!model.canSubmit && (
-            <Typography.Text type="danger">{NO_WAREHOUSE_HINT}</Typography.Text>
-          )}
-          <Form.Item name="putaway_done" label="是否立即上架" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Space>
-            <Button
-              type="primary"
-              data-testid="after-sales-receive-submit"
-              onClick={handleSubmit}
-              disabled={!model.canSubmit}
-            >
-              {data?.return_receipt?.status === 'CANCELLED' ? '重做收货' : '确认收货'}
-            </Button>
-            <Button onClick={() => navigate(`/after-sales/${data.after_sales.id}`)}>返回</Button>
-          </Space>
-        </Form>
-        <div style={{ marginTop: 16 }}>
-          <Typography.Text strong>{model.modeLabel}</Typography.Text>
-          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            {model.modeDescription}
-          </Typography.Paragraph>
-        </div>
-      </Card>
-      <Card title="退货明细">
-        <Table rowKey="sku_id" columns={columns} dataSource={data.items} pagination={false} />
-      </Card>
-    </SettingsPageTemplate>
+      <Typography.Text strong>{model.modeLabel}</Typography.Text>
+      <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+        {model.modeDescription}
+      </Typography.Paragraph>
+      {!model.canSubmit && <Typography.Text type="danger">{NO_WAREHOUSE_HINT}</Typography.Text>}
+    </Space>
+  );
+
+  const toolbarLeft = (
+    <Form form={form} layout="inline" initialValues={{ putaway_done: false }}>
+      <Form.Item
+        name="warehouse_id"
+        label="收货仓库"
+        rules={[{ required: true, message: '请选择仓库' }]}
+        style={{ marginBottom: 0 }}
+      >
+        <Select
+          data-testid="after-sales-receive-warehouse"
+          options={(warehouses?.items ?? []).map((wh) => ({
+            label: wh.name,
+            value: wh.warehouse_id
+          }))}
+          placeholder="选择仓库"
+          disabled={!model.canSubmit}
+          style={{ minWidth: 180 }}
+        />
+      </Form.Item>
+      <Form.Item
+        name="putaway_done"
+        label="是否立即上架"
+        valuePropName="checked"
+        style={{ marginBottom: 0 }}
+      >
+        <Switch />
+      </Form.Item>
+    </Form>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button
+        type="primary"
+        data-testid="after-sales-receive-submit"
+        onClick={handleSubmit}
+        disabled={!model.canSubmit}
+      >
+        {data.return_receipt?.status === 'CANCELLED' ? '重做收货' : '确认收货'}
+      </Button>
+      <Button onClick={() => navigate(`/after-sales/${data.after_sales.id}`)}>返回</Button>
+    </Space>
+  );
+
+  return (
+    <UiModule03MainTableSection<AfterSalesItem>
+      header={header}
+      toolbarLeft={toolbarLeft}
+      toolbarRight={toolbarRight}
+      rowKey="sku_id"
+      columns={columns}
+      data={data.items}
+      loading={isFetching}
+      error={error}
+      onRetry={() => refetch()}
+      errorTitle="退货明细加载失败"
+      emptyText="暂无退货明细"
+      total={data.items.length}
+      pagination={receivePagination}
+      onPaginationChange={() => undefined}
+      dataTestId="after-sales-receive-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      columnSettingsKey="after-sales.receive.main-grid"
+    />
   );
 };

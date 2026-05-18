@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -14,7 +13,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +28,8 @@ import {
   markInvoiceAdjustmentApplied,
   updateTaxRule
 } from '@/api/finance';
-import { UiModule03MainTableSection, UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -307,101 +307,140 @@ export const TaxManagementPage = () => {
     [applyAdjustmentMutation, canWrite]
   );
 
+  const taxToolbarLeft = (
+    <Space direction="vertical" size={0}>
+      <Typography.Text strong>税率规则</Typography.Text>
+      <Typography.Text type="secondary">维护税码、税率与生效周期</Typography.Text>
+    </Space>
+  );
+
+  const taxToolbarRight = (
+    <Space>
+      <Button onClick={() => taxQueryResult.refetch()} loading={taxQueryResult.isFetching}>
+        刷新
+      </Button>
+      <Button disabled>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openTaxCreate}>
+        新建税率
+      </Button>
+    </Space>
+  );
+
+  const taxActionBar = (
+    <Form form={taxForm} layout="inline" onFinish={handleTaxSearch}>
+      <Form.Item name="tax_code" label="税码">
+        <Input allowClear placeholder="税码" style={{ width: 160 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleTaxReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
+  );
+
+  const adjustToolbarLeft = (
+    <Space direction="vertical" size={0}>
+      <Typography.Text strong>发票调整</Typography.Text>
+      <Typography.Text type="secondary">跟踪红冲、重开与异常调整处理状态</Typography.Text>
+    </Space>
+  );
+
+  const adjustToolbarRight = (
+    <Space>
+      <Button onClick={() => adjustQueryResult.refetch()} loading={adjustQueryResult.isFetching}>
+        刷新
+      </Button>
+      <Button disabled>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openAdjustCreate}>
+        新建调整
+      </Button>
+    </Space>
+  );
+
+  const adjustActionBar = (
+    <Form form={adjustForm} layout="inline" onFinish={handleAdjustSearch}>
+      <Form.Item name="invoice_id" label="发票ID">
+        <Input allowClear placeholder="发票ID" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={adjustmentStatusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleAdjustReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
+  );
+
   return (
-    <UiModule07SettingsLayout>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        税务与发票管理
-      </Typography.Title>
+    <SettingsPageTemplate title="税务与发票管理">
       <Tabs
         items={[
           {
             key: 'tax',
             label: '税率规则',
             children: (
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Card style={{ flex: 1 }}>
-                    <Form form={taxForm} layout="inline" onFinish={handleTaxSearch}>
-                      <Form.Item name="tax_code" label="税码">
-                        <Input allowClear placeholder="税码" style={{ width: 160 }} />
-                      </Form.Item>
-                      <Form.Item name="status" label="状态">
-                        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
-                      </Form.Item>
-                      <Form.Item>
-                        <Space>
-                          <Button type="primary" htmlType="submit">
-                            查询
-                          </Button>
-                          <Button onClick={handleTaxReset}>重置</Button>
-                        </Space>
-                      </Form.Item>
-                    </Form>
-                  </Card>
-                  <Button type="primary" disabled={!canWrite} onClick={openTaxCreate}>
-                    新建税率
-                  </Button>
-                </Space>
-                <UiModule03MainTableSection<TaxRule>
-                  rowKey="rule_id"
-                  columns={taxColumns}
-                  data={taxQueryResult.data?.items ?? []}
-                  loading={taxQueryResult.isFetching}
-                  total={taxQueryResult.data?.total ?? 0}
-                  pagination={taxPagination}
-                  onPaginationChange={setTaxPagination}
-                  error={taxQueryResult.error}
-                  onRetry={() => taxQueryResult.refetch()}
-                  errorTitle="税率规则加载失败"
-                  emptyText="暂无税率规则"
-                  columnSettingsKey="finance.tax.table.columns"
-                />
-              </Space>
+              <UiModule03MainTableSection<TaxRule>
+                toolbarLeft={taxToolbarLeft}
+                toolbarRight={taxToolbarRight}
+                actionBar={taxActionBar}
+                rowKey="rule_id"
+                columns={taxColumns}
+                data={taxQueryResult.data?.items ?? []}
+                loading={taxQueryResult.isFetching}
+                total={taxQueryResult.data?.total ?? 0}
+                pagination={taxPagination}
+                onPaginationChange={setTaxPagination}
+                error={taxQueryResult.error}
+                onRetry={() => taxQueryResult.refetch()}
+                errorTitle="税率规则加载失败"
+                emptyText="暂无税率规则"
+                dataTestId="finance-tax-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
+                columnSettingsKey="finance.tax.table.columns"
+              />
             )
           },
           {
             key: 'adjustments',
             label: '发票调整',
             children: (
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Card style={{ flex: 1 }}>
-                    <Form form={adjustForm} layout="inline" onFinish={handleAdjustSearch}>
-                      <Form.Item name="invoice_id" label="发票ID">
-                        <Input allowClear placeholder="发票ID" style={{ width: 200 }} />
-                      </Form.Item>
-                      <Form.Item name="status" label="状态">
-                        <Select allowClear options={adjustmentStatusOptions} placeholder="全部" style={{ width: 140 }} />
-                      </Form.Item>
-                      <Form.Item>
-                        <Space>
-                          <Button type="primary" htmlType="submit">
-                            查询
-                          </Button>
-                          <Button onClick={handleAdjustReset}>重置</Button>
-                        </Space>
-                      </Form.Item>
-                    </Form>
-                  </Card>
-                  <Button type="primary" disabled={!canWrite} onClick={openAdjustCreate}>
-                    新建调整
-                  </Button>
-                </Space>
-                <UiModule03MainTableSection<InvoiceAdjustment>
-                  rowKey="adjustment_id"
-                  columns={adjustmentColumns}
-                  data={adjustQueryResult.data?.items ?? []}
-                  loading={adjustQueryResult.isFetching}
-                  total={adjustQueryResult.data?.total ?? 0}
-                  pagination={adjustPagination}
-                  onPaginationChange={setAdjustPagination}
-                  error={adjustQueryResult.error}
-                  onRetry={() => adjustQueryResult.refetch()}
-                  errorTitle="发票调整加载失败"
-                  emptyText="暂无调整记录"
-                  columnSettingsKey="finance.invoice.adjustments.table.columns"
-                />
-              </Space>
+              <UiModule03MainTableSection<InvoiceAdjustment>
+                toolbarLeft={adjustToolbarLeft}
+                toolbarRight={adjustToolbarRight}
+                actionBar={adjustActionBar}
+                rowKey="adjustment_id"
+                columns={adjustmentColumns}
+                data={adjustQueryResult.data?.items ?? []}
+                loading={adjustQueryResult.isFetching}
+                total={adjustQueryResult.data?.total ?? 0}
+                pagination={adjustPagination}
+                onPaginationChange={setAdjustPagination}
+                error={adjustQueryResult.error}
+                onRetry={() => adjustQueryResult.refetch()}
+                errorTitle="发票调整加载失败"
+                emptyText="暂无调整记录"
+                dataTestId="finance-invoice-adjustments-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
+                columnSettingsKey="finance.invoice.adjustments.table.columns"
+              />
             )
           }
         ]}
@@ -469,6 +508,6 @@ export const TaxManagementPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

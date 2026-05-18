@@ -462,7 +462,6 @@ export const SuppliersPage = () => {
             onHelp={() => message.info('供应商目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<Supplier>
             rowKey={(record) => record.supplier_id}

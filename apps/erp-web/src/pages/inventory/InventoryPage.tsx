@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   Col,
   Descriptions,
@@ -17,7 +16,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -348,131 +346,123 @@ export const InventoryPage = () => {
     });
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} data-testid="inventory-title" style={{ margin: 0 }}>
+        分仓库存
+      </Typography.Title>
+      <Typography.Text type="secondary">统一查看分仓库存、预占、冻结、在途和可用量</Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Tooltip title={!inventoryFeature.enabled ? '库存管理已关闭' : undefined}>
+        <span>
+          <Button onClick={() => navigate('/inventory/ledgers')} disabled={!inventoryFeature.enabled}>
+            查看流水
+          </Button>
+        </span>
+      </Tooltip>
+      <Tooltip title={costDisabledReason}>
+        <span>
+          <Button
+            onClick={() => navigate('/inventory/costs')}
+            disabled={!inventoryFeature.enabled || !costFeature.enabled}
+          >
+            库存成本
+          </Button>
+        </span>
+      </Tooltip>
+      <Tooltip title={!inventoryFeature.enabled ? '库存管理已关闭' : undefined}>
+        <span>
+          <Button onClick={() => navigate('/inventory/sync-jobs')} disabled={!inventoryFeature.enabled}>
+            同步任务
+          </Button>
+        </span>
+      </Tooltip>
+      {actionKinds.map((kind) => (
+        <Tooltip key={kind} title={selectedActionDisabledReason}>
+          <span>
+            <Button
+              onClick={() => {
+                if (!selectedRecord || selectedActionDisabledReason) {
+                  return;
+                }
+                openActionModal(kind, selectedRecord);
+              }}
+              disabled={Boolean(selectedActionDisabledReason)}
+              data-testid={
+                kind === 'ADJUST'
+                  ? 'inventory-selected-adjust-button'
+                  : kind === 'RESERVE'
+                    ? 'inventory-selected-reserve-button'
+                    : 'inventory-selected-release-button'
+              }
+            >
+              {actionLabels[kind]}
+            </Button>
+          </span>
+        </Tooltip>
+      ))}
+    </Space>
+  );
+
+  const tableHeader = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select
+              allowClear
+              options={warehouseOptions}
+              placeholder="选择仓库"
+              loading={warehouseQuery.isFetching}
+              data-testid="inventory-warehouse-select"
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="sku_code" label="SKU 编码">
+            <Input allowClear placeholder="输入 SKU 编码" data-testid="inventory-sku-code-input" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="barcode" label="条码">
+            <Input allowClear placeholder="输入条码" data-testid="inventory-barcode-input" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="tag" label="标签">
+            <Input allowClear placeholder="输入标签" data-testid="inventory-tag-input" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="on_hand_negative" valuePropName="checked" label=" ">
+            <Checkbox>库存 &lt; 0</Checkbox>
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="available_below_safety" valuePropName="checked" label=" ">
+            <Checkbox>可用 &lt; 安全库存</Checkbox>
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="inventory-search-submit">
+              查询
+            </Button>
+            <Button onClick={handleReset} data-testid="inventory-search-reset">
+              重置
+            </Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Space align="center">
-          <Typography.Title level={3} data-testid="inventory-title">
-            分仓库存
-          </Typography.Title>
-        </Space>
-        <Space>
-          <Tooltip title={!inventoryFeature.enabled ? '库存管理已关闭' : undefined}>
-            <span>
-              <Button
-                onClick={() => navigate('/inventory/ledgers')}
-                disabled={!inventoryFeature.enabled}
-              >
-                查看流水
-              </Button>
-            </span>
-          </Tooltip>
-          <Tooltip title={costDisabledReason}>
-            <span>
-              <Button
-                onClick={() => navigate('/inventory/costs')}
-                disabled={!inventoryFeature.enabled || !costFeature.enabled}
-              >
-                库存成本
-              </Button>
-            </span>
-          </Tooltip>
-          <Tooltip title={!inventoryFeature.enabled ? '库存管理已关闭' : undefined}>
-            <span>
-              <Button
-                onClick={() => navigate('/inventory/sync-jobs')}
-                disabled={!inventoryFeature.enabled}
-              >
-                同步任务
-              </Button>
-            </span>
-          </Tooltip>
-          {actionKinds.map((kind) => (
-            <Tooltip key={kind} title={selectedActionDisabledReason}>
-              <span>
-                <Button
-                  onClick={() => {
-                    if (!selectedRecord || selectedActionDisabledReason) {
-                      return;
-                    }
-                    openActionModal(kind, selectedRecord);
-                  }}
-                  disabled={Boolean(selectedActionDisabledReason)}
-                  data-testid={
-                    kind === 'ADJUST'
-                      ? 'inventory-selected-adjust-button'
-                      : kind === 'RESERVE'
-                        ? 'inventory-selected-reserve-button'
-                        : 'inventory-selected-release-button'
-                  }
-                >
-                  {actionLabels[kind]}
-                </Button>
-              </span>
-            </Tooltip>
-          ))}
-        </Space>
-      </Space>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="选择仓库"
-                  loading={warehouseQuery.isFetching}
-                  data-testid="inventory-warehouse-select"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_code" label="SKU 编码">
-                <Input
-                  allowClear
-                  placeholder="输入 SKU 编码"
-                  data-testid="inventory-sku-code-input"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="barcode" label="条码">
-                <Input
-                  allowClear
-                  placeholder="输入条码"
-                  data-testid="inventory-barcode-input"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="tag" label="标签">
-                <Input allowClear placeholder="输入标签" data-testid="inventory-tag-input" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="on_hand_negative" valuePropName="checked" label=" ">
-                <Checkbox>库存 &lt; 0</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="available_below_safety" valuePropName="checked" label=" ">
-                <Checkbox>可用 &lt; 安全库存</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit" data-testid="inventory-search-submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset} data-testid="inventory-search-reset">
-                  重置
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
       {!inventoryFeature.enabled ? (
         <Alert
           type="warning"
@@ -490,6 +480,9 @@ export const InventoryPage = () => {
       ) : null}
       {inventoryFeature.enabled ? (
         <UiModule03MainTableSection<InventorySnapshot>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
+          header={tableHeader}
           tableContainerRef={tableContainerRef}
           dataTestId="inventory-table"
           rowKey={resolveInventoryRowKey}
@@ -508,6 +501,10 @@ export const InventoryPage = () => {
           total={inventoryQuery.data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="inventory.warehouse.table.columns"
           virtual
           enablePanels={false}

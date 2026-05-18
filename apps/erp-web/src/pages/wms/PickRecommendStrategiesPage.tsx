@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -11,7 +10,6 @@ import {
   Select,
   Space,
   Switch,
-  TablePaginationConfig,
   Tag,
   Tabs,
   Typography,
@@ -374,7 +372,6 @@ export const PickRecommendStrategiesPage = () => {
   );
 
   const strategyHeader = (
-    <Card>
       <Form form={form} layout="vertical" onFinish={handleSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -392,11 +389,9 @@ export const PickRecommendStrategiesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   const hitHeader = (
-    <Card>
       <Form form={hitForm} layout="vertical" onFinish={handleHitSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -419,7 +414,6 @@ export const PickRecommendStrategiesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   return (
@@ -446,6 +440,11 @@ export const PickRecommendStrategiesPage = () => {
                 total={listQueryState.data?.total ?? 0}
                 pagination={pagination}
                 onPaginationChange={setPagination}
+                dataTestId="wms-pick-recommend-strategies-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.pick-recommend-strategies.table.columns"
               />
             )
@@ -468,6 +467,11 @@ export const PickRecommendStrategiesPage = () => {
                 total={hitQueryState.data?.total ?? 0}
                 pagination={hitPagination}
                 onPaginationChange={setHitPagination}
+                dataTestId="wms-pick-recommend-hits-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.pick-recommend-hits.table.columns"
               />
             )

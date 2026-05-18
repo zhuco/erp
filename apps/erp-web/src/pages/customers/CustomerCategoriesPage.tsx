@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tabs, Tag, Typography, message } from 'antd';
+import { Button, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tabs, Tag, Typography, message } from 'antd';
 import type { CellClickedEvent, FilterModel } from 'ag-grid-community';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -32,6 +32,7 @@ import {
   trimText,
   type DirectoryBottomDetailRow,
 } from '@/pages/shared/directoryWorkbenchUtils';
+import { IndustrialCard } from '@/components/industrial';
 
 type CustomerCategoryFormValues = {
   name: string;
@@ -469,9 +470,9 @@ export const CustomerCategoriesPage = () => {
       ]}
     />
   ) : (
-    <Card size="small" title="分类详情">
+    <IndustrialCard size="small" title="分类详情">
       <Typography.Text type="secondary">请选择一条客户分类记录查看详情。</Typography.Text>
-    </Card>
+    </IndustrialCard>
   );
 
   const profileRows: DirectoryBottomDetailRow[] = activeCategory
@@ -611,7 +612,6 @@ export const CustomerCategoriesPage = () => {
             onHelp={() => message.info('客户分类目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<CustomerCategory>
             rowKey={(record) => record.category_id}

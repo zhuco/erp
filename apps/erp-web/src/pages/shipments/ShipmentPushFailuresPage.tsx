@@ -8,7 +8,6 @@ import {
   Modal,
   Row,
   Space,
-  TablePaginationConfig,
   Tag,
   Typography,
   message

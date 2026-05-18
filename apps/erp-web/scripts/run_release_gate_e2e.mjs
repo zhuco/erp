@@ -7,6 +7,9 @@ const SPECS = [
   'e2e/task8-stats-observability-sso.spec.ts',
   'e2e/release-gate-main-chain.spec.ts',
   'e2e/release-gate-cross-chain.spec.ts',
+  'e2e/workbench-a11y.spec.ts',
+  'e2e/workbench-layout-presets.spec.ts',
+  'e2e/order-workbench-pages.spec.ts',
 ];
 
 function findFreePort(host) {

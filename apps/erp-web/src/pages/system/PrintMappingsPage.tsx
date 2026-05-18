@@ -27,7 +27,6 @@ import {
 } from '@/api/printMappings';
 import type { PrintTemplate } from '@/api/printTemplates';
 import { listPrintTemplates } from '@/api/printTemplates';
-import type { TablePaginationConfig } from 'antd';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useCan } from '@/features/rbac';

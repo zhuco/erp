@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Descriptions,
   Drawer,
@@ -11,12 +10,11 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState, type Key } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -634,68 +632,6 @@ export const StocktakeTasksPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          盘点任务
-        </Typography.Title>
-        <Space>
-          {canWrite ? (
-            <Button type="primary" onClick={() => setGenerateOpen(true)}>
-              生成任务
-            </Button>
-          ) : null}
-          {canWrite ? <Button onClick={() => setRuleOpen(true)}>任务规则设置</Button> : null}
-          {canWrite ? (
-            <Button onClick={handlePrint} loading={printMutation.isPending}>
-              打印
-            </Button>
-          ) : null}
-        </Space>
-      </Row>
-      <Card>
-        <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="task_id" label="任务号/扫码">
-                <Input.Search
-                  allowClear
-                  placeholder="输入任务号扫描"
-                  enterButton="定位"
-                  onSearch={(value) => handleLocateTask(value)}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="count_id" label="盘点单号">
-                <Input allowClear placeholder="输入盘点单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="status" label="任务状态">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="assignee" label="负责人">
-                <Input allowClear placeholder="输入负责人" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
       {warehouseQuery.error ? (
         <ErrorState
           title="仓库加载失败"
@@ -704,6 +640,96 @@ export const StocktakeTasksPage = () => {
         />
       ) : null}
       <UiModule03MainTableSection<StocktakeTaskSummary>
+        toolbarLeft={
+          <Space direction="vertical" size={2}>
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              盘点任务
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              扫描任务号可快速定位并打开详情，主表支持分页、选择和列设置。
+            </Typography.Text>
+          </Space>
+        }
+        toolbarRight={
+          <Space wrap>
+            <Button onClick={() => void listQueryState.refetch()} loading={listQueryState.isFetching}>
+              刷新
+            </Button>
+            {canWrite ? (
+              <Button
+                data-testid="stocktake-tasks-generate-button"
+                type="primary"
+                onClick={() => setGenerateOpen(true)}
+              >
+                生成任务
+              </Button>
+            ) : null}
+            {canWrite ? <Button onClick={() => setRuleOpen(true)}>任务规则设置</Button> : null}
+            {canWrite ? (
+              <Button
+                data-testid="stocktake-tasks-print-button"
+                onClick={handlePrint}
+                loading={printMutation.isPending}
+              >
+                打印
+              </Button>
+            ) : null}
+          </Space>
+        }
+        header={
+          <Form
+            data-testid="stocktake-tasks-filter-form"
+            form={filterForm}
+            layout="vertical"
+            onFinish={handleSearch}
+          >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={6}>
+                <Form.Item name="task_id" label="任务号/扫码">
+                  <Input.Search
+                    allowClear
+                    placeholder="输入任务号扫描"
+                    enterButton="定位"
+                    onSearch={(value) => handleLocateTask(value)}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="count_id" label="盘点单号">
+                  <Input allowClear placeholder="输入盘点单号" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="warehouse_id" label="仓库">
+                  <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="status" label="任务状态">
+                  <Select allowClear options={statusOptions} placeholder="选择状态" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item name="assignee" label="负责人">
+                  <Input allowClear placeholder="输入负责人" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
+                <Space>
+                  <Button data-testid="stocktake-tasks-search-button" type="primary" htmlType="submit">
+                    查询
+                  </Button>
+                  <Button data-testid="stocktake-tasks-reset-button" onClick={handleReset}>
+                    重置
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Form>
+        }
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         rowKey="task_id"
         columns={columns}
         data={listQueryState.data?.items ?? []}
@@ -716,6 +742,8 @@ export const StocktakeTasksPage = () => {
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="inventory.stocktake.tasks.table.columns"
+        showColumnSettings={true}
+        dataTestId="stocktake-tasks-main-grid"
         rowSelection={
           canWrite
             ? {
@@ -863,12 +891,18 @@ export const StocktakeTasksPage = () => {
                 {formatDateTime(detailQuery.data.task.completed_at)}
               </Descriptions.Item>
             </Descriptions>
-            <Card size="small" title="任务范围">
+            <section data-testid="stocktake-tasks-detail-range">
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                任务范围
+              </Typography.Title>
               <Typography.Text>{detailQuery.data.task.range_desc}</Typography.Text>
-            </Card>
+            </section>
             {currentItem ? (
-              <Card size="small" title="作业指引">
+              <section data-testid="stocktake-tasks-detail-guide">
                 <Space direction="vertical" size={4}>
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    作业指引
+                  </Typography.Title>
                   <Typography.Text>
                     当前SKU：{currentItem.sku_id}
                     {detailQuery.data.location_enabled && currentItem.location_id
@@ -883,64 +917,69 @@ export const StocktakeTasksPage = () => {
                     <Typography.Text type="secondary">当前为最后一条明细</Typography.Text>
                   )}
                 </Space>
-              </Card>
+              </section>
             ) : null}
-            <Card size="small" title="扫码录入">
-              <Form
-                form={entryForm}
-                layout="vertical"
-                onFinish={(values) => entryMutation.mutate(values)}
-                initialValues={{ counted_qty: 0 }}
-                disabled={isReadOnly}
-              >
-                <Row gutter={16}>
-                  <Col xs={24} md={8}>
-                    <Form.Item
-                      name="barcode"
-                      label="货品条码"
-                      rules={[{ required: true, message: '请输入货品条码' }]}
-                    >
-                      <Input placeholder="扫描或输入条码/SKU" />
-                    </Form.Item>
-                  </Col>
-                  {detailQuery.data.location_enabled ? (
-                    <Col xs={24} md={6}>
+            <section data-testid="stocktake-tasks-entry-section">
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                <Typography.Title level={5} style={{ margin: 0 }}>
+                  扫码录入
+                </Typography.Title>
+                <Form
+                  form={entryForm}
+                  layout="vertical"
+                  onFinish={(values) => entryMutation.mutate(values)}
+                  initialValues={{ counted_qty: 0 }}
+                  disabled={isReadOnly}
+                >
+                  <Row gutter={16}>
+                    <Col xs={24} md={8}>
                       <Form.Item
-                        name="location_id"
-                        label="货位"
-                        rules={[{ required: true, message: '请输入货位' }]}
+                        name="barcode"
+                        label="货品条码"
+                        rules={[{ required: true, message: '请输入货品条码' }]}
                       >
-                        <Input placeholder="扫描货位" />
+                        <Input placeholder="扫描或输入条码/SKU" />
                       </Form.Item>
                     </Col>
-                  ) : null}
-                  <Col xs={24} md={6}>
-                    <Form.Item
-                      name="counted_qty"
-                      label="盘点数量"
-                      rules={[{ required: true, message: '请输入盘点数量' }]}
-                    >
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      loading={entryMutation.isPending}
-                      disabled={isReadOnly}
-                    >
-                      录入
-                    </Button>
-                  </Col>
-                </Row>
-              </Form>
-              {isReadOnly ? (
-                <Typography.Text type="secondary">
-                  任务已提交或作废，当前仅可查看。
-                </Typography.Text>
-              ) : null}
-            </Card>
+                    {detailQuery.data.location_enabled ? (
+                      <Col xs={24} md={6}>
+                        <Form.Item
+                          name="location_id"
+                          label="货位"
+                          rules={[{ required: true, message: '请输入货位' }]}
+                        >
+                          <Input placeholder="扫描货位" />
+                        </Form.Item>
+                      </Col>
+                    ) : null}
+                    <Col xs={24} md={6}>
+                      <Form.Item
+                        name="counted_qty"
+                        label="盘点数量"
+                        rules={[{ required: true, message: '请输入盘点数量' }]}
+                      >
+                        <InputNumber min={0} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={entryMutation.isPending}
+                        disabled={isReadOnly}
+                      >
+                        录入
+                      </Button>
+                    </Col>
+                  </Row>
+                </Form>
+                {isReadOnly ? (
+                  <Typography.Text type="secondary">
+                    任务已提交或作废，当前仅可查看。
+                  </Typography.Text>
+                ) : null}
+              </Space>
+            </section>
             <Space>
               <Button
                 onClick={() => saveItemsMutation.mutate(detailItems)}
@@ -958,12 +997,32 @@ export const StocktakeTasksPage = () => {
                 提交任务
               </Button>
             </Space>
-            <Table
+            <UiModule03MainTableSection<StocktakeTaskItem>
+              toolbarLeft={
+                <Space direction="vertical" size={2}>
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    任务明细
+                  </Typography.Title>
+                  <Typography.Text type="secondary">
+                    暂无任务明细暂无任务明细暂无任务明细暂无任务明细
+                  </Typography.Text>
+                </Space>
+              }
               rowKey="task_item_id"
               columns={detailColumns}
-              dataSource={detailItems}
-              pagination={false}
-              size="small"
+              data={detailItems}
+              loading={detailQuery.isFetching}
+              error={detailQuery.error}
+              onRetry={() => detailQuery.refetch()}
+              total={detailItems.length}
+              pagination={{ current: 1, pageSize: detailItems.length || 10 }}
+              onPaginationChange={() => undefined}
+              dataTestId="stocktake-tasks-detail-grid"
+              gridPreset="industrial-review-compact"
+              selectionCellMode="custom"
+              selectionHeaderMode="allInvert"
+              emptyText="暂无任务明细"
+              showColumnSettings={false}
             />
           </Space>
         ) : null}

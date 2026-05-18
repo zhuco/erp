@@ -18,9 +18,7 @@
   "src/pages/planning/ReplenishmentRulesPage.tsx",
   "src/pages/planning/SalesForecastPage.tsx",
   "src/pages/planning/TransferSuggestionsPage.tsx",
-  "src/pages/products/ProductPackagingSpecsPage.tsx",
   "src/pages/sales/SalesOrderCreatePage.tsx",
-  "src/pages/sales/SalesOrderImportPage.tsx",
   "src/pages/sales/SalesProductMatchPage.tsx",
   "src/pages/sales/SalesStrategySettingsPage.tsx",
   "src/pages/stats/BestSellerAnalysisPage.tsx",
@@ -30,9 +28,5 @@
   "src/pages/stats/SalesTrendAnalysisPage.tsx",
   "src/pages/stats/ShippingStatsPage.tsx",
   "src/pages/stats/SlowMovingAnalysisPage.tsx",
-  "src/pages/system/AgGridEnterpriseDemoPage.tsx",
-  "src/pages/wms/WmsDockYardPage.tsx",
-  "src/pages/wms/WmsLaborPage.tsx",
-  "src/pages/wms/WmsReplenishmentPage.tsx",
-  "src/pages/wms/WmsSlottingPage.tsx"
+  "src/pages/system/AgGridEnterpriseDemoPage.tsx"
 ]

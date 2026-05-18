@@ -8,6 +8,7 @@ export type SalesSettingsFormValues = {
   pricePrecision: number;
   requiredRemark: boolean;
   autoReview: boolean;
+  enableOrderRecheck: boolean;
   mergeMode: 'consignee' | 'address' | 'none';
   mergeWindow: number;
   splitThreshold: number;
@@ -68,45 +69,48 @@ export const salesStrategyTypeDefinitions = [
   { key: 'goods', label: '商品解析策略' },
   { key: 'order-tags', label: '订单标记策略' },
   { key: 'sales-commission', label: '销售提成策略' },
-  { key: 'shipping-commission', label: '发货提成策略' }
+  { key: 'shipping-commission', label: '发货提成策略' },
 ] as const;
 
 const auditModeLabelMap: Record<SalesSettingsFormValues['auditMode'], string> = {
   auto: '自动审核',
   manual: '人工审核',
-  amount: '金额审核'
+  amount: '金额审核',
 };
 
 const mergeModeLabelMap: Record<SalesSettingsFormValues['mergeMode'], string> = {
   consignee: '同收货人合单',
-  address: '同地址合单',
-  none: '不自动合单'
+  address: '同收货地址合单',
+  none: '不自动合并',
 };
 
 const interceptReasonLabelMap: Record<string, string> = {
   address_issue: '地址异常',
   stock_shortage: '库存不足',
-  payment_issue: '付款异常'
+  payment_issue: '付款异常',
 };
 
 const addressStatusLabelMap: Record<string, string> = {
   pending_review: '待审核',
   pending_ship: '待发货',
-  intercepted: '拦截中'
+  intercepted: '拦截中',
 };
 
 const sourceLabelMap: Record<string, string> = {
   platform: '平台订单',
   manual: '手工录入',
-  api: '接口导入'
+  api: '接口导入',
 };
 
 const countDistinctStrategyTypes = (strategies: SalesStrategy[]) =>
   new Set(strategies.map((strategy) => strategy.type)).size;
 
+const formatProcessingDetail = (values: SalesSettingsFormValues) =>
+  `${mergeModeLabelMap[values.mergeMode]} / ${values.enableOrderRecheck ? '订单复核已启用' : '审核后直递 WMS'}`;
+
 export const buildSalesSettingsOverview = (
   values: SalesSettingsFormValues,
-  strategies: SalesStrategy[]
+  strategies: SalesStrategy[],
 ): SalesWorkbenchOverviewCard[] => {
   const strategyTypes = countDistinctStrategyTypes(strategies);
   return [
@@ -121,15 +125,15 @@ export const buildSalesSettingsOverview = (
             ? '备注必填'
             : '按标准规则处理',
       tone: values.auditMode === 'manual' ? 'warning' : 'primary',
-      sectionKey: 'base'
+      sectionKey: 'base',
     },
     {
       key: 'processing',
       title: '自动处理',
       value: values.autoReview ? '自动处理开启' : '自动处理关闭',
-      description: `${mergeModeLabelMap[values.mergeMode]} / 拆分阈值 ${values.splitThreshold} 件`,
+      description: formatProcessingDetail(values),
       tone: values.autoReview ? 'success' : 'warning',
-      sectionKey: 'processing'
+      sectionKey: 'processing',
     },
     {
       key: 'risk',
@@ -137,7 +141,7 @@ export const buildSalesSettingsOverview = (
       value: values.platformIntercept ? '平台拦截启用' : '平台拦截关闭',
       description: `${interceptReasonLabelMap[values.interceptReason] ?? values.interceptReason} / ${values.interceptDuration} 小时`,
       tone: values.platformIntercept ? 'warning' : 'neutral',
-      sectionKey: 'intercept'
+      sectionKey: 'intercept',
     },
     {
       key: 'sync',
@@ -145,7 +149,7 @@ export const buildSalesSettingsOverview = (
       value: values.addressAutoUpdate ? '地址同步开启' : '地址同步关闭',
       description: values.remarkAutoSync ? '备注同步已启用' : '备注同步需人工处理',
       tone: values.addressAutoUpdate && values.remarkAutoSync ? 'success' : 'warning',
-      sectionKey: 'sync'
+      sectionKey: 'sync',
     },
     {
       key: 'source',
@@ -153,7 +157,7 @@ export const buildSalesSettingsOverview = (
       value: sourceLabelMap[values.orderSourceDefault] ?? values.orderSourceDefault,
       description: `自动标签 ${values.orderTagMode.length} 类 / 渠道同步${values.orderChannelSync ? '开启' : '关闭'}`,
       tone: 'neutral',
-      sectionKey: 'source'
+      sectionKey: 'source',
     },
     {
       key: 'strategy',
@@ -161,14 +165,14 @@ export const buildSalesSettingsOverview = (
       value: `${strategies.length} 条策略`,
       description: `覆盖 ${strategyTypes} 个策略分组`,
       tone: strategies.some((item) => item.enabled) ? 'primary' : 'neutral',
-      sectionKey: 'strategy-center'
-    }
+      sectionKey: 'strategy-center',
+    },
   ];
 };
 
 export const buildSalesSettingsSectionStatuses = (
   values: SalesSettingsFormValues,
-  strategies: SalesStrategy[]
+  strategies: SalesStrategy[],
 ): SalesWorkbenchSectionStatus[] => {
   const strategyTypes = countDistinctStrategyTypes(strategies);
 
@@ -177,38 +181,38 @@ export const buildSalesSettingsSectionStatuses = (
       key: 'base',
       title: '基础设置',
       status: auditModeLabelMap[values.auditMode],
-      detail: `${values.defaultCurrency} / 价格精度 ${values.pricePrecision} 位`
+      detail: `${values.defaultCurrency} / 价格精度 ${values.pricePrecision} 位`,
     },
     {
       key: 'processing',
       title: '自动处理',
       status: values.autoReview ? '已启用' : '待人工确认',
-      detail: `${mergeModeLabelMap[values.mergeMode]} / ${values.mergeWindow} 分钟窗口`
+      detail: formatProcessingDetail(values),
     },
     {
       key: 'intercept',
       title: '平台拦截',
       status: values.platformIntercept ? '已启用' : '未启用',
-      detail: `${interceptReasonLabelMap[values.interceptReason] ?? values.interceptReason} / ${values.interceptDuration} 小时`
+      detail: `${interceptReasonLabelMap[values.interceptReason] ?? values.interceptReason} / ${values.interceptDuration} 小时`,
     },
     {
       key: 'sync',
       title: '地址与备注同步',
       status: values.addressAutoUpdate || values.remarkAutoSync ? '同步治理中' : '需关注',
-      detail: `${addressStatusLabelMap[values.addressStatus] ?? values.addressStatus} / 备注${values.remarkAutoSync ? '自动' : '人工'}`
+      detail: `${addressStatusLabelMap[values.addressStatus] ?? values.addressStatus} / 备注${values.remarkAutoSync ? '自动' : '人工'}`,
     },
     {
       key: 'source',
       title: '来源与标签',
       status: `${values.orderTagMode.length} 项标签`,
-      detail: `${sourceLabelMap[values.orderSourceDefault] ?? values.orderSourceDefault} / 渠道同步${values.orderChannelSync ? '开启' : '关闭'}`
+      detail: `${sourceLabelMap[values.orderSourceDefault] ?? values.orderSourceDefault} / 渠道同步${values.orderChannelSync ? '开启' : '关闭'}`,
     },
     {
       key: 'strategy-center',
       title: '策略中心',
       status: `${strategies.length} 条策略`,
-      detail: `${strategyTypes} 个分组已配置`
-    }
+      detail: `${strategyTypes} 个分组已配置`,
+    },
   ];
 };
 
@@ -221,9 +225,6 @@ export const buildStrategyCategoryCards = (strategies: SalesStrategy[]): Strateg
       label: definition.label,
       total: grouped.length,
       enabled,
-      summary:
-        grouped.length > 0
-          ? `${enabled} 条生效 / ${grouped.length} 条配置`
-          : '尚未配置'
+      summary: grouped.length > 0 ? `${enabled} 条生效 / ${grouped.length} 条配置` : '尚未配置',
     };
   });

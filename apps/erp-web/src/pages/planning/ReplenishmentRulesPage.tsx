@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, InputNumber, Select, Space, Table, Tag, message } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Space, Tag, message, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -8,6 +8,7 @@ import {
   type PlanningReplenishmentRule,
   upsertPlanningReplenishmentRule
 } from '@/api/planning';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -100,7 +101,10 @@ export const ReplenishmentRulesPage = () => {
       style={{ width: '100%' }}
       data-testid="planning-replenishment-page"
     >
-      <Card title="Replenishment Rule Input" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Replenishment Rule Input
+        </Typography.Title>
         <Form
           form={form}
           layout="inline"
@@ -174,9 +178,12 @@ export const ReplenishmentRulesPage = () => {
             </Space>
           </Form.Item>
         </Form>
-      </Card>
+      </section>
 
-      <Card title="Replenishment Rules" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Replenishment Rules
+        </Typography.Title>
         {listQuery.error ? (
           <ErrorState
             title="Failed to load replenishment rules"
@@ -184,16 +191,17 @@ export const ReplenishmentRulesPage = () => {
             onRetry={() => listQuery.refetch()}
           />
         ) : (
-          <Table<PlanningReplenishmentRule>
+          <ErpDataGrid<PlanningReplenishmentRule>
             data-testid="planning-replenishment-table"
-            rowKey="rule_id"
+            rowKey={(record) => record.rule_id}
             loading={listQuery.isLoading || listQuery.isFetching}
             columns={columns}
-            dataSource={listQuery.data?.items ?? []}
-            pagination={false}
+            data={listQuery.data?.items ?? []}
+            compact
+            showRowIndex={false}
           />
         )}
-      </Card>
+      </section>
     </Space>
   );
 };

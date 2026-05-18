@@ -1,7 +1,13 @@
 import { apiBaseUrl, useMocks } from '@/utils/env';
 import { apiClient, buildAuthHeaders, fetchWithAuth, unwrapApiResponse } from '@/api/client';
 import { createApiError, handleApiError } from '@/api/errors';
-import { createMockSku, getMockSkuList, searchMockSkus, updateMockSku } from '@/api/mocks';
+import {
+  createMockSku,
+  getMockSkuDetail,
+  getMockSkuList,
+  searchMockSkus,
+  updateMockSku,
+} from '@/api/mocks';
 
 import type { components, paths } from './generated/schema';
 
@@ -130,6 +136,9 @@ export const getSkuDetail = async (
   tenantId: string,
   skuId: string
 ): Promise<SkuDetailResponse> => {
+  if (useMocks) {
+    return getMockSkuDetail(skuId);
+  }
   const result = await apiClient.GET('/v1/tenants/{tenant_id}/skus/{sku_id}', {
     params: {
       path: { tenant_id: tenantId, sku_id: skuId }

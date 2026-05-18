@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -13,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -240,17 +239,22 @@ export const SupplierPerformancePage = () => {
     [canWrite, deleteMutation, supplierMap]
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        供应商绩效
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button type="primary" onClick={handleCreate} disabled={!canWrite}>
+    新建绩效
+    </Button>
+  );
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          供应商绩效
-        </Typography.Title>
-        <Button type="primary" onClick={handleCreate} disabled={!canWrite}>
-          新建绩效
-        </Button>
-      </Space>
-      <Card>
         <Form
           form={filterForm}
           layout="inline"
@@ -282,13 +286,14 @@ export const SupplierPerformancePage = () => {
             </Space>
           </Form.Item>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<ProcurementSupplierPerformance>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -300,6 +305,11 @@ export const SupplierPerformancePage = () => {
         total={listQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="supplier-performance-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="supplier-performance.table.columns"
         rowKey="performance_id"
       />

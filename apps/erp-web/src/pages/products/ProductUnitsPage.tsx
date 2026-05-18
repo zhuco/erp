@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -14,7 +13,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -372,22 +370,31 @@ export const ProductUnitsPage = () => {
     [canWrite],
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        商品单位换算
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button
+    type="primary"
+    onClick={openCreateDrawer}
+    disabled={!canWrite}
+    data-testid="product-units-create-button"
+    >
+    新增换算
+    </Button>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-units-title">
-          多单位与计量换算
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          取整规则配置
         </Typography.Title>
-        <Button
-          type="primary"
-          onClick={openCreateDrawer}
-          disabled={!canWrite}
-          data-testid="product-units-create-button"
-        >
-          新增换算
-        </Button>
-      </Space>
-      <Card title="取整规则配置">
         <Form
           form={ruleForm}
           layout="inline"
@@ -428,8 +435,8 @@ export const ProductUnitsPage = () => {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
-      <Card>
+      </section>
+      <section className="erp-inline-section">
         <Form
           form={form}
           layout="vertical"
@@ -462,9 +469,10 @@ export const ProductUnitsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
-      <Card title="换算清单">
+      </section>
         <UiModule03MainTableSection<UnitConversion>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
           dataTestId="product-units-table"
           rowKey="id"
           columns={columns}
@@ -476,10 +484,13 @@ export const ProductUnitsPage = () => {
           total={filteredData.length}
           pagination={pagination}
           onPaginationChange={setPagination}
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="product.units.table.columns"
           enablePanels={false}
         />
-      </Card>
       <Drawer
         title={editingConversion ? '编辑换算' : '新增换算'}
         open={drawerOpen}

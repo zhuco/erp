@@ -25,7 +25,7 @@ import type { ApiError } from '@/api/errors';
 import { getWmsOutbound, getWmsWave, listWmsOutbounds, shipWmsOutbound } from '@/api/wms';
 import type { WmsOutboundDoc, WmsWaveDetail } from '@/api/wms';
 import { useWorkbenchPanels } from '@/app/layout/workbenchPanels';
-import { OrderReviewWorkbenchTemplate, OrderReviewWorkbenchToolbarTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate, WorkbenchToolbar } from '@/components/page-templates';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 import { useSessionStore } from '@/features/sessionStore';
 import { useCan } from '@/features/rbac';
@@ -441,7 +441,7 @@ export const WmsOutboundConfirmPage = () => {
   }, [leftPanel, setLeftPanel, setLeftPanelCollapsed, setLeftPanelVisible]);
 
   const toolbar = (
-    <OrderReviewWorkbenchToolbarTemplate
+    <WorkbenchToolbar
       leftContent={
         <Space>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -511,7 +511,7 @@ export const WmsOutboundConfirmPage = () => {
   );
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       toolbar={toolbar}
       tableContent={
         <div className="wms-outbound-confirm" data-testid="outbound-confirm-page">

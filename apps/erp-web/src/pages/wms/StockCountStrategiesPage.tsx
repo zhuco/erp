@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -10,7 +9,6 @@ import {
   Select,
   Space,
   Switch,
-  TablePaginationConfig,
   Tag,
   Tabs,
   Typography,
@@ -451,7 +449,6 @@ export const StockCountStrategiesPage = () => {
   );
 
   const strategyHeader = (
-    <Card>
       <Form form={form} layout="vertical" onFinish={handleSearch}>
         <Row gutter={16}>
           <Col xs={24} md={6}>
@@ -469,7 +466,6 @@ export const StockCountStrategiesPage = () => {
           </Col>
         </Row>
       </Form>
-    </Card>
   );
 
   const suggestionHeader = (
@@ -479,7 +475,6 @@ export const StockCountStrategiesPage = () => {
           {stockSuggestFlag.reason ?? '盘点建议已关闭'}
         </Typography.Text>
       ) : null}
-      <Card>
         <Form form={suggestionForm} layout="vertical" onFinish={handleSuggestionSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -506,7 +501,6 @@ export const StockCountStrategiesPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
@@ -534,6 +528,11 @@ export const StockCountStrategiesPage = () => {
                 total={listQueryState.data?.total ?? 0}
                 pagination={pagination}
                 onPaginationChange={setPagination}
+                dataTestId="wms-stock-count-strategies-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.stock-count-strategies.table.columns"
               />
             )
@@ -556,6 +555,11 @@ export const StockCountStrategiesPage = () => {
                 total={suggestionQueryState.data?.total ?? 0}
                 pagination={suggestionPagination}
                 onPaginationChange={setSuggestionPagination}
+                dataTestId="wms-stock-count-suggestions-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="wms.stock-count-suggestions.table.columns"
               />
             )

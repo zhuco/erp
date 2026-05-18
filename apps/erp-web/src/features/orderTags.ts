@@ -316,7 +316,7 @@ export type EditableOrderMarkMenuItem = {
 export const buildOrderEditableMarkMenuItems = (
   options: EditableOrderMarkOption[],
   currentTags: string[],
-  emptyLabel = '\u6682\u65e0\u53ef\u9009\u8bb0\u53f7',
+  emptyLabel = '暂无可选记号',
 ): EditableOrderMarkMenuItem[] => {
   const normalizedCurrentTags = new Set(
     currentTags.map((tag) => normalizeLookupValue(tag)).filter(Boolean),

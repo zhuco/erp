@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -12,12 +11,11 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -36,9 +34,11 @@ import {
 } from '@/api/purchaseReturns';
 import { listSuppliers } from '@/api/suppliers';
 import { listWarehouses } from '@/api/warehouses';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
+
 
 type CreateFormValues = {
   po_id: string;
@@ -260,74 +260,79 @@ export const PurchaseReturnsPage = () => {
   };
 
   const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Purchase Returns
-        </Typography.Title>
-        <Space>
-          <Button type="primary" disabled={!canWrite} onClick={openCreate}>
-            New Return
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-            Refresh
-          </Button>
-        </Space>
+    <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="supplier_id" label="供应商">
+            <Select
+              allowClear
+              options={supplierOptions}
+              placeholder="请选择供应商"
+              loading={supplierQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select
+              allowClear
+              options={warehouseOptions}
+              placeholder="请选择仓库"
+              loading={warehouseQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4}>
+          <Form.Item name="status" label="状态">
+            <Select allowClear options={statusOptions} placeholder="请选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="created_range" label="创建时间">
+            <DatePicker.RangePicker showTime style={{ width: '100%' }} allowClear />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="purchase-returns-search-button">
+              查询
+            </Button>
+            <Button onClick={handleReset} data-testid="purchase-returns-reset-button">
+              重置
+            </Button>
+          </Space>
+        </Col>
       </Row>
-      <Card>
-        <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="supplier_id" label="Supplier">
-                <Select
-                  allowClear
-                  options={supplierOptions}
-                  placeholder="Select supplier"
-                  loading={supplierQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="Warehouse">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="Select warehouse"
-                  loading={warehouseQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4}>
-              <Form.Item name="status" label="Status">
-                <Select allowClear options={statusOptions} placeholder="Select status" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="created_range" label="Created Range">
-                <DatePicker.RangePicker showTime style={{ width: '100%' }} allowClear />
-              </Form.Item>
-            </Col>
-            <Col
-              xs={24}
-              md={4}
-              style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
-            >
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  Search
-                </Button>
-                <Button onClick={handleReset}>Reset</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-    </Space>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<PurchaseReturnSummary>
+        dataTestId="purchase-returns-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            采购退货
+          </Typography.Title>
+        }
+        toolbarRight={
+          <Space>
+            <Button
+              type="primary"
+              disabled={!canWrite}
+              onClick={openCreate}
+              data-testid="purchase-returns-create-button"
+            >
+              新建退货
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh} data-testid="purchase-returns-refresh-button">
+              刷新
+            </Button>
+          </Space>
+        }
         header={header}
         rowKey="return_id"
         columns={columns}
@@ -335,12 +340,13 @@ export const PurchaseReturnsPage = () => {
         loading={listQuery.isFetching}
         error={listQuery.error}
         onRetry={() => listQuery.refetch()}
-        errorTitle="Failed to load purchase returns"
-        emptyText="No returns"
+        errorTitle="采购退货列表加载失败"
+        emptyText="暂无采购退货记录"
         total={listQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="purchase-returns.table.columns"
+        showColumnSettings
       />
       <Modal
         title="Create Purchase Return"
@@ -442,12 +448,13 @@ export const PurchaseReturnsPage = () => {
                 {formatDateTime(activeDetail.purchase_return.created_at)}
               </Descriptions.Item>
             </Descriptions>
-            <Table
-              rowKey="sku_id"
+            <ErpDataGrid<PurchaseReturnDetail['items'][number]>
+              rowKey={(record) => record.sku_id}
               columns={detailColumns}
-              dataSource={activeDetail.items}
-              pagination={false}
-              size="small"
+              data={activeDetail.items}
+              compact
+              showRowIndex={false}
+              data-testid="purchase-returns-detail-items-grid"
             />
           </Space>
         ) : (

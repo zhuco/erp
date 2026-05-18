@@ -12,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { MenuProps, TablePaginationConfig } from 'antd';
+import type { MenuProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type Key, type ReactNode } from 'react';

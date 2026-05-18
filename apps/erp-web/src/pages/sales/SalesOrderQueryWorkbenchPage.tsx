@@ -856,7 +856,6 @@ export const SalesOrderQueryWorkbenchPage = () => {
       leftPanel={leftPanel}
       toolbar={toolbar}
       tableContainerRef={tableRef}
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <OrderReviewQueryMainGrid
           rows={rows}

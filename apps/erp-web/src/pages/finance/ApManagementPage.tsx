@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -11,9 +10,10 @@ import {
   Space,
   Tabs,
   Tag,
+  Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -74,12 +74,12 @@ export const ApManagementPage = () => {
   const canWrite = useCan('finance.write');
   const queryClient = useQueryClient();
   const [docFilters, setDocFilters] = useState<DocFilterValues>({});
-  const [docPagination, setDocPagination] = useState<TablePaginationConfig>({
+  const [docPagination, setDocPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
   const [planFilters, setPlanFilters] = useState<PlanFilterValues>({});
-  const [planPagination, setPlanPagination] = useState<TablePaginationConfig>({
+  const [planPagination, setPlanPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -300,51 +300,77 @@ export const ApManagementPage = () => {
     [canWrite, deleteMutation, markPaidMutation]
   );
 
-  const docsHeader = (
-    <Card>
-      <Form form={docForm} layout="inline" onFinish={handleDocSearch}>
-        <Form.Item name="supplier_id" label="供应商ID">
-          <Input allowClear placeholder="供应商ID" style={{ width: 200 }} />
-        </Form.Item>
-        <Form.Item name="status" label="状态">
-          <Select allowClear options={docStatusOptions} placeholder="全部" style={{ width: 160 }} />
-        </Form.Item>
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit">
-              查询
-            </Button>
-            <Button onClick={handleDocReset}>重置</Button>
-          </Space>
-        </Form.Item>
-      </Form>
-    </Card>
+  const docsToolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        应付单据
+      </Typography.Title>
+      <Typography.Text type="secondary">跟踪应付单据付款状态与结算进度。</Typography.Text>
+    </Space>
   );
 
-  const plansHeader = (
-    <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-      <Card style={{ flex: 1 }}>
-        <Form form={planForm} layout="inline" onFinish={handlePlanSearch}>
-          <Form.Item name="supplier_id" label="供应商ID">
-            <Input allowClear placeholder="供应商ID" style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select allowClear options={planStatusOptions} placeholder="全部" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handlePlanReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+  const docsToolbarRight = (
+    <Button onClick={() => docsQuery.refetch()} loading={docsQuery.isFetching}>
+      刷新
+    </Button>
+  );
+
+  const plansToolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        付款计划
+      </Typography.Title>
+      <Typography.Text type="secondary">维护供应商付款计划并推进支付闭环。</Typography.Text>
+    </Space>
+  );
+
+  const plansToolbarRight = (
+    <Space>
+      <Button onClick={() => plansQuery.refetch()} loading={plansQuery.isFetching}>
+        刷新
+      </Button>
       <Button type="primary" disabled={!canWrite} onClick={openCreate}>
         新建计划
       </Button>
     </Space>
+  );
+
+  const docsHeader = (
+    <Form form={docForm} layout="inline" onFinish={handleDocSearch}>
+      <Form.Item name="supplier_id" label="供应商ID">
+        <Input allowClear placeholder="供应商ID" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={docStatusOptions} placeholder="全部" style={{ width: 160 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleDocReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
+  );
+
+  const plansHeader = (
+    <Form form={planForm} layout="inline" onFinish={handlePlanSearch}>
+      <Form.Item name="supplier_id" label="供应商ID">
+        <Input allowClear placeholder="供应商ID" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={planStatusOptions} placeholder="全部" style={{ width: 160 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handlePlanReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
@@ -356,6 +382,8 @@ export const ApManagementPage = () => {
             label: '应付单据',
             children: (
               <UiModule03MainTableSection<ApDoc>
+                toolbarLeft={docsToolbarLeft}
+                toolbarRight={docsToolbarRight}
                 header={docsHeader}
                 rowKey="ap_id"
                 columns={docColumns}
@@ -366,6 +394,11 @@ export const ApManagementPage = () => {
                 onPaginationChange={setDocPagination}
                 error={docsQuery.error}
                 onRetry={() => docsQuery.refetch()}
+                dataTestId="finance-ap-docs-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="finance.ap.docs.table.columns"
               />
             )
@@ -375,6 +408,8 @@ export const ApManagementPage = () => {
             label: '付款计划',
             children: (
               <UiModule03MainTableSection<ApPaymentPlan>
+                toolbarLeft={plansToolbarLeft}
+                toolbarRight={plansToolbarRight}
                 header={plansHeader}
                 rowKey="plan_id"
                 columns={planColumns}
@@ -385,6 +420,11 @@ export const ApManagementPage = () => {
                 onPaginationChange={setPlanPagination}
                 error={plansQuery.error}
                 onRetry={() => plansQuery.refetch()}
+                dataTestId="finance-ap-plans-main-grid"
+                gridPreset="industrial-review-compact"
+                selectionCellMode="custom"
+                selectionHeaderMode="allInvert"
+                showColumnSettings
                 columnSettingsKey="finance.ap.plans.table.columns"
               />
             )

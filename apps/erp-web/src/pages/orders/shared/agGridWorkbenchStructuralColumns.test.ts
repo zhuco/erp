@@ -29,7 +29,7 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(String(colDefs[0]?.headerClass ?? '')).toContain('order-workbench-selection-header-centered');
 
     expect(colDefs[1]?.colId).toBe('__erpRowIndex');
-    expect(colDefs[1]?.headerName).toBe('\u5e8f');
+    expect(colDefs[1]?.headerName).toBe('序');
     expect(colDefs[1]?.pinned).toBeUndefined();
     expect(colDefs[1]?.lockPinned).toBeUndefined();
     expect(colDefs[1]?.lockPosition).toBeUndefined();
@@ -47,7 +47,7 @@ describe('agGridWorkbenchStructuralColumns', () => {
     expect(typeof colDefs[1]?.floatingFilterComponent).toBe('function');
     expect((colDefs[1]?.floatingFilterComponentParams as { buttonLabel?: string } | undefined)?.buttonLabel).toBe('');
     expect((colDefs[1]?.floatingFilterComponentParams as { ariaLabel?: string } | undefined)?.ariaLabel).toBe(
-      '\u5217\u8bbe\u7f6e',
+      '列设置',
     );
     expect(String(colDefs[1]?.cellClass ?? '')).toContain('order-workbench-row-index-cell-centered');
     expect(String(colDefs[1]?.headerClass ?? '')).toContain('order-workbench-row-index-header-centered');

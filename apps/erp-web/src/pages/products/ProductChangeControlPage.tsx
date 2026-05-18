@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -15,7 +14,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -403,22 +401,31 @@ export const ProductChangeControlPage = () => {
     [canWrite],
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        主数据变更控制
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button
+    type="primary"
+    onClick={openCreateDrawer}
+    disabled={!canWrite}
+    data-testid="product-change-create-button"
+    >
+    新建变更
+    </Button>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-change-title">
-          主数据变更控制
+      <section className="erp-inline-section" data-testid="product-change-steps">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          审批流程
         </Typography.Title>
-        <Button
-          type="primary"
-          onClick={openCreateDrawer}
-          disabled={!canWrite}
-          data-testid="product-change-create-button"
-        >
-          新建变更
-        </Button>
-      </Space>
-      <Card title="审批流程" data-testid="product-change-steps">
         <Steps
           items={[
             { title: '提交申请', description: '填写变更内容与影响范围' },
@@ -426,8 +433,8 @@ export const ProductChangeControlPage = () => {
             { title: '同步生效', description: '下游系统自动同步' },
           ]}
         />
-      </Card>
-      <Card>
+      </section>
+      <section className="erp-inline-section">
         <Form
           form={form}
           layout="vertical"
@@ -467,9 +474,10 @@ export const ProductChangeControlPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
-      <Card title="变更清单">
+      </section>
         <UiModule03MainTableSection<ChangeRequest>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
           dataTestId="product-change-table"
           rowKey="id"
           columns={columns}
@@ -481,10 +489,13 @@ export const ProductChangeControlPage = () => {
           total={filteredData.length}
           pagination={pagination}
           onPaginationChange={setPagination}
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="product.change.table.columns"
           enablePanels={false}
         />
-      </Card>
       <Drawer
         title="新建变更"
         open={drawerOpen}
@@ -561,7 +572,7 @@ export const ProductChangeControlPage = () => {
       >
         {activeRequest ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card size="small">
+            <section className="erp-inline-section">
               <Typography.Title level={5} style={{ marginTop: 0 }}>
                 {activeRequest.title}
               </Typography.Title>
@@ -578,8 +589,11 @@ export const ProductChangeControlPage = () => {
                 申请人：{activeRequest.applicant} · 更新时间：
                 {dayjs(activeRequest.updated_at).format('YYYY-MM-DD HH:mm')}
               </Typography.Text>
-            </Card>
-            <Card size="small" title="审批记录">
+            </section>
+            <section className="erp-inline-section">
+              <Typography.Title level={4} style={{ marginTop: 0 }}>
+                审批记录
+              </Typography.Title>
               <Timeline
                 items={activeRequest.history.map((item) => ({
                   children: (
@@ -597,7 +611,7 @@ export const ProductChangeControlPage = () => {
                   ),
                 }))}
               />
-            </Card>
+            </section>
           </Space>
         ) : null}
       </Modal>

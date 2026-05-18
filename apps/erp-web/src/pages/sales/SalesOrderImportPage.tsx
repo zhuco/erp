@@ -5,8 +5,10 @@ import {
   QuestionCircleOutlined,
   SettingOutlined
 } from '@ant-design/icons';
-import { Alert, Button, Card, Space, Table, Tabs, Tag } from 'antd';
+import { Alert, Button, Space, Tabs, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+
+import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
 import type { Key } from 'react';
 import { useState } from 'react';
 
@@ -122,12 +124,26 @@ const importItemColumns: ColumnsType<ImportOrderItemRow> = [
   { title: '备注', dataIndex: 'remark', width: 120 }
 ];
 
+const mainPaginationInitialState: TablePaginationConfig = {
+  current: 1,
+  pageSize: 10,
+  size: 'small'
+};
+
+const itemPaginationInitialState: TablePaginationConfig = {
+  current: 1,
+  pageSize: importItemRows.length,
+  size: 'small'
+};
+
 export const SalesOrderImportPage = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
+  const [pagination, setPagination] = useState(mainPaginationInitialState);
+  const [itemPagination, setItemPagination] = useState(itemPaginationInitialState);
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <UiModule03MainTableSection<ImportOrderRow>
+      toolbarLeft={
         <Space>
           <Button type="primary" icon={<CloudUploadOutlined />}>
             导入
@@ -137,51 +153,77 @@ export const SalesOrderImportPage = () => {
             删除
           </Button>
         </Space>
+      }
+      toolbarRight={
         <Space>
           <Button icon={<SettingOutlined />}>设置</Button>
           <Button icon={<QuestionCircleOutlined />}>帮助</Button>
         </Space>
-      </div>
-      <Alert
-        type="warning"
-        showIcon
-        message="导入当前页面的订单后，需要先创建订单，否则无法在订单查询页面查看。"
-      />
-      <Card size="small">
-        <Table<ImportOrderRow>
-          rowKey="key"
-          columns={importColumns}
-          dataSource={importRows}
-          size="small"
-          rowSelection={{
-            selectedRowKeys,
-            onChange: (keys) => setSelectedRowKeys(keys)
-          }}
-          pagination={{ size: 'small', pageSize: 10 }}
-          scroll={{ x: 1600, y: 320 }}
+      }
+      actionBar={
+        <Alert
+          type="warning"
+          showIcon
+          message="导入当前页面的订单后，需要先创建订单，否则无法在订单查询页面查看。"
         />
-      </Card>
-      <Card size="small">
-        <Tabs
-          size="small"
-          items={[
-            {
-              key: 'items',
-              label: '货品明细',
-              children: (
-                <Table<ImportOrderItemRow>
-                  rowKey="key"
-                  columns={importItemColumns}
-                  dataSource={importItemRows}
-                  size="small"
-                  pagination={false}
-                  scroll={{ x: 1200 }}
-                />
-              )
-            }
-          ]}
-        />
-      </Card>
-    </Space>
+      }
+      rowKey="key"
+      columns={importColumns}
+      data={importRows}
+      loading={false}
+      error={null}
+      emptyText="暂无导入订单"
+      onRetry={() => undefined}
+      total={importRows.length}
+      pagination={pagination}
+      onPaginationChange={(next) => setPagination((prev) => ({ ...prev, ...next }))}
+      dataTestId="sales-order-import-main-grid"
+      columnSettingsKey="sales.order-import.main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      rowSelection={{
+        selectedRowKeys,
+        onChange: (keys) => setSelectedRowKeys(keys)
+      }}
+      scroll={{ x: 1600, y: 320 }}
+      bottomPanel={
+        <UiModule04BottomTable syncKey={`sales-order-import-items-${selectedRowKeys.join(',') || 'all'}`}>
+          <Tabs
+            size="small"
+            items={[
+              {
+                key: 'items',
+                label: '货品明细',
+                children: (
+                  <UiModule03MainTableSection<ImportOrderItemRow>
+                    rowKey="key"
+                    columns={importItemColumns}
+                    data={importItemRows}
+                    loading={false}
+                    error={null}
+                    emptyText="请选择导入订单查看货品明细"
+                    onRetry={() => undefined}
+                    total={importItemRows.length}
+                    pagination={itemPagination}
+                    onPaginationChange={(next) => setItemPagination((prev) => ({ ...prev, ...next }))}
+                    dataTestId="sales-order-import-item-grid"
+                    columnSettingsKey="sales.order-import.item-grid"
+                    gridPreset="industrial-review-compact"
+                    selectionCellMode="custom"
+                    selectionHeaderMode="allInvert"
+                    showColumnSettings
+                    showQueryRow={false}
+                    tableFooter={null}
+                    scroll={{ x: 1200 }}
+                  />
+                )
+              }
+            ]}
+          />
+        </UiModule04BottomTable>
+      }
+    />
   );
 };

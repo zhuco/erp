@@ -161,7 +161,7 @@ export const getKitDetail = async (
   kitSkuId: string
 ): Promise<KitDetail> => {
   if (useMocks) {
-    return getMockKitDetail(kitSkuId);
+    return getMockKitDetail(kitSkuId) as unknown as KitDetail;
   }
   const response = await requestJson<KitDetail | KitDetailApiResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/kits/${kitSkuId}`,
@@ -176,7 +176,7 @@ export const saveKitBom = async (
   payload: SaveKitPayload
 ): Promise<KitDetail> => {
   if (useMocks) {
-    return saveMockKitBom(payload);
+    return saveMockKitBom(payload) as unknown as KitDetail;
   }
   const response = await requestJson<KitDetail | KitDetailApiResponse>(
     `${apiBaseUrl}/v1/tenants/${tenantId}/kits/${payload.kit_sku_id}`,

@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -257,22 +256,66 @@ export const InventorySyncJobsPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        库存同步任务
+      </Typography.Title>
+      <Typography.Text type="secondary">统一查看库存同步状态、失败原因与重试动作</Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button icon={<ReloadOutlined />} onClick={handleRefresh} disabled={!inventorySyncFlag.enabled}>
+      刷新
+    </Button>
+  );
+
+  const tableHeader = (
+    <Form form={form} layout="vertical" onFinish={handleSearch} initialValues={filters}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="shop_id" label="店铺 ID">
+            <Input allowClear placeholder="输入店铺 ID" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="sku_id" label="SKU ID">
+            <Input allowClear placeholder="输入 SKU ID" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4}>
+          <Form.Item name="status" label="状态">
+            <Select
+              allowClear
+              options={[
+                { value: 'FAILED', label: 'FAILED' },
+                { value: 'PENDING', label: 'PENDING' },
+                { value: 'SENDING', label: 'SENDING' },
+                { value: 'SENT', label: 'SENT' }
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={2} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          库存同步任务
-        </Typography.Title>
-        <Space>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            disabled={!inventorySyncFlag.enabled}
-          >
-            刷新
-          </Button>
-        </Space>
-      </Row>
       {!inventorySyncFlag.enabled ? (
         <Alert
           type="warning"
@@ -281,48 +324,6 @@ export const InventorySyncJobsPage = () => {
           description={inventorySyncFlag.reason}
         />
       ) : null}
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch} initialValues={filters}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="shop_id" label="店铺 ID">
-                <Input allowClear placeholder="输入店铺 ID" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_id" label="SKU ID">
-                <Input allowClear placeholder="输入 SKU ID" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4}>
-              <Form.Item name="status" label="状态">
-                <Select
-                  allowClear
-                  options={[
-                    { value: 'FAILED', label: 'FAILED' },
-                    { value: 'PENDING', label: 'PENDING' },
-                    { value: 'SENDING', label: 'SENDING' },
-                    { value: 'SENT', label: 'SENT' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={2} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
       {warehouseQuery.error ? (
         <ErrorState
           title="仓库加载失败"
@@ -331,6 +332,9 @@ export const InventorySyncJobsPage = () => {
         />
       ) : null}
       <UiModule03MainTableSection<StockSyncJob>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
+        header={tableHeader}
         rowKey="job_id"
         columns={columns}
         data={jobsQuery.data?.items ?? []}
@@ -342,6 +346,11 @@ export const InventorySyncJobsPage = () => {
         total={jobsQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="inventory-sync-jobs-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="inventory.sync.jobs.table.columns"
         enablePanels={false}
       />

@@ -62,5 +62,11 @@ describe('OrderReviewGridFilters', () => {
     expect(source).not.toContain('dropdownRender={() => (');
     expect(source).toContain('<Space orientation="vertical" size={4}>');
     expect(source).not.toContain('<Space direction="vertical" size={4}>');
+  });  it('does not keep hidden date range picker inputs in the accessibility tree', () => {
+    const source = readFileSync(resolve(__dirname, 'OrderReviewGridFilters.tsx'), 'utf8');
+
+    expect(source).toContain('{pickerOpen ? (');
+    expect(source).not.toContain('aria-hidden="true"');
   });
+
 });

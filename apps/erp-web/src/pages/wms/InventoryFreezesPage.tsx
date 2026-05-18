@@ -9,7 +9,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -201,6 +201,12 @@ export const InventoryFreezesPage = () => {
         total={listQueryState.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="inventory-freezes-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        columnSettingsKey="inventory.freezes.table.columns"
       />
       <Modal
         title="新建冻结"

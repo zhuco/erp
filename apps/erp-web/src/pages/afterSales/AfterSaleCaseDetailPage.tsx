@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Modal, Space, Table, Tag, Typography } from 'antd';
+import { Button, Descriptions, Modal, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -9,10 +9,11 @@ import type { AfterSaleCaseDetail } from '@/api/afterSales';
 import { getAfterSaleCaseDetail, getAfterSaleCaseRaw } from '@/api/afterSales';
 import { PlatformTag } from '@/components/PlatformTag';
 import { ErrorState, LoadingState } from '@/components/QueryState';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { hasPermission } from '@/features/rbac';
 import { useSessionStore } from '@/features/sessionStore';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type AfterSaleCaseItem = AfterSaleCaseDetail['items'][number];
 
@@ -162,7 +163,7 @@ export const AfterSaleCaseDetailPage = () => {
   const refundAmount = resolveRefundAmount(caseInfo?.refund_amount_cent, caseInfo?.refund_amount);
 
   return (
-    <UiModule07SettingsLayout>
+    <SettingsPageTemplate>
       <Space align="center" size={12}>
         <Button onClick={() => navigate('/after-sale-cases')}>返回列表</Button>
         <Typography.Title level={3} style={{ margin: 0 }}>
@@ -171,7 +172,7 @@ export const AfterSaleCaseDetailPage = () => {
       </Space>
       <LoadingState loading={caseLoading} onRetry={() => refetch()} />
       {caseInfo ? (
-        <Card>
+        <IndustrialCard>
           <Descriptions column={3} bordered size="small">
             <Descriptions.Item label="平台售后单号">
               {caseInfo.platform_case_id ?? caseInfo.after_sale_id ?? caseInfo.case_id}
@@ -208,9 +209,9 @@ export const AfterSaleCaseDetailPage = () => {
               {formatDateTime(caseInfo.updated_at ?? caseInfo.created_at)}
             </Descriptions.Item>
           </Descriptions>
-        </Card>
+        </IndustrialCard>
       ) : null}
-      <Card
+      <IndustrialCard
         title="Raw 摘要"
         extra={
           canReadRaw ? (
@@ -230,15 +231,15 @@ export const AfterSaleCaseDetailPage = () => {
         <Typography.Paragraph code style={{ whiteSpace: 'pre-wrap' }}>
           {rawSummary}
         </Typography.Paragraph>
-      </Card>
-      <Card title="关联订单与子单">
-        <Table<AfterSaleCaseItem>
+      </IndustrialCard>
+      <IndustrialCard title="关联订单与子单">
+        <IndustrialTable<AfterSaleCaseItem>
           rowKey={(record) => record.line_id ?? record.item_id ?? record.order_id ?? record.case_id}
           columns={columns}
           dataSource={data?.items ?? []}
           pagination={false}
         />
-      </Card>
+      </IndustrialCard>
       <Modal
         title="Raw 数据"
         open={rawVisible}
@@ -260,6 +261,6 @@ export const AfterSaleCaseDetailPage = () => {
           </Typography.Paragraph>
         )}
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

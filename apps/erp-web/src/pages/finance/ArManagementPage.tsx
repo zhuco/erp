@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -10,10 +9,9 @@ import {
   Select,
   Space,
   Tag,
-  Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,7 +49,7 @@ export const ArManagementPage = () => {
   const canWrite = useCan('finance.write');
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -230,41 +228,56 @@ export const ArManagementPage = () => {
     [canWrite, deleteMutation, writeOffMutation]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          应收管理与核销
-        </Typography.Title>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
-          新建应收
-        </Button>
-      </Space>
-      <Card>
-        <Form form={form} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="keyword" label="关键词">
-            <Input allowClear placeholder="客户/引用单号" style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <span>应收管理与核销</span>
+      <span style={{ color: 'var(--erp-text-tertiary)', fontSize: 12 }}>
+        跟踪客户应收、到期与核销状态
+      </span>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button onClick={() => listQuery.refetch()} loading={listQuery.isFetching}>
+        刷新
+      </Button>
+      <Button disabled>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+        新建应收
+      </Button>
+    </Space>
+  );
+
+  const actionBar = (
+    <Form form={form} layout="inline" onFinish={handleSearch}>
+      <Form.Item name="keyword" label="关键词">
+        <Input allowClear placeholder="客户/引用单号" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<ArDoc>
-        header={header}
+        dataTestId="finance-ar-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
+        actionBar={actionBar}
         rowKey="ar_id"
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -277,6 +290,7 @@ export const ArManagementPage = () => {
         errorTitle="应收数据加载失败"
         emptyText="暂无应收记录"
         columnSettingsKey="finance.ar.table.columns"
+        showColumnSettings
       />
       <Drawer
         title={editing ? '编辑应收' : '新建应收'}

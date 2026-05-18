@@ -14,7 +14,7 @@ import { createSkuImport, precheckSkuImport } from '@/api/skus';
 import type { components } from '@/api/generated/schema';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
-import { OrderReviewWorkbenchTemplate } from '@/components/workbench/templates';
+import { WorkbenchPageTemplate } from '@/components/page-templates';
 
 type ExportJob = components['schemas']['ExportJob'];
 
@@ -161,7 +161,7 @@ export const SkuImportPage = () => {
   const hasErrors = Boolean(precheck?.errors.length);
 
   return (
-    <OrderReviewWorkbenchTemplate
+    <WorkbenchPageTemplate
       header={
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Typography.Title level={3} style={{ margin: 0 }}>

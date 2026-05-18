@@ -110,6 +110,7 @@ const initialValues: SalesSettingsFormValues = {
   pricePrecision: 2,
   requiredRemark: false,
   autoReview: true,
+  enableOrderRecheck: true,
   mergeMode: 'consignee',
   mergeWindow: 30,
   splitThreshold: 5,
@@ -356,6 +357,7 @@ export const SalesSettingsPage = ({
                         </div>
                       </div>
                       <div className="sales-settings-summary-tags">
+                        <Tag>{values.enableOrderRecheck ? '订单复核启用' : '审核后直递 WMS'}</Tag>
                         <Tag>{values.enableExceptionIntercept ? '异常拦截启用' : '异常拦截关闭'}</Tag>
                         <Tag>{`拆分阈值 ${values.splitThreshold} 件`}</Tag>
                       </div>
@@ -368,17 +370,26 @@ export const SalesSettingsPage = ({
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12} xl={8}>
+                        <Form.Item
+                          label="是否启用订单复核"
+                          name="enableOrderRecheck"
+                          valuePropName="checked"
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12} xl={8}>
                         <Form.Item label="合并规则" name="mergeMode">
                           <Select options={mergeModeOptions} />
                         </Form.Item>
                       </Col>
+                    </Row>
+                    <Row gutter={16}>
                       <Col xs={24} md={12} xl={8}>
                         <Form.Item label="合并窗口（分钟）" name="mergeWindow">
                           <InputNumber min={0} precision={0} style={{ width: '100%' }} />
                         </Form.Item>
                       </Col>
-                    </Row>
-                    <Row gutter={16}>
                       <Col xs={24} md={12} xl={8}>
                         <Form.Item label="拆分阈值（件）" name="splitThreshold">
                           <InputNumber min={1} precision={0} style={{ width: '100%' }} />

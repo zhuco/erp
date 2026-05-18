@@ -1,5 +1,5 @@
 {
+    "pid":  26592,
     "name":  "erp-web",
-    "pid":  44908,
-    "command":  "pnpm.cmd --filter erp-web dev"
+    "command":  "VITE_USE_MOCKS=true pnpm.cmd --filter erp-web dev"
 }

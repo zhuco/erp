@@ -541,7 +541,6 @@ export const RolesPage = () => {
             onHelp={() => message.info('角色目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<Role>
             rowKey={(record) => record.role_id}

@@ -13,7 +13,7 @@ type WorkbenchColumnSettingsFloatingControlProps = CustomFloatingFilterProps & {
 };
 
 export const WorkbenchColumnSettingsFloatingControl = ({
-  ariaLabel = '\u5217\u8bbe\u7f6e',
+  ariaLabel = '列设置',
   buttonLabel = '',
   buttonClassName,
   controlClassName,

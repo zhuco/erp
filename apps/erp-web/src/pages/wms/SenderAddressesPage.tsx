@@ -630,7 +630,6 @@ export const SenderAddressesPage = () => {
             onHelp={() => message.info('寄方目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<SenderAddress>
             rowKey={(record) => record.sender_address_id}

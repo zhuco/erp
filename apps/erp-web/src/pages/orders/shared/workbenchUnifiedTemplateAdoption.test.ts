@@ -42,7 +42,7 @@ describe('workbench unified template adoption', () => {
     expect(source).toContain('useOrderExceptionsLeftModule({');
     expect(source).toContain('screenContent,');
     expect(source).toContain('className="order-review-page order-exceptions-page"');
-    expect(source).toContain(
+    expect(source).not.toContain(
       'tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"',
     );
     expect(source).toContain('onRowActive={handleMainRowActive}');

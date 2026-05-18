@@ -43,7 +43,7 @@ import { OperationButton } from '@/components/OperationButton';
 import { PlatformTag } from '@/components/PlatformTag';
 import { ErrorState, LoadingState } from '@/components/QueryState';
 import { ShipmentStatusTag } from '@/components/ShipmentStatusTag';
-import { UiModule07SettingsLayout } from '@/components/ui-modules';
+import { SettingsPageTemplate } from '@/components/page-templates';
 import { createPrintJobAndPrint } from '@/features/printing/printJobFlow';
 import { ShipOrderDrawer } from '@/pages/orders/ShipOrderDrawer';
 import { useCan } from '@/features/rbac';
@@ -660,7 +660,7 @@ export const OrderDetailPage = () => {
   const stepStatus = order?.oms_status === 'CANCELLED' ? 'error' : 'process';
 
   return (
-    <UiModule07SettingsLayout>
+    <SettingsPageTemplate>
       <Row align="middle" justify="space-between" gutter={[16, 16]}>
         <Space align="center" size={12} wrap>
           <Button onClick={() => navigate('/orders')}>返回列表</Button>
@@ -1089,6 +1089,6 @@ export const OrderDetailPage = () => {
           />
         </Space>
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

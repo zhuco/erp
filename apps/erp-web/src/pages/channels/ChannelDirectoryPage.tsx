@@ -10,7 +10,6 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Tabs,
   Switch,
   Typography,
@@ -69,6 +68,7 @@ import {
   type ChannelDirectoryColumnFilters,
   type ChannelDirectoryLeftFilters,
 } from './channelDirectoryModel';
+import { IndustrialTable } from '@/components/industrial';
 
 type ChannelDirectoryFormValues = {
   name: string;
@@ -246,7 +246,6 @@ export const ChannelDirectoryPage = () => {
   const {
     activeRow,
     activeRowKey,
-    focusedRowKey,
     selectedRowKeys,
     selectionState,
     setActiveRowKey,
@@ -776,7 +775,7 @@ export const ChannelDirectoryPage = () => {
     (rows: ChannelDetailRow[], emptyDescription: string, syncKey: string) =>
       activeRow ? (
         <UiModule04BottomTable syncKey={syncKey}>
-          <Table<ChannelDetailRow>
+          <IndustrialTable<ChannelDetailRow>
             size="small"
             rowKey="key"
             columns={bottomDetailColumns}
@@ -847,7 +846,6 @@ export const ChannelDirectoryPage = () => {
       leftPanel={leftPanel}
       leftPanelVisible={true}
       toolbar={toolbar}
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <div className="channel-directory-table-shell">
           <ErpDataGridNext<Channel>

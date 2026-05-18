@@ -1,5 +1,5 @@
-import { Alert, DatePicker, Descriptions, InputNumber, Space, Table, Tag } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { Alert, DatePicker, Descriptions, InputNumber, Space, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -13,7 +13,8 @@ import {
   getInventoryReport
 } from '@/api/reports';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
+import { IndustrialTable } from '@/components/industrial';
 
 const formatCent = (value: number) => (value / 100).toFixed(2);
 
@@ -120,8 +121,8 @@ export const ReportsPage = () => {
   );
 
   return (
-    <UiModule07SettingsLayout title="缁忚惀鎶ヨ〃">
-      <UiModule07SettingsSection title="鏌ヨ鏉′欢">
+    <SettingsPageTemplate title="缁忚惀鎶ヨ〃">
+      <SettingsPageSection title="鏌ヨ鏉′欢">
         <Space wrap>
           <DatePicker.RangePicker
             allowClear={false}
@@ -143,11 +144,11 @@ export const ReportsPage = () => {
             }}
           />
         </Space>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection title="缁忚惀姒傝">
+      <SettingsPageSection title="缁忚惀姒傝">
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Table
+          <IndustrialTable
             size="small"
             rowKey="group_key"
             columns={metricColumns}
@@ -155,7 +156,7 @@ export const ReportsPage = () => {
             pagination={false}
             title={() => 'By Shop'}
           />
-          <Table
+          <IndustrialTable
             size="small"
             rowKey="group_key"
             columns={metricColumns}
@@ -163,7 +164,7 @@ export const ReportsPage = () => {
             pagination={false}
             title={() => 'By Platform'}
           />
-          <Table
+          <IndustrialTable
             size="small"
             rowKey="group_key"
             columns={metricColumns}
@@ -172,9 +173,9 @@ export const ReportsPage = () => {
             title={() => 'By Date'}
           />
         </Space>
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection title="灞ョ害鏁堢巼">
+      <SettingsPageSection title="灞ョ害鏁堢巼">
         {fulfillmentQuery.data ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Alert
@@ -182,7 +183,7 @@ export const ReportsPage = () => {
               showIcon
               message={`瓒呮椂鏈彂璐ц鍗曪細${fulfillmentQuery.data.overdue_count}`}
             />
-            <Table
+            <IndustrialTable
               size="small"
               rowKey="bucket"
               columns={[
@@ -194,9 +195,9 @@ export const ReportsPage = () => {
             />
           </Space>
         ) : null}
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection title="搴撳瓨鍛ㄨ浆">
+      <SettingsPageSection title="搴撳瓨鍛ㄨ浆">
         <UiModule03MainTableSection<InventoryTurnoverItem>
           rowKey="sku_id"
           columns={inventoryColumns}
@@ -210,9 +211,9 @@ export const ReportsPage = () => {
           columnSettingsKey="reports.inventory.columns"
           emptyText="暂无库存数据"
         />
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
 
-      <UiModule07SettingsSection title="璐㈠姟宸紓">
+      <SettingsPageSection title="璐㈠姟宸紓">
         {financeQuery.data ? (
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="Order Count">
@@ -232,8 +233,8 @@ export const ReportsPage = () => {
             </Descriptions.Item>
           </Descriptions>
         ) : null}
-      </UiModule07SettingsSection>
-    </UiModule07SettingsLayout>
+      </SettingsPageSection>
+    </SettingsPageTemplate>
   );
 };
 

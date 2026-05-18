@@ -5,6 +5,7 @@ import {
   DollarOutlined,
   SafetyCertificateOutlined,
   ShoppingOutlined,
+  TagsOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
@@ -108,6 +109,20 @@ export const appMenuItems: AppMenuItem[] = [
       ]),
       group('业务设置', [
         leaf('/sales/settings', '销售设置', { permission: 'settings.read' }),
+      ]),
+    ],
+  },
+  {
+    name: '货品',
+    icon: <TagsOutlined />,
+    children: [
+      group('货品', [
+        leaf('/goods/products/new', '货品新建', { permission: 'products.write' }),
+        leaf('/goods/products/query', '货品查询', { permission: 'skus.read' }),
+      ]),
+      group('组合装', [
+        leaf('/goods/kits/new', '新建组合装', { permission: 'kits.write' }),
+        leaf('/goods/kits/query', '组合装查询', { permission: 'kits.read' }),
       ]),
     ],
   },

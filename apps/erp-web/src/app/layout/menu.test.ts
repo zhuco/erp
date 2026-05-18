@@ -26,6 +26,10 @@ describe('appMenuItems', () => {
       '/orders/review',
       '/orders/recheck',
       '/sales/settings',
+      '/goods/products/new',
+      '/goods/products/query',
+      '/goods/kits/new',
+      '/goods/kits/query',
       '/inventory',
       '/wms/waves',
       '/wms/ship',
@@ -44,12 +48,14 @@ describe('appMenuItems', () => {
       '首页',
       '目录',
       '销售',
+      '货品',
       '履约',
       '经营',
       '报表',
     ]);
 
     const directoryModule = appMenuItems.find((item) => item.name === '目录');
+    const goodsModule = appMenuItems.find((item) => item.name === '货品');
     expect(flattenMenuItems(directoryModule ? [directoryModule] : []).map((item) => item.path)).toEqual([
       '/channels',
       '/couriers',
@@ -66,6 +72,12 @@ describe('appMenuItems', () => {
       '/wms/warehouse-locations',
       '/system/permissions',
       '/system/roles',
+    ]);
+    expect(flattenMenuItems(goodsModule ? [goodsModule] : []).map((item) => item.path)).toEqual([
+      '/goods/products/new',
+      '/goods/products/query',
+      '/goods/kits/new',
+      '/goods/kits/query',
     ]);
   });
 

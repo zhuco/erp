@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -9,7 +9,7 @@ import {
   startWmsDockLoading,
   type WmsDockAppointment
 } from '@/api/wmsExecution';
-import { ErrorState } from '@/components/QueryState';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 const statusColorMap: Record<WmsDockAppointment['status'], string> = {
@@ -112,26 +112,32 @@ export const WmsDockYardPage = () => {
     }
   ];
 
-  if (query.error) {
-    return (
-      <ErrorState title="月台预约加载失败" error={query.error} onRetry={() => query.refetch()} />
-    );
-  }
+  const tableData = query.data?.items ?? [];
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="wms-dock-title" style={{ margin: 0 }}>
-        月台与场院协同
-      </Typography.Title>
-      <div data-testid="wms-dock-table">
-        <Table<WmsDockAppointment>
-          rowKey="appointment_id"
-          loading={query.isLoading || query.isFetching}
-          dataSource={query.data?.items ?? []}
-          columns={columns}
-          pagination={false}
-        />
-      </div>
-    </Space>
+    <UiModule03MainTableSection<WmsDockAppointment>
+      toolbarLeft={
+        <Typography.Title level={3} data-testid="wms-dock-title" style={{ margin: 0 }}>
+          月台与场院协同
+        </Typography.Title>
+      }
+      rowKey="appointment_id"
+      columns={columns}
+      data={tableData}
+      loading={query.isLoading || query.isFetching}
+      error={query.error}
+      onRetry={() => query.refetch()}
+      errorTitle="月台预约加载失败"
+      emptyText="暂无月台预约"
+      total={tableData.length}
+      pagination={{ current: 1, pageSize: 50 }}
+      onPaginationChange={() => undefined}
+      dataTestId="wms-dock-yard-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      columnSettingsKey="wms.dock-yard.table.columns"
+    />
   );
 };

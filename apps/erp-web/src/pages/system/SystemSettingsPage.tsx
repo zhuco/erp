@@ -6,7 +6,7 @@ import { listPrintTemplates } from '@/api/printTemplates';
 import { listSettings, upsertSetting, type Setting } from '@/api/system';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useAutoMergeSettingsStore } from '@/features/autoMergeSettings';
 import { isFeatureEnabled, updateInventoryEnabled, useFeatureFlag } from '@/features/featureFlags';
 import { useFastModeSettingsStore } from '@/features/fastModeSettings';
@@ -339,12 +339,12 @@ export const SystemSettingsPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout title="系统设置">
+      <SettingsPageTemplate title="系统设置">
         <div className="system-settings-wrapper">
           <div className="system-settings-page">
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 <div id="system-settings-inventory" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="库存管理"
                     description="控制库存模块的启用状态"
                     className="system-settings-section-card"
@@ -362,11 +362,11 @@ export const SystemSettingsPage = () => {
                     <Typography.Text type="secondary">
                       关闭后库存相关入口与功能将隐藏，仅保留基础订单功能。
                     </Typography.Text>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-audit" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="订单审核"
                     description="审核模式与强制密码配置"
                     className="system-settings-section-card"
@@ -418,11 +418,11 @@ export const SystemSettingsPage = () => {
                         V1 仅影响订单审核流程，不影响售后与仓储流程。
                       </Typography.Text>
                     </Form>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-fast" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="极速模式"
                     description="减少动画与非必要交互，提升响应速度"
                     className="system-settings-section-card"
@@ -441,11 +441,11 @@ export const SystemSettingsPage = () => {
                     <Typography.Text type="secondary">
                       极速模式属于 V1 试运行能力，启用后可显著减少动效。
                     </Typography.Text>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-performance" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="界面性能"
                     description="控制顶部菜单缓存策略"
                     className="system-settings-section-card"
@@ -464,11 +464,11 @@ export const SystemSettingsPage = () => {
                     <Typography.Text type="secondary">
                       启用后会缓存菜单数据，降低登录后加载时间。
                     </Typography.Text>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-merge" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="自动合并"
                     description="发货前自动合并订单"
                     className="system-settings-section-card"
@@ -490,11 +490,11 @@ export const SystemSettingsPage = () => {
                         ? mergeFlowFlag.reason ?? '当前租户暂未开放该能力'
                         : 'V2 流程下可提升发货效率。'}
                     </Typography.Text>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-printer" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="打印机设置"
                     description="检测打印组件并设置默认打印机"
                     className="system-settings-section-card"
@@ -582,11 +582,11 @@ export const SystemSettingsPage = () => {
                         </Typography.Text>
                       </Space>
                     </Form>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
 
                 <div id="system-settings-template" className="system-settings-section">
-                  <UiModule07SettingsSection
+                  <SettingsPageSection
                     title="打印模板"
                     description="设置默认面单模板"
                     className="system-settings-section-card"
@@ -636,12 +636,12 @@ export const SystemSettingsPage = () => {
                         </Typography.Text>
                       </Space>
                     </Form>
-                  </UiModule07SettingsSection>
+                  </SettingsPageSection>
                 </div>
             </Space>
           </div>
         </div>
-      </UiModule07SettingsLayout>
+      </SettingsPageTemplate>
     </>
   );
 };

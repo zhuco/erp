@@ -1,6 +1,7 @@
 import { apiClient, unwrapApiResponse } from '@/api/client';
 import { useMocks } from '@/utils/env';
 import {
+  getMockProduct,
   createMockProduct,
   deleteMockProduct,
   getMockProductList,
@@ -16,6 +17,7 @@ export type ProductListQuery = NonNullable<
 >;
 export type ProductCreateRequest = components['schemas']['ProductCreateRequest'];
 export type ProductUpdateRequest = components['schemas']['ProductUpdateRequest'];
+export type ProductDetailResponse = components['schemas']['Product'];
 
 export const listProducts = async (
   tenantId: string,
@@ -47,6 +49,21 @@ export const createProduct = async (
     body: payload,
   });
   return unwrapApiResponse(result, '创建商品失败');
+};
+
+export const getProduct = async (
+  tenantId: string,
+  productId: string,
+): Promise<ProductDetailResponse> => {
+  if (useMocks) {
+    return getMockProduct(productId);
+  }
+  const result = await apiClient.GET('/v1/tenants/{tenant_id}/products/{product_id}', {
+    params: {
+      path: { tenant_id: tenantId, product_id: productId },
+    },
+  });
+  return unwrapApiResponse(result, '获取商品详情失败');
 };
 
 export const updateProduct = async (

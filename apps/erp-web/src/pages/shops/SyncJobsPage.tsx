@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -13,7 +12,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -26,6 +24,7 @@ import { getSalesShopConfig } from '@/api/salesShops';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useFeatureFlag } from '@/features/featureFlags';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   shop_id?: string;
@@ -65,7 +64,7 @@ export const SyncJobsPage = () => {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FilterValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20,
   });
@@ -242,7 +241,7 @@ export const SyncJobsPage = () => {
       {disabledFlows.length ? (
         <Alert type="warning" showIcon message={`Disabled flows: ${disabledFlows.join(', ')}`} />
       ) : null}
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -270,7 +269,7 @@ export const SyncJobsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -288,6 +287,11 @@ export const SyncJobsPage = () => {
       total={data?.total ?? 0}
       pagination={pagination}
       onPaginationChange={setPagination}
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      dataTestId="industrial-main-grid"
     />
   );
 };

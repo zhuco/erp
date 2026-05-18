@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   Col,
   Form,
@@ -11,7 +10,6 @@ import {
   Space,
   Typography
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -159,16 +157,78 @@ export const InventoryCostsPage = () => {
 
   const showCostDisabled = inventoryFeature.enabled && !costEnabled;
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        库存成本
+      </Typography.Title>
+      <Typography.Text type="secondary">
+        统一查看库存数量、可用量、冻结量与成本余额
+      </Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space align="center" size={8} wrap>
+      <Button onClick={() => costQuery.refetch()} disabled={!inventoryFeature.enabled || !costEnabled}>
+        刷新
+      </Button>
+      <Button onClick={() => navigate('/inventory')}>返回库存</Button>
+    </Space>
+  );
+
+  const tableHeader = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select
+              allowClear
+              options={warehouseOptions}
+              placeholder="选择仓库"
+              loading={warehouseQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="sku_code" label="SKU 编码">
+            <Input allowClear placeholder="输入 SKU 编码" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="barcode" label="条码">
+            <Input allowClear placeholder="输入条码" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="tag" label="标签">
+            <Input allowClear placeholder="输入标签" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="on_hand_negative" valuePropName="checked" label=" ">
+            <Checkbox>库存 &lt; 0</Checkbox>
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="available_below_safety" valuePropName="checked" label=" ">
+            <Checkbox>可用 &lt; 安全库存</Checkbox>
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          库存成本
-        </Typography.Title>
-        <Space>
-          <Button onClick={() => navigate('/inventory')}>返回库存</Button>
-        </Space>
-      </Row>
       {!inventoryFeature.enabled ? (
         <Alert
           type="warning"
@@ -192,57 +252,15 @@ export const InventoryCostsPage = () => {
           onRetry={() => warehouseQuery.refetch()}
         />
       ) : null}
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="选择仓库"
-                  loading={warehouseQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_code" label="SKU 编码">
-                <Input allowClear placeholder="输入 SKU 编码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="barcode" label="条码">
-                <Input allowClear placeholder="输入条码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="tag" label="标签">
-                <Input allowClear placeholder="输入标签" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="on_hand_negative" valuePropName="checked" label=" ">
-                <Checkbox>库存 &lt; 0</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="available_below_safety" valuePropName="checked" label=" ">
-                <Checkbox>可用 &lt; 安全库存</Checkbox>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
       {inventoryFeature.enabled && costEnabled ? (
         <UiModule03MainTableSection<InventoryCostRecord>
+          dataTestId="inventory-costs-main-grid"
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
+          header={tableHeader}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
           rowKey={(record) => record.sku_id}
           columns={columns}
           data={costQuery.data?.items ?? []}
@@ -255,6 +273,7 @@ export const InventoryCostsPage = () => {
           pagination={pagination}
           onPaginationChange={setPagination}
           columnSettingsKey="inventory.costs.table.columns"
+          showColumnSettings
           virtual
           enablePanels={false}
         />

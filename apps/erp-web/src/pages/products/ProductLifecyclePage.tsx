@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -13,7 +12,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -273,12 +271,25 @@ export const ProductLifecyclePage = () => {
     [canWrite],
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        商品生命周期
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = null;
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }} data-testid="product-lifecycle-title">
         商品生命周期管理
       </Typography.Title>
-      <Card title="生命周期流程" data-testid="product-lifecycle-steps">
+      <section className="erp-inline-section" data-testid="product-lifecycle-steps">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          生命周期流程
+        </Typography.Title>
         <Steps
           items={[
             { title: '草稿', description: '信息完善后提交' },
@@ -288,15 +299,18 @@ export const ProductLifecyclePage = () => {
             { title: '删除', description: '满足条件后清理' },
           ]}
         />
-      </Card>
-      <Card title="删除校验规则">
+      </section>
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          删除校验规则
+        </Typography.Title>
         <Space direction="vertical">
           <Typography.Text>1. 商品需处于归档状态。</Typography.Text>
           <Typography.Text>2. 无库存占用与在途调拨。</Typography.Text>
           <Typography.Text>3. 无未结算采购/销售单据。</Typography.Text>
         </Space>
-      </Card>
-      <Card>
+      </section>
+      <section className="erp-inline-section">
         <Form
           form={form}
           layout="vertical"
@@ -331,9 +345,10 @@ export const ProductLifecyclePage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
-      <Card title="生命周期清单">
+      </section>
         <UiModule03MainTableSection<LifecycleRecord>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
           dataTestId="product-lifecycle-table"
           rowKey="id"
           columns={columns}
@@ -345,10 +360,13 @@ export const ProductLifecyclePage = () => {
           total={filteredData.length}
           pagination={pagination}
           onPaginationChange={setPagination}
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="product.lifecycle.table.columns"
           enablePanels={false}
         />
-      </Card>
     </Space>
   );
 };

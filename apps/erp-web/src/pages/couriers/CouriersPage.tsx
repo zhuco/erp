@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Descriptions,
   Drawer,
   Empty,
@@ -9,7 +8,6 @@ import {
   Modal,
   Select,
   Space,
-  Table,
   Tabs,
   Tag,
   Typography,
@@ -37,6 +35,7 @@ import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 import type { OrderReviewAgLeftNode } from '@/pages/orders/orderReviewAgLeftModel';
 import { useLeftFilterModule } from '@/pages/orders/shared/useLeftFilterModule';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type CourierFormValues = {
   name: string;
@@ -753,9 +752,9 @@ export const CouriersPage = () => {
           ]}
         />
       ) : (
-        <Card size="small" title="物流详情">
+        <IndustrialCard size="small" title="物流详情">
           <Typography.Text type="secondary">请选择一条物流记录查看详情与底部明细。</Typography.Text>
-        </Card>
+        </IndustrialCard>
       ),
     [activeCourier],
   );
@@ -838,7 +837,7 @@ export const CouriersPage = () => {
     (rows: CourierDetailRow[], emptyDescription: string, syncKey: string) =>
       activeCourier ? (
         <UiModule04BottomTable syncKey={syncKey}>
-          <Table<CourierDetailRow>
+          <IndustrialTable<CourierDetailRow>
             size="small"
             rowKey="key"
             columns={bottomDetailColumns}
@@ -926,7 +925,6 @@ export const CouriersPage = () => {
             onHelp={() => message.info('物流目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<Courier>
             rowKey={(record) => record.courier_id}

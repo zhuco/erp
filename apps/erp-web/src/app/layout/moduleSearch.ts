@@ -1,4 +1,5 @@
 import type { AppMenuItem } from './menu';
+import { normalizeVisibleText } from './visibleText';
 
 export type FunctionSearchEntry = {
   path: string;
@@ -18,7 +19,7 @@ export type FunctionSearchGroup<TEntry> = {
   items: TEntry[];
 };
 
-const normalizeText = (value: string) => value.trim().toLowerCase();
+const normalizeText = (value: string) => normalizeVisibleText(value).trim().toLowerCase();
 
 const functionSearchAliases: Record<string, string[]> = {
   '/orders/review': ['订单审核', '单审'],
@@ -77,26 +78,26 @@ export const buildFunctionSearchEntries = (menuItems: AppMenuItem[]): FunctionSe
     if (item.path && children.length === 0) {
       entries.push({
         path: item.path,
-        name: item.name ?? item.path,
-        moduleName,
-        groupName,
+        name: normalizeVisibleText(item.name ?? item.path),
+        moduleName: normalizeVisibleText(moduleName),
+        groupName: groupName ? normalizeVisibleText(groupName) : undefined,
         aliases: functionSearchAliases[item.path] ?? [],
       });
       return;
     }
 
     const nextGroupName =
-      item.path || item.name === moduleName ? groupName : (item.name ?? groupName);
+      item.path || item.name === moduleName ? groupName : normalizeVisibleText(item.name ?? groupName ?? '');
     children.forEach((child) => visit(child, moduleName, nextGroupName));
   };
 
   menuItems.forEach((moduleItem) => {
-    const moduleName = moduleItem.name ?? moduleItem.path ?? '\u672a\u547d\u540d\u6a21\u5757';
+    const moduleName = moduleItem.name ?? moduleItem.path ?? '未命名模块';
     if (moduleItem.path && (!moduleItem.children || moduleItem.children.length === 0)) {
       entries.push({
         path: moduleItem.path,
-        name: moduleName,
-        moduleName,
+        name: normalizeVisibleText(moduleName),
+        moduleName: normalizeVisibleText(moduleName),
         aliases: functionSearchAliases[moduleItem.path] ?? [],
       });
       return;
@@ -242,7 +243,7 @@ export const groupFunctionEntriesByModule = (
   return groupItems(
     entries,
     (entry) => `module:${entry.moduleName}`,
-    (entry) => entry.moduleName,
+    (entry) => normalizeVisibleText(entry.moduleName),
   );
 };
 
@@ -254,8 +255,8 @@ export const groupFunctionRecommendationsBySource = (
     (recommendation) => `source:${recommendation.source}`,
     (recommendation) =>
       recommendation.source === 'recent'
-        ? '\u6700\u8fd1\u4f7f\u7528'
-        : '\u5e38\u7528\u529f\u80fd',
+        ? '最近使用'
+        : '常用功能',
   );
 };
 

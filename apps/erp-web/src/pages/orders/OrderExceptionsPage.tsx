@@ -3,11 +3,11 @@ import './orderExceptionsPage.css';
 
 import { ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Descriptions, Empty, List, Spin, Tag, Typography, message } from 'antd';
+import { Button, message } from 'antd';
 import type { MenuProps, SelectProps } from 'antd';
 import type { GridApi, Key } from 'ag-grid-community';
 import dayjs from 'dayjs';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 
 import { listCouriers } from '@/api/couriers';
 import {
@@ -108,9 +108,7 @@ type OrderExceptionsPageProps = {
 
 type DetailSelectOption = NonNullable<SelectProps['options']>;
 
-const formatCurrency = (value?: number | null) => (value == null ? '-' : `¥${(value / 100).toFixed(2)}`);
 
-const formatDateTime = (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-');
 const now = () =>
   typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -127,25 +125,6 @@ const resolveAuditLabel = (status?: string | null) => {
 const resolveExceptionLabel = (status?: string | null) =>
   exceptionStatusLabels[(status ?? '') as keyof typeof exceptionStatusLabels] ?? status ?? '-';
 
-const resolveExceptionTagColor = (status?: string | null) => {
-  switch (status) {
-    case 'OPEN':
-      return 'orange';
-    case 'ASSIGNED':
-      return 'blue';
-    case 'PROCESSING':
-      return 'processing';
-    case 'ESCALATED':
-      return 'red';
-    case 'RESOLVED':
-      return 'success';
-    case 'CLOSED':
-      return 'default';
-    default:
-      return 'default';
-  }
-};
-
 const isOverdue = (item: OrderExceptionSummary) => {
   if (!item.latest_action_at) {
     return false;
@@ -160,181 +139,6 @@ const buildActionPayload = (userId: string, userName: string, reason?: string) =
   reason: reason ?? null,
 });
 
-const renderDetailSection = (title: string, content: ReactNode, testId?: string) => (
-  <section className="order-exceptions-detail-section" data-testid={testId}>
-    <div className="order-exceptions-detail-section-header">
-      <Typography.Text strong>{title}</Typography.Text>
-    </div>
-    <div className="order-exceptions-detail-section-body">{content}</div>
-  </section>
-);
-
-const renderDetailContent = (activeRow: OrderExceptionSummary | null, detail: OrderExceptionDetail | undefined, loading: boolean) => {
-  if (!activeRow) {
-    return (
-      <div className="order-exceptions-detail-empty">
-        <Empty description="请选择异常订单查看复核上下文" />
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="order-exceptions-detail-empty">
-        <Spin />
-      </div>
-    );
-  }
-
-  if (!detail) {
-    return (
-      <div className="order-exceptions-detail-empty">
-        <Empty description="未获取到异常详情" />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="order-exceptions-detail-summary">
-        <div>
-          <Typography.Title level={5} className="order-exceptions-detail-title">
-            {detail.order_no}
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            {detail.receiver_name || '-'} / {detail.target_warehouse_id || '未指定仓库'}
-          </Typography.Text>
-        </div>
-        <Tag color={resolveExceptionTagColor(detail.exception_status)}>{resolveExceptionLabel(detail.exception_status)}</Tag>
-      </div>
-
-      {renderDetailSection(
-        '主链上下文',
-        <Descriptions column={1} size="small">
-          <Descriptions.Item label="审核状态">{resolveAuditLabel(detail.audit_status)}</Descriptions.Item>
-          <Descriptions.Item label="履约状态">{detail.fulfillment_status}</Descriptions.Item>
-          <Descriptions.Item label="库存占用状态">{detail.reserve_status || '未预占'}</Descriptions.Item>
-          <Descriptions.Item label="责任人">{detail.assignee_name || '待领取'}</Descriptions.Item>
-          <Descriptions.Item label="最近处理时间">{formatDateTime(detail.latest_action_at)}</Descriptions.Item>
-        </Descriptions>,
-      )}
-
-      {renderDetailSection(
-        '阻断原因',
-        <List
-          size="small"
-          dataSource={detail.blocking_reasons}
-          locale={{ emptyText: '暂无阻断原因' }}
-          renderItem={(item) => (
-            <List.Item>
-              <Typography.Text>{item}</Typography.Text>
-            </List.Item>
-          )}
-        />,
-      )}
-
-      {renderDetailSection(
-        '最近处理记录',
-        <List
-          size="small"
-          dataSource={detail.action_logs.slice().reverse()}
-          locale={{ emptyText: '暂无处理记录' }}
-          renderItem={(record) => (
-            <List.Item>
-              <div className="order-exceptions-log-item">
-                <div className="order-exceptions-log-main">
-                  <Typography.Text>{record.message}</Typography.Text>
-                  <Typography.Text type="secondary">{record.operator_name || record.operator_id || '系统'}</Typography.Text>
-                </div>
-                <Typography.Text type="secondary">{formatDateTime(record.created_at)}</Typography.Text>
-              </div>
-            </List.Item>
-          )}
-        />,
-      )}
-    </>
-  );
-};
-
-type OrderExceptionsSavedViewState = {
-  keywordInput?: string;
-  searchKeyword?: string;
-  quickFilterExpanded?: boolean;
-  columnFilters?: OrderExceptionsColumnFilters;
-  leftFilters?: OrderExceptionsLeftFilters;
-  screenFiltersDraft?: OrderExceptionsScreenFilterState;
-  screenFiltersApplied?: OrderExceptionsScreenFilterState;
-  selectedRowKeys?: string[];
-  focusedRowKey?: string | null;
-  activeRowKey?: string | null;
-  selectionAnchorKey?: string | null;
-  activeOrderId?: string | null;
-};
-
-const normalizePersistedString = (value: unknown) => String(value ?? '').trim();
-const normalizePersistedNullableString = (value: unknown) => normalizePersistedString(value) || null;
-
-const normalizePersistedStringArray = (value: unknown) => {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const normalized = Array.from(
-    new Set(
-      value
-        .map((item) => String(item ?? '').trim())
-        .filter(Boolean),
-    ),
-  );
-  return normalized.length > 0 ? normalized : undefined;
-};
-
-const normalizePersistedOrderExceptionsColumnFilters = (
-  value: unknown,
-): OrderExceptionsColumnFilters => {
-  if (!value || typeof value !== 'object') {
-    return {};
-  }
-  const source = value as Record<string, unknown>;
-  return {
-    orderNoKeyword: normalizePersistedString(source.orderNoKeyword) || undefined,
-    platform: normalizePersistedStringArray(source.platform),
-    shopId: normalizePersistedStringArray(source.shopId),
-    receiverNameKeyword: normalizePersistedString(source.receiverNameKeyword) || undefined,
-    auditStatus: normalizePersistedStringArray(source.auditStatus),
-    exceptionStatus: normalizePersistedStringArray(source.exceptionStatus),
-    slaStatus: normalizePersistedStringArray(source.slaStatus),
-    warehouseId: normalizePersistedStringArray(source.warehouseId),
-    assigneeName: normalizePersistedStringArray(source.assigneeName),
-    blockingReasonKeyword: normalizePersistedString(source.blockingReasonKeyword) || undefined,
-  };
-};
-
-const normalizePersistedOrderExceptionsLeftFilters = (
-  value: unknown,
-): OrderExceptionsLeftFilters => {
-  if (!value || typeof value !== 'object') {
-    return {};
-  }
-  const source = value as Record<string, unknown>;
-  return {
-    status: normalizePersistedStringArray(source.status),
-    assignee: normalizePersistedStringArray(source.assignee),
-    sla: normalizePersistedStringArray(source.sla) as OrderExceptionsLeftFilters['sla'],
-    warehouseId: normalizePersistedStringArray(source.warehouseId),
-  };
-};
-
-const normalizePersistedOrderExceptionsScreenFilters = (
-  value: unknown,
-): OrderExceptionsScreenFilterState => {
-  if (!value || typeof value !== 'object') {
-    return createOrderExceptionsScreenFilterState();
-  }
-
-  return normalizeOrderExceptionsScreenFilterState(
-    value as Partial<OrderExceptionsScreenFilterState>,
-  );
-};
 
 export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps = {}) => {
   const tenantId = useTenantId();
@@ -1610,7 +1414,6 @@ export const OrderExceptionsPage = ({ mode = 'pool' }: OrderExceptionsPageProps 
       leftPanel={leftPanel}
       toolbar={toolbar}
       tableContainerRef={tableRef}
-      tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
       tableContent={
         <div className="order-review-grid-main">
           <OrderWorkbenchMainGridEntry

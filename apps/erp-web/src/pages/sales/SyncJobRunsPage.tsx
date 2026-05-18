@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Form,
@@ -11,7 +10,6 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
@@ -139,10 +137,18 @@ export const SyncJobRunsPage = () => {
     [],
   );
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        Sync Job Runs
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = null;
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3}>Sync Job Runs</Typography.Title>
-      <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -180,12 +186,13 @@ export const SyncJobRunsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <UiModule03MainTableSection<SyncJobRun>
+      toolbarLeft={toolbarLeft}
+      toolbarRight={toolbarRight}
       header={header}
       rowKey="run_id"
       columns={columns}
@@ -198,6 +205,11 @@ export const SyncJobRunsPage = () => {
       total={data?.total ?? 0}
       pagination={pagination}
       onPaginationChange={setPagination}
+      dataTestId="sales-sync-job-runs-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
       columnSettingsKey="sales.sync.job.runs.columns"
     />
   );

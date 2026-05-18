@@ -13,7 +13,22 @@
 }
 
 .inventory-alerts-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 16px;
+  text-align: left;
+  border: 1px solid var(--erp-color-border, #d9d9d9);
+  border-radius: 8px;
+  background: var(--erp-color-bg-container, #fff);
+  cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inventory-alerts-kpi-card:hover {
+  border-color: var(--erp-color-primary);
 }
 
 .inventory-alerts-kpi-card.is-active {
@@ -21,8 +36,24 @@
   box-shadow: 0 0 0 1px rgba(var(--erp-color-primary-rgb), 0.2);
 }
 
-.inventory-alerts-table-card .ant-tabs-nav {
+.inventory-alerts-kpi-value {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.inventory-alerts-table .ant-tabs-nav {
   margin-bottom: 8px;
+}
+
+.inventory-alerts-analysis-table-section,
+.inventory-alerts-rule-table-section {
+  height: 260px;
+  min-height: 260px;
+}
+
+.inventory-alerts-analysis-table,
+.inventory-alerts-rule-table {
+  min-height: 0;
 }
 
 .inventory-alerts-analysis-grid {
@@ -44,4 +75,22 @@
 
 .inventory-alerts-row-active {
   background-color: rgba(var(--erp-color-primary-rgb), 0.08);
+}
+
+.inventory-alerts-section {
+  padding: 16px;
+  border: 1px solid var(--erp-color-border, #d9d9d9);
+  border-radius: 8px;
+  background: var(--erp-color-bg-container, #fff);
+}
+
+.inventory-alerts-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inventory-alerts-section-header .ant-typography {
+  margin-bottom: 0;
 }

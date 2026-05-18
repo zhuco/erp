@@ -22,7 +22,7 @@ import {
   listLogisticsSettlementBatches,
   updateLogisticsSettlementRule
 } from '@/api/logisticsSettlements';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
 
@@ -198,8 +198,8 @@ export const LogisticsSettlementsPage = () => {
 
   return (
     <>
-      <UiModule07SettingsLayout title="物流费用结算">
-        <UiModule07SettingsSection
+      <SettingsPageTemplate title="物流费用结算">
+        <SettingsPageSection
           title="计费规则校验"
           actions={
             <Button type="primary" disabled={!canWrite} onClick={() => setRuleModalOpen(true)}>
@@ -221,16 +221,16 @@ export const LogisticsSettlementsPage = () => {
               {formatCurrency(rule?.overtime_fee_cent ?? 0)}
             </Descriptions.Item>
           </Descriptions>
-        </UiModule07SettingsSection>
-        <UiModule07SettingsSection title="结算批次">
+        </SettingsPageSection>
+        <SettingsPageSection title="结算批次">
           <Table
             rowKey="batch_id"
             columns={columns}
             dataSource={batches}
             loading={batchesQuery.isLoading}
           />
-        </UiModule07SettingsSection>
-      </UiModule07SettingsLayout>
+        </SettingsPageSection>
+      </SettingsPageTemplate>
       <Modal
         title="计费规则"
         open={ruleModalOpen}

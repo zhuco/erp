@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -9,12 +8,11 @@ import {
   Row,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -28,6 +26,7 @@ import type {
 import { getPurchaseReceiptDetail, listPurchaseReceipts } from '@/api/purchaseReceipts';
 import { listSuppliers } from '@/api/suppliers';
 import { listWarehouses } from '@/api/warehouses';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
@@ -39,7 +38,7 @@ type FilterValues = {
   created_range?: [dayjs.Dayjs, dayjs.Dayjs];
 };
 
-const statusOptions = [{ label: 'CONFIRMED', value: 'CONFIRMED' }];
+const statusOptions = [{ label: '已确认', value: 'CONFIRMED' }];
 
 const formatDateTime = (value?: string | null) =>
   value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-';
@@ -119,32 +118,32 @@ export const PurchaseReceiptsPage = () => {
 
   const columns = useMemo<ColumnsType<PurchaseReceiptSummary>>(
     () => [
-      { title: 'Receipt ID', dataIndex: 'receipt_id' },
-      { title: 'PO ID', dataIndex: 'po_id' },
+      { title: '收货单号', dataIndex: 'receipt_id' },
+      { title: '采购单号', dataIndex: 'po_id' },
       {
-        title: 'Supplier',
+        title: '供应商',
         dataIndex: 'supplier_id',
         render: (_, record) =>
           record.supplier_name ?? supplierMap.get(record.supplier_id) ?? record.supplier_id
       },
       {
-        title: 'Warehouse',
+        title: '仓库',
         dataIndex: 'warehouse_id',
         render: (value: string) => warehouseMap.get(value) ?? value
       },
       {
-        title: 'Status',
+        title: '状态',
         dataIndex: 'status',
         render: (value: string) => <Tag color={value === 'CONFIRMED' ? 'green' : 'default'}>{value}</Tag>
       },
-      { title: 'Confirmed At', dataIndex: 'confirmed_at', render: formatDateTime },
-      { title: 'Created At', dataIndex: 'created_at', render: formatDateTime },
+      { title: '确认时间', dataIndex: 'confirmed_at', render: formatDateTime },
+      { title: '创建时间', dataIndex: 'created_at', render: formatDateTime },
       {
-        title: 'Actions',
+        title: '操作',
         key: 'actions',
         render: (_, record) => (
           <Button size="small" onClick={() => handleViewDetail(record.receipt_id)}>
-            Detail
+            查看详情
           </Button>
         )
       }
@@ -155,7 +154,7 @@ export const PurchaseReceiptsPage = () => {
   const itemColumns = useMemo<ColumnsType<PurchaseReceiptDetail['items'][number]>>(
     () => [
       { title: 'SKU', dataIndex: 'sku_id' },
-      { title: 'Qty', dataIndex: 'qty' }
+      { title: '数量', dataIndex: 'qty' }
     ],
     []
   );
@@ -166,7 +165,7 @@ export const PurchaseReceiptsPage = () => {
       setActiveDetail(detail);
       setDetailOpen(true);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Failed to load purchase receipt');
+      message.error(err instanceof Error ? err.message : '采购收货详情加载失败');
     }
   };
 
@@ -188,69 +187,69 @@ export const PurchaseReceiptsPage = () => {
   };
 
   const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Purchase Receipts
-        </Typography.Title>
-        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-          Refresh
-        </Button>
+    <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="supplier_id" label="供应商">
+            <Select
+              allowClear
+              options={supplierOptions}
+              placeholder="请选择供应商"
+              loading={supplierQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select
+              allowClear
+              options={warehouseOptions}
+              placeholder="请选择仓库"
+              loading={warehouseQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4}>
+          <Form.Item name="status" label="状态">
+            <Select allowClear options={statusOptions} placeholder="请选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="created_range" label="创建时间">
+            <DatePicker.RangePicker showTime style={{ width: '100%' }} allowClear />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="purchase-receipts-search-button">
+              查询
+            </Button>
+            <Button onClick={handleReset} data-testid="purchase-receipts-reset-button">
+              重置
+            </Button>
+          </Space>
+        </Col>
       </Row>
-      <Card>
-        <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="supplier_id" label="Supplier">
-                <Select
-                  allowClear
-                  options={supplierOptions}
-                  placeholder="Select supplier"
-                  loading={supplierQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="Warehouse">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="Select warehouse"
-                  loading={warehouseQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4}>
-              <Form.Item name="status" label="Status">
-                <Select allowClear options={statusOptions} placeholder="Select status" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="created_range" label="Created Range">
-                <DatePicker.RangePicker showTime style={{ width: '100%' }} allowClear />
-              </Form.Item>
-            </Col>
-            <Col
-              xs={24}
-              md={4}
-              style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
-            >
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  Search
-                </Button>
-                <Button onClick={handleReset}>Reset</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-    </Space>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<PurchaseReceiptSummary>
+        dataTestId="purchase-receipts-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            采购收货
+          </Typography.Title>
+        }
+        toolbarRight={
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} data-testid="purchase-receipts-refresh-button">
+            刷新
+          </Button>
+        }
         header={header}
         rowKey="receipt_id"
         columns={columns}
@@ -258,15 +257,16 @@ export const PurchaseReceiptsPage = () => {
         loading={listQuery.isFetching}
         error={listQuery.error}
         onRetry={() => listQuery.refetch()}
-        errorTitle="Failed to load purchase receipts"
-        emptyText="No receipts"
+        errorTitle="采购收货列表加载失败"
+        emptyText="暂无采购收货记录"
         total={listQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
         columnSettingsKey="purchase-receipts.table.columns"
+        showColumnSettings
       />
       <Drawer
-        title="Purchase Receipt Detail"
+        title="采购收货详情"
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={520}
@@ -274,41 +274,42 @@ export const PurchaseReceiptsPage = () => {
         {activeDetail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Receipt ID">
+              <Descriptions.Item label="收货单号">
                 {activeDetail.receipt.receipt_id}
               </Descriptions.Item>
-              <Descriptions.Item label="PO ID">{activeDetail.receipt.po_id}</Descriptions.Item>
-              <Descriptions.Item label="Supplier">
+              <Descriptions.Item label="采购单号">{activeDetail.receipt.po_id}</Descriptions.Item>
+              <Descriptions.Item label="供应商">
                 {activeDetail.receipt.supplier_name ??
                   (activeDetail.receipt.supplier_id
                     ? supplierMap.get(activeDetail.receipt.supplier_id) ??
                       activeDetail.receipt.supplier_id
                     : '-')}
               </Descriptions.Item>
-              <Descriptions.Item label="Warehouse">
+              <Descriptions.Item label="仓库">
                 {warehouseMap.get(activeDetail.receipt.warehouse_id) ??
                   activeDetail.receipt.warehouse_id}
               </Descriptions.Item>
-              <Descriptions.Item label="Status">
+              <Descriptions.Item label="状态">
                 {activeDetail.receipt.status}
               </Descriptions.Item>
-              <Descriptions.Item label="Confirmed At">
+              <Descriptions.Item label="确认时间">
                 {formatDateTime(activeDetail.receipt.confirmed_at)}
               </Descriptions.Item>
-              <Descriptions.Item label="Created At">
+              <Descriptions.Item label="创建时间">
                 {formatDateTime(activeDetail.receipt.created_at)}
               </Descriptions.Item>
             </Descriptions>
-            <Table
-              rowKey="sku_id"
+            <ErpDataGrid<PurchaseReceiptDetail['items'][number]>
+              rowKey={(record) => record.sku_id}
               columns={itemColumns}
-              dataSource={activeDetail.items}
-              pagination={false}
-              size="small"
+              data={activeDetail.items}
+              compact
+              showRowIndex={false}
+              data-testid="purchase-receipts-detail-items-grid"
             />
           </Space>
         ) : (
-          <Typography.Text type="secondary">No detail</Typography.Text>
+          <Typography.Text type="secondary">暂无详情</Typography.Text>
         )}
       </Drawer>
     </>

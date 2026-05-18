@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Space, Table, Tag, message } from 'antd';
+import { Button, Descriptions, Space, Tag, message, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -7,6 +7,7 @@ import {
   listPlanningPurchasePlans,
   type PlanningPurchasePlan
 } from '@/api/planning';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -69,10 +70,11 @@ export const PurchasePlansPage = () => {
       style={{ width: '100%' }}
       data-testid="planning-purchase-page"
     >
-      <Card
-        title="Purchase Plan Workbench"
-        size="small"
-        extra={
+      <section className="erp-inline-section">
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            Purchase Plan Workbench
+          </Typography.Title>
           <Button
             type="primary"
             onClick={() => generateMutation.mutate()}
@@ -82,16 +84,18 @@ export const PurchasePlansPage = () => {
           >
             Generate Purchase Plans
           </Button>
-        }
-      >
+        </Space>
         <Descriptions size="small" bordered column={3}>
           <Descriptions.Item label="Pending Approval">{summary.pending}</Descriptions.Item>
           <Descriptions.Item label="In Progress">{summary.processing}</Descriptions.Item>
           <Descriptions.Item label="Done">{summary.done}</Descriptions.Item>
         </Descriptions>
-      </Card>
+      </section>
 
-      <Card title="Purchase Plan List" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Purchase Plan List
+        </Typography.Title>
         {listQuery.error ? (
           <ErrorState
             title="Failed to load purchase plans"
@@ -99,16 +103,17 @@ export const PurchasePlansPage = () => {
             onRetry={() => listQuery.refetch()}
           />
         ) : (
-          <Table<PlanningPurchasePlan>
+          <ErpDataGrid<PlanningPurchasePlan>
             data-testid="planning-purchase-table"
-            rowKey="plan_id"
+            rowKey={(record) => record.plan_id}
             loading={listQuery.isLoading || listQuery.isFetching}
             columns={columns}
-            dataSource={items}
-            pagination={false}
+            data={items}
+            compact
+            showRowIndex={false}
           />
         )}
-      </Card>
+      </section>
     </Space>
   );
 };

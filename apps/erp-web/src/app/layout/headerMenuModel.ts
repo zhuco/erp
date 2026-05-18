@@ -1,5 +1,6 @@
 import type { AppMenuItem } from './menu';
 import { flattenMenuItems } from './menu';
+import { normalizeVisibleText } from './visibleText';
 
 export type HeaderModuleLinkItem = {
   key: string;
@@ -43,7 +44,7 @@ export const collectLeafPaths = (item: AppMenuItem): string[] => {
 const buildHeaderLinks = (items: AppMenuItem[], groupKey: string): HeaderModuleLinkItem[] => {
   return flattenMenuItems(items).map((item, index) => ({
     key: `${groupKey}-${index}-${item.path}`,
-    label: item.name,
+    label: normalizeVisibleText(item.name),
     path: item.path,
     testId: toPathTestId(item.path, 'module-link'),
   }));
@@ -103,7 +104,7 @@ export const buildHeaderModules = (menuRoutes: AppMenuItem[]): HeaderModuleItem[
       const defaultPath = item.path ?? leafPaths[0];
       const uniqueLeafPaths = Array.from(new Set(leafPaths));
       const key = resolveModuleKey(item, uniqueLeafPaths);
-      const label = item.name ?? defaultPath ?? key;
+      const label = normalizeVisibleText(item.name ?? defaultPath ?? key);
       const groups = buildHeaderGroups((item.children as AppMenuItem[] | undefined) ?? [], key);
 
       return {
@@ -120,6 +121,18 @@ export const buildHeaderModules = (menuRoutes: AppMenuItem[]): HeaderModuleItem[
 
 export const isPathActive = (currentPath: string, targetPath: string) => {
   if (currentPath === targetPath) {
+    return true;
+  }
+  if (
+    targetPath === '/goods/products/query' &&
+    /^\/goods\/products\/[^/]+\/edit$/.test(currentPath)
+  ) {
+    return true;
+  }
+  if (
+    targetPath === '/goods/kits/query' &&
+    /^\/goods\/kits\/[^/]+\/edit$/.test(currentPath)
+  ) {
     return true;
   }
   return currentPath.startsWith(`${targetPath}/`);

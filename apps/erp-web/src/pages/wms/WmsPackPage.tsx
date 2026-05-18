@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Form,
   Input,
@@ -14,7 +13,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -358,7 +356,6 @@ export const WmsPackPage = () => {
           description={packPerformanceFlag.reason}
         />
       ) : null}
-      <Card>
         <Form
           form={filterForm}
           layout="vertical"
@@ -397,7 +394,6 @@ export const WmsPackPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
@@ -418,6 +414,11 @@ export const WmsPackPage = () => {
           total={data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          dataTestId="wms-pack-main-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="wms.pack.table.columns"
         />
       </div>

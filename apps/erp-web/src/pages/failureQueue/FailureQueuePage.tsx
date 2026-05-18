@@ -1,13 +1,11 @@
 import {
   Button,
-  Card,
   Col,
   Form,
   Input,
   Row,
   Select,
   Space,
-  TablePaginationConfig,
   Tabs,
   Tag,
   Typography,
@@ -36,6 +34,7 @@ import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type DeadLetterFilters = {
   status?: DeadLetterStatus;
@@ -92,11 +91,11 @@ export const FailureQueuePage = () => {
   const [outboxForm] = Form.useForm<OutboxFilters>();
   const [deadFilters, setDeadFilters] = useState<DeadLetterFilters>({});
   const [outboxFilters, setOutboxFilters] = useState<OutboxFilters>({});
-  const [deadPagination, setDeadPagination] = useState<TablePaginationConfig>({
+  const [deadPagination, setDeadPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
-  const [outboxPagination, setOutboxPagination] = useState<TablePaginationConfig>({
+  const [outboxPagination, setOutboxPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -320,7 +319,7 @@ export const FailureQueuePage = () => {
             label: '失败任务',
             children: (
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Card>
+                <IndustrialCard>
                   <Form form={deadForm} layout="vertical" onFinish={handleDeadSearch}>
                     <Row gutter={16}>
                       <Col xs={24} md={6}>
@@ -338,7 +337,7 @@ export const FailureQueuePage = () => {
                       </Col>
                     </Row>
                   </Form>
-                </Card>
+                </IndustrialCard>
                 <UiModule03MainTableSection<DeadLetter>
                   rowKey="dead_letter_id"
                   columns={deadLetterColumns}
@@ -370,6 +369,11 @@ export const FailureQueuePage = () => {
                     }
                   }}
                   columnSettingsKey="failure-queue.dead-letters.columns"
+                  gridPreset="industrial-review-compact"
+                  selectionCellMode="custom"
+                  selectionHeaderMode="allInvert"
+                  showColumnSettings
+                  dataTestId="industrial-main-grid"
                 />
               </Space>
             )
@@ -379,7 +383,7 @@ export const FailureQueuePage = () => {
             label: 'Outbox鍫嗙Н',
             children: (
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Card>
+                <IndustrialCard>
                   <Form form={outboxForm} layout="vertical" onFinish={handleOutboxSearch}>
                     <Row gutter={16}>
                       <Col xs={24} md={6}>
@@ -402,7 +406,7 @@ export const FailureQueuePage = () => {
                       </Col>
                     </Row>
                   </Form>
-                </Card>
+                </IndustrialCard>
                 <UiModule03MainTableSection<OutboxEvent>
                   rowKey="outbox_id"
                   columns={outboxColumns}
@@ -434,6 +438,11 @@ export const FailureQueuePage = () => {
                     }
                   }}
                   columnSettingsKey="failure-queue.outbox.columns"
+                  gridPreset="industrial-review-compact"
+                  selectionCellMode="custom"
+                  selectionHeaderMode="allInvert"
+                  showColumnSettings
+                  dataTestId="industrial-main-grid"
                 />
               </Space>
             )

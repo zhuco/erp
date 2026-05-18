@@ -501,7 +501,6 @@ export const WarehouseDirectoryPage = () => {
             onHelp={() => message.info('仓库目录帮助文档待接入')}
           />
         }
-        tableClassName="order-review-table order-workbench-table-module-03 order-review-table-external-scrollbar"
         tableContent={
           <ErpDataGridNext<Warehouse>
             rowKey={(record) => record.warehouse_id}

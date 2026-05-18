@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -13,7 +12,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useRef, useState } from 'react';
@@ -28,6 +26,7 @@ import { listMemberLevels } from '@/api/memberLevels';
 import { UiModule03MainTableSection, UiModule03TableFooter } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   keyword?: string;
@@ -64,7 +63,7 @@ export const CustomersPage = () => {
   const [drawerForm] = Form.useForm<FormValues>();
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -315,7 +314,7 @@ export const CustomersPage = () => {
           新建客户
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -353,7 +352,7 @@ export const CustomersPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -388,6 +387,10 @@ export const CustomersPage = () => {
         enablePanels={false}
         dataTestId="customers-data-grid"
         tableFooter={tableFooter}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
       />
       <Drawer
         title={editingCustomer ? '编辑客户' : '新建客户'}

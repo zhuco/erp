@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   DatePicker,
   Drawer,
   Form,
@@ -13,7 +12,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -227,44 +226,59 @@ export const ExpenseAllocationPage = () => {
     [canWrite, deleteMutation]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          费用归集与分摊
-        </Typography.Title>
-        <Button type="primary" disabled={!canWrite} onClick={openCreate}>
-          新建费用
-        </Button>
-      </Space>
-      <Card>
-        <Form form={form} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="keyword" label="关键词">
-            <Input allowClear placeholder="费用名称" style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="category" label="类别">
-            <Select allowClear options={categoryOptions} placeholder="全部" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+  const tableToolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        费用归集与分摊
+      </Typography.Title>
+      <Typography.Text type="secondary">维护费用归集记录、分摊规则与过账状态。</Typography.Text>
     </Space>
+  );
+
+  const tableToolbarRight = (
+    <Space>
+      <Button loading={listQuery.isFetching} onClick={() => void listQuery.refetch()}>
+        刷新
+      </Button>
+      <Button onClick={() => message.info('费用归集导出能力待接入')}>导出</Button>
+      <Button type="primary" disabled={!canWrite} onClick={openCreate}>
+        新建费用
+      </Button>
+    </Space>
+  );
+
+  const tableActionBar = (
+    <Form form={form} layout="inline" onFinish={handleSearch}>
+      <Form.Item name="keyword" label="关键词">
+        <Input allowClear placeholder="费用名称" style={{ width: 200 }} />
+      </Form.Item>
+      <Form.Item name="category" label="类别">
+        <Select allowClear options={categoryOptions} placeholder="全部" style={{ width: 160 }} />
+      </Form.Item>
+      <Form.Item name="status" label="状态">
+        <Select allowClear options={statusOptions} placeholder="全部" style={{ width: 140 }} />
+      </Form.Item>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 
   return (
     <>
       <UiModule03MainTableSection<FinanceExpense>
-        header={header}
+        dataTestId="finance-expenses-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={tableToolbarLeft}
+        toolbarRight={tableToolbarRight}
+        actionBar={tableActionBar}
         rowKey="expense_id"
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -277,6 +291,7 @@ export const ExpenseAllocationPage = () => {
         errorTitle="费用归集加载失败"
         emptyText="暂无费用记录"
         columnSettingsKey="finance.expenses.table.columns"
+        showColumnSettings
       />
       <Drawer
         title={editing ? '编辑费用' : '新建费用'}

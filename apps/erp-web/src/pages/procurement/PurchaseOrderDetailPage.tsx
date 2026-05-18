@@ -32,7 +32,7 @@ import {
 } from '@/api/purchaseOrders';
 import { listSettings, type Setting } from '@/api/system';
 import { listWarehouses } from '@/api/warehouses';
-import { UiModule07SettingsLayout, UiModule07SettingsSection } from '@/components/ui-modules';
+import { SettingsPageTemplate, SettingsPageSection } from '@/components/page-templates';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
@@ -252,8 +252,8 @@ export const PurchaseOrderDetailPage = () => {
   );
 
   return (
-    <UiModule07SettingsLayout title="Purchase Order Detail">
-      <UiModule07SettingsSection title="Order Overview" actions={headerActions}>
+    <SettingsPageTemplate title="Purchase Order Detail">
+      <SettingsPageSection title="Order Overview" actions={headerActions}>
         {detail ? (
           <Descriptions column={2} bordered size="small">
             <Descriptions.Item label="PO ID">{detail.order.po_id}</Descriptions.Item>
@@ -287,8 +287,8 @@ export const PurchaseOrderDetailPage = () => {
             {detailQuery.isFetching ? 'Loading...' : 'No data'}
           </Typography.Text>
         )}
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection title="Items">
+      </SettingsPageSection>
+      <SettingsPageSection title="Items">
         <Table
           rowKey="sku_id"
           columns={itemColumns}
@@ -296,8 +296,8 @@ export const PurchaseOrderDetailPage = () => {
           pagination={false}
           size="small"
         />
-      </UiModule07SettingsSection>
-      <UiModule07SettingsSection title="Receipts">
+      </SettingsPageSection>
+      <SettingsPageSection title="Receipts">
         <Table
           rowKey="receipt_id"
           columns={receiptColumns}
@@ -305,7 +305,7 @@ export const PurchaseOrderDetailPage = () => {
           pagination={false}
           size="small"
         />
-      </UiModule07SettingsSection>
+      </SettingsPageSection>
       <Modal
         title="Receive Purchase Order"
         open={receiveOpen}
@@ -363,6 +363,6 @@ export const PurchaseOrderDetailPage = () => {
           </Form.List>
         </Form>
       </Modal>
-    </UiModule07SettingsLayout>
+    </SettingsPageTemplate>
   );
 };

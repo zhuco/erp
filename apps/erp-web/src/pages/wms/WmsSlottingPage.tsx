@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -9,7 +9,7 @@ import {
   rejectWmsSlottingSuggestion,
   type WmsSlottingSuggestion
 } from '@/api/wmsExecution';
-import { ErrorState } from '@/components/QueryState';
+import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useTenantId } from '@/features/tenant';
 
 const statusColorMap: Record<WmsSlottingSuggestion['status'], string> = {
@@ -139,30 +139,32 @@ export const WmsSlottingPage = () => {
     }
   ];
 
-  if (query.error) {
-    return (
-      <ErrorState
-        title="slotting 建议加载失败"
-        error={query.error}
-        onRetry={() => query.refetch()}
-      />
-    );
-  }
+  const tableData = query.data?.items ?? [];
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="wms-slotting-title" style={{ margin: 0 }}>
-        Slotting 库位优化建议
-      </Typography.Title>
-      <div data-testid="wms-slotting-table">
-        <Table<WmsSlottingSuggestion>
-          rowKey="suggestion_id"
-          loading={query.isLoading || query.isFetching}
-          dataSource={query.data?.items ?? []}
-          columns={columns}
-          pagination={false}
-        />
-      </div>
-    </Space>
+    <UiModule03MainTableSection<WmsSlottingSuggestion>
+      toolbarLeft={
+        <Typography.Title level={3} data-testid="wms-slotting-title" style={{ margin: 0 }}>
+          Slotting 库位优化建议
+        </Typography.Title>
+      }
+      rowKey="suggestion_id"
+      columns={columns}
+      data={tableData}
+      loading={query.isLoading || query.isFetching}
+      error={query.error}
+      onRetry={() => query.refetch()}
+      errorTitle="slotting 建议加载失败"
+      emptyText="暂无库位优化建议"
+      total={tableData.length}
+      pagination={{ current: 1, pageSize: 50 }}
+      onPaginationChange={() => undefined}
+      dataTestId="wms-slotting-main-grid"
+      gridPreset="industrial-review-compact"
+      selectionCellMode="custom"
+      selectionHeaderMode="allInvert"
+      showColumnSettings
+      columnSettingsKey="wms.slotting.table.columns"
+    />
   );
 };

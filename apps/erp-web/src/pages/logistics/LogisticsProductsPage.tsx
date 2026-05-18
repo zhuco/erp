@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   Drawer,
   Form,
@@ -13,7 +12,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -34,6 +32,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   keyword?: string;
@@ -63,7 +62,7 @@ export const LogisticsProductsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [drawerForm] = Form.useForm<FormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -242,7 +241,7 @@ export const LogisticsProductsPage = () => {
           新建物流产品
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
@@ -270,7 +269,7 @@ export const LogisticsProductsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -291,6 +290,11 @@ export const LogisticsProductsPage = () => {
         columnSettingsKey="logistics-products.table.columns"
         rowKey="product_id"
         enablePanels={false}
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
+        dataTestId="industrial-main-grid"
       />
       <Drawer
         title={editingProduct ? '编辑物流产品' : '新建物流产品'}

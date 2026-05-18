@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Modal, Row, Select, Space, Tag, Typography, message } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Modal, Row, Select, Space, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -62,7 +61,7 @@ export const AfterSalesInterceptsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [createForm] = Form.useForm<CreateValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -192,66 +191,73 @@ export const AfterSalesInterceptsPage = () => {
     [canWrite]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="after-sales-intercepts-title">
-        售后拦截
-      </Typography.Title>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item label="订单号" name="order_id">
-                <Input allowClear placeholder="输入订单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="运单号" name="tracking_no">
-                <Input allowClear placeholder="输入运单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="状态" name="status">
-                <Select allowClear options={statusOptions} placeholder="选择状态" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="申请时间" name="requested_range">
-                <DatePicker.RangePicker
-                  allowClear
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-                {canWrite ? (
-                  <Button
-                    type="dashed"
-                    data-testid="after-sales-intercepts-create"
-                    onClick={() => setCreateOpen(true)}
-                  >
-                    发起拦截
-                  </Button>
-                ) : null}
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
+  const toolbarLeft = (
+    <Typography.Title level={3} style={{ margin: 0 }} data-testid="after-sales-intercepts-title">
+      售后拦截
+    </Typography.Title>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button onClick={() => refetch()}>刷新</Button>
+      {canWrite ? (
+        <Button
+          type="primary"
+          data-testid="after-sales-intercepts-create"
+          onClick={() => setCreateOpen(true)}
+        >
+          发起拦截
+        </Button>
+      ) : null}
     </Space>
+  );
+
+  const header = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item label="订单号" name="order_id">
+            <Input allowClear placeholder="输入订单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="运单号" name="tracking_no">
+            <Input allowClear placeholder="输入运单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="状态" name="status">
+            <Select allowClear options={statusOptions} placeholder="选择状态" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="申请时间" name="requested_range">
+            <DatePicker.RangePicker
+              allowClear
+              showTime
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
   return (
     <>
       <div data-testid="after-sales-intercepts-table">
         <UiModule03MainTableSection<AfterSalesIntercept>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
           header={header}
           rowKey="intercept_id"
           columns={columns}
@@ -264,6 +270,11 @@ export const AfterSalesInterceptsPage = () => {
           total={data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          dataTestId="after-sales-intercepts-main-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="after-sales.intercepts.columns"
         />
       </div>

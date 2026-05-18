@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Drawer,
@@ -15,7 +14,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -36,6 +34,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
+import { IndustrialCard } from '@/components/industrial';
 
 type FilterValues = {
   keyword?: string;
@@ -112,7 +111,7 @@ export const CustomerServiceTicketsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [drawerForm] = Form.useForm<FormValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -354,7 +353,7 @@ export const CustomerServiceTicketsPage = () => {
           新建工单
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={8}>
@@ -445,7 +444,7 @@ export const CustomerServiceTicketsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -467,6 +466,11 @@ export const CustomerServiceTicketsPage = () => {
           onPaginationChange={setPagination}
           columnSettingsKey="customer.serviceTickets.table.columns"
           enablePanels={false}
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
+          dataTestId="industrial-main-grid"
         />
       </div>
       <Drawer

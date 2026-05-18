@@ -1,5 +1,4 @@
-import { Button, Card, Col, DatePicker, Form, Input, Row, Select, Space, Tag, Typography } from 'antd';
-import type { TablePaginationConfig } from 'antd';
+import { Button, Col, DatePicker, Form, Input, Row, Select, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -162,66 +161,69 @@ export const InventoryLedgerPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        库存流水
+      </Typography.Title>
+      <Typography.Text type="secondary">按 SKU、仓库和时间追踪库存数量变动</Typography.Text>
+    </Space>
+  );
+
+  const toolbarRight = <Button onClick={() => navigate('/inventory')}>返回库存</Button>;
+
+  const tableHeader = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={8}>
+          <Form.Item name="sku_id" label="SKU ID">
+            <Input allowClear placeholder="输入 SKU ID" data-testid="ledger-sku-id-input" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="sku_code" label="SKU 编码">
+            <Input allowClear placeholder="输入 SKU 编码" data-testid="ledger-sku-code-input" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select
+              allowClear
+              options={warehouseOptions}
+              placeholder="选择仓库"
+              loading={warehouseQuery.isFetching}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="time_range" label="时间范围">
+            <DatePicker.RangePicker
+              showTime
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="ledger-search-submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
+  );
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          库存流水
-        </Typography.Title>
-        <Space>
-          <Button onClick={() => navigate('/inventory')}>返回库存</Button>
-        </Space>
-      </Row>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={8}>
-              <Form.Item name="sku_id" label="SKU ID">
-                <Input allowClear placeholder="输入 SKU ID" data-testid="ledger-sku-id-input" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="sku_code" label="SKU 编码">
-                <Input allowClear placeholder="输入 SKU 编码" data-testid="ledger-sku-code-input" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select
-                  allowClear
-                  options={warehouseOptions}
-                  placeholder="选择仓库"
-                  loading={warehouseQuery.isFetching}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="time_range" label="时间范围">
-                <DatePicker.RangePicker
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={4} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit" data-testid="ledger-search-submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-      {guidanceMessage ? (
-        <Card>
-          <EmptyState description={guidanceMessage} />
-        </Card>
-      ) : null}
+      {guidanceMessage ? <EmptyState description={guidanceMessage} /> : null}
       {showTable ? (
         <UiModule03MainTableSection<InventoryLedger>
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
+          header={tableHeader}
           rowKey="ledger_id"
           columns={columns}
           data={ledgerQuery.data?.items ?? []}
@@ -233,6 +235,11 @@ export const InventoryLedgerPage = () => {
           total={ledgerQuery.data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          dataTestId="inventory-ledger-main-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="inventory.ledger.table.columns"
           enablePanels={false}
         />

@@ -1,5 +1,4 @@
 import { Empty, Table } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 
 import { UiModule04BottomTable } from '@/components/ui-modules';
 

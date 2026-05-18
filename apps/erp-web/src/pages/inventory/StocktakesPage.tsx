@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -15,16 +14,16 @@ import {
   Select,
   Space,
   Switch,
-  Table,
   Tabs,
   Tag,
   Typography,
   Upload,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
@@ -93,6 +92,27 @@ const diffReasonOptions = [
   { label: '其他', value: '其他' }
 ];
 
+type StocktakesSectionProps = {
+  title: ReactNode;
+  children: ReactNode;
+};
+
+const StocktakesSection = ({ title, children }: StocktakesSectionProps) => (
+  <section
+    style={{
+      padding: 16,
+      border: '1px solid var(--erp-color-border, #d9d9d9)',
+      borderRadius: 8,
+      background: 'var(--erp-color-bg-container, #fff)'
+    }}
+  >
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Typography.Text strong>{title}</Typography.Text>
+      {children}
+    </Space>
+  </section>
+);
+
 type FilterValues = {
   warehouse_id?: string;
   status?: string;
@@ -122,6 +142,17 @@ type ImportFormValues = {
   scope_type?: string;
   count_mode?: string;
   freeze_stock?: boolean;
+};
+
+type StockCountImportPreviewRow = StockCountImportItem & {
+  preview_row_id: string;
+};
+
+const resolvePagedRows = <T,>(rows: T[], pagination: TablePaginationConfig) => {
+  const current = pagination.current ?? 1;
+  const pageSize = pagination.pageSize ?? rows.length;
+  const startIndex = Math.max(current - 1, 0) * pageSize;
+  return rows.slice(startIndex, startIndex + pageSize);
 };
 
 const normalizeScopeType = (filters: StockCountFilters, dimension?: string): string => {
@@ -256,6 +287,22 @@ export const StocktakesPage = () => {
   const [importFileList, setImportFileList] = useState<UploadFile[]>([]);
   const [importItems, setImportItems] = useState<StockCountImportItem[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importPreviewPagination, setImportPreviewPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 8
+  });
+  const [detailItemsPagination, setDetailItemsPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 12
+  });
+  const [diffPagination, setDiffPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 10
+  });
+  const [logPagination, setLogPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 8
+  });
   const [skuOptions, setSkuOptions] = useState<{ label: string; value: string }[]>([]);
   const [detailTab, setDetailTab] = useState('items');
   const [filterForm] = Form.useForm<FilterValues>();
@@ -635,6 +682,7 @@ export const StocktakesPage = () => {
     const { items, errors } = await parseImportRows(file);
     setImportItems(items);
     setImportErrors(errors);
+    setImportPreviewPagination((prev) => ({ ...prev, current: 1 }));
   };
 
   const handleBulkFill = () => {
@@ -740,6 +788,29 @@ export const StocktakesPage = () => {
   const canConfirm = detail?.count.status === 'COUNTING';
   const canApply = detail?.count.status === 'DIFF_CONFIRMED';
 
+  const importPreviewRows = useMemo<StockCountImportPreviewRow[]>(
+    () =>
+      importItems.map((item, index) => ({
+        ...item,
+        preview_row_id: `${item.sku_id}-${item.location_id ?? 'NA'}-${index}`
+      })),
+    [importItems]
+  );
+  const pagedImportPreviewRows = useMemo(
+    () => resolvePagedRows(importPreviewRows, importPreviewPagination),
+    [importPreviewPagination, importPreviewRows]
+  );
+
+  const importPreviewColumns = useMemo<ColumnsType<StockCountImportPreviewRow>>(
+    () => [
+      { title: 'SKU', dataIndex: 'sku_id' },
+      { title: '货位', dataIndex: 'location_id', render: (value) => value ?? '-' },
+      { title: '盘点数量', dataIndex: 'counted_qty' },
+      { title: '差异原因', dataIndex: 'diff_reason', render: (value) => value ?? '-' }
+    ],
+    []
+  );
+
   const detailColumns = useMemo<ColumnsType<StockCountItem>>(
     () => {
       const cols: ColumnsType<StockCountItem> = [
@@ -814,6 +885,19 @@ export const StocktakesPage = () => {
       }),
     [countedMap, detailItems]
   );
+  const logRows = logsQuery.data?.data ?? [];
+  const pagedDetailItems = useMemo(
+    () => resolvePagedRows(detailItems, detailItemsPagination),
+    [detailItems, detailItemsPagination]
+  );
+  const pagedDiffRows = useMemo(
+    () => resolvePagedRows(diffRows, diffPagination),
+    [diffPagination, diffRows]
+  );
+  const pagedLogRows = useMemo(
+    () => resolvePagedRows(logRows, logPagination),
+    [logPagination, logRows]
+  );
 
   const diffColumns = useMemo<ColumnsType<StockCountItem>>(
     () =>
@@ -845,121 +929,165 @@ export const StocktakesPage = () => {
       setActiveCountId(null);
       entryForm.resetFields();
       setDetailTab('items');
+      setDetailItemsPagination((prev) => ({ ...prev, current: 1 }));
+      setDiffPagination((prev) => ({ ...prev, current: 1 }));
+      setLogPagination((prev) => ({ ...prev, current: 1 }));
     }
   }, [detailOpen, entryForm]);
-  return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
+
+  const mainTableToolbarLeft = (
+    <Space align="center" size={12} wrap>
+      <Space direction="vertical" size={2}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           盘点管理
         </Typography.Title>
-        <Space>
-          <Button type="primary" onClick={() => setCreateOpen(true)} disabled={!canWrite}>
-            新建盘点单
-          </Button>
-          <Button onClick={() => setImportOpen(true)} disabled={!canWrite}>
-            导入盘点数据
-          </Button>
-          <Button onClick={handleExportList}>导出</Button>
-        </Space>
+        <Typography.Text type="secondary">
+          统一管理盘点单创建、导入、复核与库存调整。
+        </Typography.Text>
+      </Space>
+    </Space>
+  );
+
+  const mainTableToolbarRight = (
+    <Space wrap>
+      <Button
+        type="primary"
+        onClick={() => setCreateOpen(true)}
+        disabled={!canWrite}
+        data-testid="stocktakes-create-button"
+      >
+        新建盘点单
+      </Button>
+      <Button
+        onClick={() => setImportOpen(true)}
+        disabled={!canWrite}
+        data-testid="stocktakes-import-button"
+      >
+        导入盘点数据
+      </Button>
+      <Button onClick={() => listQueryState.refetch()}>刷新</Button>
+      <Button onClick={handleExportList} data-testid="stocktakes-export-button">
+        导出
+      </Button>
+    </Space>
+  );
+
+  const mainTableHeader = warehouseQuery.error ? (
+    <ErrorState
+      title="仓库加载失败"
+      error={warehouseQuery.error}
+      onRetry={() => warehouseQuery.refetch()}
+    />
+  ) : null;
+
+  const mainTableActionBar = (
+    <Form
+      form={filterForm}
+      layout="vertical"
+      onFinish={handleSearch}
+      data-testid="stocktakes-filter-form"
+      style={{ width: '100%' }}
+    >
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={6}>
+          <Form.Item name="warehouse_id" label="仓库">
+            <Select allowClear placeholder="全部仓库" options={warehouseOptions} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="status" label="状态">
+            <Select
+              allowClear
+              placeholder="全部状态"
+              options={[
+                { label: '盘点中', value: 'COUNTING' },
+                { label: '待复核', value: 'DIFF_CONFIRMED' },
+                { label: '已完成', value: 'APPLIED' },
+                { label: '已作废', value: 'CANCELLED' }
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="count_type" label="盘点类型">
+            <Select
+              allowClear
+              placeholder="全部类型"
+              options={[
+                { label: '有盘点单', value: 'DOCUMENT' },
+                { label: '导入盘点', value: 'IMPORT' }
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="scope_type" label="盘点范围">
+            <Select
+              allowClear
+              placeholder="全部范围"
+              options={[
+                { label: '全仓', value: 'FULL' },
+                { label: '库区', value: 'AREA' },
+                { label: '货位', value: 'LOCATION' },
+                { label: '指定货品', value: 'SKU' }
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={8}>
+          <Form.Item name="created_range" label="日期范围">
+            <DatePicker.RangePicker allowClear style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item name="keyword" label="关键字">
+            <Input allowClear placeholder="盘点单号" />
+          </Form.Item>
+        </Col>
+        <Col
+          xs={24}
+          md={10}
+          style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
+        >
+          <Space>
+            <Button type="primary" htmlType="submit" data-testid="stocktakes-search-button">
+              查询
+            </Button>
+            <Button onClick={handleReset} data-testid="stocktakes-reset-button">
+              重置
+            </Button>
+          </Space>
+        </Col>
       </Row>
-      {warehouseQuery.error ? (
-        <ErrorState
-          title="仓库加载失败"
-          error={warehouseQuery.error}
-          onRetry={() => warehouseQuery.refetch()}
-        />
-      ) : null}
-      <Card title="筛选">
-        <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={6}>
-              <Form.Item name="warehouse_id" label="仓库">
-                <Select allowClear placeholder="全部仓库" options={warehouseOptions} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="status" label="状态">
-                <Select
-                  allowClear
-                  placeholder="全部状态"
-                  options={[
-                    { label: '盘点中', value: 'COUNTING' },
-                    { label: '待复核', value: 'DIFF_CONFIRMED' },
-                    { label: '已完成', value: 'APPLIED' },
-                    { label: '已作废', value: 'CANCELLED' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="count_type" label="盘点类型">
-                <Select
-                  allowClear
-                  placeholder="全部类型"
-                  options={[
-                    { label: '有盘点单', value: 'DOCUMENT' },
-                    { label: '导入盘点', value: 'IMPORT' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="scope_type" label="盘点范围">
-                <Select
-                  allowClear
-                  placeholder="全部范围"
-                  options={[
-                    { label: '全仓', value: 'FULL' },
-                    { label: '库区', value: 'AREA' },
-                    { label: '货位', value: 'LOCATION' },
-                    { label: '指定货品', value: 'SKU' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="created_range" label="日期范围">
-                <DatePicker.RangePicker allowClear style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item name="keyword" label="关键字">
-                <Input allowClear placeholder="盘点单号" />
-              </Form.Item>
-            </Col>
-            <Col
-              xs={24}
-              md={10}
-              style={{ display: 'flex', alignItems: 'end', justifyContent: 'flex-end' }}
-            >
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-      <Card title="盘点单列表">
-        <UiModule03MainTableSection<StockCountSummary>
-          rowKey="count_id"
-          columns={columns}
-          data={listQueryState.data?.items ?? []}
-          loading={listQueryState.isLoading || listQueryState.isFetching}
-          error={listQueryState.error}
-          onRetry={() => listQueryState.refetch()}
-          errorTitle="盘点单列表加载失败"
-          emptyText="暂无盘点单"
-          total={listQueryState.data?.total ?? 0}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          columnSettingsKey="stocktakes.table.columns"
-          enablePanels={false}
-        />
-      </Card>
+    </Form>
+  );
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <UiModule03MainTableSection<StockCountSummary>
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        toolbarLeft={mainTableToolbarLeft}
+        toolbarRight={mainTableToolbarRight}
+        header={mainTableHeader}
+        actionBar={mainTableActionBar}
+        rowKey="count_id"
+        columns={columns}
+        data={listQueryState.data?.items ?? []}
+        loading={listQueryState.isLoading || listQueryState.isFetching}
+        error={listQueryState.error}
+        onRetry={() => listQueryState.refetch()}
+        errorTitle="盘点单列表加载失败"
+        emptyText="暂无盘点单"
+        total={listQueryState.data?.total ?? 0}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        columnSettingsKey="stocktakes.table.columns"
+        showColumnSettings={true}
+        dataTestId="stocktakes-main-grid"
+        enablePanels={false}
+      />
       <Modal
         title="新建盘点单"
         open={createOpen}
@@ -1113,9 +1241,8 @@ export const StocktakesPage = () => {
               <Switch />
             </Form.Item>
           </Form>
-          <Card size="small">
+          <StocktakesSection title="1. 上传文件">
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <Typography.Text strong>1. 上传文件</Typography.Text>
               <Upload
                 beforeUpload={() => false}
                 fileList={importFileList}
@@ -1155,21 +1282,24 @@ export const StocktakesPage = () => {
                 />
               ) : null}
             </Space>
-          </Card>
-          <Card size="small" title={`预览 (${importItems.length} 行)`}>
-            <Table<StockCountImportItem>
-              rowKey={(record, index) => `${record.sku_id}-${record.location_id ?? 'NA'}-${index}`}
-              size="small"
-              columns={[
-                { title: 'SKU', dataIndex: 'sku_id' },
-                { title: '货位', dataIndex: 'location_id', render: (value) => value ?? '-' },
-                { title: '盘点数量', dataIndex: 'counted_qty' },
-                { title: '差异原因', dataIndex: 'diff_reason', render: (value) => value ?? '-' }
-              ]}
-              dataSource={importItems}
-              pagination={{ pageSize: 8 }}
-            />
-          </Card>
+          </StocktakesSection>
+          <UiModule03MainTableSection<StockCountImportPreviewRow>
+            toolbarLeft={
+              <Typography.Text strong>{`预览 (${importItems.length} 行)`}</Typography.Text>
+            }
+            rowKey="preview_row_id"
+            columns={importPreviewColumns}
+            data={pagedImportPreviewRows}
+            loading={false}
+            onRetry={() => undefined}
+            emptyText="暂无导入预览"
+            total={importItems.length}
+            pagination={importPreviewPagination}
+            onPaginationChange={setImportPreviewPagination}
+            dataTestId="stocktakes-import-preview-grid"
+            gridPreset="industrial-review-compact"
+            showColumnSettings={false}
+          />
           <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
             <Button onClick={() => setImportOpen(false)}>取消</Button>
             <Button
@@ -1191,7 +1321,21 @@ export const StocktakesPage = () => {
         destroyOnHidden
       >
         {detailQuery.isLoading ? (
-          <Card loading />
+          <UiModule03MainTableSection<StockCountItem>
+            toolbarLeft={<Typography.Text strong>盘点明细加载中</Typography.Text>}
+            rowKey="count_item_id"
+            columns={detailColumns}
+            data={[]}
+            loading
+            onRetry={() => detailQuery.refetch()}
+            emptyText="盘点明细加载中"
+            total={0}
+            pagination={detailItemsPagination}
+            onPaginationChange={setDetailItemsPagination}
+            dataTestId="stocktakes-detail-loading-grid"
+            gridPreset="industrial-review-compact"
+            showColumnSettings={false}
+          />
         ) : detail ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={2}>
@@ -1293,12 +1437,20 @@ export const StocktakesPage = () => {
                           </Button>
                         </Form.Item>
                       </Form>
-                      <Table
+                      <UiModule03MainTableSection<StockCountItem>
+                        toolbarLeft={<Typography.Text strong>盘点明细</Typography.Text>}
                         rowKey="count_item_id"
                         columns={detailColumns}
-                        dataSource={detailItems}
-                        pagination={{ pageSize: 12 }}
-                        size="small"
+                        data={pagedDetailItems}
+                        loading={false}
+                        onRetry={() => detailQuery.refetch()}
+                        emptyText="暂无盘点明细"
+                        total={detailItems.length}
+                        pagination={detailItemsPagination}
+                        onPaginationChange={setDetailItemsPagination}
+                        dataTestId="stocktakes-detail-items-grid"
+                        gridPreset="industrial-review-compact"
+                        showColumnSettings={false}
                       />
                     </Space>
                   )
@@ -1307,12 +1459,20 @@ export const StocktakesPage = () => {
                   key: 'diff',
                   label: `差异 (${diffRows.length})`,
                   children: (
-                    <Table
+                    <UiModule03MainTableSection<StockCountItem>
+                      toolbarLeft={<Typography.Text strong>差异明细</Typography.Text>}
                       rowKey="count_item_id"
                       columns={diffColumns}
-                      dataSource={diffRows}
-                      pagination={{ pageSize: 10 }}
-                      size="small"
+                      data={pagedDiffRows}
+                      loading={false}
+                      onRetry={() => detailQuery.refetch()}
+                      emptyText="暂无差异明细"
+                      total={diffRows.length}
+                      pagination={diffPagination}
+                      onPaginationChange={setDiffPagination}
+                      dataTestId="stocktakes-detail-diff-grid"
+                      gridPreset="industrial-review-compact"
+                      showColumnSettings={false}
                     />
                   )
                 },
@@ -1326,12 +1486,20 @@ export const StocktakesPage = () => {
                       onRetry={() => logsQuery.refetch()}
                     />
                   ) : (
-                    <Table
+                    <UiModule03MainTableSection<OperationLog>
+                      toolbarLeft={<Typography.Text strong>操作记录</Typography.Text>}
                       rowKey="log_id"
                       columns={logColumns}
-                      dataSource={logsQuery.data?.data ?? []}
-                      pagination={{ pageSize: 8 }}
-                      size="small"
+                      data={pagedLogRows}
+                      loading={logsQuery.isLoading || logsQuery.isFetching}
+                      onRetry={() => logsQuery.refetch()}
+                      emptyText="暂无操作记录"
+                      total={logRows.length}
+                      pagination={logPagination}
+                      onPaginationChange={setLogPagination}
+                      dataTestId="stocktakes-detail-logs-grid"
+                      gridPreset="industrial-review-compact"
+                      showColumnSettings={false}
                     />
                   )
                 }

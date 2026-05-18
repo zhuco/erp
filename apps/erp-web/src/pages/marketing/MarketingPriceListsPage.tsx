@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Descriptions,
@@ -12,12 +11,11 @@ import {
   Select,
   Space,
   Row,
-  Table,
   Tag,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,6 +39,7 @@ import {
 import { UiModule03MainTableSection } from '@/components/ui-modules';
 import { useCan } from '@/features/rbac';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
+import { IndustrialCard, IndustrialTable } from '@/components/industrial';
 
 type FilterValues = {
   keyword?: string;
@@ -352,7 +351,7 @@ export const MarketingPriceListsPage = () => {
           新建价表
         </Button>
       </Space>
-      <Card>
+      <IndustrialCard>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={16}>
             <Col xs={24} md={6}>
@@ -385,7 +384,7 @@ export const MarketingPriceListsPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
+      </IndustrialCard>
     </Space>
   );
 
@@ -475,7 +474,7 @@ export const MarketingPriceListsPage = () => {
                 {formatRange(detail.effective_from, detail.effective_to)}
               </Descriptions.Item>
             </Descriptions>
-            <Card size="small" title="新增/更新明细">
+            <IndustrialCard size="small" title="新增/更新明细">
               <Form form={itemForm} layout="inline" onFinish={() => createItemMutation.mutate()}>
                 <Form.Item
                   name="sku_id"
@@ -499,8 +498,8 @@ export const MarketingPriceListsPage = () => {
                   </Button>
                 </Form.Item>
               </Form>
-            </Card>
-            <Table<MarketingPriceItem>
+            </IndustrialCard>
+            <IndustrialTable<MarketingPriceItem>
               rowKey="item_id"
               columns={[
                 { title: 'SKU', dataIndex: 'sku_id' },

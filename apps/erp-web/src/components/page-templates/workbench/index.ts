@@ -1,5 +1,12 @@
 export { WorkbenchPageTemplate } from './WorkbenchPageTemplate';
 export type { WorkbenchPageTemplateProps } from './WorkbenchPageTemplate';
+export {
+  DEFAULT_INDUSTRIAL_WORKBENCH_TABLE_CLASS_NAME,
+  INDUSTRIAL_WORKBENCH_REGIONS,
+  INDUSTRIAL_WORKBENCH_TEST_IDS,
+  IndustrialWorkbenchTemplate,
+} from './IndustrialWorkbenchTemplate';
+export type { IndustrialWorkbenchTemplateProps } from './IndustrialWorkbenchTemplate';
 export { WorkbenchRecordEditorDialog } from './WorkbenchRecordEditorDialog';
 export { WorkbenchColumnSettingsDialog } from './WorkbenchColumnSettingsDialog';
 export { WorkbenchColumnSettingsFloatingControl } from './WorkbenchColumnSettingsFloatingControl';
@@ -59,3 +66,9 @@ export {
   WORKBENCH_DEFAULT_BOTTOM_PANEL_HEIGHT,
   WORKBENCH_DEFAULT_RIGHT_PANEL_WIDTH,
 } from '@/app/layout/workbenchPanelSizing';
+export {
+  calculateTemplateAdoptionRate,
+  classifyTemplateUsage,
+  isTemplateAdoptionPassing,
+} from './workbenchTemplateMetrics';
+export type { TemplateAdoptionRate, TemplatePageUsage } from './workbenchTemplateMetrics';

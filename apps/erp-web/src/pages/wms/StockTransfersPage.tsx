@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Drawer,
   Form,
   Input,
@@ -8,11 +7,11 @@ import {
   Modal,
   Select,
   Space,
-  Table,
+  Spin,
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,13 +24,15 @@ import {
   listStockTransfers
 } from '@/api/stockTransfers';
 import type {
+  StockTransferItem,
   StockTransferItemCreate,
   StockTransferListQuery,
   StockTransferSummary
 } from '@/api/stockTransfers';
 import { listWarehouses } from '@/api/warehouses';
+import { ErpDataGrid, type ErpDataGridColumn } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
-import { UiModule03MainTableSection } from '@/components/ui-modules';
+import { UiModule03MainTableSection, UiModule04BottomTable } from '@/components/ui-modules';
 import { isTenantSelected, useTenantId } from '@/features/tenant';
 
 const formatDateTime = (value?: string | null) =>
@@ -190,16 +191,46 @@ export const StockTransfersPage = () => {
     [warehouseMap]
   );
 
+  const detailItemColumns = useMemo<ErpDataGridColumn<StockTransferItem>[]>(
+    () => [
+      {
+        title: 'SKU ID',
+        field: 'sku_id',
+        minWidth: 180
+      },
+      {
+        title: '数量',
+        field: 'qty',
+        width: 120,
+        hozAlign: 'right',
+        headerHozAlign: 'right'
+      }
+    ],
+    []
+  );
+
   const detail = detailQuery.data;
 
   const toolbarLeft = (
     <Space align="center" size={12} wrap>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        调拨管理
-      </Typography.Title>
-      <Button type="primary" onClick={() => setCreateOpen(true)}>
+      <Space direction="vertical" size={0}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          调拨管理
+        </Typography.Title>
+        <Typography.Text type="secondary">统一管理仓间调拨、出库确认与入库确认</Typography.Text>
+      </Space>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Space align="center" size={8} wrap>
+      <Button onClick={() => listQueryState.refetch()} loading={listQueryState.isFetching}>
+        刷新
+      </Button>
+      <Button type="primary" onClick={() => setCreateOpen(true)} data-testid="stock-transfers-create-button">
         新建调拨
       </Button>
+      <Button disabled>导出</Button>
     </Space>
   );
 
@@ -214,7 +245,11 @@ export const StockTransfersPage = () => {
   return (
     <>
       <UiModule03MainTableSection<StockTransferSummary>
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
         toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="transfer_id"
         columns={columns}
@@ -227,6 +262,9 @@ export const StockTransfersPage = () => {
         total={listQueryState.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        columnSettingsKey="wms.stock-transfers.table.columns"
+        showColumnSettings={true}
+        dataTestId="stock-transfers-main-grid"
       />
       <Modal
         title="新建调拨单"
@@ -287,7 +325,9 @@ export const StockTransfersPage = () => {
         destroyOnHidden
       >
         {detailQuery.isLoading ? (
-          <Card loading />
+          <div style={{ padding: 24, textAlign: 'center' }}>
+            <Spin />
+          </div>
         ) : detail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Space>
@@ -307,16 +347,19 @@ export const StockTransfersPage = () => {
                 入库确认
               </Button>
             </Space>
-            <Table
-              rowKey="transfer_item_id"
-              columns={[
-                { title: 'SKU ID', dataIndex: 'sku_id' },
-                { title: '数量', dataIndex: 'qty' }
-              ]}
-              dataSource={detail.items}
-              pagination={false}
-              size="small"
-            />
+            <UiModule04BottomTable syncKey={detail.transfer.transfer_id}>
+              <ErpDataGrid<StockTransferItem>
+                data={detail.items}
+                columns={detailItemColumns}
+                rowKey={(record) => record.transfer_item_id}
+                emptyText="暂无调拨明细"
+                dataTestId="stock-transfer-detail-items-grid"
+                rowHeight={36}
+                headerHeight={36}
+                showRowIndex={true}
+                suppressInitialFocus={true}
+              />
+            </UiModule04BottomTable>
           </Space>
         ) : null}
       </Drawer>

@@ -1,4 +1,4 @@
-import { Button, Card, Select, Space, Table, Tag, message } from 'antd';
+import { Button, Select, Space, Tag, message, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -8,6 +8,7 @@ import {
   listPlanningTransferSuggestions,
   type PlanningTransferSuggestion
 } from '@/api/planning';
+import { ErpDataGrid } from '@/components/ErpDataGrid';
 import { ErrorState } from '@/components/QueryState';
 import { useCan } from '@/features/rbac';
 import { useTenantId } from '@/features/tenant';
@@ -68,7 +69,10 @@ export const TransferSuggestionsPage = () => {
       style={{ width: '100%' }}
       data-testid="planning-transfer-page"
     >
-      <Card title="Transfer Suggestion Strategy" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Transfer Suggestion Strategy
+        </Typography.Title>
         <Space wrap>
           <Select
             value={strategy}
@@ -90,9 +94,12 @@ export const TransferSuggestionsPage = () => {
             Generate Suggestions
           </Button>
         </Space>
-      </Card>
+      </section>
 
-      <Card title="Transfer Suggestion List" size="small">
+      <section className="erp-inline-section">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          Transfer Suggestion List
+        </Typography.Title>
         {listQuery.error ? (
           <ErrorState
             title="Failed to load transfer suggestions"
@@ -100,16 +107,17 @@ export const TransferSuggestionsPage = () => {
             onRetry={() => listQuery.refetch()}
           />
         ) : (
-          <Table<PlanningTransferSuggestion>
+          <ErpDataGrid<PlanningTransferSuggestion>
             data-testid="planning-transfer-table"
-            rowKey="suggestion_id"
+            rowKey={(record) => record.suggestion_id}
             loading={listQuery.isLoading || listQuery.isFetching}
             columns={columns}
-            dataSource={listQuery.data?.items ?? []}
-            pagination={false}
+            data={listQuery.data?.items ?? []}
+            compact
+            showRowIndex={false}
           />
         )}
-      </Card>
+      </section>
     </Space>
   );
 };

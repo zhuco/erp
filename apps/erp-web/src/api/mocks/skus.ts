@@ -4,6 +4,7 @@ import { syncMockBatchInventoryFreeze } from './inventoryFreezes';
 import type {
   PrintJob,
   Sku,
+  SkuDetailResponse,
   SkuBatch,
   SkuBatchCreateRequest,
   SkuBatchListQuery,
@@ -107,6 +108,19 @@ export const findMockBatchByNo = (skuId: string, batchNo: string) =>
   ) ?? null;
 
 export const findMockSkuById = (skuId: string) => getMockSkuById(skuId);
+
+export const getMockSkuDetail = (skuId: string): SkuDetailResponse => {
+  const sku = getMockSkuById(skuId);
+  if (!sku) {
+    throw new Error('SKU 不存在');
+  }
+  const product = mockProducts.find((item) => item.product_id === sku.product_id);
+  return {
+    sku,
+    product,
+    suppliers: [],
+  };
+};
 
 export const getMockSkuList = (query: SkuListQuery): SkuListResponse => {
   const keyword = query.keyword?.trim().toLowerCase();

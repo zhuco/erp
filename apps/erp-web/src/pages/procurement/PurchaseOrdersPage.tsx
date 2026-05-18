@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Drawer,
@@ -15,8 +14,7 @@ import {
   Typography,
   message
 } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { ReloadOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -301,11 +299,6 @@ export const PurchaseOrdersPage = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
-  const handleRefresh = () => {
-    supplierQuery.refetch();
-    warehouseQuery.refetch();
-    listQuery.refetch();
-  };
 
   const openCreateDrawer = () => {
     setEditingOrder(null);
@@ -360,22 +353,22 @@ export const PurchaseOrdersPage = () => {
     }
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        Purchase Orders
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button type="primary" onClick={openCreateDrawer} disabled={!canWrite}>
+    New Purchase Order
+    </Button>
+  );
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Purchase Orders
-        </Typography.Title>
-        <Space>
-          <Button type="primary" onClick={openCreateDrawer} disabled={!canWrite}>
-            New Purchase Order
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-            Refresh
-          </Button>
-        </Space>
-      </Row>
-      <Card>
         <Form form={filterForm} layout="vertical" onFinish={handleSearch}>
           <Row gutter={[16, 16]}>
             <Col xs={24} md={6}>
@@ -422,13 +415,14 @@ export const PurchaseOrdersPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<PurchaseOrderSummary>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         columns={columns}
         data={listQuery.data?.items ?? []}
@@ -440,6 +434,11 @@ export const PurchaseOrdersPage = () => {
         total={listQuery.data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="purchase-orders-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="purchase-orders.table.columns"
         rowKey="po_id"
       />

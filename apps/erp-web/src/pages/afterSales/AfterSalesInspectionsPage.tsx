@@ -1,6 +1,5 @@
 import {
   Button,
-  Card,
   Col,
   DatePicker,
   Form,
@@ -14,7 +13,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -79,7 +77,7 @@ export const AfterSalesInspectionsPage = () => {
   const [form] = Form.useForm<FilterValues>();
   const [inspectionForm] = Form.useForm<InspectionValues>();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
+  const [pagination, setPagination] = useState<IndustrialTablePaginationConfig>({
     current: 1,
     pageSize: 20
   });
@@ -228,72 +226,87 @@ export const AfterSalesInspectionsPage = () => {
     [canWrite]
   );
 
-  const header = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} data-testid="after-sales-inspections-title">
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title
+        level={3}
+        data-testid="after-sales-inspections-title"
+        style={{ margin: 0 }}
+      >
         退货质检
       </Typography.Title>
-      <Card>
-        <Form form={form} layout="vertical" onFinish={handleSearch}>
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Form.Item label="售后单号" name="after_sales_id">
-                <Input allowClear placeholder="输入售后单号" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="SKU" name="sku_id">
-                <Input allowClear placeholder="输入SKU" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="仓库" name="warehouse_id">
-                <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="质检结果" name="result_code">
-                <Select allowClear options={resultOptions} placeholder="选择结果" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={6}>
-              <Form.Item label="质检时间" name="inspected_range">
-                <DatePicker.RangePicker
-                  allowClear
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder={['开始时间', '结束时间']}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-                <Button onClick={handleReset}>重置</Button>
-                {canWrite ? (
-                  <Button
-                    type="dashed"
-                    data-testid="after-sales-inspections-create"
-                    onClick={() => openModal()}
-                  >
-                    登记质检
-                  </Button>
-                ) : null}
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
     </Space>
+  );
+
+  const toolbarRight = (
+    <Space>
+      <Button loading={isFetching} onClick={() => void refetch()}>
+        刷新
+      </Button>
+      {canWrite ? (
+        <Button
+          type="primary"
+          data-testid="after-sales-inspections-create"
+          onClick={() => openModal()}
+        >
+          登记质检
+        </Button>
+      ) : null}
+    </Space>
+  );
+
+  const filterForm = (
+    <Form form={form} layout="vertical" onFinish={handleSearch}>
+      <Row gutter={16}>
+        <Col xs={24} md={6}>
+          <Form.Item label="售后单号" name="after_sales_id">
+            <Input allowClear placeholder="输入售后单号" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="SKU" name="sku_id">
+            <Input allowClear placeholder="输入SKU" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="仓库" name="warehouse_id">
+            <Select allowClear options={warehouseOptions} placeholder="选择仓库" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="质检结果" name="result_code">
+            <Select allowClear options={resultOptions} placeholder="选择结果" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={6}>
+          <Form.Item label="质检时间" name="inspected_range">
+            <DatePicker.RangePicker
+              allowClear
+              showTime
+              style={{ width: '100%' }}
+              placeholder={['开始时间', '结束时间']}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'end' }}>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Col>
+      </Row>
+    </Form>
   );
 
   return (
     <>
       <div data-testid="after-sales-inspections-table">
         <UiModule03MainTableSection<AfterSalesInspection>
-          header={header}
+          toolbarLeft={toolbarLeft}
+          toolbarRight={toolbarRight}
+          header={filterForm}
           rowKey="inspection_id"
           columns={columns}
           data={data?.items ?? []}
@@ -305,6 +318,11 @@ export const AfterSalesInspectionsPage = () => {
           total={data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}
+          dataTestId="after-sales-inspections-main-grid"
+          gridPreset="industrial-review-compact"
+          selectionCellMode="custom"
+          selectionHeaderMode="allInvert"
+          showColumnSettings
           columnSettingsKey="after-sales.inspections.columns"
         />
       </div>

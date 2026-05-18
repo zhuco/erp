@@ -1,7 +1,5 @@
 import {
-  Alert,
   Button,
-  Card,
   Col,
   Descriptions,
   Drawer,
@@ -17,7 +15,6 @@ import {
   Typography,
   message
 } from 'antd';
-import type { TablePaginationConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
@@ -404,31 +401,28 @@ export const OrderReviewRulesPage = () => {
     }
   };
 
+  const toolbarLeft = (
+    <Space direction="vertical" size={2}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        审单规则
+      </Typography.Title>
+    </Space>
+  );
+
+  const toolbarRight = (
+    <Button type="primary" disabled={!canWrite} onClick={openCreateDrawer}>
+    新建规则
+    </Button>
+  );
+
   const header = (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Row align="middle" justify="space-between">
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          审单规则
-        </Typography.Title>
-        <Button type="primary" disabled={!canWrite} onClick={openCreateDrawer}>
-          新建规则
-        </Button>
-      </Row>
-      <Alert
-        message="审单规则会影响订单自动审单结果"
-        description="条件为空时默认不命中，建议在配置后先灰度启用。"
-        type="info"
-        showIcon
-      />
-      <Card>
         <Descriptions size="small" column={4} bordered>
           <Descriptions.Item label="规则总数">{summary.total}</Descriptions.Item>
           <Descriptions.Item label="启用">{summary.enabledCount}</Descriptions.Item>
           <Descriptions.Item label="停用">{summary.disabledCount}</Descriptions.Item>
           <Descriptions.Item label="最近更新">{latestUpdatedLabel}</Descriptions.Item>
         </Descriptions>
-      </Card>
-      <Card>
         <Form form={form} layout="vertical" onFinish={handleSearch}>
           <Row gutter={[16, 16]}>
             <Col xs={24} md={6}>
@@ -453,13 +447,14 @@ export const OrderReviewRulesPage = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
     </Space>
   );
 
   return (
     <>
       <UiModule03MainTableSection<OrderReviewRule>
+        toolbarLeft={toolbarLeft}
+        toolbarRight={toolbarRight}
         header={header}
         rowKey="rule_id"
         columns={columns}
@@ -472,6 +467,11 @@ export const OrderReviewRulesPage = () => {
         total={data?.total ?? 0}
         pagination={pagination}
         onPaginationChange={setPagination}
+        dataTestId="order-review-rules-main-grid"
+        gridPreset="industrial-review-compact"
+        selectionCellMode="custom"
+        selectionHeaderMode="allInvert"
+        showColumnSettings
         columnSettingsKey="order-review-rules.table.columns"
       />
       <Drawer
