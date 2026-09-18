@@ -1,7 +1,7 @@
 use anyhow::Result;
 use erp_repo::print_jobs::PrintJobsRepo;
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

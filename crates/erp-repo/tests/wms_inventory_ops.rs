@@ -6,7 +6,7 @@ use erp_repo::stock_transfers::{
     StockTransferCreateInput, StockTransferItemInput, StockTransfersRepo,
 };
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn try_pool() -> Option<PgPool> {

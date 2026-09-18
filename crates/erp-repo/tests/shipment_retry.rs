@@ -1,8 +1,8 @@
 use anyhow::Result;
-use erp_repo::shipments::{ShipmentsRepo, SHIPMENT_REQUESTED_EVENT};
+use erp_repo::shipments::{SHIPMENT_REQUESTED_EVENT, ShipmentsRepo};
 use erp_types::{ShopId, TenantId};
 use serde_json::Value;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

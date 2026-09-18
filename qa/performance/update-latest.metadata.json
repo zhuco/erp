@@ -1,0 +1,9 @@
+{
+  "native_sha256": "1858013032F24C9CE817A69E09E194590C50D2F41707A588AD5E0F67A3182551",
+  "report_sha256": "DC134ABE4A50475738B3E34D880ED7DA5FB7CB4C7113204E3090969552793933",
+  "platform": "Windows",
+  "scenario": "live-page-update-smoke",
+  "measured_process": 24512,
+  "full_perf05_verified": false,
+  "web_run_verified": false
+}

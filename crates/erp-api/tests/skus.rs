@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use chrono::Utc;
-use erp_api::{build_app, AppState, ChannelSkuMappingRepo, Claims, JwtService, SkuRepo};
+use erp_api::{AppState, ChannelSkuMappingRepo, Claims, JwtService, SkuRepo, build_app};
 use erp_repo::{
     channel_sku_mappings::{
         ChannelSkuMapping, ChannelSkuMappingListFilters, ChannelSkuMappingListResult,
@@ -22,6 +22,32 @@ struct SkusRepoStub;
 
 #[async_trait::async_trait]
 impl SkuRepo for SkusRepoStub {
+    async fn execute_grid_action(
+        &self, _tenant: erp_types::TenantId, _actor: erp_types::UserId,
+        _command: &erp_grid_core::actions::ActionCommand,
+    ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError> {
+        Err(erp_repo::product_actions::ActionError::Invalid("not implemented"))
+    }
+
+    async fn grid_action_receipt(
+        &self, _tenant: erp_types::TenantId, _actor: erp_types::UserId,
+        _operation: erp_grid_core::RowId,
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError> {
+        Ok(None)
+    }
+
+    async fn query_skus(
+        &self,
+        _tenant_id: erp_types::TenantId,
+        _product_id: uuid::Uuid,
+        _query: &erp_grid_core::paged_query::PageQuery,
+    ) -> anyhow::Result<erp_repo::sku_grid::SkuGridPage> {
+        Ok(erp_repo::sku_grid::SkuGridPage {
+            data: Vec::new(),
+            total: 0,
+        })
+    }
+
     async fn list_skus(
         &self,
         _tenant_id: erp_types::TenantId,

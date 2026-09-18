@@ -1,0 +1,79 @@
+{
+  "default": {
+    "codes": [
+      "QA-SF-024",
+      "QA-SF-014",
+      "QA-SF-013"
+    ],
+    "total": 24
+  },
+  "code_ascending": {
+    "codes": [
+      "QA-SF-001",
+      "QA-SF-011",
+      "QA-SF-012"
+    ],
+    "total": 24
+  },
+  "cost_min_2400": {
+    "page_counts": [
+      1,
+      2
+    ],
+    "total": 11
+  },
+  "parent_isolation": {
+    "parent": "a1400000-0000-4000-8000-000000000002",
+    "total": 0
+  },
+  "rejected": [
+    {
+      "ranges": [
+        {
+          "offset": 0,
+          "limit": 0
+        }
+      ],
+      "status": 400
+    },
+    {
+      "ranges": [
+        {
+          "offset": 0,
+          "limit": 1001
+        }
+      ],
+      "status": 400
+    },
+    {
+      "ranges": [
+        {
+          "offset": 0,
+          "limit": 1
+        },
+        {
+          "offset": 1,
+          "limit": 1
+        },
+        {
+          "offset": 2,
+          "limit": 1
+        }
+      ],
+      "status": 400
+    },
+    {
+      "ranges": [
+        {
+          "offset": 0,
+          "limit": 1000
+        },
+        {
+          "offset": 1000,
+          "limit": 1001
+        }
+      ],
+      "status": 400
+    }
+  ]
+}

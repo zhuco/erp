@@ -4,7 +4,7 @@ use erp_repo::after_sales::{
     RefundDocCreateInput, ReturnReceiptCreateInput,
 };
 use erp_types::{AfterSalesStatus, AfterSalesType, RefundChannel, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

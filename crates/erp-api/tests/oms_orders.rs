@@ -4,7 +4,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use chrono::{Datelike, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use sqlx::PgPool;
@@ -13,7 +13,6 @@ use tower::ServiceExt;
 mod support;
 
 fn build_state() -> (axum::Router, JwtService) {
-    std::env::set_var("IDEMPOTENCY_DISABLED", "true");
     let database_url = support::test_database_url();
     let db = Db::connect_lazy(&database_url).expect("lazy db should be constructible");
     let jwt = JwtService::new("test-secret".to_string());
@@ -2919,5 +2918,275 @@ async fn terminal_order_cannot_reopen_review_inner() -> Result<()> {
     .await?;
     assert_eq!(history_count, 0);
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn order_item_edit_requires_current_version_and_preserves_items_on_conflict() -> Result<()> {
+    let db = Db::connect(&support::test_database_url()).await?;
+    setup_schema(db.pool()).await?;
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+    sqlx::query(
+        "insert into tenants (tenant_id, name, status) values ($1, 'cas tenant', 'ACTIVE')",
+    )
+    .bind(tenant_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query("insert into shops (shop_id, tenant_id, platform, platform_shop_id) values ($1,$2,'taobao',$3)")
+        .bind(shop_id).bind(tenant_id).bind(format!("CAS-{shop_id}")).execute(db.pool()).await?;
+    sqlx::query("insert into order_index (tenant_id, order_id, order_month, platform, platform_order_id, shop_id, order_created_at) values ($1,$2,$3,'taobao',$4,$5,$6)")
+        .bind(tenant_id).bind(order_id).bind(order_month).bind(format!("CAS-{order_id}")).bind(shop_id).bind(now).execute(db.pool()).await?;
+    sqlx::query("insert into orders (tenant_id, order_month, order_id, platform, shop_id, platform_order_id, status, oms_status, order_status, fulfillment_status, exception_status, review_status, version, order_created_at) values ($1,$2,$3,'taobao',$4,$5,'PENDING_SHIPMENT','REVIEW_PENDING','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',3,$6)")
+        .bind(tenant_id).bind(order_month).bind(order_id).bind(shop_id).bind(format!("CAS-{order_id}")).bind(now).execute(db.pool()).await?;
+    sqlx::query("insert into order_items (tenant_id, order_month, order_id, line_id, title, qty, price_cent, amount_cent) values ($1,$2,$3,'original','Original',1,100,100)")
+        .bind(tenant_id).bind(order_month).bind(order_id).execute(db.pool()).await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let missing_version = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&serde_json::json!({
+            "items": [{"line_id":"replacement","title":"Replacement","qty":2,"price_cent":200}]
+        }))?))
+        .unwrap();
+    let response = app.clone().oneshot(missing_version).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let request = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&serde_json::json!({
+            "expected_version": 2,
+            "items": [{"line_id":"replacement","title":"Replacement","qty":2,"price_cent":200}]
+        }))?))
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+
+    let persisted: (i32, i64, String) = sqlx::query_as(
+        "select o.version, count(oi.line_id), min(oi.line_id) from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 group by o.version"
+    ).bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(persisted, (3, 1, "original".to_string()));
+
+    let current = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&serde_json::json!({
+            "expected_version": 3,
+            "items": [{"line_id":"replacement","title":"Replacement","qty":2,"price_cent":200}]
+        }))?))
+        .unwrap();
+    let response = app.clone().oneshot(current).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response_body = response.into_body().collect().await.unwrap().to_bytes();
+    let response_json: serde_json::Value = serde_json::from_slice(&response_body)?;
+    assert_eq!(response_json["order"]["version"].as_i64(), Some(4));
+    assert_eq!(
+        response_json["items"][0]["id"].as_str(),
+        Some("replacement")
+    );
+    let persisted: (i32, i64, String) = sqlx::query_as(
+        "select o.version, count(oi.line_id), min(oi.line_id) from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 group by o.version"
+    ).bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(persisted, (4, 1, "replacement".to_string()));
+
+    let concurrent_body = |line_id: &str| {
+        serde_json::to_vec(&serde_json::json!({
+            "expected_version": 4,
+            "items": [{"line_id": line_id, "title": line_id, "qty": 1, "price_cent": 300}]
+        }))
+    };
+    let request_a = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(concurrent_body("winner-a")?))
+        .unwrap();
+    let request_b = Request::builder()
+        .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+        .method("PUT")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(concurrent_body("winner-b")?))
+        .unwrap();
+    let (response_a, response_b) =
+        tokio::join!(app.clone().oneshot(request_a), app.oneshot(request_b));
+    let statuses = [response_a.unwrap().status(), response_b.unwrap().status()];
+    assert_eq!(
+        statuses
+            .iter()
+            .filter(|status| **status == StatusCode::OK)
+            .count(),
+        1
+    );
+    assert_eq!(
+        statuses
+            .iter()
+            .filter(|status| **status == StatusCode::CONFLICT)
+            .count(),
+        1
+    );
+    let persisted: (i32, i64, String) = sqlx::query_as(
+        "select o.version, count(oi.line_id), min(oi.line_id) from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 group by o.version"
+    ).bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(persisted.0, 5);
+    assert_eq!(persisted.1, 1);
+    assert!(matches!(persisted.2.as_str(), "winner-a" | "winner-b"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn order_item_partial_edits_preserve_platform_facts_and_are_atomic() -> Result<()> {
+    let db = Db::connect(&support::test_database_url()).await?;
+    setup_schema(db.pool()).await?;
+    let tenant_id = uuid::Uuid::new_v4();
+    let shop_id = uuid::Uuid::new_v4();
+    let order_id = uuid::Uuid::new_v4();
+    let item_id = uuid::Uuid::new_v5(&order_id, b"line-a");
+    let now = Utc::now();
+    let order_month = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+    sqlx::query(
+        "insert into tenants (tenant_id,name,status) values ($1,'item edit tenant','ACTIVE')",
+    )
+    .bind(tenant_id)
+    .execute(db.pool())
+    .await?;
+    sqlx::query("insert into shops (shop_id,tenant_id,platform,platform_shop_id) values ($1,$2,'taobao',$3)")
+        .bind(shop_id).bind(tenant_id).bind(format!("ITEM-{shop_id}")).execute(db.pool()).await?;
+    sqlx::query("insert into order_index (tenant_id,order_id,order_month,platform,platform_order_id,shop_id,order_created_at) values ($1,$2,$3,'taobao',$4,$5,$6)")
+        .bind(tenant_id).bind(order_id).bind(order_month).bind(format!("ITEM-{order_id}")).bind(shop_id).bind(now).execute(db.pool()).await?;
+    sqlx::query("insert into orders (tenant_id,order_month,order_id,platform,shop_id,platform_order_id,status,oms_status,order_status,fulfillment_status,exception_status,review_status,version,paid_amount_cent,discount_amount_cent,order_created_at) values ($1,$2,$3,'taobao',$4,$5,'PENDING_SHIPMENT','REVIEW_PENDING','PENDING_REVIEW','NOT_ALLOCATED','NONE','MANUAL_REVIEW',3,777,23,$6)")
+        .bind(tenant_id).bind(order_month).bind(order_id).bind(shop_id).bind(format!("ITEM-{order_id}")).bind(now).execute(db.pool()).await?;
+    sqlx::query("insert into order_items (tenant_id,order_month,order_id,line_id,sku_id,title,qty,price_cent,amount_cent,pay_amount_cent,discount_cent,refund_state,after_sale_state,refund_amount_cent,after_sale_type,after_sale_id,raw) values ($1,$2,$3,'line-a','OUTER-1','Original A',1,100,100,80,20,'PARTIAL','PROCESSING',5,'RETURN','AS-1',$4),($1,$2,$3,'line-b','OUTER-2','Original B',2,200,400,350,50,'NONE','NONE',null,null,null,$5)")
+        .bind(tenant_id).bind(order_month).bind(order_id)
+        .bind(serde_json::json!({"platform":"taobao","outer_sku":"OUTER-1"}))
+        .bind(serde_json::json!({"platform":"taobao","outer_sku":"OUTER-2"}))
+        .execute(db.pool()).await?;
+    sqlx::query("insert into order_item_components (tenant_id,order_id,order_item_id,bundle_sku_id,component_sku_id,component_qty,bom_version,bom_snapshot) values ($1,$2,$3,$4,$5,2,7,$6)")
+        .bind(tenant_id).bind(order_id).bind(item_id).bind(uuid::Uuid::new_v4())
+        .bind(uuid::Uuid::new_v4()).bind(serde_json::json!({"kept":true}))
+        .execute(db.pool()).await?;
+
+    let (app, jwt) = build_state();
+    let token = build_token(&jwt, &tenant_id.to_string(), vec!["orders.write"]);
+    let put = |body: serde_json::Value| {
+        Request::builder()
+            .uri(format!("/v1/tenants/{tenant_id}/orders/{order_id}"))
+            .method("PUT")
+            .header("authorization", format!("Bearer {token}"))
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap()
+    };
+    let response = app
+        .clone()
+        .oneshot(put(serde_json::json!({
+            "expected_version":3,
+            "item_edits":[{"line_id":"line-a","qty":3},{"line_id":"line-b","price_cent":250}]
+        })))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let rows: Vec<(String,i32,i64,i64,Option<i64>,Option<i64>,String,String,serde_json::Value)> =
+        sqlx::query_as("select line_id,qty,price_cent,amount_cent,pay_amount_cent,discount_cent,refund_state,after_sale_state,raw from order_items where tenant_id=$1 and order_id=$2 order by line_id")
+            .bind(tenant_id).bind(order_id).fetch_all(db.pool()).await?;
+    assert_eq!((rows[0].1, rows[0].2, rows[0].3), (3, 100, 300));
+    assert_eq!((rows[1].1, rows[1].2, rows[1].3), (2, 250, 500));
+    assert_eq!(
+        (
+            &rows[0].4,
+            &rows[0].5,
+            rows[0].6.as_str(),
+            rows[0].7.as_str()
+        ),
+        (&Some(80), &Some(20), "PARTIAL", "PROCESSING")
+    );
+    assert_eq!(rows[0].8["outer_sku"], "OUTER-1");
+    let preserved: (Option<String>,Option<String>,Option<i64>,Option<String>,Option<String>,serde_json::Value) =
+        sqlx::query_as("select sku_id,title,refund_amount_cent,after_sale_type,after_sale_id,raw from order_items where tenant_id=$1 and order_id=$2 and line_id='line-a'")
+            .bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(preserved.0.as_deref(), Some("OUTER-1"));
+    assert_eq!(preserved.1.as_deref(), Some("Original A"));
+    assert_eq!(preserved.2, Some(5));
+    assert_eq!(preserved.3.as_deref(), Some("RETURN"));
+    assert_eq!(preserved.4.as_deref(), Some("AS-1"));
+    assert_eq!(preserved.5["platform"], "taobao");
+    let component: (i64,i32,serde_json::Value) = sqlx::query_as("select component_qty,bom_version,bom_snapshot from order_item_components where tenant_id=$1 and order_id=$2 and order_item_id=$3")
+        .bind(tenant_id).bind(order_id).bind(item_id).fetch_one(db.pool()).await?;
+    assert_eq!(component, (6, 7, serde_json::json!({"kept":true})));
+
+    sqlx::query("update order_item_components set component_qty=5 where tenant_id=$1 and order_id=$2 and order_item_id=$3")
+        .bind(tenant_id).bind(order_id).bind(item_id).execute(db.pool()).await?;
+    let bad_ratio = app
+        .clone()
+        .oneshot(put(serde_json::json!({
+            "expected_version":4,"item_edits":[{"line_id":"line-a","qty":4}]
+        })))
+        .await
+        .unwrap();
+    assert_eq!(bad_ratio.status(), StatusCode::BAD_REQUEST);
+    let ratio_rollback: (i32,i32,i64,i64) = sqlx::query_as("select o.version,oi.qty,oi.amount_cent,c.component_qty from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id join order_item_components c on c.tenant_id=o.tenant_id and c.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 and oi.line_id='line-a'")
+        .bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(ratio_rollback, (4, 3, 300, 5));
+    let overflow = app.clone().oneshot(put(serde_json::json!({
+        "expected_version":4,
+        "item_edits":[{"line_id":"line-b","qty":2,"price_cent":9223372036854775807_i64}]
+    }))).await.unwrap();
+    assert_eq!(overflow.status(), StatusCode::BAD_REQUEST);
+
+    let oversized_components = i64::MAX - i64::MAX % 3;
+    sqlx::query("update order_item_components set component_qty=$4 where tenant_id=$1 and order_id=$2 and order_item_id=$3")
+        .bind(tenant_id).bind(order_id).bind(item_id).bind(oversized_components)
+        .execute(db.pool()).await?;
+    let component_overflow = app.clone().oneshot(put(serde_json::json!({
+        "expected_version":4,"item_edits":[{"line_id":"line-a","qty":4}]
+    }))).await.unwrap();
+    assert_eq!(component_overflow.status(), StatusCode::BAD_REQUEST);
+    let component_after: i64 = sqlx::query_scalar("select component_qty from order_item_components where tenant_id=$1 and order_id=$2 and order_item_id=$3")
+        .bind(tenant_id).bind(order_id).bind(item_id).fetch_one(db.pool()).await?;
+    assert_eq!(component_after, oversized_components);
+
+    for edits in [
+        serde_json::json!([]),
+        serde_json::json!([{"line_id":"line-b","qty":2},{"line_id":"line-b","price_cent":300}]),
+        serde_json::json!([{"line_id":"line-b","qty":0}]),
+        serde_json::json!([{"line_id":"line-b","price_cent":-1}]),
+        serde_json::json!([{"line_id":"line-b"}]),
+        serde_json::json!([{"line_id":" line-b ","qty":4}]),
+    ] {
+        let invalid = app.clone().oneshot(put(serde_json::json!({
+            "expected_version":4,"item_edits":edits
+        }))).await.unwrap();
+        assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    }
+
+    let stale = app
+        .clone()
+        .oneshot(put(
+            serde_json::json!({"expected_version":3,"item_edits":[{"line_id":"line-a","qty":4}]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
+    let invalid = app.clone().oneshot(put(serde_json::json!({"expected_version":4,"item_edits":[{"line_id":"line-a","qty":4},{"line_id":"missing","qty":2}]}))).await.unwrap();
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let mutual = app.oneshot(put(serde_json::json!({"expected_version":4,"items":[{"line_id":"new","qty":1,"price_cent":1}],"item_edits":[{"line_id":"line-a","qty":4}]}))).await.unwrap();
+    assert_eq!(mutual.status(), StatusCode::BAD_REQUEST);
+    let final_state: (i32,i32,i64,Option<i64>,Option<i64>) = sqlx::query_as("select o.version,oi.qty,oi.amount_cent,o.paid_amount_cent,o.discount_amount_cent from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 and oi.line_id='line-a'")
+        .bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
+    assert_eq!(final_state, (4, 3, 300, Some(777), Some(23)));
     Ok(())
 }

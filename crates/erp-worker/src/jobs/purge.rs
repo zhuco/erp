@@ -182,7 +182,7 @@ fn export_base_dir() -> PathBuf {
 mod tests {
     use super::*;
     use chrono::{Datelike, NaiveDate};
-    use sqlx::{postgres::PgPoolOptions, PgPool};
+    use sqlx::{PgPool, postgres::PgPoolOptions};
     use std::time::Duration as StdDuration;
 
     fn month_start(dt: chrono::DateTime<Utc>) -> NaiveDate {

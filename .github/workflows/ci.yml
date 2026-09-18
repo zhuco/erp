@@ -5,6 +5,80 @@ on:
   pull_request:
 
 jobs:
+  rust-grid-native-wasm:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Restore fixed grid build cache
+        uses: actions/cache@v4
+        with:
+          path: build/cargo
+          key: rust-grid-windows-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            rust-grid-windows-
+
+      - name: Check grid formatting
+        shell: pwsh
+        run: .\scripts\Invoke-ErpBuild.ps1 -Action fmt -Platform native -Scope grid
+
+      - name: Test native grid
+        shell: pwsh
+        run: .\scripts\Invoke-ErpBuild.ps1 -Action test -Platform native -Scope grid
+
+      - name: Lint native grid
+        shell: pwsh
+        run: .\scripts\Invoke-ErpBuild.ps1 -Action clippy -Platform native -Scope grid
+
+      - name: Lint WASM grid
+        shell: pwsh
+        run: .\scripts\Invoke-ErpBuild.ps1 -Action clippy -Platform web -Scope grid
+
+      - name: Check WASM grid
+        shell: pwsh
+        run: .\scripts\Invoke-ErpBuild.ps1 -Action check -Platform web -Scope grid
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install pinned WASM packager
+        shell: pwsh
+        run: |
+          $archive = 'qa/acceptance/tools/wasm-bindgen-0.2.128-x86_64-pc-windows-msvc.tar.gz'
+          New-Item -ItemType Directory -Force qa/acceptance/tools | Out-Null
+          Invoke-WebRequest 'https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.128/wasm-bindgen-0.2.128-x86_64-pc-windows-msvc.tar.gz' -OutFile $archive
+          if ((Get-FileHash $archive).Hash -ne '8FD8E2165DA16B21EE3F5EFD19E7F97D8D27CB7832F54EDAEF4B18E830283EC0') { throw 'WASM packager checksum mismatch' }
+          tar -xzf $archive -C qa/acceptance/tools
+          if ($LASTEXITCODE -ne 0) { throw 'WASM packager extraction failed' }
+
+      - name: Package release WASM
+        shell: pwsh
+        run: .\scripts\Build-ErpWeb.ps1 -Release
+
+      - name: Exercise rendered browser grid
+        run: node qa/acceptance/component-smoke.mjs
+
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grid-browser-component
+          path: output/playwright/component-smoke
+          if-no-files-found: ignore
+
   backend-release-gate:
     runs-on: ubuntu-latest
     services:
@@ -29,46 +103,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
 
       - name: Run backend release gate
         run: node scripts/release_gate_backend.mjs
 
-  frontend-gate:
+  repository-policy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          node-version: 22
+      - uses: pnpm/action-setup@v4
         with:
           version: 9.1.0
           run_install: false
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Verify repository baseline
-        run: pnpm run repo:verify
-
-      - name: Run frontend acceptance gate
-        run: pnpm run accept:web
-
-      - name: Install Playwright Chromium
-        run: pnpm --dir apps/erp-web exec playwright install --with-deps chromium
-
-      - name: Run ErpDataGrid analysis gate
-        run: pnpm run test:gate:grid-analysis
-
-      - name: Run ErpDataGrid analysis performance tier gate
-        run: pnpm run test:e2e:grid-performance-tier
-
-      - name: Run release e2e gate
-        run: pnpm --dir apps/erp-web test:e2e:release-gate
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run repo:verify

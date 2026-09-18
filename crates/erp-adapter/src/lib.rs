@@ -309,10 +309,10 @@ pub fn build_authorize_url_from_meta(
     let mut url = base.to_string();
     let mut params = Vec::new();
     params.push(format!("state={state}"));
-    if let Some(redirect_uri) = redirect_uri {
-        if !redirect_uri.trim().is_empty() {
-            params.push(format!("redirect_uri={redirect_uri}"));
-        }
+    if let Some(redirect_uri) = redirect_uri
+        && !redirect_uri.trim().is_empty()
+    {
+        params.push(format!("redirect_uri={redirect_uri}"));
     }
     let sep = if url.contains('?') { "&" } else { "?" };
     url.push_str(sep);

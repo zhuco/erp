@@ -1,10 +1,10 @@
 use axum::{
+    Json,
     body::Body,
     extract::State,
     http::{Method, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
-    Json,
 };
 use erp_repo::idempotency::{IdempotencyKey, IdempotencyKeyInsert, IdempotencyRepo};
 use erp_types::TenantId;
@@ -125,7 +125,15 @@ fn match_idempotency_tenant(path: &str) -> Option<TenantId> {
     match segments.as_slice() {
         ["v1", "tenants", _, "oms", "orders", _, "allocate"]
         | ["v1", "tenants", _, "oms", "orders", _, "submit-shipment"]
-        | ["v1", "tenants", _, "oms", "orders", "recheck-queue", "batch-review"]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "oms",
+            "orders",
+            "recheck-queue",
+            "batch-review",
+        ]
         | ["v1", "tenants", _, "oms", "orders", _, "shipments"]
         | ["v1", "tenants", _, "oms", "orders", _, "resend"]
         | ["v1", "tenants", _, "oms", "orders", _, "release"]
@@ -180,20 +188,101 @@ fn match_idempotency_tenant(path: &str) -> Option<TenantId> {
         | ["v1", "tenants", _, "wms", "outbounds", _, "pack"]
         | ["v1", "tenants", _, "wms", "outbounds", _, "ship"]
         | ["v1", "tenants", _, "wms", "outbounds", _, "verify", "start"]
-        | ["v1", "tenants", _, "wms", "outbounds", _, "verify", "scan-item"]
-        | ["v1", "tenants", _, "wms", "outbounds", _, "verify", "finish"]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "outbounds",
+            _,
+            "verify",
+            "scan-item",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "outbounds",
+            _,
+            "verify",
+            "finish",
+        ]
         | ["v1", "tenants", _, "wms", "waves"]
         | ["v1", "tenants", _, "wms", "pick-tasks", _, "confirm"]
         | ["v1", "tenants", _, "wms", "labor", "tasks", _, "assign"]
         | ["v1", "tenants", _, "wms", "labor", "tasks", _, "start"]
         | ["v1", "tenants", _, "wms", "labor", "tasks", _, "complete"]
-        | ["v1", "tenants", _, "wms", "slotting", "suggestions", _, "apply"]
-        | ["v1", "tenants", _, "wms", "slotting", "suggestions", _, "reject"]
-        | ["v1", "tenants", _, "wms", "replenishment", "tasks", _, "claim"]
-        | ["v1", "tenants", _, "wms", "replenishment", "tasks", _, "complete"]
-        | ["v1", "tenants", _, "wms", "dock", "appointments", _, "check-in"]
-        | ["v1", "tenants", _, "wms", "dock", "appointments", _, "start-loading"]
-        | ["v1", "tenants", _, "wms", "dock", "appointments", _, "depart"]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "slotting",
+            "suggestions",
+            _,
+            "apply",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "slotting",
+            "suggestions",
+            _,
+            "reject",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "replenishment",
+            "tasks",
+            _,
+            "claim",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "replenishment",
+            "tasks",
+            _,
+            "complete",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "dock",
+            "appointments",
+            _,
+            "check-in",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "dock",
+            "appointments",
+            _,
+            "start-loading",
+        ]
+        | [
+            "v1",
+            "tenants",
+            _,
+            "wms",
+            "dock",
+            "appointments",
+            _,
+            "depart",
+        ]
         | ["v1", "tenants", _, "purchase-orders"]
         | ["v1", "tenants", _, "purchase-orders", _, "send"]
         | ["v1", "tenants", _, "purchase-orders", _, "receive"]

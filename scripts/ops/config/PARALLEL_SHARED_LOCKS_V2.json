@@ -1,1 +1,22 @@
-{  "version": "v2",  "locked_patterns": [    "crates/erp-api/src/lib.rs",    "crates/erp-api/src/router.rs",    "crates/erp-api/src/app_state.rs",    "crates/erp-api/src/orders.rs",    "crates/erp-worker/src/main.rs",    "crates/erp-worker/src/event_router.rs",    "openapi/src/openapi.yaml",    "openapi/src/paths.yaml",    "openapi/src/components.yaml",    "openapi/erp_api_v1.yaml",    "scripts/openapi/lib/openapi_tools.mjs",    "scripts/verify_openapi_gate_v2.mjs",    "apps/erp-web/src/app/router.tsx",    "apps/erp-web/src/app/layout/menu.tsx",    "migrations/*.sql"  ]}
+{
+  "version": "v2-rust-ui",
+  "locked_patterns": [
+    "crates/erp-api/src/lib.rs",
+    "crates/erp-api/src/router.rs",
+    "crates/erp-api/src/app_state.rs",
+    "crates/erp-api/src/orders.rs",
+    "crates/erp-worker/src/main.rs",
+    "crates/erp-worker/src/event_router.rs",
+    "openapi/src/openapi.yaml",
+    "openapi/src/paths.yaml",
+    "openapi/src/components.yaml",
+    "openapi/erp_api_v1.yaml",
+    "scripts/openapi/lib/openapi_tools.mjs",
+    "scripts/verify_openapi_gate_v2.mjs",
+    "apps/erp-ui/src/lib.rs",
+    "apps/erp-ui/src/main.rs",
+    "crates/erp-ui-egui/src/lib.rs",
+    "crates/erp-grid-core/src/lib.rs",
+    "migrations/*.sql"
+  ]
+}

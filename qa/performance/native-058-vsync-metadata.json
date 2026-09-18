@@ -1,0 +1,337 @@
+{
+  "memory_samples": [
+    {
+      "elapsed_ms": 114.1622,
+      "working_set_bytes": 142811136,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 356.2921,
+      "working_set_bytes": 142811136,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 567.4504,
+      "working_set_bytes": 142811136,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 781.9745,
+      "working_set_bytes": 142815232,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 1000.7422,
+      "working_set_bytes": 142819328,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 1218.3908,
+      "working_set_bytes": 142823424,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 1422.0871,
+      "working_set_bytes": 142827520,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 1638.5656,
+      "working_set_bytes": 142827520,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 1843.1157,
+      "working_set_bytes": 142827520,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 2059.8941,
+      "working_set_bytes": 142827520,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 2278.2609,
+      "working_set_bytes": 142831616,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 2496.1973,
+      "working_set_bytes": 142835712,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 2712.3575,
+      "working_set_bytes": 142839808,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 2915.6584,
+      "working_set_bytes": 142843904,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 3134.9195,
+      "working_set_bytes": 142843904,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 3339.1522,
+      "working_set_bytes": 142843904,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 3555.9134,
+      "working_set_bytes": 142843904,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 3775.0844,
+      "working_set_bytes": 143110144,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 3993.6054,
+      "working_set_bytes": 143114240,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 4209.4901,
+      "working_set_bytes": 143118336,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 4428.0649,
+      "working_set_bytes": 143953920,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 4645.216,
+      "working_set_bytes": 143003648,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 4863.2194,
+      "working_set_bytes": 143253504,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 5082.4221,
+      "working_set_bytes": 143396864,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 5299.3592,
+      "working_set_bytes": 143396864,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 5518.3758,
+      "working_set_bytes": 143405056,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 5724.1626,
+      "working_set_bytes": 143409152,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 5943.3642,
+      "working_set_bytes": 143413248,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 6161.6196,
+      "working_set_bytes": 143413248,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 6395.7074,
+      "working_set_bytes": 143413248,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 6617.7582,
+      "working_set_bytes": 143413248,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 6833.783,
+      "working_set_bytes": 143413248,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 7051.8723,
+      "working_set_bytes": 143421440,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 7269.9739,
+      "working_set_bytes": 143421440,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 7486.6269,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 7701.6202,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 7904.2927,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 8122.9057,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 8325.4899,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 8529.3832,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 8748.2739,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 8965.2205,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 9168.2226,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 9371.7701,
+      "working_set_bytes": 143429632,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 9588.98,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 9792.7608,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 10010.8986,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 10214.5221,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 10430.7975,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 10647.8469,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 10863.5066,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 11080.7745,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 11301.3662,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 11516.719,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 11734.5757,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 11952.7152,
+      "working_set_bytes": 144187392,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 12171.6299,
+      "working_set_bytes": 144191488,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 12390.1523,
+      "working_set_bytes": 144179200,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 12606.6343,
+      "working_set_bytes": 144183296,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 12808.9939,
+      "working_set_bytes": 144183296,
+      "peak_working_set_bytes": 178311168
+    },
+    {
+      "elapsed_ms": 13026.7222,
+      "working_set_bytes": 135360512,
+      "peak_working_set_bytes": 178311168
+    }
+  ],
+  "gpu": [
+    {
+      "Name": "Todesk Virtual Display Adapter",
+      "DriverVersion": "16.44.2.509"
+    },
+    {
+      "Name": "NVIDIA GeForce GTX 1070 Ti",
+      "DriverVersion": "32.0.15.6094"
+    }
+  ],
+  "os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26200",
+    "BuildNumber": "26200",
+    "TotalVisibleMemorySize": 25093028
+  },
+  "cpu": [
+    {
+      "Name": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+      "NumberOfCores": 6,
+      "NumberOfLogicalProcessors": 12
+    }
+  ],
+  "cargo_lock_sha256": "A556FE07CE946705674DC31226E4A0317889488FBC2FD2F943748F199750ED0D",
+  "attached_after_launch": true,
+  "toolchain": "[toolchain]\nchannel = \"1.98.1\"\nprofile = \"minimal\"\ncomponents = [\"rustfmt\", \"clippy\"]\ntargets = [\"wasm32-unknown-unknown\"]\n",
+  "exe_sha256": "19A031F47841F62D2ECAC91B7924CC710B9E63DCCEA7E4ABA29E06931F3EC2F4",
+  "measured_at_utc": "2026-09-10T10:52:04.4199199Z"
+}

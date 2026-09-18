@@ -167,7 +167,7 @@ fn render_job(job: &PrintAgentJob) -> anyhow::Result<String> {
             return Err(anyhow::anyhow!(
                 "unsupported template format: {}",
                 job.content_format
-            ))
+            ));
         }
     };
     Ok(rendered)

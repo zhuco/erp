@@ -1221,7 +1221,7 @@ pub(crate) async fn ship_wms_outbound(
             {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             let mut count_map = std::collections::HashMap::new();

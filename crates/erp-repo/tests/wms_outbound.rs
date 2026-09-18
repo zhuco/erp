@@ -1,7 +1,7 @@
 use anyhow::Result;
 use erp_repo::wms::{OutboundDocCreateInput, OutboundDocItemInput, OutboundPackInput, WmsRepo};
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

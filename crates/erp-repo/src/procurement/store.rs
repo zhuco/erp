@@ -2214,7 +2214,7 @@ fn apply_suggestion_filters<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_total, PurchaseOrderItemInput};
+    use super::{PurchaseOrderItemInput, compute_total};
 
     #[test]
     fn compute_total_sums_items() {

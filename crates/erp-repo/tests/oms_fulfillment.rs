@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, Utc};
 use erp_repo::fulfillment::{FulfillmentRepo, SHIPMENT_STATUS_SHIPPED, SHIPMENT_TYPE_OMS};
 use erp_types::{OrderId, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

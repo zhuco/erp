@@ -1,0 +1,25 @@
+{
+  "exe_sha256": "6D642007D2225BC08B48A1C6DF0D8966848AE567B553BF63B0FA5034CA8B5C43",
+  "cpu": [
+    {
+      "Name": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+      "NumberOfLogicalProcessors": 12
+    }
+  ],
+  "gpu": [
+    {
+      "Name": "Todesk Virtual Display Adapter",
+      "DriverVersion": "16.44.2.509"
+    },
+    {
+      "Name": "NVIDIA GeForce GTX 1070 Ti",
+      "DriverVersion": "32.0.15.6094"
+    }
+  ],
+  "os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26200",
+    "BuildNumber": "26200"
+  },
+  "notes": "Initial failed run used restored 1920x1009 viewport; native-initial-1920.json retains raw samples."
+}

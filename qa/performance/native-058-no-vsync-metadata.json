@@ -1,0 +1,232 @@
+{
+  "toolchain": "[toolchain]\nchannel = \"1.98.1\"\nprofile = \"minimal\"\ncomponents = [\"rustfmt\", \"clippy\"]\ntargets = [\"wasm32-unknown-unknown\"]\n",
+  "cpu": [
+    {
+      "Name": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+      "NumberOfCores": 6,
+      "NumberOfLogicalProcessors": 12
+    }
+  ],
+  "attached_after_launch": true,
+  "os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26200",
+    "BuildNumber": "26200",
+    "TotalVisibleMemorySize": 25093028
+  },
+  "memory_samples": [
+    {
+      "elapsed_ms": 112.2773,
+      "working_set_bytes": 138063872,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 347.9893,
+      "working_set_bytes": 138067968,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 565.1488,
+      "working_set_bytes": 138067968,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 783.8537,
+      "working_set_bytes": 138072064,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 998.7889,
+      "working_set_bytes": 138072064,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 1217.2277,
+      "working_set_bytes": 138076160,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 1434.591,
+      "working_set_bytes": 138080256,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 1653.0622,
+      "working_set_bytes": 138080256,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 1868.7298,
+      "working_set_bytes": 138084352,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 2082.5346,
+      "working_set_bytes": 138084352,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 2300.6725,
+      "working_set_bytes": 138088448,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 2519.6794,
+      "working_set_bytes": 138092544,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 2734.8428,
+      "working_set_bytes": 138092544,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 2952.9353,
+      "working_set_bytes": 138096640,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 3168.5114,
+      "working_set_bytes": 138096640,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 3384.6991,
+      "working_set_bytes": 138100736,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 3600.7005,
+      "working_set_bytes": 138100736,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 3817.5434,
+      "working_set_bytes": 138100736,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 4034.893,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 4250.0255,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 4454.2842,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 4671.2867,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 4886.5094,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 5103.9712,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 5320.9605,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 5539.5069,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 5755.4157,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 5959.9266,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 6177.1964,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 6394.3715,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 6612.1706,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 6817.2395,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 7032.9327,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 7248.8271,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 7465.1679,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 7671.4044,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 7887.1716,
+      "working_set_bytes": 138362880,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 8102.4987,
+      "working_set_bytes": 138379264,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 8322.1314,
+      "working_set_bytes": 138366976,
+      "peak_working_set_bytes": 178495488
+    },
+    {
+      "elapsed_ms": 8539.2848,
+      "working_set_bytes": 138645504,
+      "peak_working_set_bytes": 178495488
+    }
+  ],
+  "gpu": [
+    {
+      "Name": "Todesk Virtual Display Adapter",
+      "DriverVersion": "16.44.2.509"
+    },
+    {
+      "Name": "NVIDIA GeForce GTX 1070 Ti",
+      "DriverVersion": "32.0.15.6094"
+    }
+  ],
+  "exe_sha256": "19A031F47841F62D2ECAC91B7924CC710B9E63DCCEA7E4ABA29E06931F3EC2F4",
+  "cargo_lock_sha256": "A556FE07CE946705674DC31226E4A0317889488FBC2FD2F943748F199750ED0D",
+  "measured_at_utc": "2026-09-10T10:53:12.4573033Z"
+}

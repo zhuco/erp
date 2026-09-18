@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{NaiveDate, Utc};
 use erp_repo::finance::ProfitSnapshotsRepo;
 use erp_types::{OrderId, ShopId, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

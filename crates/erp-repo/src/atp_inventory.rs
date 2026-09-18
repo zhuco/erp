@@ -186,7 +186,7 @@ impl<'a> AtpInventoryRepo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{allocate_fefo_batches, BatchCandidate};
+    use super::{BatchCandidate, allocate_fefo_batches};
 
     #[test]
     fn fefo_allocation_prioritizes_earlier_expiry() {

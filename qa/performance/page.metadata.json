@@ -1,0 +1,12 @@
+{
+  "native_sha256": "884A0C31EF84F5C78CDA7BED9864A17A0A881C1977D2593E467820530E9ECF57",
+  "wasm_sha256": "C1C92EB5971222E8C0EE2E7A50056A130AD87E5F2440F3D3269426ED9E8CD55E",
+  "web_p95_ms": 31.3,
+  "viewport": [
+    1280,
+    800
+  ],
+  "gpu_presentation": false,
+  "physical_input": false,
+  "native_p95_ms": 2.8932
+}

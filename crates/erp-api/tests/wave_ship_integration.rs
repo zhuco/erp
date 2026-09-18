@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
 use chrono::Utc;
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 use tower::ServiceExt;
@@ -809,9 +809,11 @@ async fn wave_ship_continue_on_error_reports_partial_failure() -> Result<()> {
         .and_then(Value::as_array)
         .context("response items missing")?;
     assert_eq!(items.len(), 2);
-    assert!(items
-        .iter()
-        .any(|item| item.get("status").and_then(Value::as_str) != Some("SHIPPED")));
+    assert!(
+        items
+            .iter()
+            .any(|item| item.get("status").and_then(Value::as_str) != Some("SHIPPED"))
+    );
 
     let (op_success, op_failed): (i64, i64) = sqlx::query_as(
         r#"

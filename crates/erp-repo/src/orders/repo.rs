@@ -157,7 +157,7 @@ impl<'a> OrdersRepo<'a> {
         tenant_id: TenantId,
         order_id: OrderId,
         input: OrderEditInput,
-    ) -> Result<Option<()>> {
+    ) -> Result<OrderEditOutcome> {
         self.store
             .update_order_edit(tenant_id, order_id, input)
             .await

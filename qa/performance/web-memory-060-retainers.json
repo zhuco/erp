@@ -1,0 +1,1240 @@
+{
+  "file": "qa/performance/web-memory-060.heapsnapshot",
+  "nodes": 71214,
+  "arrays": [
+    {
+      "id": 7895,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "73 -> object:Array"
+      ]
+    },
+    {
+      "id": 8087,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "179 -> object:Array"
+      ]
+    },
+    {
+      "id": 8281,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "359 -> object:Array"
+      ]
+    },
+    {
+      "id": 43951,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuCullMode -> object:Array"
+      ]
+    },
+    {
+      "id": 43971,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuAutoLayoutMode -> object:Array"
+      ]
+    },
+    {
+      "id": 43973,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuMipmapFilterMode -> object:Array"
+      ]
+    },
+    {
+      "id": 43977,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuBlendFactor -> object:Array"
+      ]
+    },
+    {
+      "id": 43979,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuTextureAspect -> object:Array"
+      ]
+    },
+    {
+      "id": 43981,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuTextureViewDimension -> object:Array"
+      ]
+    },
+    {
+      "id": 43983,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuStoreOp -> object:Array"
+      ]
+    },
+    {
+      "id": 43985,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuStencilOperation -> object:Array"
+      ]
+    },
+    {
+      "id": 43991,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuFrontFace -> object:Array"
+      ]
+    },
+    {
+      "id": 43997,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuPowerPreference -> object:Array"
+      ]
+    },
+    {
+      "id": 44003,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuSamplerBindingType -> object:Array"
+      ]
+    },
+    {
+      "id": 44013,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuStorageTextureAccess -> object:Array"
+      ]
+    },
+    {
+      "id": 44025,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuAddressMode -> object:Array"
+      ]
+    },
+    {
+      "id": 44029,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_ResizeObserverBoxOptions -> object:Array"
+      ]
+    },
+    {
+      "id": 44043,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuCanvasAlphaMode -> object:Array"
+      ]
+    },
+    {
+      "id": 44045,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuCanvasToneMappingMode -> object:Array"
+      ]
+    },
+    {
+      "id": 44047,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuVertexFormat -> object:Array"
+      ]
+    },
+    {
+      "id": 44049,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_RequestRedirect -> object:Array"
+      ]
+    },
+    {
+      "id": 44053,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuIndexFormat -> object:Array"
+      ]
+    },
+    {
+      "id": 44065,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuFilterMode -> object:Array"
+      ]
+    },
+    {
+      "id": 44069,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuCompareFunction -> object:Array"
+      ]
+    },
+    {
+      "id": 44071,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuTextureFormat -> object:Array"
+      ]
+    },
+    {
+      "id": 44073,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuVertexStepMode -> object:Array"
+      ]
+    },
+    {
+      "id": 44079,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuBlendOperation -> object:Array"
+      ]
+    },
+    {
+      "id": 44083,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuTextureSampleType -> object:Array"
+      ]
+    },
+    {
+      "id": 44089,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuTextureDimension -> object:Array"
+      ]
+    },
+    {
+      "id": 44093,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuBufferBindingType -> object:Array"
+      ]
+    },
+    {
+      "id": 44099,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuPrimitiveTopology -> object:Array"
+      ]
+    },
+    {
+      "id": 44105,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "1 / DevTools console -> object:UtilityScript",
+        "global -> native:Window / http://127.0.0.1:15440",
+        "5 -> native:HTMLDocument",
+        "35 -> native:ScriptedAnimationController",
+        "2 -> native:blink::HeapVectorBacking<cppgc::internal::BasicMember<blink::FrameCallback, cppgc::internal::StrongMemberTag, cppgc::internal::DijkstraWriteBarrierPolicy>>",
+        "1 -> native:V8FrameCallback",
+        "1 -> native:V8FrameRequestCallback",
+        "1 -> closure:real",
+        "context -> object:system / Context / scope @61465",
+        "previous -> object:system / Context / scope @43705",
+        "__wbindgen_enum_GpuLoadOp -> object:Array"
+      ]
+    },
+    {
+      "id": 126727,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "_lastAriaSnapshotForQuery -> object:Object",
+        "iframeRefs -> object:Array"
+      ]
+    },
+    {
+      "id": 126729,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "_lastAriaSnapshotForQuery -> object:Object",
+        "root -> object:Object",
+        "children -> object:Array"
+      ]
+    },
+    {
+      "id": 126937,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "_lastAriaSnapshotForQuery -> object:Object",
+        "info -> object:Map",
+        "table -> array:",
+        "6 -> object:Object",
+        "nameFromContentRefs -> object:Array"
+      ]
+    },
+    {
+      "id": 126939,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "_lastAriaSnapshotForQuery -> object:Object",
+        "info -> object:Map",
+        "table -> array:",
+        "9 -> object:Object",
+        "nameFromContentRefs -> object:Array"
+      ]
+    },
+    {
+      "id": 129149,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaDisabledRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129187,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "aiPlugins -> object:Array"
+      ]
+    },
+    {
+      "id": 129241,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaLevelRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129365,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaExpandedRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129377,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaReadonlyRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129383,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "validRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129395,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "normalizePlugins -> object:Array"
+      ]
+    },
+    {
+      "id": 129399,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kLayoutSelectorNames -> object:Array"
+      ]
+    },
+    {
+      "id": 129415,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kSupportedAttributes -> object:Array"
+      ]
+    },
+    {
+      "id": 129423,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaCheckedRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129509,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaInvalidRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129519,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaSelectedRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129569,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array"
+      ]
+    },
+    {
+      "id": 129647,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kAriaPressedRoles -> object:Array"
+      ]
+    },
+    {
+      "id": 129691,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "0 -> object:Array"
+      ]
+    },
+    {
+      "id": 129693,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "1 -> object:Array"
+      ]
+    },
+    {
+      "id": 129695,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "2 -> object:Array"
+      ]
+    },
+    {
+      "id": 129697,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "3 -> object:Array"
+      ]
+    },
+    {
+      "id": 129699,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "4 -> object:Array"
+      ]
+    },
+    {
+      "id": 129701,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "5 -> object:Array"
+      ]
+    },
+    {
+      "id": 129703,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "6 -> object:Array"
+      ]
+    },
+    {
+      "id": 129705,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "7 -> object:Array"
+      ]
+    },
+    {
+      "id": 129707,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "8 -> object:Array"
+      ]
+    },
+    {
+      "id": 129709,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "9 -> object:Array"
+      ]
+    },
+    {
+      "id": 129711,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "10 -> object:Array"
+      ]
+    },
+    {
+      "id": 129713,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "11 -> object:Array"
+      ]
+    },
+    {
+      "id": 129715,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "12 -> object:Array"
+      ]
+    },
+    {
+      "id": 129717,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "13 -> object:Array"
+      ]
+    },
+    {
+      "id": 129719,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "14 -> object:Array"
+      ]
+    },
+    {
+      "id": 129721,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "15 -> object:Array"
+      ]
+    },
+    {
+      "id": 129723,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "16 -> object:Array"
+      ]
+    },
+    {
+      "id": 129851,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "DD -> object:Array"
+      ]
+    },
+    {
+      "id": 129853,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "DIV -> object:Array"
+      ]
+    },
+    {
+      "id": 129855,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "DT -> object:Array"
+      ]
+    },
+    {
+      "id": 129857,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "LI -> object:Array"
+      ]
+    },
+    {
+      "id": 129859,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "TBODY -> object:Array"
+      ]
+    },
+    {
+      "id": 129861,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "TD -> object:Array"
+      ]
+    },
+    {
+      "id": 129863,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "TFOOT -> object:Array"
+      ]
+    },
+    {
+      "id": 129865,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "TH -> object:Array"
+      ]
+    },
+    {
+      "id": 129867,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "THEAD -> object:Array"
+      ]
+    },
+    {
+      "id": 129869,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kPresentationInheritanceParents -> object:Object",
+        "TR -> object:Array"
+      ]
+    },
+    {
+      "id": 129939,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "11 -> object:Array",
+        "1 -> object:Array"
+      ]
+    },
+    {
+      "id": 129943,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "12 -> object:Array",
+        "1 -> object:Array"
+      ]
+    },
+    {
+      "id": 129953,
+      "shallowBytes": 16,
+      "path": [
+        "1 -> synthetic:(GC roots)",
+        "10 -> synthetic:(Global handles)",
+        "114 / DevTools console -> object:InjectedScript",
+        "utils -> object:Object",
+        "asLocator -> closure:asLocator",
+        "context -> object:system / Context / scope @61831",
+        "kGlobalAriaAttributes -> object:Array",
+        "16 -> object:Array",
+        "1 -> object:Array"
+      ]
+    }
+  ]
+}

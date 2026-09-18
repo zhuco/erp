@@ -3,7 +3,7 @@ use erp_repo::inventory::{
     InventoryAdjustment, InventoryError, InventoryRepo, InventoryReservationInput,
 };
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Barrier;
 

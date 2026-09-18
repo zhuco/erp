@@ -1,0 +1,8 @@
+{
+  "native_input_verified": false,
+  "native_sha256": "3DA679C4FD69C87A7162E66DB548CA4FB059428032642C19F89F52B496466D80",
+  "api_sha256": "58702C7078CAA187D76C142600D488BF1E46CB6290002CB3CCE90DE77BFFDA7F",
+  "native_performance_evidence": "qa/performance/native-058-no-vsync.json",
+  "native_default": "AutoNoVsync",
+  "wasm_sha256": "2BB7D8680D59BE671283D7E2F5C47EA0D4D2C582B1ED8059009C3EA508881880"
+}

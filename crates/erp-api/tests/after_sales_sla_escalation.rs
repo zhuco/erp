@@ -1,11 +1,11 @@
 use anyhow::Result;
 use axum::{
+    Router,
     body::Body,
     http::{Method, Request, StatusCode},
-    Router,
 };
 use chrono::Utc;
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use sqlx::postgres::PgPoolOptions;
@@ -214,11 +214,13 @@ async fn after_sales_sla_escalation_marks_overdue_case() -> Result<()> {
         target.get("escalation_role").and_then(|v| v.as_str()),
         Some("SUPPORT_L2")
     );
-    assert!(target
-        .get("sla_remaining_minutes")
-        .and_then(|v| v.as_i64())
-        .map(|v| v < 0)
-        .unwrap_or(false));
+    assert!(
+        target
+            .get("sla_remaining_minutes")
+            .and_then(|v| v.as_i64())
+            .map(|v| v < 0)
+            .unwrap_or(false)
+    );
 
     Ok(())
 }

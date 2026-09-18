@@ -1,15 +1,15 @@
 use axum::{
-    body::{to_bytes, Body},
-    http::{header, Method, Request, StatusCode},
+    body::{Body, to_bytes},
+    http::{Method, Request, StatusCode, header},
     middleware::{self, Next},
     response::Response,
     routing::get,
 };
 use clap::Parser;
-use erp_api::{build_app, AppState, JwtService};
+use erp_api::{AppState, JwtService, build_app};
 use erp_common::{
     settings::Settings,
-    telemetry::{init_tracing, metrics, render_metrics, METRICS_CONTENT_TYPE},
+    telemetry::{METRICS_CONTENT_TYPE, init_tracing, metrics, render_metrics},
 };
 use erp_repo::db::Db;
 use secrecy::ExposeSecret;
@@ -19,13 +19,17 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
-struct Args {}
+struct Args {
+    /// Interface on which the API listens. Use loopback for local acceptance.
+    #[arg(long, default_value = "0.0.0.0")]
+    bind: std::net::IpAddr,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     init_tracing("erp-api");
-    let _args = Args::parse();
+    let args = Args::parse();
     let settings = Settings::load()?;
 
     let db = Db::connect(&settings.database_url).await?;
@@ -59,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors)
         .layer(middleware::from_fn(metrics_middleware));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], settings.http_port_api));
+    let addr = SocketAddr::new(args.bind, settings.http_port_api);
     info!(%addr, "erp-api listening");
     axum::serve(tokio::net::TcpListener::bind(addr).await?, app).await?;
     Ok(())

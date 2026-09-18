@@ -97,7 +97,7 @@ impl<'a> PermissionsRepo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_permission_items, PermissionDefinition};
+    use super::{PermissionDefinition, normalize_permission_items};
 
     #[test]
     fn normalize_permission_items_rejects_blank_code() {

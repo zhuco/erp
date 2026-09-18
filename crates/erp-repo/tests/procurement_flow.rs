@@ -2,12 +2,12 @@ use anyhow::Result;
 use chrono::Utc;
 use erp_repo::inventory::{InventoryDelta, InventoryService};
 use erp_repo::procurement::{
-    ApDocsRepo, PurchaseOrderCreate, PurchaseOrderItemInput, PurchaseOrderReceiveInput,
+    AP_SETTLEMENT_STATUS_SETTLED, AP_STATUS_CLOSED, AP_STATUS_PAID, ApDocsRepo,
+    PurchaseOrderCreate, PurchaseOrderItemInput, PurchaseOrderReceiveInput,
     PurchaseOrderReceiveItem, PurchaseOrdersRepo, PurchaseReturnCreate, PurchaseReturnsRepo,
-    AP_SETTLEMENT_STATUS_SETTLED, AP_STATUS_CLOSED, AP_STATUS_PAID,
 };
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

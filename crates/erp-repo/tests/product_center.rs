@@ -5,7 +5,7 @@ use erp_repo::sku_batches::{SkuBatchCreate, SkuBatchListFilters, SkuBatchUpdate,
 use erp_repo::sku_serials::{SkuSerialGenerateInput, SkuSerialListFilters, SkuSerialsRepo};
 use erp_types::TenantId;
 use serde_json::json;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

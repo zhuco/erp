@@ -1,0 +1,10 @@
+{
+  "wasm_sha256": "C93B0533F594C180E89BF81DE115B6451842D93CFC7CDC344D7282F28FAF966A",
+  "report_sha256": "1A5DB1FFCB313E36B5E4CDD7738D50C56B2C5D4A44FD173363216BB5AD2DA47D",
+  "viewport": [
+    1280,
+    800
+  ],
+  "browser": "Microsoft Edge via Playwright",
+  "full_perf05_verified": false
+}

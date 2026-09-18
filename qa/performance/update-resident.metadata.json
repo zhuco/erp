@@ -1,0 +1,14 @@
+{
+  "native_peak_sampled_working_set": 131813376.0,
+  "gpu_presentation": false,
+  "viewport": [
+    1280,
+    800
+  ],
+  "native_sha256": "9859CE3A2B94A90D06A91D40875A2FD494987165CAB4DCE4B6E1DA516190BD83",
+  "network": false,
+  "native_p95_ms": 0.9600000000000364,
+  "wasm_sha256": "79EE697538F41D70A4C1BC98ABD6249300EC4B33253026D43245B06820897DFE",
+  "native_peak_sampled_private_bytes": 436092928.0,
+  "web_p95_ms": 17
+}

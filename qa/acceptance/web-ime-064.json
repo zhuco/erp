@@ -1,0 +1,57 @@
+{
+  "viewport": [
+    1280,
+    800
+  ],
+  "method": "Edge CDP Input.imeSetComposition and Input.insertText",
+  "cases": {
+    "web-ime-cancel-064": {
+      "during": 0,
+      "queries": [
+        {
+          "schema": 1,
+          "offset": 0,
+          "limit": 100,
+          "filters": {},
+          "sorts": [],
+          "search": "QA-FILL",
+          "expression": null
+        }
+      ]
+    },
+    "web-ime-filter-064": {
+      "during": 0,
+      "queries": [
+        {
+          "schema": 1,
+          "offset": 0,
+          "limit": 100,
+          "filters": {
+            "1": {
+              "Text": "中文商品"
+            }
+          },
+          "sorts": [],
+          "search": null,
+          "expression": null
+        }
+      ]
+    },
+    "web-ime-064": {
+      "during": 0,
+      "queries": [
+        {
+          "schema": 1,
+          "offset": 0,
+          "limit": 100,
+          "filters": {},
+          "sorts": [],
+          "search": "中文商品",
+          "expression": null
+        }
+      ]
+    }
+  },
+  "physical_ime": false,
+  "wasm_sha256": "79EE697538F41D70A4C1BC98ABD6249300EC4B33253026D43245B06820897DFE"
+}

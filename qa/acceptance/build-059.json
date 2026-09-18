@@ -1,0 +1,11 @@
+{
+  "native_sha256": "B245BAFC28CEB1F1C1ADFED07482FE459F0997ACAF8FE9D2E9696BB5122C7FB4",
+  "wasm_sha256": "6B99930CA0C9480BDD3A9F38B4B72C7D0E955B78D9AC079ADC4F7E713AFDC4EF",
+  "api_sha256": "58702C7078CAA187D76C142600D488BF1E46CB6290002CB3CCE90DE77BFFDA7F",
+  "native_input_verified": false,
+  "browser_preview_verified": true,
+  "browser_data": "local Lab fixture only; restored with Undo",
+  "native_release_seconds": 46.83,
+  "web_release_seconds": 29.86,
+  "component_goal_complete": false
+}

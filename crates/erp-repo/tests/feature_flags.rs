@@ -1,7 +1,7 @@
 use anyhow::Result;
 use erp_repo::feature_flags::{FeatureFlag, FeatureFlagsRepo};
 use erp_types::{ShopId, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::str::FromStr;
 use std::time::Duration;
 

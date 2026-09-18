@@ -247,6 +247,31 @@ pub(super) async fn list_orders(
         },
         None => None,
     };
+    let total_amount_min_cent = match query
+        .total_amount_min_cent
+        .as_deref()
+        .and_then(non_empty)
+    {
+        Some(raw) => match parse_i64(raw.as_str(), "total_amount_min_cent") {
+            Ok(value) => Some(value),
+            Err(resp) => return resp.into_response(),
+        },
+        None => None,
+    };
+    let total_amount_max_cent = match query
+        .total_amount_max_cent
+        .as_deref()
+        .and_then(non_empty)
+    {
+        Some(raw) => match parse_i64(raw.as_str(), "total_amount_max_cent") {
+            Ok(value) => Some(value),
+            Err(resp) => return resp.into_response(),
+        },
+        None => None,
+    };
+    if let Err(message) = validate_total_amount_range(total_amount_min_cent, total_amount_max_cent) {
+        return bad_request(message).into_response();
+    }
     let goods_qty = match query.goods_qty.as_deref().and_then(non_empty) {
         Some(raw) => match parse_i64(raw.as_str(), "goods_qty") {
             Ok(value) => Some(value),
@@ -311,6 +336,8 @@ pub(super) async fn list_orders(
         platform_order_id,
         item_keyword,
         total_amount_cent,
+        total_amount_min_cent,
+        total_amount_max_cent,
         goods_qty,
         customer_account,
         receiver_name,
@@ -331,6 +358,30 @@ pub(super) async fn list_orders(
     match orders_repo.list_orders(tenant_id, filters).await {
         Ok(result) => (StatusCode::OK, Json(result)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    }
+}
+
+fn validate_total_amount_range(min: Option<i64>, max: Option<i64>) -> Result<(), &'static str> {
+    if min.is_some_and(|value| value < 0) || max.is_some_and(|value| value < 0) {
+        return Err("total amount range must be non-negative");
+    }
+    if min.zip(max).is_some_and(|(min, max)| min > max) {
+        return Err("total amount minimum exceeds maximum");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod amount_range_tests {
+    use super::validate_total_amount_range;
+
+    #[test]
+    fn amount_range_accepts_open_and_equal_bounds_and_rejects_invalid_ranges() {
+        assert_eq!(validate_total_amount_range(None, None), Ok(()));
+        assert_eq!(validate_total_amount_range(Some(0), None), Ok(()));
+        assert_eq!(validate_total_amount_range(Some(500), Some(500)), Ok(()));
+        assert!(validate_total_amount_range(Some(-1), None).is_err());
+        assert!(validate_total_amount_range(Some(501), Some(500)).is_err());
     }
 }
 
@@ -661,6 +712,10 @@ pub(super) async fn edit_order(
 
     let item_inputs = match req.items {
         Some(items) => {
+            if req.expected_version.is_none() {
+                return bad_request("expected_version required when items are provided")
+                    .into_response();
+            }
             if items.is_empty() {
                 return bad_request("items required").into_response();
             }
@@ -678,6 +733,48 @@ pub(super) async fn edit_order(
                     title: item.title.and_then(non_empty),
                     qty: item.qty,
                     price_cent: item.price_cent,
+                });
+            }
+            Some(mapped)
+        }
+        None => None,
+    };
+    if item_inputs.is_some() && req.item_edits.is_some() {
+        return bad_request("items and item_edits are mutually exclusive").into_response();
+    }
+    let item_edits = match req.item_edits {
+        Some(edits) => {
+            if req.expected_version.is_none() {
+                return bad_request("expected_version required when item_edits are provided")
+                    .into_response();
+            }
+            if edits.is_empty() {
+                return bad_request("item_edits required").into_response();
+            }
+            let mut line_ids = std::collections::BTreeSet::new();
+            let mut mapped = Vec::with_capacity(edits.len());
+            for edit in edits {
+                let line_id = edit.line_id;
+                if line_id.trim().is_empty() {
+                    return bad_request("item_edit line_id required").into_response();
+                }
+                if !line_ids.insert(line_id.clone()) {
+                    return bad_request("duplicate item_edit line_id").into_response();
+                }
+                if edit.qty.is_none() && edit.price_cent.is_none() {
+                    return bad_request("item_edit qty or price_cent required").into_response();
+                }
+                if edit.qty.is_some_and(|qty| qty <= 0) {
+                    return bad_request("item_edit qty must be positive").into_response();
+                }
+                if edit.price_cent.is_some_and(|price| price < 0) {
+                    return bad_request("item_edit price_cent must be non-negative")
+                        .into_response();
+                }
+                mapped.push(erp_repo::orders::OrderItemEditInput {
+                    line_id,
+                    qty: edit.qty,
+                    price_cent: edit.price_cent,
                 });
             }
             Some(mapped)
@@ -708,7 +805,8 @@ pub(super) async fn edit_order(
         || cancel_reason.is_some()
         || exception_reason.is_some()
         || extra_remark.is_some()
-        || item_inputs.as_ref().is_some_and(|items| !items.is_empty());
+        || item_inputs.as_ref().is_some_and(|items| !items.is_empty())
+        || item_edits.as_ref().is_some_and(|items| !items.is_empty());
     let has_logistics_change = logistics_company.is_some()
         || tracking_no.is_some()
         || ship_warehouse_id.is_some()
@@ -724,6 +822,16 @@ pub(super) async fn edit_order(
     }
 
     let log_items = item_inputs.clone();
+    let log_item_edits_json = item_edits.as_ref().map(|edits| {
+        edits
+            .iter()
+            .map(|edit| serde_json::json!({
+                "line_id": edit.line_id,
+                "qty": edit.qty,
+                "price_cent": edit.price_cent,
+            }))
+            .collect::<Vec<_>>()
+    });
     let log_items_json = log_items.as_ref().map(|items| {
         items
             .iter()
@@ -739,6 +847,7 @@ pub(super) async fn edit_order(
             .collect::<Vec<_>>()
     });
     let edit_input = OrderEditInput {
+        expected_version: req.expected_version,
         receiver_name: receiver_name.clone(),
         receiver_phone: receiver_phone.clone(),
         receiver_tel: receiver_tel.clone(),
@@ -769,6 +878,7 @@ pub(super) async fn edit_order(
         exception_reason: exception_reason.clone(),
         extra_remark: extra_remark.clone(),
         items: item_inputs,
+        item_edits,
     };
 
     let updated = match orders_repo
@@ -779,8 +889,21 @@ pub(super) async fn edit_order(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
-    if updated.is_none() {
-        return not_found("order not found").into_response();
+    match updated {
+        erp_repo::orders::OrderEditOutcome::Updated => {}
+        erp_repo::orders::OrderEditOutcome::NotFound => {
+            return not_found("order not found").into_response();
+        }
+        erp_repo::orders::OrderEditOutcome::MissingExpectedVersion => {
+            return bad_request("expected_version required when items are provided")
+                .into_response();
+        }
+        erp_repo::orders::OrderEditOutcome::VersionConflict => {
+            return conflict("order version conflict").into_response();
+        }
+        erp_repo::orders::OrderEditOutcome::InvalidItemEdits => {
+            return bad_request("invalid item_edits").into_response();
+        }
     }
 
     let detail = match orders_repo.get_order_detail(tenant_id, order_id).await {
@@ -875,6 +998,9 @@ pub(super) async fn edit_order(
                 "exception_reason": exception_reason,
                 "extra_remark": extra_remark,
                 "items": log_items_json,
+                "item_edits": log_item_edits_json,
+                "expected_version": req.expected_version,
+                "readback_version": detail.order.version,
             })),
             ip: None,
             ua: None,
@@ -898,6 +1024,9 @@ pub(super) async fn edit_order(
                 "tracking_no": tracking_no,
                 "shipment_no": shipment_no,
                 "items": log_items_json,
+                "item_edits": log_item_edits_json,
+                "expected_version": req.expected_version,
+                "readback_version": detail.order.version,
             })),
         })
         .await;

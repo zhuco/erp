@@ -928,11 +928,7 @@ impl<'a> OrdersStore<'a> {
                         .chars()
                         .rev()
                         .collect();
-                    if last4.is_empty() {
-                        None
-                    } else {
-                        Some(last4)
-                    }
+                    if last4.is_empty() { None } else { Some(last4) }
                 });
                 Ok(OmsOrderSummary {
                     id: OrderId(row.order_id),
@@ -1429,23 +1425,32 @@ impl<'a> OrdersStore<'a> {
         tenant_id: TenantId,
         order_id: OrderId,
         input: OrderEditInput,
-    ) -> anyhow::Result<Option<()>> {
+    ) -> anyhow::Result<OrderEditOutcome> {
+        if (input.items.is_some() || input.item_edits.is_some()) && input.expected_version.is_none()
+        {
+            return Ok(OrderEditOutcome::MissingExpectedVersion);
+        }
+        if input.items.is_some() && input.item_edits.is_some() {
+            return Ok(OrderEditOutcome::InvalidItemEdits);
+        }
         #[derive(sqlx::FromRow)]
         struct Row {
             order_month: NaiveDate,
+            version: i32,
         }
 
         let mut tx: Transaction<'_, Postgres> = self.pool.begin().await?;
 
         let row: Option<Row> = sqlx::query_as(
             r#"
-            select o.order_month
+            select o.order_month, o.version
             from orders o
             join order_index i
               on i.tenant_id = o.tenant_id
              and i.order_id = o.order_id
              and i.order_month = o.order_month
             where i.tenant_id = $1 and i.order_id = $2
+            for update of o
             "#,
         )
         .bind(uuid::Uuid::from(tenant_id))
@@ -1454,8 +1459,98 @@ impl<'a> OrdersStore<'a> {
         .await?;
 
         let Some(row) = row else {
-            return Ok(None);
+            return Ok(OrderEditOutcome::NotFound);
         };
+        if input
+            .expected_version
+            .is_some_and(|expected| expected != row.version)
+        {
+            return Ok(OrderEditOutcome::VersionConflict);
+        }
+
+        let mut planned_item_edits = Vec::new();
+        let mut planned_component_edits = Vec::new();
+        if let Some(edits) = &input.item_edits {
+            if edits.is_empty() {
+                return Ok(OrderEditOutcome::InvalidItemEdits);
+            }
+            let mut requested = std::collections::BTreeMap::new();
+            for edit in edits {
+                if non_empty_trimmed(Some(edit.line_id.as_str())).is_none()
+                    || (edit.qty.is_none() && edit.price_cent.is_none())
+                    || edit.qty.is_some_and(|qty| qty <= 0)
+                    || edit.price_cent.is_some_and(|price| price < 0)
+                    || requested.insert(edit.line_id.clone(), edit).is_some()
+                {
+                    return Ok(OrderEditOutcome::InvalidItemEdits);
+                }
+            }
+            #[derive(sqlx::FromRow)]
+            struct ItemRow {
+                line_id: String,
+                qty: i32,
+                price_cent: i64,
+            }
+            let line_ids: Vec<_> = requested.keys().cloned().collect();
+            let existing: Vec<ItemRow> = sqlx::query_as(
+                r#"
+                select line_id, qty, price_cent
+                from order_items
+                where tenant_id = $1 and order_month = $2 and order_id = $3
+                  and line_id = any($4)
+                for update
+                "#,
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(row.order_month)
+            .bind(uuid::Uuid::from(order_id))
+            .bind(&line_ids)
+            .fetch_all(&mut *tx)
+            .await?;
+            if existing.len() != requested.len() {
+                return Ok(OrderEditOutcome::InvalidItemEdits);
+            }
+            for item in existing {
+                let edit = requested[&item.line_id];
+                let qty = edit.qty.unwrap_or(item.qty);
+                let price_cent = edit.price_cent.unwrap_or(item.price_cent);
+                if qty <= 0 || price_cent < 0 {
+                    return Ok(OrderEditOutcome::InvalidItemEdits);
+                }
+                let Some(amount_cent) = price_cent.checked_mul(i64::from(qty)) else {
+                    return Ok(OrderEditOutcome::InvalidItemEdits);
+                };
+                if qty != item.qty {
+                    if item.qty <= 0 {
+                        return Ok(OrderEditOutcome::InvalidItemEdits);
+                    }
+                    let order_item_id = order_item_uuid(uuid::Uuid::from(order_id), &item.line_id);
+                    let components: Vec<(uuid::Uuid, i64)> = sqlx::query_as(
+                        "select component_sku_id, component_qty from order_item_components where tenant_id = $1 and order_id = $2 and order_item_id = $3 for update",
+                    )
+                    .bind(uuid::Uuid::from(tenant_id))
+                    .bind(uuid::Uuid::from(order_id))
+                    .bind(order_item_id)
+                    .fetch_all(&mut *tx)
+                    .await?;
+                    for (component_sku_id, component_qty) in components {
+                        if component_qty < 0 || component_qty % i64::from(item.qty) != 0 {
+                            return Ok(OrderEditOutcome::InvalidItemEdits);
+                        }
+                        let per_item = component_qty / i64::from(item.qty);
+                        let Some(new_component_qty) = per_item.checked_mul(i64::from(qty)) else {
+                            return Ok(OrderEditOutcome::InvalidItemEdits);
+                        };
+                        planned_component_edits.push((
+                            order_item_id,
+                            component_sku_id,
+                            new_component_qty,
+                        ));
+                    }
+                }
+                planned_item_edits.push((item.line_id, qty, price_cent, amount_cent));
+            }
+        }
 
         let updated: Option<uuid::Uuid> = sqlx::query_scalar(
             r#"
@@ -1497,6 +1592,7 @@ impl<'a> OrdersStore<'a> {
               and o.order_month = i.order_month
               and i.tenant_id = $1
               and i.order_id = $2
+              and ($32::int is null or o.version = $32)
             returning o.order_id
             "#,
         )
@@ -1531,11 +1627,12 @@ impl<'a> OrdersStore<'a> {
         .bind(input.cancel_reason)
         .bind(input.exception_reason)
         .bind(input.extra_remark)
+        .bind(input.expected_version)
         .fetch_optional(&mut *tx)
         .await?;
 
         if updated.is_none() {
-            return Ok(None);
+            return Ok(OrderEditOutcome::VersionConflict);
         }
 
         if let Some(items) = input.items {
@@ -1592,9 +1689,45 @@ impl<'a> OrdersStore<'a> {
                     .await?;
             }
         }
+        for (line_id, qty, price_cent, amount_cent) in planned_item_edits {
+            let updated = sqlx::query(
+                r#"
+                update order_items
+                set qty = $5, price_cent = $6, amount_cent = $7, updated_at = now()
+                where tenant_id = $1 and order_month = $2 and order_id = $3 and line_id = $4
+                "#,
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(row.order_month)
+            .bind(uuid::Uuid::from(order_id))
+            .bind(line_id)
+            .bind(qty)
+            .bind(price_cent)
+            .bind(amount_cent)
+            .execute(&mut *tx)
+            .await?;
+            if updated.rows_affected() != 1 {
+                return Ok(OrderEditOutcome::InvalidItemEdits);
+            }
+        }
+        for (order_item_id, component_sku_id, component_qty) in planned_component_edits {
+            let updated = sqlx::query(
+                "update order_item_components set component_qty = $5 where tenant_id = $1 and order_id = $2 and order_item_id = $3 and component_sku_id = $4",
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(uuid::Uuid::from(order_id))
+            .bind(order_item_id)
+            .bind(component_sku_id)
+            .bind(component_qty)
+            .execute(&mut *tx)
+            .await?;
+            if updated.rows_affected() != 1 {
+                return Ok(OrderEditOutcome::InvalidItemEdits);
+            }
+        }
 
         tx.commit().await?;
-        Ok(Some(()))
+        Ok(OrderEditOutcome::Updated)
     }
 
     pub async fn update_order_amounts(
@@ -2868,6 +3001,14 @@ fn apply_order_filters(
         qb.push(" and o.total_amount_cent = ");
         qb.push_bind(total_amount_cent);
     }
+    if let Some(total_amount_min_cent) = filters.total_amount_min_cent {
+        qb.push(" and o.total_amount_cent >= ");
+        qb.push_bind(total_amount_min_cent);
+    }
+    if let Some(total_amount_max_cent) = filters.total_amount_max_cent {
+        qb.push(" and o.total_amount_cent <= ");
+        qb.push_bind(total_amount_max_cent);
+    }
     if let Some(goods_qty) = filters.goods_qty {
         qb.push(" and (select coalesce(sum(oi.qty), 0) from order_items oi");
         qb.push(" where oi.tenant_id = o.tenant_id and oi.order_id = o.order_id");
@@ -2994,6 +3135,26 @@ fn apply_order_filters(
             qb.push_bind(pattern);
             qb.push(")");
         }
+    }
+}
+
+#[cfg(test)]
+mod order_filter_tests {
+    use super::*;
+
+    #[test]
+    fn total_amount_range_uses_inclusive_sql_predicates() {
+        let filters = OmsOrderListFilters {
+            total_amount_min_cent: Some(500),
+            total_amount_max_cent: Some(1_500),
+            ..Default::default()
+        };
+        let mut query = QueryBuilder::<Postgres>::new("select o.order_id from orders o");
+        apply_order_filters(&mut query, TenantId(uuid::Uuid::from_u128(1)), &filters);
+        let sql = query.sql();
+        assert!(sql.contains("o.total_amount_cent >="));
+        assert!(sql.contains("o.total_amount_cent <="));
+        assert!(sql.find("o.total_amount_cent >=").unwrap() < sql.find("o.total_amount_cent <=").unwrap());
     }
 }
 

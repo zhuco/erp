@@ -76,7 +76,7 @@ pub(crate) async fn import_statements(
                 {
                     Ok(v) => v,
                     Err(e) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                     }
                 };
                 let _ = audit_repo
@@ -116,7 +116,7 @@ pub(crate) async fn import_statements(
                 let inserted = match repo.insert_lines(tenant_id, &lines).await {
                     Ok(v) => v,
                     Err(e) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                     }
                 };
                 let _ = audit_repo
@@ -170,7 +170,7 @@ pub(crate) async fn import_statements(
                 {
                     Ok(v) => v,
                     Err(e) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                     }
                 };
                 let _ = audit_repo
@@ -263,7 +263,7 @@ pub(crate) async fn import_statements(
             {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             let _ = audit_repo
@@ -311,7 +311,7 @@ pub(crate) async fn import_statements(
             let inserted = match repo.insert_lines(tenant_id, &lines).await {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             let _ = audit_repo
@@ -374,7 +374,7 @@ pub(crate) async fn import_statements(
             {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             let _ = audit_repo
@@ -2245,7 +2245,7 @@ pub(crate) async fn resolve_print_mapping(
                 Ok(Some(_)) => {}
                 Ok(None) => return Err(bad_request("print device not found").into_response()),
                 Err(e) => {
-                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
                 }
             }
         } else {
@@ -2253,7 +2253,7 @@ pub(crate) async fn resolve_print_mapping(
                 Ok(Some(device)) => device_fingerprint = Some(device.fingerprint),
                 Ok(None) => {}
                 Err(e) => {
-                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
                 }
             }
         }

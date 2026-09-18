@@ -4,7 +4,7 @@ use erp_repo::print_jobs::{PrintJobCreate, PrintJobListFilters, PrintJobUpdate, 
 use erp_repo::print_templates::{PrintTemplateCreate, PrintTemplatesRepo};
 use erp_types::{TenantId, UserId};
 use serde_json::json;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

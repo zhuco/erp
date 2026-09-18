@@ -1,10 +1,10 @@
 use axum::{
+    Json, Router,
     body::Bytes,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use clap::Parser;
@@ -17,7 +17,7 @@ use erp_repo::{
     shops::ShopsRepo, tenants::TenantsRepo, webhook_nonces::WebhookNoncesRepo,
 };
 use erp_types::{Platform, ShopId, TenantId};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use tower_http::trace::TraceLayer;
@@ -319,7 +319,7 @@ async fn webhook_ingest(
         {
             Ok(v) => v,
             Err(err) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response()
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
             }
         };
         if !inserted {
@@ -434,7 +434,7 @@ mod webhook_tests {
     use axum::body::Body;
     use axum::http::Request;
     use http_body_util::BodyExt;
-    use sqlx::{postgres::PgPoolOptions, PgPool};
+    use sqlx::{PgPool, postgres::PgPoolOptions};
     use std::time::Duration;
     use tower::ServiceExt;
 

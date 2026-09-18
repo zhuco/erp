@@ -571,7 +571,7 @@ pub(super) async fn list_order_exceptions(
     {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
 
@@ -601,7 +601,7 @@ pub(super) async fn list_order_exceptions(
             (match build_order_exception_summary_response(&state, tenant_id, order_id).await {
                 Ok(value) => value,
                 Err(error) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
                 }
             })
         else {
@@ -680,7 +680,7 @@ pub(super) async fn get_order_exception_detail(
         (match build_order_exception_summary_response(&state, tenant_id, order_id).await {
             Ok(value) => value,
             Err(error) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
             }
         })
     else {
@@ -1405,7 +1405,7 @@ pub(super) async fn apply_order_exception_action(
             Ok(Some(v)) => v,
             Ok(None) => return Err(conflict("exception update conflict").into_response()),
             Err(e) => {
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
             }
         }
     };

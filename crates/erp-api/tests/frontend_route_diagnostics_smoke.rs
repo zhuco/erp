@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -98,13 +98,17 @@ async fn frontend_route_diagnostics_get_returns_summary_shape() -> anyhow::Resul
             assert!(payload["summary"].get("measuredFirstLoads").is_some());
             assert!(payload["summary"].get("successfulFirstLoads").is_some());
             assert!(payload["summary"].get("firstLoadAvgDurationMs").is_some());
-            assert!(payload["summary"]
-                .get("prefetchShortCircuitCount")
-                .is_some());
-            assert!(payload
-                .get("paths")
-                .and_then(|value| value.as_array())
-                .is_some());
+            assert!(
+                payload["summary"]
+                    .get("prefetchShortCircuitCount")
+                    .is_some()
+            );
+            assert!(
+                payload
+                    .get("paths")
+                    .and_then(|value| value.as_array())
+                    .is_some()
+            );
             assert!(
                 payload["paths"]
                     .as_array()
@@ -113,10 +117,12 @@ async fn frontend_route_diagnostics_get_returns_summary_shape() -> anyhow::Resul
                     .is_some()
                     || payload["paths"].as_array().is_some()
             );
-            assert!(payload
-                .get("events")
-                .and_then(|value| value.as_array())
-                .is_some());
+            assert!(
+                payload
+                    .get("events")
+                    .and_then(|value| value.as_array())
+                    .is_some()
+            );
         }
         StatusCode::INTERNAL_SERVER_ERROR => {
             let error = String::from_utf8(body.to_vec())?;

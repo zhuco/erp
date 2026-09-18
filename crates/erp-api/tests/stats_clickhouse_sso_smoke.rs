@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -128,23 +128,31 @@ async fn stats_health_returns_clickhouse_and_sso_snapshot() -> anyhow::Result<()
     let body = response.into_body().collect().await?.to_bytes();
     let payload: serde_json::Value = serde_json::from_slice(&body)?;
 
-    assert!(payload
-        .get("analytics_backend")
-        .and_then(|v| v.as_str())
-        .is_some());
-    assert!(payload
-        .get("clickhouse_ready")
-        .and_then(|v| v.as_bool())
-        .is_some());
-    assert!(payload
-        .get("clickhouse_endpoint")
-        .map(|value| value.is_string() || value.is_null())
-        .unwrap_or(false));
+    assert!(
+        payload
+            .get("analytics_backend")
+            .and_then(|v| v.as_str())
+            .is_some()
+    );
+    assert!(
+        payload
+            .get("clickhouse_ready")
+            .and_then(|v| v.as_bool())
+            .is_some()
+    );
+    assert!(
+        payload
+            .get("clickhouse_endpoint")
+            .map(|value| value.is_string() || value.is_null())
+            .unwrap_or(false)
+    );
     assert!(payload.get("sso_ready").and_then(|v| v.as_bool()).is_some());
-    assert!(payload
-        .get("sso_issuer")
-        .map(|value| value.is_string() || value.is_null())
-        .unwrap_or(false));
+    assert!(
+        payload
+            .get("sso_issuer")
+            .map(|value| value.is_string() || value.is_null())
+            .unwrap_or(false)
+    );
     assert!(payload.get("checked_at").and_then(|v| v.as_str()).is_some());
 
     Ok(())

@@ -4,7 +4,7 @@ use axum::{
     response::Response,
 };
 use chrono::{Datelike, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use serde_json::Value;
@@ -231,10 +231,12 @@ async fn shop_auth_flow_smoke_inner() -> anyhow::Result<()> {
         .get("token_status")
         .and_then(Value::as_object)
         .expect("token_status should exist");
-    assert!(token_status
-        .get("has_access_token")
-        .and_then(Value::as_bool)
-        .unwrap_or(false));
+    assert!(
+        token_status
+            .get("has_access_token")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    );
 
     let response: Response = app
         .oneshot(

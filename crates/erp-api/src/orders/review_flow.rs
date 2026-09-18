@@ -987,7 +987,7 @@ pub(super) async fn rollback_order_to_review(
                 Ok(Some(_)) => released_waybills += 1,
                 Ok(None) => {}
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
         }

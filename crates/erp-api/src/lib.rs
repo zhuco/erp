@@ -1,16 +1,16 @@
 use argon2::{PasswordHasher, PasswordVerifier};
 use async_trait::async_trait;
 use axum::{
+    Json, Router,
     body::{Body, Bytes},
     extract::{Extension, Multipart, Path, Query, State},
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     middleware,
     response::{IntoResponse, Response},
     routing::{delete, get, patch, post, put},
-    Json, Router,
 };
-use base64::{engine::general_purpose, Engine as _};
-use calamine::{open_workbook_auto, Data, Reader};
+use base64::{Engine as _, engine::general_purpose};
+use calamine::{Data, Reader, open_workbook_auto};
 use chrono::{DateTime, Duration, NaiveDate, NaiveTime, Utc};
 use csv::ReaderBuilder;
 use erp_adapter::{PlatformAdapter, SyncCursor};
@@ -18,24 +18,24 @@ use erp_common::{
     feature_flags::{self, FeatureFlagKey, FeatureScope},
     sales_settings::{self, SalesShopConfig},
     telemetry::metrics,
-    trace::{generate_trace_id, REQUEST_ID_HEADER, TRACE_ID_HEADER},
+    trace::{REQUEST_ID_HEADER, TRACE_ID_HEADER, generate_trace_id},
 };
 use erp_domain::{
+    DLQ_REPLAY_REQUESTED_EVENT, DeadLetterReplayPayload, OrderProjection, OrderUpsertedPayload,
+    PROFIT_COMPUTE_REQUESTED_EVENT, ProfitComputeRequestedPayload, RefundRequestedPayload,
+    ShipmentRequestedPayload, ShipmentShippedPayload, TokenRefreshRequestedPayload,
     oms::{
-        apply_review_decision, derive_exception_status, derive_order_status,
-        ensure_order_review_reopen_allowed, evaluate_conditions, OrderReviewCondition,
-        OrderReviewContext, ReviewAction, ReviewMode,
+        OrderReviewCondition, OrderReviewContext, ReviewAction, ReviewMode, apply_review_decision,
+        derive_exception_status, derive_order_status, ensure_order_review_reopen_allowed,
+        evaluate_conditions,
     },
-    DeadLetterReplayPayload, OrderProjection, OrderUpsertedPayload, ProfitComputeRequestedPayload,
-    RefundRequestedPayload, ShipmentRequestedPayload, ShipmentShippedPayload,
-    TokenRefreshRequestedPayload, DLQ_REPLAY_REQUESTED_EVENT, PROFIT_COMPUTE_REQUESTED_EVENT,
 };
 use erp_repo::{
     after_sale_cases::AfterSaleCaseRepo,
     after_sales::{
         AfterSalesCreateInput, AfterSalesItemCreate, AfterSalesListFilters, AfterSalesRepo,
-        AfterSalesShipmentCreate, ExchangeDocCreateInput, RefundDocCreateInput,
-        RefundDocListFilters, ReturnReceiptCreateInput, REFUND_REQUESTED_EVENT,
+        AfterSalesShipmentCreate, ExchangeDocCreateInput, REFUND_REQUESTED_EVENT,
+        RefundDocCreateInput, RefundDocListFilters, ReturnReceiptCreateInput,
     },
     after_sales_import_jobs::{
         AfterSalesImportJobCreate, AfterSalesImportJobListFilters, AfterSalesImportJobsRepo,
@@ -84,22 +84,22 @@ use erp_repo::{
     },
     feature_flags::{FeatureFlag, FeatureFlagsRepo},
     finance::{
-        InvoiceCreate, InvoiceListFilters, InvoicesRepo, PaymentReconcileItemCreate,
-        PaymentReconcileItemListFilters, PaymentReconcileJobCreate, PaymentReconcileJobListFilters,
-        PaymentReconcileJobUpdate, PaymentReconcileJobsRepo, PaymentStatementCreate,
-        PaymentStatementLineInput, PaymentStatementsRepo, PlatformStatementCreate,
-        PlatformStatementLineInput, PlatformStatementsRepo, ProfitSnapshotListFilters,
-        ProfitSnapshotUpsert, ProfitSnapshotsRepo, ReconcileJobCreate, ReconcileJobItemCreate,
-        ReconcileJobItemListFilters, ReconcileJobListFilters, ReconcileJobUpdate,
-        ReconcileJobsRepo, ShippingStatementLineInput, ShippingStatementsRepo,
-        WriteoffRecordListFilters, WriteoffRecordsRepo, PAYMENT_STATEMENT_STATUS_FAILED,
+        InvoiceCreate, InvoiceListFilters, InvoicesRepo, PAYMENT_STATEMENT_STATUS_FAILED,
         PAYMENT_STATEMENT_STATUS_IMPORTED, PAYMENT_STATEMENT_STATUS_RECONCILED,
         PAYMENT_STATEMENT_STATUS_RECONCILING, PLATFORM_STATEMENT_STATUS_IMPORTED,
         PLATFORM_STATEMENT_STATUS_RECONCILED, PLATFORM_STATEMENT_STATUS_RECONCILING,
+        PaymentReconcileItemCreate, PaymentReconcileItemListFilters, PaymentReconcileJobCreate,
+        PaymentReconcileJobListFilters, PaymentReconcileJobUpdate, PaymentReconcileJobsRepo,
+        PaymentStatementCreate, PaymentStatementLineInput, PaymentStatementsRepo,
+        PlatformStatementCreate, PlatformStatementLineInput, PlatformStatementsRepo,
+        ProfitSnapshotListFilters, ProfitSnapshotUpsert, ProfitSnapshotsRepo,
         RECONCILE_JOB_STATUS_DONE, RECONCILE_JOB_STATUS_FAILED, RECONCILE_JOB_STATUS_RUNNING,
         RECONCILE_JOB_TYPE_PLATFORM, RECONCILE_JOB_TYPE_SHIPPING, RECONCILE_REASON_AMOUNT_MISMATCH,
         RECONCILE_REASON_ORDER_MISSING, RECONCILE_REASON_SHIPMENT_MISSING,
         RECONCILE_REASON_SHIPPING_MISMATCH, RECONCILE_REF_TYPE_ORDER, RECONCILE_REF_TYPE_SHIPMENT,
+        ReconcileJobCreate, ReconcileJobItemCreate, ReconcileJobItemListFilters,
+        ReconcileJobListFilters, ReconcileJobUpdate, ReconcileJobsRepo, ShippingStatementLineInput,
+        ShippingStatementsRepo, WriteoffRecordListFilters, WriteoffRecordsRepo,
     },
     frontend_route_diagnostics::{
         FrontendRouteDiagnosticEvent as RepoFrontendRouteDiagnosticEvent,
@@ -118,10 +118,10 @@ use erp_repo::{
         InboundRejectsRepo,
     },
     inbounds::{
-        InboundDocCreate, InboundDocDetail, InboundDocItemCreate, InboundDocListFilters,
-        InboundDocSummary, InboundInspectInput, InboundInspectItem, InboundInspection,
-        InboundPutawayInput, InboundPutawayItem, InboundReceiveInput, InboundReceiveItem,
-        InboundsRepo, INBOUND_STATUS_DRAFT,
+        INBOUND_STATUS_DRAFT, InboundDocCreate, InboundDocDetail, InboundDocItemCreate,
+        InboundDocListFilters, InboundDocSummary, InboundInspectInput, InboundInspectItem,
+        InboundInspection, InboundPutawayInput, InboundPutawayItem, InboundReceiveInput,
+        InboundReceiveItem, InboundsRepo,
     },
     inventory::{
         InventoryAdjustment, InventoryBalance, InventoryCostListFilters, InventoryCostRecord,
@@ -188,7 +188,6 @@ use erp_repo::{
         MappingRuleCreate, MappingRuleListFilters, MappingRuleUpdate, MappingRulesRepo,
     },
     operation_logs::{
-        OperationLogCreate, OperationLogCursor, OperationLogListFilters, OperationLogsRepo,
         OP_ACTION_AP_DOC_CLOSED, OP_ACTION_AP_DOC_PAID, OP_ACTION_INVENTORY_ADJUSTED,
         OP_ACTION_INVENTORY_FREEZE, OP_ACTION_INVENTORY_INBOUND, OP_ACTION_INVENTORY_OUTBOUND,
         OP_ACTION_INVENTORY_RELEASED, OP_ACTION_INVENTORY_RESERVED, OP_ACTION_INVENTORY_SYNC_RETRY,
@@ -214,7 +213,8 @@ use erp_repo::{
         OP_ACTION_WMS_OUTBOUND_CREATED, OP_ACTION_WMS_OUTBOUND_INSPECTED,
         OP_ACTION_WMS_OUTBOUND_LOGISTICS_UPDATED, OP_ACTION_WMS_OUTBOUND_SHIPPED,
         OP_ACTION_WMS_OUTBOUND_WEIGHED, OP_ACTION_WMS_SHIPMENT_CANCEL_REQUESTED,
-        OP_ACTION_WMS_TRACKING_RESERVED,
+        OP_ACTION_WMS_TRACKING_RESERVED, OperationLogCreate, OperationLogCursor,
+        OperationLogListFilters, OperationLogsRepo,
     },
     order_action_logs::{OrderActionLogCreate, OrderActionLogsRepo},
     order_review_rules::{
@@ -342,9 +342,9 @@ use erp_repo::{
         ShipmentPushAttemptCursor, ShipmentPushAttemptListFilters, ShipmentPushAttemptsRepo,
     },
     shipments::{
-        ShipmentCreateInput, ShipmentListFilters, ShipmentPackageUpsertInput, ShipmentsRepo,
         SHIPMENT_CONFIRMED_EVENT, SHIPMENT_REQUESTED_EVENT, SHIPMENT_SHIPPED_EVENT,
-        SHIPMENT_TYPE_PLATFORM,
+        SHIPMENT_TYPE_PLATFORM, ShipmentCreateInput, ShipmentListFilters,
+        ShipmentPackageUpsertInput, ShipmentsRepo,
     },
     shop_carrier_accounts::{
         ShopCarrierAccount, ShopCarrierAccountCreate, ShopCarrierAccountListFilters,
@@ -440,8 +440,8 @@ use erp_repo::{
         WarehousesRepo,
     },
     waybills::{
-        Waybill, WaybillListFilters, WaybillsRepo, WAYBILL_STATUS_AVAILABLE,
-        WAYBILL_STATUS_CANCELLED, WAYBILL_STATUS_RESERVED, WAYBILL_STATUS_USED,
+        WAYBILL_STATUS_AVAILABLE, WAYBILL_STATUS_CANCELLED, WAYBILL_STATUS_RESERVED,
+        WAYBILL_STATUS_USED, Waybill, WaybillListFilters, WaybillsRepo,
     },
     wms::{
         OutboundDoc, OutboundDocCreateInput, OutboundDocDetail, OutboundDocItemInput,
@@ -504,7 +504,9 @@ mod permission_normalization_helpers;
 mod planning;
 mod procurement_handlers;
 mod procurement_views;
+mod product_copy_batch_handlers;
 mod product_handlers;
+mod product_selection_handlers;
 mod rbac_role_handlers;
 mod rbac_user_handlers;
 mod repo_ports;
@@ -518,7 +520,9 @@ mod shop_product_download_helpers;
 mod shop_runtime_helpers;
 mod shop_sync_handlers;
 mod shop_views;
+mod sku_action_handlers;
 mod sku_auto_match_helpers;
+mod sku_grid_handlers;
 mod sku_handlers;
 mod sku_import_file_helpers;
 mod sku_import_lookup_helpers;
@@ -529,6 +533,7 @@ mod system_catalog_handlers;
 mod system_observability_handlers;
 mod system_settings_handlers;
 mod warehouse_master_handlers;
+mod warehouse_tree_handlers;
 mod wms_config_helpers;
 mod wms_inbound_views;
 mod wms_normalizers;
@@ -557,7 +562,9 @@ pub(crate) use permission_catalog_helpers::*;
 pub(crate) use permission_normalization_helpers::*;
 pub(crate) use procurement_handlers::*;
 pub(crate) use procurement_views::*;
+pub(crate) use product_copy_batch_handlers::*;
 pub(crate) use product_handlers::*;
+pub(crate) use product_selection_handlers::*;
 pub(crate) use rbac_role_handlers::*;
 pub(crate) use rbac_user_handlers::*;
 pub use repo_ports::*;
@@ -570,7 +577,9 @@ pub(crate) use shop_product_download_helpers::*;
 pub(crate) use shop_runtime_helpers::*;
 pub(crate) use shop_sync_handlers::*;
 pub(crate) use shop_views::*;
+pub(crate) use sku_action_handlers::*;
 pub(crate) use sku_auto_match_helpers::*;
+pub(crate) use sku_grid_handlers::*;
 pub(crate) use sku_handlers::*;
 pub(crate) use sku_import_file_helpers::*;
 pub(crate) use sku_import_lookup_helpers::*;
@@ -581,6 +590,7 @@ pub(crate) use system_catalog_handlers::*;
 pub(crate) use system_observability_handlers::*;
 pub(crate) use system_settings_handlers::*;
 pub(crate) use warehouse_master_handlers::*;
+pub(crate) use warehouse_tree_handlers::*;
 pub(crate) use wms_config_helpers::*;
 pub(crate) use wms_inbound_views::*;
 pub(crate) use wms_normalizers::*;
@@ -6669,6 +6679,8 @@ struct OmsOrderListQuery {
     platform_order_id: Option<String>,
     item_keyword: Option<String>,
     total_amount_cent: Option<String>,
+    total_amount_min_cent: Option<String>,
+    total_amount_max_cent: Option<String>,
     goods_qty: Option<String>,
     customer_account: Option<String>,
     receiver_name: Option<String>,
@@ -6762,7 +6774,15 @@ struct OrderEditItemRequest {
 }
 
 #[derive(Debug, Deserialize)]
+struct OrderItemEditRequest {
+    line_id: String,
+    qty: Option<i32>,
+    price_cent: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
 struct OrderEditRequest {
+    expected_version: Option<i32>,
     receiver_name: Option<String>,
     receiver_phone: Option<String>,
     receiver_tel: Option<String>,
@@ -6793,6 +6813,7 @@ struct OrderEditRequest {
     exception_reason: Option<String>,
     extra_remark: Option<String>,
     items: Option<Vec<OrderEditItemRequest>>,
+    item_edits: Option<Vec<OrderItemEditRequest>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -8665,7 +8686,7 @@ async fn get_user_shortcuts(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to load user shortcuts: {e}"),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -8706,7 +8727,7 @@ async fn update_user_shortcuts(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to update user shortcuts: {e}"),
             )
-                .into_response()
+                .into_response();
         }
     };
 

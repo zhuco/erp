@@ -5,7 +5,7 @@ use erp_repo::after_sale_cases::AfterSaleCaseRepo;
 use erp_repo::inventory::InventoryRepo;
 use erp_repo::orders::OrdersRepo;
 use erp_types::{AfterSaleState, OrderStatus, Platform, RefundState, ShopId, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

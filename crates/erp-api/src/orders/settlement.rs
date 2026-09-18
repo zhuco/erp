@@ -1031,13 +1031,13 @@ pub(super) async fn list_order_settlements(
     let rule = match load_order_settlement_rule(&state, tenant_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let rows = match list_order_settlement_rows(&state, tenant_id, &filters).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let accessible_rows = rows
@@ -1076,7 +1076,7 @@ pub(super) async fn list_order_settlements(
         {
             Ok(value) => value,
             Err(error) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
             }
         };
         items.push(build_order_settlement_summary_response(&row, &rule, &logs));
@@ -1116,7 +1116,7 @@ pub(super) async fn get_order_settlement_detail(
     let Some(row) = (match load_order_settlement_row(&state, tenant_id, order_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     }) else {
         return not_found("order settlement not found").into_response();
@@ -1127,7 +1127,7 @@ pub(super) async fn get_order_settlement_detail(
     let rule = match load_order_settlement_rule(&state, tenant_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     match build_order_settlement_detail_response(&state, tenant_id, order_id, &rule).await {
@@ -1461,13 +1461,13 @@ pub(super) async fn list_order_reconciliations(
     let rule = match load_order_settlement_rule(&state, tenant_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let rows = match list_order_settlement_rows(&state, tenant_id, &filters).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let mut grouped: HashMap<(String, uuid::Uuid), Vec<OrderSettlementRow>> = HashMap::new();
@@ -1520,7 +1520,7 @@ pub(super) async fn list_order_reconciliations(
             {
                 Ok(value) => value,
                 Err(error) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
                 }
             };
         let batch = build_order_reconciliation_batch(&group_rows, &rule, &input, persisted);
@@ -1598,7 +1598,7 @@ pub(super) async fn get_order_reconciliation_detail(
     let rule = match load_order_settlement_rule(&state, tenant_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let rows = match list_order_settlement_rows(
@@ -1629,7 +1629,7 @@ pub(super) async fn get_order_reconciliation_detail(
     {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     if rows.is_empty() {
@@ -1639,7 +1639,7 @@ pub(super) async fn get_order_reconciliation_detail(
         match load_order_reconciliation_persisted_row(&state, tenant_id, &batch.batch_id).await {
             Ok(value) => value,
             Err(error) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
             }
         };
     let batch = build_order_reconciliation_batch(&rows, &rule, &batch, persisted);
@@ -1716,7 +1716,7 @@ pub(super) async fn settle_order_reconciliation(
     {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     if rows.is_empty() {
@@ -1769,14 +1769,14 @@ pub(super) async fn settle_order_reconciliation(
     let rule = match load_order_settlement_rule(&state, tenant_id).await {
         Ok(value) => value,
         Err(error) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
         }
     };
     let persisted =
         match load_order_reconciliation_persisted_row(&state, tenant_id, &batch.batch_id).await {
             Ok(value) => value,
             Err(error) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
             }
         };
     let batch = build_order_reconciliation_batch(&rows, &rule, &batch, persisted);

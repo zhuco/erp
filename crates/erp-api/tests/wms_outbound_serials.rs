@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use chrono::{Duration, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use erp_repo::sku_serials::{ShipmentSerialBindInput, SkuSerialsRepo};
 use erp_types::TenantId;
@@ -394,11 +394,12 @@ async fn wms_outbound_ship_requires_serials_inner() -> anyhow::Result<()> {
     let body_bytes = response.into_body().collect().await?.to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body_bytes)?;
     assert_eq!(json.get("code").and_then(|v| v.as_str()), Some("conflict"));
-    assert!(json
-        .get("message")
-        .and_then(|v| v.as_str())
-        .unwrap_or_default()
-        .contains("serial"));
+    assert!(
+        json.get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .contains("serial")
+    );
 
     Ok(())
 }

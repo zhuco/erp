@@ -4,6 +4,390 @@ securitySchemes:
     scheme: bearer
     bearerFormat: JWT
 schemas:
+  SkuGridQuery:
+    type: object
+    additionalProperties: false
+    required: [schema, offset, limit]
+    properties:
+      schema: { type: integer, enum: [1] }
+      offset: { type: integer, format: int64, minimum: 0 }
+      limit: { type: integer, minimum: 1, maximum: 500 }
+      search: { type: string, nullable: true, description: Literal case-insensitive substring in code/name/barcode/tags; maximum 4096 UTF-8 bytes without NUL }
+      filters:
+        type: object
+        maxProperties: 9
+        description: Columns 0 code, 1 barcode, 2 name, 3 kind, 4 cost in cents, 5 active, 6 status, 7 created UTC, 8 updated UTC. Text/Enum for 0-3 and 6; Money for 4; Enum true/false for 5; DateTime for 7-8. Conditions combine with AND.
+        additionalProperties: { $ref: '#/components/schemas/SkuGridFilter' }
+      sorts:
+        type: array
+        maxItems: 8
+        description: Unique column priorities followed by stable sku_id descending tie breaker. Empty order defaults to created_at descending; NULL/empty last.
+        items:
+          type: object
+          required: [column, descending]
+          properties:
+            column: { type: integer, minimum: 0, maximum: 8 }
+            descending: { type: boolean }
+      expression:
+        allOf:
+          - $ref: '#/components/schemas/SkuGridExpression'
+        nullable: true
+        description: Nested AND/OR, maximum 64 nodes and 8 levels; combined with quick filters and global search by AND.
+  SkuGridFilter:
+    oneOf:
+      - $ref: '#/components/schemas/ProductGridFilter'
+      - type: object
+        required: [Money]
+        additionalProperties: false
+        properties:
+          Money:
+            type: object
+            properties:
+              min: { type: integer, format: int64, nullable: true, description: Inclusive cost in cents }
+              max: { type: integer, format: int64, nullable: true, description: Inclusive cost in cents }
+  SkuGridExpression:
+    oneOf:
+      - type: object
+        required: [Condition]
+        additionalProperties: false
+        properties:
+          Condition:
+            type: object
+            additionalProperties: false
+            required: [column, filter]
+            properties:
+              column: { type: integer, minimum: 0, maximum: 8 }
+              filter: { $ref: '#/components/schemas/SkuGridFilter' }
+      - type: object
+        required: [And]
+        additionalProperties: false
+        properties:
+          And:
+            type: array
+            minItems: 1
+            maxItems: 63
+            items: { $ref: '#/components/schemas/SkuGridExpression' }
+      - type: object
+        required: [Or]
+        additionalProperties: false
+        properties:
+          Or:
+            type: array
+            minItems: 1
+            maxItems: 63
+            items: { $ref: '#/components/schemas/SkuGridExpression' }
+  SkuGridPage:
+    type: object
+    required: [data, total]
+    properties:
+      total: { type: integer, format: int64, minimum: 0 }
+      data:
+        type: array
+        maxItems: 500
+        items: { $ref: '#/components/schemas/SkuGridRow' }
+  SkuGridRow:
+    type: object
+    required: [sku_id, tenant_id, product_id, sku_code, sku_kind, is_active, status, created_at, updated_at]
+    properties:
+      sku_id: { type: string, format: uuid }
+      tenant_id: { type: string, format: uuid }
+      product_id: { type: string, format: uuid }
+      sku_code: { type: string }
+      barcode: { type: string, nullable: true }
+      name: { type: string, nullable: true }
+      sku_kind: { type: string }
+      cost_cent: { type: integer, format: int64, nullable: true }
+      is_active: { type: boolean }
+      status: { type: string }
+      created_at: { type: string, format: date-time }
+      updated_at: { type: string, format: date-time }
+  SkuGridRangesRequest:
+    type: object
+    additionalProperties: false
+    required: [query, ranges]
+    properties:
+      query: { $ref: '#/components/schemas/SkuGridQuery' }
+      ranges:
+        type: array
+        minItems: 1
+        maxItems: 2
+        description: Overlap is allowed; combined limits must not exceed 2000 rows.
+        items:
+          type: object
+          additionalProperties: false
+          required: [offset, limit]
+          properties:
+            offset: { type: integer, format: int64, minimum: 0, maximum: 9223372036854775806 }
+            limit: { type: integer, minimum: 1, maximum: 1000 }
+  SkuGridRangesPage:
+    type: object
+    required: [total, pages]
+    properties:
+      total: { type: integer, format: int64, minimum: 0 }
+      pages:
+        type: array
+        minItems: 1
+        maxItems: 2
+        items:
+          type: object
+          required: [offset, data]
+          properties:
+            offset: { type: integer, format: int64, minimum: 0 }
+            data:
+              type: array
+              maxItems: 1000
+              items: { $ref: '#/components/schemas/SkuGridRow' }
+  ProductActionCommand:
+    type: object
+    additionalProperties: false
+    required: [operation_id, action, source]
+    properties:
+      operation_id: { type: string, format: uuid, description: Non-nil logical operation identity retained across retries }
+      action: { type: string, enum: [products.copy, products.update] }
+      source: { type: string, format: uuid }
+      expected_version: { type: string, format: date-time, nullable: true, description: Exact observed updated_at; mandatory for update, optional snapshot guard for copy }
+      values:
+        type: object
+        maxProperties: 4
+        description: Copy requires empty values. Update permits IDs 0 code, 1 name, 2 brand, 3 category; maximum 4096 UTF-8 bytes per value, no NUL. Values are trimmed; empty optional fields become NULL, name cannot be empty.
+        additionalProperties: { type: string }
+  ProductActionReceipt:
+    type: object
+    required: [operation_id, source, command_fingerprint, outcome]
+    properties:
+      operation_id: { type: string, format: uuid }
+      source: { type: string, format: uuid }
+      command_fingerprint:
+        type: string
+        pattern: '^sha256-v1:[a-f0-9]{64}$'
+        description: Versioned SHA-256 fingerprint of the immutable typed ActionCommand. Clients must match it as well as operation_id and source before accepting a receipt; a reused identity may belong to different field values or a different expected version.
+      outcome:
+        oneOf:
+          - type: object
+            required: [Applied]
+            properties:
+              Applied:
+                type: object
+                required: [row, version, values]
+                properties:
+                  row: { type: string, format: uuid, description: New product ID for copy, original ID for update }
+                  version: { type: string, format: date-time }
+                  values:
+                    type: object
+                    description: Product grid schema 1 values keyed by column ID
+                    additionalProperties: { type: string }
+          - type: object
+            required: [Rejected]
+            properties:
+              Rejected:
+                type: object
+                required: [code, message]
+                properties:
+                  code: { type: string, enum: [NOT_FOUND, VERSION_CONFLICT, DUPLICATE_CODE, TOO_MANY_SKUS, TOO_MANY_COMPONENTS, INVALID_BOM] }
+                  message: { type: string }
+  SkuActionCommand:
+    type: object
+    additionalProperties: false
+    required: [operation_id, action, source, expected_version, values]
+    properties:
+      operation_id: { type: string, format: uuid, description: Non-nil logical operation identity retained unchanged across lookup and retry }
+      action: { type: string, enum: [skus.update] }
+      source: { type: string, format: uuid, description: SKU row identity }
+      expected_version: { type: string, format: date-time, description: Exact observed SKU updated_at in RFC 3339 form }
+      values:
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        maxProperties: 5
+        description: Editable SKU grid columns only. Text is trimmed. Column 0 code is required and at most 255 UTF-8 bytes; 1 barcode is optional and at most 255 bytes; 2 name is optional and at most 500 bytes; 4 cost is empty for NULL or a nonnegative decimal with at most two fractional digits whose cents fit int64; 5 is exactly true or false and also sets status ACTIVE or INACTIVE. Kind, status, and dates are read-only. KIT cost is BOM-derived and rejected when submitted.
+        properties:
+          '0': { type: string, minLength: 1, maxLength: 255, description: Non-empty SKU code }
+          '1': { type: string, maxLength: 255, description: Barcode; empty clears it }
+          '2': { type: string, maxLength: 500, description: Name; empty clears it }
+          '4': { type: string, pattern: '^(|[0-9]+([.][0-9]{1,2})?)$', description: Exact monetary decimal; empty clears cost }
+          '5': { type: string, enum: ['true', 'false'], description: Active flag; synchronizes status }
+  SkuActionReceipt:
+    type: object
+    additionalProperties: false
+    required: [operation_id, source, command_fingerprint, outcome]
+    properties:
+      operation_id: { type: string, format: uuid }
+      source: { type: string, format: uuid }
+      command_fingerprint:
+        type: string
+        pattern: '^sha256-v1:[a-f0-9]{64}$'
+        description: Fingerprint of the immutable typed command; clients verify it together with operation_id and source.
+      outcome:
+        oneOf:
+          - type: object
+            additionalProperties: false
+            required: [Applied]
+            properties:
+              Applied:
+                type: object
+                additionalProperties: false
+                required: [row, version, values]
+                properties:
+                  row: { type: string, format: uuid }
+                  version: { type: string, format: date-time }
+                  values:
+                    type: object
+                    additionalProperties: false
+                    required: ['0', '1', '2', '3', '4', '5', '6', '7', '8']
+                    description: Complete SKU grid schema 1 row. Cost is fixed to two decimals and is BOM-derived for KIT rows.
+                    properties:
+                      '0': { type: string, description: SKU code }
+                      '1': { type: string, description: Barcode or empty }
+                      '2': { type: string, description: Name or empty }
+                      '3': { type: string, description: Read-only SKU kind }
+                      '4': { type: string, pattern: '^-?[0-9]+[.][0-9]{2}$|^$', description: Cost or empty }
+                      '5': { type: string, enum: ['true', 'false'] }
+                      '6': { type: string, description: Read-only status }
+                      '7': { type: string, format: date-time }
+                      '8': { type: string, format: date-time }
+          - type: object
+            additionalProperties: false
+            required: [Rejected]
+            properties:
+              Rejected:
+                type: object
+                additionalProperties: false
+                required: [code, message]
+                properties:
+                  code: { type: string, enum: [NOT_FOUND, VERSION_CONFLICT, DUPLICATE_CODE, KIT_COST_READ_ONLY] }
+                  message: { type: string }
+  ProductGridQuery:
+    type: object
+    additionalProperties: false
+    required: [schema, offset, limit]
+    properties:
+      schema: { type: integer, enum: [1] }
+      offset: { type: integer, format: int64, minimum: 0 }
+      limit: { type: integer, minimum: 1, maximum: 500 }
+      search:
+        type: string
+        nullable: true
+        description: Literal substring across name, code, alias and barcode; maximum 4096 UTF-8 bytes, no NUL
+      filters:
+        type: object
+        description: Keys are column IDs 0 code, 1 name, 2 brand, 3 category, 4 status, 5 created_at UTC, 6 updated_at UTC. Columns 0-4 accept Text or Enum; 5-6 accept DateTime. Conditions combine with AND.
+        maxProperties: 7
+        additionalProperties:
+          $ref: '#/components/schemas/ProductGridFilter'
+      sorts:
+        type: array
+        maxItems: 7
+        description: Ordered priorities, unique column IDs; product_id descending breaks ties. Empty sorts default to created_at descending. Text is case-insensitive, empty values last.
+        items:
+          type: object
+          required: [column, descending]
+          properties:
+            column: { type: integer, minimum: 0, maximum: 6 }
+            descending: { type: boolean }
+      expression:
+        allOf:
+          - $ref: '#/components/schemas/ProductGridExpression'
+        nullable: true
+        description: Optional nested expression, combined with quick filters and search using AND. Maximum 8 levels and 64 nodes.
+  ProductGridExpression:
+    oneOf:
+      - type: object
+        required: [Condition]
+        additionalProperties: false
+        properties:
+          Condition:
+            type: object
+            additionalProperties: false
+            required: [column, filter]
+            properties:
+              column: { type: integer, minimum: 0, maximum: 6 }
+              filter: { $ref: '#/components/schemas/ProductGridFilter' }
+      - type: object
+        required: [And]
+        additionalProperties: false
+        properties:
+          And:
+            type: array
+            minItems: 1
+            maxItems: 63
+            items: { $ref: '#/components/schemas/ProductGridExpression' }
+      - type: object
+        required: [Or]
+        additionalProperties: false
+        properties:
+          Or:
+            type: array
+            minItems: 1
+            maxItems: 63
+            items: { $ref: '#/components/schemas/ProductGridExpression' }
+  ProductGridFilter:
+    oneOf:
+      - type: object
+        required: [Text]
+        additionalProperties: false
+        properties:
+          Text: { type: string, description: Literal case-insensitive substring; max 4096 UTF-8 bytes, no NUL }
+      - type: object
+        required: [Enum]
+        additionalProperties: false
+        properties:
+          Enum:
+            type: array
+            minItems: 1
+            maxItems: 100
+            uniqueItems: true
+            items: { type: string, description: Exact value; max 4096 UTF-8 bytes, no NUL. Empty string also matches NULL. }
+      - type: object
+        required: [DateTime]
+        additionalProperties: false
+        properties:
+          DateTime:
+            type: object
+            properties:
+              start: { type: integer, format: int64, nullable: true, description: Inclusive UTC civil YYYYMMDDHHMMSS key, years 1900-2100 }
+              end: { type: integer, format: int64, nullable: true, description: Inclusive UTC civil second, including fractional timestamps within that second }
+  ProductOptionQuery:
+    type: object
+    additionalProperties: false
+    required: [query, column, offset, limit]
+    properties:
+      query:
+        $ref: '#/components/schemas/ProductGridQuery'
+      column: { type: integer, enum: [2, 3, 4], description: Brand, category, or status }
+      search: { type: string, nullable: true, description: Literal substring, trimmed; maximum 4096 UTF-8 bytes and no NUL }
+      offset: { type: integer, format: int64, minimum: 0 }
+      limit: { type: integer, minimum: 1, maximum: 100 }
+  ProductOptionPage:
+    type: object
+    required: [values, total]
+    properties:
+      total: { type: integer, format: int64, minimum: 0 }
+      values:
+        type: array
+        maxItems: 100
+        uniqueItems: true
+        items: { type: string, description: Empty string represents NULL or empty values }
+  ProductGridPage:
+    type: object
+    required: [data, total]
+    properties:
+      total: { type: integer, format: int64, minimum: 0 }
+      data:
+        type: array
+        maxItems: 500
+        items:
+          type: object
+          required: [product_id, tenant_id, name, status, created_at, updated_at]
+          properties:
+            product_id: { type: string, format: uuid }
+            tenant_id: { type: string, format: uuid }
+            product_code: { type: string, nullable: true }
+            name: { type: string }
+            brand: { type: string, nullable: true }
+            category: { type: string, nullable: true }
+            status: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
   LoginRequest:
     type: object
     required: [tenant_id, email, password]
@@ -4163,6 +4547,11 @@ schemas:
   OrderEditRequest:
     type: object
     properties:
+      expected_version:
+        type: integer
+        format: int32
+        nullable: true
+        description: Required when items or item_edits is present; must match the current order version.
       receiver_name: { type: string, nullable: true }
       receiver_phone: { type: string, nullable: true }
       receiver_tel: { type: string, nullable: true }
@@ -4199,6 +4588,18 @@ schemas:
         type: array
         items:
           $ref: "#/components/schemas/OrderEditItemRequest"
+      item_edits:
+        type: array
+        description: Partial quantity/price edits by stable line_id. Mutually exclusive with items; platform payment and discount facts are not recalculated.
+        items:
+          $ref: "#/components/schemas/OrderItemEditRequest"
+  OrderItemEditRequest:
+    type: object
+    required: [line_id]
+    properties:
+      line_id: { type: string, minLength: 1 }
+      qty: { type: integer, format: int32, minimum: 1, nullable: true }
+      price_cent: { type: integer, format: int64, minimum: 0, nullable: true }
   OrderCancelRequest:
     type: object
     properties:
@@ -5039,6 +5440,108 @@ schemas:
           $ref: "#/components/schemas/InventoryTurnoverItem"
       total: { type: integer, format: int64 }
       range_days: { type: integer, format: int64 }
+  WarehouseTreeCursor:
+    type: object
+    additionalProperties: false
+    required: [code, id]
+    properties:
+      code: { type: string, description: Last returned code; maximum 4096 UTF-8 bytes. }
+      id: { type: string, format: uuid }
+  WarehouseTreeQuery:
+    type: object
+    additionalProperties: false
+    required: [schema, limit]
+    properties:
+      schema: { type: integer, enum: [1] }
+      parent: { type: string, format: uuid, nullable: true }
+      after:
+        allOf: [{ $ref: "#/components/schemas/WarehouseTreeCursor" }]
+        nullable: true
+      limit: { type: integer, minimum: 1, maximum: 200 }
+      search: { type: string, nullable: true, maxLength: 256, description: Literal text without NUL; at most 1024 UTF-8 bytes. }
+  WarehouseTreeItem:
+    type: object
+    required: [id, parent_id, kind, code, name, status, has_children]
+    properties:
+      id: { type: string, format: uuid }
+      parent_id: { type: string, format: uuid, nullable: true }
+      kind: { type: string, enum: [warehouse, location] }
+      code: { type: string }
+      name: { type: string, nullable: true }
+      status: { type: string }
+      has_children: { type: boolean }
+  WarehouseTreePage:
+    type: object
+    required: [items, total, next]
+    properties:
+      items:
+        type: array
+        maxItems: 200
+        items: { $ref: "#/components/schemas/WarehouseTreeItem" }
+      total: { type: integer, format: int64, minimum: 0 }
+      next:
+        allOf: [{ $ref: "#/components/schemas/WarehouseTreeCursor" }]
+        nullable: true
+  InventoryAggregateQuery:
+    type: object
+    additionalProperties: false
+    required: [schema, by_category, measure]
+    properties:
+      schema: { type: integer, enum: [1] }
+      warehouse_id:
+        type: string
+        format: uuid
+        nullable: true
+        description: Optional non-nil warehouse within the caller's authorized warehouse scope.
+      search:
+        type: string
+        maxLength: 256
+        nullable: true
+        description: Optional literal search across the current inventory snapshot; maximum 256 characters and 1024 UTF-8 bytes without NUL.
+      by_category:
+        type: boolean
+        description: Include category in the grouping key.
+      measure:
+        type: string
+        enum: [quantity, cost]
+        description: Quantity units or current estimated SKU cost in cents.
+  InventoryAggregateSummary:
+    type: object
+    additionalProperties: false
+    required: [count, sum, min, max]
+    properties:
+      count: { type: integer, format: int64, minimum: 0 }
+      sum: { type: string, description: Exact signed i128 decimal value. }
+      min: { type: string, nullable: true, description: Exact signed i128 decimal value. }
+      max: { type: string, nullable: true, description: Exact signed i128 decimal value. }
+  InventoryAggregateBucket:
+    type: object
+    additionalProperties: false
+    required: [warehouse_code, category, kind, summary]
+    properties:
+      warehouse_code: { type: string }
+      category: { type: string, nullable: true }
+      kind: { type: string }
+      summary: { $ref: "#/components/schemas/InventoryAggregateSummary" }
+  InventoryAggregateReport:
+    type: object
+    additionalProperties: false
+    required: [buckets, total, as_of]
+    properties:
+      buckets:
+        type: array
+        maxItems: 4096
+        items: { $ref: "#/components/schemas/InventoryAggregateBucket" }
+      total: { $ref: "#/components/schemas/InventoryAggregateSummary" }
+      as_of: { type: string, format: date-time }
+  InventoryAggregateMissingCostError:
+    type: object
+    additionalProperties: false
+    required: [code, message, missing_count]
+    properties:
+      code: { type: string, enum: [inventory_cost_missing] }
+      message: { type: string }
+      missing_count: { type: integer, format: int64, minimum: 1 }
   FinanceReport:
     type: object
     required: [order_count, gmv_cent, items_amount_cent, refund_cent, discrepancy_cent]
@@ -5059,6 +5562,19 @@ schemas:
           Export parameters. For ORDER_EXPORT/RECONCILE_EXPORT accepts start_at/end_at (RFC3339),
           platform/shop_id filters. For RECONCILE_EXPORT, job_id (uuid) and diff_only (bool)
           export reconcile job items. For INVENTORY_EXPORT accepts warehouse_id.
+          PRODUCT_EXPORT requires request_id (UUID, reused for retries), exports.write and skus.read.
+          Provide exactly one of query (ProductGridQuery), checked (ids and sorts), or selection
+          (token UUID, excluded unique non-nil UUID array limited to 10000, sorts array).
+          Query exports every matching row; offset and limit do not restrict output.
+          Query snapshot starts when the worker opens it, with 1000000 rows and 1 GiB CSV limits.
+          Selection exports frozen field values minus excluded members in the supplied sort order.
+          Accepted selection jobs retain their data independently of selection token expiry.
+          Checked accepts 1 to 100000 unique non-nil UUIDs, captures all IDs across pages at acceptance,
+          and rejects the whole request if any ID is missing, deleted or belongs to another tenant.
+          Checked jobs reuse the retained snapshot, audit and retry lifecycle.
+          The export jobs route accepts a bounded 8 MiB request body.
+          Expired or unavailable selection returns 410; invalid exclusions return 400.
+          Reusing an identity with a different actor or source returns 409.
         additionalProperties: true
   ExportJob:
     type: object
@@ -9681,4 +10197,114 @@ schemas:
         type: object
         additionalProperties: true
         nullable: true
+  ProductSelectionToken:
+    type: object
+    required: [token, query_fingerprint, total, expires_at]
+    properties:
+      token: { type: string, format: uuid }
+      query_fingerprint: { type: string, description: Non-security normalized query identity; excludes page and display sort. Authorization uses actor and tenant binding. }
+      total: { type: integer, format: int64, minimum: 0, maximum: 100000 }
+      expires_at: { type: integer, format: int64, description: Expiry in Unix seconds }
+  ProductSelectionPageRequest:
+    type: object
+    additionalProperties: false
+    required: [offset, limit]
+    properties:
+      offset: { type: integer, format: int64, minimum: 0 }
+      limit: { type: integer, minimum: 1, maximum: 500 }
+      query_order: { type: boolean, default: false, description: When true, page the frozen values in live product-query order; empty sorts use created_at descending and product_id descending, and explicit sorts use product_id descending as the stable tie breaker. }
+      sorts:
+        type: array
+        maxItems: 8
+        description: Unique product columns 0-6, in priority order. Uses frozen values; text is case-insensitive with empty/NULL last, dates compare instants. Tie and empty-sort order depend on query_order. Membership and exclusions never change with sorting.
+        items:
+          type: object
+          required: [column, descending]
+          properties:
+            column: { type: integer, minimum: 0, maximum: 6 }
+            descending: { type: boolean }
+  ProductSelectionCountRequest:
+    type: object
+    additionalProperties: false
+    required: [excluded]
+    properties:
+      excluded:
+        type: array
+        maxItems: 10000
+        uniqueItems: true
+        items: { type: string, format: uuid }
+  ProductSelectionPage:
+    allOf:
+      - $ref: '#/components/schemas/ProductGridPage'
+      - type: object
+        required: [token, expires_at]
+        properties:
+          token: { type: string, format: uuid }
+          expires_at: { type: integer, format: int64, description: Expiry in Unix seconds }
+  ProductCopyBatchStartRequest:
+    type: object
+    additionalProperties: false
+    required: [batch_id, token, excluded, confirmed_count]
+    properties:
+      batch_id: { type: string, format: uuid }
+      token: { type: string, format: uuid, description: Frozen ProductSelectionToken identity }
+      excluded:
+        type: array
+        maxItems: 10000
+        uniqueItems: true
+        items: { type: string, format: uuid }
+      confirmed_count: { type: integer, format: int64, minimum: 1, maximum: 100000 }
+  ProductCopyBatchAdvanceRequest:
+    type: object
+    additionalProperties: false
+    required: [max_items]
+    properties:
+      max_items: { type: integer, minimum: 1, maximum: 25 }
+  ProductCopyBatchStatus:
+    type: object
+    required: [batch_id, total, applied, rejected, cancelled, pending, unknown, cancel_requested]
+    properties:
+      batch_id: { type: string, format: uuid }
+      total: { type: integer, format: int64, minimum: 1, maximum: 100000 }
+      applied: { type: integer, format: int64, minimum: 0 }
+      rejected: { type: integer, format: int64, minimum: 0 }
+      cancelled: { type: integer, format: int64, minimum: 0 }
+      pending: { type: integer, format: int64, minimum: 0 }
+      unknown: { type: integer, format: int64, minimum: 0 }
+      cancel_requested: { type: boolean }
+  ProductCopyBatchResultItem:
+    type: object
+    required: [ordinal, source, operation_id, state, receipt]
+    properties:
+      ordinal: { type: integer, format: int64, minimum: 0, maximum: 99999 }
+      source: { type: string, format: uuid }
+      operation_id: { type: string, format: uuid }
+      state: { type: string, enum: [PENDING, IN_FLIGHT, APPLIED, REJECTED, CANCELLED] }
+      receipt:
+        allOf:
+          - $ref: '#/components/schemas/ProductActionReceipt'
+        nullable: true
+  ProductCopyBatchResults:
+    type: object
+    required: [batch_id, items, next_after]
+    properties:
+      batch_id: { type: string, format: uuid }
+      items:
+        type: array
+        maxItems: 100
+        items: { $ref: '#/components/schemas/ProductCopyBatchResultItem' }
+      next_after: { type: integer, format: int64, minimum: 0, maximum: 99999, nullable: true }
+  ProductCopyBatchRetryReviewRequest:
+    type: object
+    additionalProperties: false
+    required: [request_id]
+    properties:
+      request_id: { type: string, format: uuid, description: Stable retry request identity; same actor and batch is idempotent }
+  ProductCopyBatchRetryReview:
+    type: object
+    required: [batch_id, request_id, selection]
+    properties:
+      batch_id: { type: string, format: uuid, description: Original terminal batch identity }
+      request_id: { type: string, format: uuid }
+      selection: { $ref: '#/components/schemas/ProductSelectionToken' }
 

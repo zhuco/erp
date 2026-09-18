@@ -1,5 +1,7 @@
 # 工业级工作台模板 95% 完成度 Implementation Plan
 
+> 历史计划。自 2026-09-07 起，本文的 AG Grid 技术路线及旧表格接入要求全部失效；当前约束见 [自研组件库规范](../../UI_COMPONENT_LIBRARY.md)，当前执行队列见 [路线图](../../ROADMAP.md)。不得据此重新引入 AG Grid。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将当前工业级 UI 工作台模板从“核心可用、系统迁移未完成”提升到 95% 以上：模板抽象业务无关、核心页面统一接入、旧模板基本清零、模板治理门禁稳定通过。
@@ -1015,4 +1017,3 @@ Expected: 只包含本计划范围内的模板、页面迁移、测试和文档�
 ## 8. 开始执行前的确认
 
 执行前请先确认当前工作区已有未提交改动是否属于同一目标。如果不是，请先隔离工作区或创建独立分支/工作树，避免模板迁移和其他业务改动互相污染。
-

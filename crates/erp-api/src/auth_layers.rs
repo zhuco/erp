@@ -88,7 +88,7 @@ pub(crate) async fn auth_middleware(
             let tenant_id = match TenantId::from_str(&claims.tenant_id) {
                 Ok(v) => v,
                 Err(_) => {
-                    return (StatusCode::UNAUTHORIZED, "bad tenant_id in token").into_response()
+                    return (StatusCode::UNAUTHORIZED, "bad tenant_id in token").into_response();
                 }
             };
             let user_id = match UserId::from_str(&claims.sub) {
@@ -188,7 +188,7 @@ pub(crate) async fn device_auth_middleware(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("device lookup failed: {err}"),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -205,6 +205,41 @@ pub(crate) async fn device_auth_middleware(
     next.run(req).await
 }
 
+// POST carries a structured read query; match only this exact route and method.
+pub(crate) fn is_product_grid_read(method: &axum::http::Method, path: &str) -> bool {
+    let parts: Vec<_> = path.split('/').collect();
+    method == axum::http::Method::POST
+        && (matches!(parts.as_slice(), ["", "v1", "tenants", tenant, "products", "query" | "options" | "find"]
+            if TenantId::from_str(tenant).is_ok())
+            || matches!(parts.as_slice(), ["", "v1", "tenants", tenant, "products", product, "skus", "query" | "query-ranges" | "find"]
+                if TenantId::from_str(tenant).is_ok() && uuid::Uuid::parse_str(product).is_ok())
+            || matches!(parts.as_slice(), ["", "v1", "tenants", tenant, "products", "selections"]
+                if TenantId::from_str(tenant).is_ok())
+            || matches!(parts.as_slice(), ["", "v1", "tenants", tenant, "products", "selections", token, "page" | "count" | "find"]
+                if TenantId::from_str(tenant).is_ok() && uuid::Uuid::parse_str(token).is_ok()))
+}
+
+// POST carries a bounded report query; match only this exact tenant route and method.
+pub(crate) fn is_inventory_aggregate_read(method: &axum::http::Method, path: &str) -> bool {
+    let parts: Vec<_> = path.split('/').collect();
+    method == axum::http::Method::POST
+        && matches!(
+            parts.as_slice(),
+            ["", "v1", "tenants", tenant, "reports", "inventory", "aggregate"]
+                if TenantId::from_str(tenant).is_ok()
+                    && uuid::Uuid::parse_str(tenant).is_ok_and(|id| !id.is_nil())
+        )
+}
+
+pub(crate) fn is_warehouse_tree_read(method: &axum::http::Method, path: &str) -> bool {
+    *method == axum::http::Method::POST
+        && matches!(
+            path.split('/').collect::<Vec<_>>().as_slice(),
+            ["", "v1", "tenants", tenant, "warehouses", "tree"]
+                if uuid::Uuid::parse_str(tenant).is_ok_and(|id| !id.is_nil())
+        )
+}
+
 pub(crate) async fn read_only_middleware(
     State(state): State<AppState>,
     req: axum::http::Request<axum::body::Body>,
@@ -215,7 +250,12 @@ pub(crate) async fn read_only_middleware(
     }
 
     let path = req.uri().path();
-    if path == "/healthz" || path == "/auth/login" {
+    if path == "/healthz"
+        || path == "/auth/login"
+        || is_product_grid_read(req.method(), path)
+        || is_inventory_aggregate_read(req.method(), path)
+        || is_warehouse_tree_read(req.method(), path)
+    {
         return next.run(req).await;
     }
 
@@ -226,6 +266,15 @@ pub(crate) async fn read_only_middleware(
     let read_only = match read_only_enabled(&state, tenant_id, None).await {
         Ok(v) => v,
         Err(resp) => {
+            let parts: Vec<_> = path.split('/').collect();
+            if matches!(
+                parts.as_slice(),
+                ["", "v1", "tenants", _, "products", "actions"]
+            ) && req.method() == axum::http::Method::POST
+            {
+                // New grid mutations must not inherit the legacy fail-open path.
+                return resp.into_response();
+            }
             warn!(
                 tenant_id = %tenant_id,
                 status = %resp.0,

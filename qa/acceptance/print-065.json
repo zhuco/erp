@@ -1,0 +1,101 @@
+{
+  "physical_print": false,
+  "wasm_sha256": "5E51897EDE58501D75416D94E07D70409EE108176BC44AB93CDF3639650DCA79",
+  "layout": {
+    "tables": [
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 8,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      },
+      {
+        "columns": 2,
+        "rows": 100,
+        "width": 1040,
+        "first": "SKU-00000001"
+      }
+    ],
+    "chinese": false,
+    "toolbar": "none",
+    "overflow": false
+  }
+}

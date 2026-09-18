@@ -1,0 +1,89 @@
+{
+  "result": {
+    "cycles": 20,
+    "records": [
+      {
+        "cycle": 1,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 2,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 3,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 4,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 5,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 6,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 7,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 8,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 9,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 10,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 11,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 12,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 13,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 14,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 15,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 16,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 17,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 18,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 19,
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "cycle": 20,
+        "error": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  "wasm_sha256": "96F81E663FA5BFA2725FCBCC3746E9740F545008680359A4E085B80168ED0BE3",
+  "database_writes": false
+}

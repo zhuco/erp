@@ -4,9 +4,9 @@ use axum::{
     response::Response,
 };
 use chrono::{Datelike, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
-use erp_repo::shipments::{ShipmentsRepo, SHIPMENT_REQUESTED_EVENT};
+use erp_repo::shipments::{SHIPMENT_REQUESTED_EVENT, ShipmentsRepo};
 use erp_types::TenantId;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -725,11 +725,12 @@ async fn ship_endpoint_feature_disabled_inner() -> anyhow::Result<()> {
         json.get("code").and_then(|v| v.as_str()),
         Some("feature_disabled")
     );
-    assert!(json
-        .get("message")
-        .and_then(|v| v.as_str())
-        .unwrap_or_default()
-        .contains("SHIPPING_WRITE"));
+    assert!(
+        json.get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .contains("SHIPPING_WRITE")
+    );
 
     Ok(())
 }

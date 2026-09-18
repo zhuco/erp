@@ -1,0 +1,59 @@
+{
+  "first": 1,
+  "last": 1000000,
+  "descending": 1000000,
+  "invalid": 400,
+  "arrival": [
+    200,
+    100
+  ],
+  "metrics": {
+    "active": 0,
+    "requests": 6,
+    "sentBytes": 30182,
+    "records": [
+      {
+        "id": 1,
+        "status": "sent",
+        "offset": 0,
+        "rows": 100,
+        "bytes": 5621
+      },
+      {
+        "id": 2,
+        "status": "sent",
+        "offset": 999900,
+        "rows": 100,
+        "bytes": 6444
+      },
+      {
+        "id": 3,
+        "status": "sent",
+        "offset": 0,
+        "rows": 100,
+        "bytes": 6439
+      },
+      {
+        "id": 4,
+        "status": "rejected",
+        "offset": null,
+        "rows": 0,
+        "bytes": 0
+      },
+      {
+        "id": 5,
+        "status": "sent",
+        "offset": 100,
+        "rows": 100,
+        "bytes": 5839
+      },
+      {
+        "id": 6,
+        "status": "sent",
+        "offset": 200,
+        "rows": 100,
+        "bytes": 5839
+      }
+    ]
+  }
+}

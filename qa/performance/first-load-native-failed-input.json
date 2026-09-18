@@ -1,0 +1,1 @@
+{"boundary":"materialized local data; new GridState per sample; synthetic egui ArrowDown accepted after initial draw; excludes network, OS input and GPU presentation","budget_met":false,"columns":30,"error":"Grid did not handle the readiness input","p95_ms":null,"pixels_per_point":1.0,"release":true,"rows":10000,"samples_ms":[],"scenario":"PERF-01","warmup_samples":5}

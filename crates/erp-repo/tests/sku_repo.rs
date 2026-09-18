@@ -5,7 +5,7 @@ use erp_repo::channel_sku_mappings::{
 use erp_repo::skus::{SkuCreate, SkusRepo};
 use erp_types::{Platform, ShopId, TenantId};
 use serde_json::json;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

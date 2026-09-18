@@ -4,10 +4,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use chrono::{Duration, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -932,18 +932,24 @@ async fn shop_product_match_writes_operation_logs_inner() -> Result<()> {
         manual_item.get("platform_sku_id").and_then(Value::as_str),
         Some("P-SKU-MANUAL-1")
     );
-    assert!(manual_item
-        .get("mapping_id")
-        .map(Value::is_null)
-        .unwrap_or(false));
-    assert!(manual_item
-        .get("mapping_status")
-        .map(Value::is_null)
-        .unwrap_or(false));
-    assert!(manual_item
-        .get("match_source")
-        .map(Value::is_null)
-        .unwrap_or(false));
+    assert!(
+        manual_item
+            .get("mapping_id")
+            .map(Value::is_null)
+            .unwrap_or(false)
+    );
+    assert!(
+        manual_item
+            .get("mapping_status")
+            .map(Value::is_null)
+            .unwrap_or(false)
+    );
+    assert!(
+        manual_item
+            .get("match_source")
+            .map(Value::is_null)
+            .unwrap_or(false)
+    );
 
     let manual_mapping_count_after_delete: i64 = sqlx::query_scalar(
         r#"

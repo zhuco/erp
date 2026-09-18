@@ -2267,7 +2267,7 @@ pub(crate) async fn get_logistics_settlement_rule(
             match repo.upsert_rule(default_rule).await {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             }
         }
@@ -2502,7 +2502,7 @@ pub(crate) async fn preview_shipment_preprocess(
                 Ok(Some(code)) => code,
                 Ok(None) => return bad_request("carrier_code required").into_response(),
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             }
         }
@@ -2716,7 +2716,7 @@ pub(crate) async fn handle_shipment_request(
             Ok(Some(warehouse)) => warehouse.warehouse_id,
             Ok(None) => return Err(bad_request("warehouse_id required").into_response()),
             Err(e) => {
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
             }
         },
     };
@@ -2735,7 +2735,7 @@ pub(crate) async fn handle_shipment_request(
                 Ok(Some(code)) => Some(code),
                 Ok(None) => None,
                 Err(e) => {
-                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
                 }
             }
         }
@@ -3042,7 +3042,7 @@ pub(crate) async fn handle_shipment_request(
         let out_payload = match serde_json::to_value(payload) {
             Ok(v) => v,
             Err(e) => {
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
             }
         };
         if let Err(e) = outbox_repo

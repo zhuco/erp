@@ -1,8 +1,8 @@
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     http::{Request, StatusCode},
 };
-use erp_api::{app_state::AppState, router::build_app as build_app_from_module, JwtService};
+use erp_api::{JwtService, app_state::AppState, router::build_app as build_app_from_module};
 use erp_repo::db::Db;
 use tower::ServiceExt;
 
@@ -568,8 +568,10 @@ fn api_order_sku_mapping_helpers_are_split_from_lib_rs() {
     assert!(
         order_sku_mapping_helpers_rs.contains("pub(crate) async fn apply_order_item_sku_mappings(")
     );
-    assert!(order_sku_mapping_helpers_rs
-        .contains("pub(crate) async fn resolve_order_item_sku_mapping("));
+    assert!(
+        order_sku_mapping_helpers_rs
+            .contains("pub(crate) async fn resolve_order_item_sku_mapping(")
+    );
 }
 
 #[test]
@@ -641,10 +643,14 @@ fn api_shop_product_download_helpers_are_split_from_lib_rs() {
     assert!(lib_rs.contains("mod shop_product_download_helpers;"));
     assert!(!lib_rs.contains("\nfn build_shop_product_download_items_from_adapter("));
     assert!(!lib_rs.contains("\nfn extract_spec_text_from_platform_spec("));
-    assert!(shop_product_download_helpers_rs
-        .contains("pub(crate) fn build_shop_product_download_items_from_adapter("));
-    assert!(shop_product_download_helpers_rs
-        .contains("pub(crate) fn extract_spec_text_from_platform_spec("));
+    assert!(
+        shop_product_download_helpers_rs
+            .contains("pub(crate) fn build_shop_product_download_items_from_adapter(")
+    );
+    assert!(
+        shop_product_download_helpers_rs
+            .contains("pub(crate) fn extract_spec_text_from_platform_spec(")
+    );
 }
 
 #[test]
@@ -703,10 +709,14 @@ fn api_sku_import_lookup_helpers_are_split_from_lib_rs() {
     assert!(
         sku_import_lookup_helpers_rs.contains("pub(crate) async fn fetch_existing_product_ids(")
     );
-    assert!(sku_import_lookup_helpers_rs
-        .contains("pub(crate) async fn fetch_product_categories_by_id("));
-    assert!(sku_import_lookup_helpers_rs
-        .contains("pub(crate) async fn fetch_existing_product_categories("));
+    assert!(
+        sku_import_lookup_helpers_rs
+            .contains("pub(crate) async fn fetch_product_categories_by_id(")
+    );
+    assert!(
+        sku_import_lookup_helpers_rs
+            .contains("pub(crate) async fn fetch_existing_product_categories(")
+    );
     assert!(
         sku_import_lookup_helpers_rs.contains("pub(crate) async fn fetch_existing_supplier_ids(")
     );
@@ -802,8 +812,10 @@ fn api_system_observability_handlers_are_split_from_lib_rs() {
     assert!(!lib_rs.contains("\nasync fn list_outbox_events("));
     assert!(!lib_rs.contains("\nasync fn requeue_outbox_event("));
     assert!(system_observability_handlers_rs.contains("pub(crate) async fn list_audit_logs("));
-    assert!(system_observability_handlers_rs
-        .contains("pub(crate) async fn list_shipment_push_attempts("));
+    assert!(
+        system_observability_handlers_rs
+            .contains("pub(crate) async fn list_shipment_push_attempts(")
+    );
     assert!(system_observability_handlers_rs.contains("pub(crate) async fn list_dead_letters("));
     assert!(system_observability_handlers_rs.contains("pub(crate) async fn replay_dead_letter("));
     assert!(system_observability_handlers_rs.contains("pub(crate) async fn list_outbox_events("));
@@ -827,23 +839,35 @@ fn api_system_catalog_handlers_are_split_from_lib_rs() {
     assert!(!lib_rs.contains("\nasync fn update_system_integrations_catalog("));
     assert!(!lib_rs.contains("\nasync fn get_system_audit_reports_catalog("));
     assert!(!lib_rs.contains("\nasync fn update_system_audit_reports_catalog("));
-    assert!(system_catalog_handlers_rs.contains("pub(crate) async fn get_system_workflow_catalog("));
+    assert!(
+        system_catalog_handlers_rs.contains("pub(crate) async fn get_system_workflow_catalog(")
+    );
     assert!(
         system_catalog_handlers_rs.contains("pub(crate) async fn update_system_workflow_catalog(")
     );
-    assert!(system_catalog_handlers_rs
-        .contains("pub(crate) async fn get_system_custom_fields_catalog("));
-    assert!(system_catalog_handlers_rs
-        .contains("pub(crate) async fn update_system_custom_fields_catalog("));
+    assert!(
+        system_catalog_handlers_rs
+            .contains("pub(crate) async fn get_system_custom_fields_catalog(")
+    );
+    assert!(
+        system_catalog_handlers_rs
+            .contains("pub(crate) async fn update_system_custom_fields_catalog(")
+    );
     assert!(
         system_catalog_handlers_rs.contains("pub(crate) async fn get_system_integrations_catalog(")
     );
-    assert!(system_catalog_handlers_rs
-        .contains("pub(crate) async fn update_system_integrations_catalog("));
-    assert!(system_catalog_handlers_rs
-        .contains("pub(crate) async fn get_system_audit_reports_catalog("));
-    assert!(system_catalog_handlers_rs
-        .contains("pub(crate) async fn update_system_audit_reports_catalog("));
+    assert!(
+        system_catalog_handlers_rs
+            .contains("pub(crate) async fn update_system_integrations_catalog(")
+    );
+    assert!(
+        system_catalog_handlers_rs
+            .contains("pub(crate) async fn get_system_audit_reports_catalog(")
+    );
+    assert!(
+        system_catalog_handlers_rs
+            .contains("pub(crate) async fn update_system_audit_reports_catalog(")
+    );
 }
 
 #[test]
@@ -942,7 +966,9 @@ fn api_permission_catalog_handlers_are_split_from_lib_rs() {
 
     assert!(lib_rs.contains("mod permission_catalog_handlers;"));
     assert!(!lib_rs.contains("\nasync fn list_permission_catalog("));
-    assert!(permission_catalog_handlers_rs.contains("pub(crate) async fn list_permission_catalog("));
+    assert!(
+        permission_catalog_handlers_rs.contains("pub(crate) async fn list_permission_catalog(")
+    );
 }
 
 #[test]
@@ -1116,8 +1142,10 @@ fn api_after_sales_handlers_are_split_from_lib_rs() {
     assert!(!lib_rs.contains("\nfn after_sales_view("));
     assert!(after_sales_handlers_rs.contains("pub(crate) async fn list_after_sale_cases("));
     assert!(after_sales_handlers_rs.contains("pub(crate) async fn create_after_sales("));
-    assert!(after_sales_handlers_rs
-        .contains("pub(crate) async fn create_after_sales_exchange_shipment("));
+    assert!(
+        after_sales_handlers_rs
+            .contains("pub(crate) async fn create_after_sales_exchange_shipment(")
+    );
     assert!(after_sales_handlers_rs.contains("pub(crate) fn after_sales_view("));
 }
 
@@ -1155,8 +1183,10 @@ fn api_shop_sync_handlers_are_split_from_lib_rs() {
     assert!(!lib_rs.contains("\nasync fn run_platform_after_sales_sync("));
     assert!(shop_sync_handlers_rs.contains("pub(crate) async fn list_shops("));
     assert!(shop_sync_handlers_rs.contains("pub(crate) async fn shop_auth_callback("));
-    assert!(shop_sync_handlers_rs
-        .contains("pub(crate) async fn download_platform_orders_by_order_nos("));
+    assert!(
+        shop_sync_handlers_rs
+            .contains("pub(crate) async fn download_platform_orders_by_order_nos(")
+    );
     assert!(shop_sync_handlers_rs.contains("pub(crate) async fn run_platform_after_sales_sync("));
 }
 

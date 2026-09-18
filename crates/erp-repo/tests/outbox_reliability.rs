@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, NaiveDate, Utc};
 use erp_repo::outbox::{OutboxListFilters, OutboxRepo};
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 fn month_start(dt: chrono::DateTime<Utc>) -> NaiveDate {

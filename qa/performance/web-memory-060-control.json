@@ -1,0 +1,622 @@
+[
+  {
+    "cycle": 0,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 1,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 2,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 3,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 4,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 5,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 6,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 7,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 8,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 9,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554700
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 10,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 11,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 12,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 13,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 14,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 15,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 16,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 17,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 18,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  },
+  {
+    "cycle": 19,
+    "wasmBytes": 28508160,
+    "dom": {
+      "documents": 1,
+      "nodes": 20,
+      "jsEventListeners": 55
+    },
+    "metrics": [
+      {
+        "name": "Documents",
+        "value": 1
+      },
+      {
+        "name": "JSEventListeners",
+        "value": 55
+      },
+      {
+        "name": "Nodes",
+        "value": 20
+      },
+      {
+        "name": "JSHeapUsedSize",
+        "value": 2554688
+      },
+      {
+        "name": "JSHeapTotalSize",
+        "value": 2945024
+      }
+    ]
+  }
+]

@@ -1,11 +1,11 @@
 # 架构与接口约定
 
-> 更新日期：2026-05-06  
+> 更新日期：2026-09-09  
 > 本文合并原开发总览、架构概要、接口边界、数据模型、平台接入、状态机与流程文档中的长期有效内容。
 
 ## 总体架构
 
-项目采用“前端工作台 + Rust 多服务 + 事件驱动 + OpenAPI 契约 + Postgres 事实存储”的结构。
+项目采用“Rust 原生桌面/WASM Web 工作台 + Rust 多服务 + 事件驱动 + OpenAPI 契约 + Postgres 事实存储”的结构。
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,8 @@ flowchart LR
   NATS --> Worker["erp-worker"]
   Worker --> DB[("Postgres")]
   API["erp-api"] --> DB
-  Web["apps/erp-web"] --> API
+  UI["Rust egui：native / WASM Web（规划）"] --> API
+  Legacy["apps/erp-web（冻结遗留）"] -.-> API
   Print["erp-print-agent"] --> API
 ```
 
@@ -35,17 +36,20 @@ flowchart LR
 | `crates/erp-domain` / `erp-types` | 领域类型、枚举、状态与跨服务共享结构 |
 | `crates/adapter-*` | 淘宝、京东、拼多多、抖音等平台适配器 |
 | `crates/erp-print-agent` | 打印设备、打印任务和本地打印桥接 |
-| `apps/erp-web` | React / Vite / Ant Design 管理端与工作台页面 |
+| `apps/erp-ui`（规划） | 共享 Rust/egui 页面及 native/web 宿主 |
+| `apps/erp-web` | 冻结的 React 管理端，仅作业务参考 |
 | `openapi/erp_api_v1.yaml` | API 契约权威来源，前端客户端与验收以此为准 |
 | `migrations/` | 数据结构演进与上线前数据库依据 |
 
-## 前端结构
+## UI 结构（2026-09-09 决策）
 
-- 技术栈：Vite、React、TypeScript、Ant Design / Pro 体系、Playwright / Vitest。
-- 页面目录：`apps/erp-web/src/pages/` 按业务域拆分，例如 `orders`、`wms`、`inventory`、`products`、`finance`、`system`。
-- API 目录：`apps/erp-web/src/api/` 与 OpenAPI 保持同步。
-- 组件目录：`apps/erp-web/src/components/` 放跨页面复用组件，复杂工作台优先沉淀共享入口和布局。
-- 详细 UI 约定见 `docs/FRONTEND_GUIDE.md`。
+- 全部新 UI 使用 Rust：eframe/egui + wgpu 原生桌面，Web 使用共享代码编译 WASM。自绘界面不等于 OS 原生控件，Web 不重建 React 页面。
+- erp-grid-core（纯状态机）、erp-ui-egui（共享渲染/组件）、apps/erp-ui（实验台及未来页面/API/宿主）已创建首批实现；完整 API 与业务尚未接入，详细契约见 [组件库规范](UI_COMPONENT_LIBRARY.md)。
+- 后端保留现有 Rust 服务、OpenAPI 和数据库边界，两端均通过 API 查询及执行业务；不向客户端下发平台密钥、不允许桌面直连数据库。
+- 文件、剪贴板、持久化、打印、网络认证与生命周期区分 native/web 实现。Web 同源会话及 CSRF 需后端适配；现有 JWT 接口不证明浏览器认证已经完成。
+- AG Grid 全面禁用，所有业务表格经自研 DataGrid。旧 React 引用是冻结遗留，非继续使用授权。当前无用户，无须逐页复刻旧前端；明确选择的自用流程不能静默降级。
+- Rust 固定 1.98.1、Edition 2024、resolver 3、rustfmt style edition 2024；配置已更新，现有代码兼容尚未编译验证。文档规范不代表组件、门禁和双端交付完成。
+- 自用先行，3—5 商家阶段优先同版独立部署，SaaS 后置；进度只维护在 [路线图](ROADMAP.md)。
 
 ## 后端接口边界
 
@@ -115,4 +119,3 @@ flowchart LR
 ## 本地数据种子
 
 本地演示租户、店铺、角色和权限种子已迁移到 `scripts/seed.local.sql`。执行前先运行数据库迁移，并按文件注释替换返回的租户、角色和用户 UUID。
-

@@ -23,6 +23,134 @@ pub trait AfterSaleRepo: Send + Sync {
 
 #[async_trait]
 pub trait ProductRepo: Send + Sync {
+    async fn retry_copy_batch_review(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        original_batch: uuid::Uuid,
+        request_id: uuid::Uuid,
+    ) -> Result<
+        erp_repo::product_copy_batch_retries::RetryReview,
+        erp_repo::product_copy_batch_retries::RetryError,
+    >;
+    async fn copy_batch_results(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+        after: Option<u64>,
+        limit: u16,
+        failed_only: bool,
+    ) -> Result<
+        erp_repo::product_copy_batch_results::Results,
+        erp_repo::product_copy_batches::BatchError,
+    >;
+    async fn list_copy_batches(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+    ) -> Result<
+        Vec<erp_repo::product_copy_batches::Status>,
+        erp_repo::product_copy_batches::BatchError,
+    >;
+    async fn start_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        request: &erp_repo::product_copy_batches::StartRequest,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>;
+    async fn copy_batch_status(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>;
+    async fn advance_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+        max_items: u16,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>;
+    async fn cancel_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>;
+    async fn freeze_selection(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> Result<
+        erp_repo::product_selection::SelectionToken,
+        erp_repo::product_selection::SelectionError,
+    >;
+    async fn selection_page(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        offset: u64,
+        limit: u16,
+        sorts: &[erp_grid_core::SortRule],
+    ) -> Result<
+        erp_repo::product_selection::SelectionPage,
+        erp_repo::product_selection::SelectionError,
+    >;
+    async fn selection_page_query_order(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        offset: u64,
+        limit: u16,
+        sorts: &[erp_grid_core::SortRule],
+        query_order: bool,
+    ) -> Result<
+        erp_repo::product_selection::SelectionPage,
+        erp_repo::product_selection::SelectionError,
+    > {
+        if query_order {
+            Err(erp_repo::product_selection::SelectionError::Invalid(
+                "query-order selection paging is unavailable".into(),
+            ))
+        } else {
+            self.selection_page(tenant, actor, token, offset, limit, sorts)
+                .await
+        }
+    }
+    async fn selection_count(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        excluded: &[uuid::Uuid],
+    ) -> Result<u64, erp_repo::product_selection::SelectionError>;
+    async fn product_options(
+        &self,
+        tenant: TenantId,
+        query: &erp_repo::product_grid_options::OptionQuery,
+    ) -> anyhow::Result<erp_repo::product_grid_options::OptionPage>;
+    async fn execute_action(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        command: &erp_grid_core::actions::ActionCommand,
+    ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError>;
+    async fn action_receipt(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        operation: erp_grid_core::RowId,
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError>;
+    async fn query_products(
+        &self,
+        tenant_id: TenantId,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> anyhow::Result<erp_repo::product_grid::ProductGridPage>;
+
     async fn list_products(
         &self,
         tenant_id: TenantId,
@@ -53,6 +181,34 @@ pub trait ProductRepo: Send + Sync {
 
 #[async_trait]
 pub trait SkuRepo: Send + Sync {
+    async fn execute_grid_action(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        command: &erp_grid_core::actions::ActionCommand,
+    ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError>;
+
+    async fn grid_action_receipt(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        operation: erp_grid_core::RowId,
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError>;
+
+    async fn query_skus(
+        &self,
+        tenant_id: TenantId,
+        product_id: uuid::Uuid,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> anyhow::Result<erp_repo::sku_grid::SkuGridPage>;
+
+    async fn query_sku_ranges(
+        &self,
+        tenant_id: TenantId,
+        product_id: uuid::Uuid,
+        request: &erp_repo::sku_grid::SkuGridRangesRequest,
+    ) -> anyhow::Result<erp_repo::sku_grid::SkuGridRangesPage>;
+
     async fn list_skus(
         &self,
         tenant_id: TenantId,
@@ -66,7 +222,7 @@ pub trait SkuRepo: Send + Sync {
     ) -> anyhow::Result<Vec<RepoSkuSearchItem>>;
 
     async fn get_sku(&self, tenant_id: TenantId, sku_id: uuid::Uuid)
-        -> anyhow::Result<Option<Sku>>;
+    -> anyhow::Result<Option<Sku>>;
 
     async fn create_sku(&self, input: SkuCreate) -> anyhow::Result<Sku>;
 
@@ -235,7 +391,7 @@ pub trait WarehouseRepo: Send + Sync {
     ) -> anyhow::Result<Option<Warehouse>>;
 
     async fn get_default_warehouse(&self, tenant_id: TenantId)
-        -> anyhow::Result<Option<Warehouse>>;
+    -> anyhow::Result<Option<Warehouse>>;
 }
 
 #[async_trait]
@@ -418,7 +574,7 @@ pub trait PrintJobRepo: Send + Sync {
     ) -> anyhow::Result<Option<erp_repo::print_jobs::PrintJobOutput>>;
 
     async fn retry_failed_job(&self, tenant_id: TenantId, job_id: uuid::Uuid)
-        -> anyhow::Result<()>;
+    -> anyhow::Result<()>;
 
     async fn dispatch_job(&self, tenant_id: TenantId, job_id: uuid::Uuid) -> anyhow::Result<()>;
 }
@@ -474,6 +630,195 @@ pub(crate) struct SkuCostsRepoDb {
 
 #[async_trait]
 impl ProductRepo for ProductsRepoDb {
+    async fn retry_copy_batch_review(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        original_batch: uuid::Uuid,
+        request_id: uuid::Uuid,
+    ) -> Result<
+        erp_repo::product_copy_batch_retries::RetryReview,
+        erp_repo::product_copy_batch_retries::RetryError,
+    > {
+        erp_repo::product_copy_batch_retries::prepare_retry(
+            self.db.pool(),
+            tenant,
+            actor,
+            original_batch,
+            request_id,
+        )
+        .await
+    }
+    async fn copy_batch_results(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+        after: Option<u64>,
+        limit: u16,
+        failed_only: bool,
+    ) -> Result<
+        erp_repo::product_copy_batch_results::Results,
+        erp_repo::product_copy_batches::BatchError,
+    > {
+        erp_repo::product_copy_batch_results::page(
+            self.db.pool(),
+            tenant,
+            actor,
+            batch_id,
+            after,
+            limit,
+            failed_only,
+        )
+        .await
+    }
+    async fn list_copy_batches(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+    ) -> Result<
+        Vec<erp_repo::product_copy_batches::Status>,
+        erp_repo::product_copy_batches::BatchError,
+    > {
+        erp_repo::product_copy_batches::list(self.db.pool(), tenant, actor).await
+    }
+    async fn start_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        request: &erp_repo::product_copy_batches::StartRequest,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>
+    {
+        erp_repo::product_copy_batches::start(self.db.pool(), tenant, actor, request).await
+    }
+    async fn copy_batch_status(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>
+    {
+        erp_repo::product_copy_batches::status(self.db.pool(), tenant, actor, batch_id).await
+    }
+    async fn advance_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+        max_items: u16,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>
+    {
+        erp_repo::product_copy_batches::advance(self.db.pool(), tenant, actor, batch_id, max_items)
+            .await
+    }
+    async fn cancel_copy_batch(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        batch_id: uuid::Uuid,
+    ) -> Result<erp_repo::product_copy_batches::Status, erp_repo::product_copy_batches::BatchError>
+    {
+        erp_repo::product_copy_batches::cancel(self.db.pool(), tenant, actor, batch_id).await
+    }
+    async fn freeze_selection(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> Result<
+        erp_repo::product_selection::SelectionToken,
+        erp_repo::product_selection::SelectionError,
+    > {
+        erp_repo::product_selection::freeze(self.db.pool(), tenant, actor, query).await
+    }
+    async fn selection_page(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        offset: u64,
+        limit: u16,
+        sorts: &[erp_grid_core::SortRule],
+    ) -> Result<
+        erp_repo::product_selection::SelectionPage,
+        erp_repo::product_selection::SelectionError,
+    > {
+        erp_repo::product_selection::page(
+            self.db.pool(),
+            tenant,
+            actor,
+            token,
+            offset,
+            limit,
+            sorts,
+        )
+        .await
+    }
+    async fn selection_page_query_order(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        offset: u64,
+        limit: u16,
+        sorts: &[erp_grid_core::SortRule],
+        query_order: bool,
+    ) -> Result<
+        erp_repo::product_selection::SelectionPage,
+        erp_repo::product_selection::SelectionError,
+    > {
+        if query_order {
+            erp_repo::product_selection::page_query_order(
+                self.db.pool(), tenant, actor, token, offset, limit, sorts,
+            )
+            .await
+        } else {
+            self.selection_page(tenant, actor, token, offset, limit, sorts)
+                .await
+        }
+    }
+    async fn selection_count(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        token: uuid::Uuid,
+        excluded: &[uuid::Uuid],
+    ) -> Result<u64, erp_repo::product_selection::SelectionError> {
+        erp_repo::product_selection::affected_count(self.db.pool(), tenant, actor, token, excluded)
+            .await
+    }
+    async fn product_options(
+        &self,
+        tenant: TenantId,
+        query: &erp_repo::product_grid_options::OptionQuery,
+    ) -> anyhow::Result<erp_repo::product_grid_options::OptionPage> {
+        erp_repo::product_grid_options::query_options(self.db.pool(), tenant, query).await
+    }
+    async fn execute_action(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        command: &erp_grid_core::actions::ActionCommand,
+    ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError> {
+        erp_repo::product_actions::execute(self.db.pool(), tenant, actor, command).await
+    }
+    async fn action_receipt(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        operation: erp_grid_core::RowId,
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError>
+    {
+        erp_repo::product_actions::receipt(self.db.pool(), tenant, actor, operation).await
+    }
+    async fn query_products(
+        &self,
+        tenant_id: TenantId,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> anyhow::Result<erp_repo::product_grid::ProductGridPage> {
+        erp_repo::product_grid::query_products(self.db.pool(), tenant_id, query).await
+    }
+
     async fn list_products(
         &self,
         tenant_id: TenantId,
@@ -519,6 +864,49 @@ impl ProductRepo for ProductsRepoDb {
 
 #[async_trait]
 impl SkuRepo for SkusRepoDb {
+    async fn execute_grid_action(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        command: &erp_grid_core::actions::ActionCommand,
+    ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError> {
+        erp_repo::sku_actions::execute(self.db.pool(), tenant, actor, command).await
+    }
+
+    async fn grid_action_receipt(
+        &self,
+        tenant: TenantId,
+        actor: UserId,
+        operation: erp_grid_core::RowId,
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError>
+    {
+        erp_repo::sku_actions::receipt(self.db.pool(), tenant, actor, operation).await
+    }
+
+    async fn query_skus(
+        &self,
+        tenant_id: TenantId,
+        product_id: uuid::Uuid,
+        query: &erp_grid_core::paged_query::PageQuery,
+    ) -> anyhow::Result<erp_repo::sku_grid::SkuGridPage> {
+        erp_repo::sku_grid::query_skus(self.db.pool(), tenant_id, product_id, query).await
+    }
+
+    async fn query_sku_ranges(
+        &self,
+        tenant_id: TenantId,
+        product_id: uuid::Uuid,
+        request: &erp_repo::sku_grid::SkuGridRangesRequest,
+    ) -> anyhow::Result<erp_repo::sku_grid::SkuGridRangesPage> {
+        erp_repo::sku_grid::query_sku_ranges(
+            self.db.pool(),
+            tenant_id,
+            product_id,
+            request,
+        )
+        .await
+    }
+
     async fn list_skus(
         &self,
         tenant_id: TenantId,

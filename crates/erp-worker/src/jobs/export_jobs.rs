@@ -1,10 +1,12 @@
-use calamine::{open_workbook_auto, Data, Reader};
+use calamine::{Data, Reader, open_workbook_auto};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use csv::{ReaderBuilder, WriterBuilder};
+use erp_grid_core::paged_query::PageQuery;
 use erp_repo::{
     db::Db,
     export_jobs::{ExportJob, ExportJobUpdate, ExportJobsRepo},
     feature_flags::{FeatureFlag, FeatureFlagsRepo},
+    product_grid_export::ProductExportCursor,
     products::{ProductCreate, ProductsRepo},
     sku_suppliers::SkuSuppliersRepo,
     skus::{SkuCreate, SkuUpdate, SkusRepo},
@@ -17,13 +19,14 @@ use std::{
     io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 use tracing::{error, info, warn};
 
 const DEFAULT_POLL_INTERVAL_MS: u64 = 2000;
 const DEFAULT_BATCH_SIZE: i64 = 10;
 const DEFAULT_PAGE_SIZE: i64 = 1000;
 const DEFAULT_MAX_ATTEMPTS: i32 = 5;
+const MAX_PRODUCT_EXPORT_BYTES: u64 = 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct ExportJobConfig {
@@ -93,6 +96,13 @@ struct SkuImportParams {
     duplicate_strategy: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct ProductExportParams {
+    query: Option<PageQuery>,
+    selection: Option<serde_json::Value>,
+    checked: Option<serde_json::Value>,
+}
+
 async fn process_job(
     pool: &PgPool,
     repo: &ExportJobsRepo<'_>,
@@ -100,14 +110,22 @@ async fn process_job(
     job: ExportJob,
 ) -> anyhow::Result<()> {
     let params: ExportParams = serde_json::from_value(job.params_json.clone()).unwrap_or_default();
-    let (start_at, end_at) = parse_range(&params)?;
 
     let result = match job.job_type.as_str() {
-        "ORDER_EXPORT" => export_orders(pool, repo, config, &job, &params, start_at, end_at).await,
-        "RECONCILE_EXPORT" => {
-            export_reconcile(pool, repo, config, &job, &params, start_at, end_at).await
-        }
+        "ORDER_EXPORT" => match parse_range(&params) {
+            Ok((start_at, end_at)) => {
+                export_orders(pool, repo, config, &job, &params, start_at, end_at).await
+            }
+            Err(err) => Err(err),
+        },
+        "RECONCILE_EXPORT" => match parse_range(&params) {
+            Ok((start_at, end_at)) => {
+                export_reconcile(pool, repo, config, &job, &params, start_at, end_at).await
+            }
+            Err(err) => Err(err),
+        },
         "INVENTORY_EXPORT" => export_inventory(pool, repo, config, &job, &params).await,
+        "PRODUCT_EXPORT" => export_products(pool, repo, &job).await,
         "SKU_IMPORT" => import_skus(pool, repo, &job).await,
         other => Err(anyhow::anyhow!("unsupported export type: {other}")),
     };
@@ -376,6 +394,191 @@ async fn export_inventory(
 
     finalize_job(repo, job).await?;
     Ok(())
+}
+
+async fn export_products(
+    pool: &PgPool,
+    repo: &ExportJobsRepo<'_>,
+    job: &ExportJob,
+) -> anyhow::Result<()> {
+    let params: ProductExportParams = serde_json::from_value(job.params_json.clone())
+        .map_err(|err| anyhow::anyhow!("invalid PRODUCT_EXPORT params: {err}"))?;
+    let final_path = export_job_file_path(job.tenant_id, job.job_id);
+    let temporary_path = product_export_temporary_path(job);
+    if let Some(parent) = final_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if final_path.try_exists()? {
+        let metadata = fs::symlink_metadata(&final_path)?;
+        if !metadata.file_type().is_file()
+            || metadata.file_type().is_symlink()
+            || metadata.len() == 0
+            || metadata.len() > MAX_PRODUCT_EXPORT_BYTES
+        {
+            anyhow::bail!("Existing product export artifact is not a valid regular CSV file");
+        }
+        finalize_job(repo, job).await?;
+        return Ok(());
+    }
+    let result = tokio::time::timeout(Duration::from_secs(300), async {
+        let mut cursor = match (&params.query, &params.selection, &params.checked) {
+            (Some(query), None, None) => {
+                ProductExportCursor::open(pool, job.tenant_id, query).await?
+            }
+            (None, Some(_), None) | (None, None, Some(_)) => {
+                ProductExportCursor::open_selection(pool, job.tenant_id, job.job_id).await?
+            }
+            _ => anyhow::bail!("Product export must have exactly one source"),
+        };
+        let total = cursor.total();
+        let file = File::options()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_path)?;
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(ByteLimitWriter::new(
+                BufWriter::new(file),
+                MAX_PRODUCT_EXPORT_BYTES,
+            ));
+        writer.write_record([
+            "product_id",
+            "product_code",
+            "name",
+            "brand",
+            "category",
+            "status",
+            "created_at",
+            "updated_at",
+        ])?;
+
+        let mut processed = 0_u64;
+        loop {
+            let rows = cursor.fetch_next(1_000).await?;
+            if rows.is_empty() {
+                break;
+            }
+            for row in &rows {
+                writer.write_record([
+                    row.product_id.to_string(),
+                    csv_safe_cell(&row.product_code.clone().unwrap_or_default()),
+                    csv_safe_cell(&row.name),
+                    csv_safe_cell(&row.brand.clone().unwrap_or_default()),
+                    csv_safe_cell(&row.category.clone().unwrap_or_default()),
+                    csv_safe_cell(&row.status),
+                    row.created_at.to_rfc3339(),
+                    row.updated_at.to_rfc3339(),
+                ])?;
+            }
+            processed = processed.saturating_add(rows.len() as u64);
+            update_progress_u64(repo, job, processed, total).await?;
+        }
+
+        cursor.finish().await?;
+        writer.flush()?;
+        let bounded = writer
+            .into_inner()
+            .map_err(|err| anyhow::anyhow!("failed to finish product CSV: {err}"))?;
+        let file = bounded
+            .into_inner()
+            .into_inner()
+            .map_err(|err| anyhow::anyhow!("failed to flush product CSV: {err}"))?;
+        file.sync_all()?;
+        drop(file);
+
+        fs::hard_link(&temporary_path, &final_path)?;
+        remove_file_if_present(&temporary_path)?;
+        if let Err(err) = finalize_job(repo, job).await {
+            let done = repo
+                .get_job(job.tenant_id, job.job_id)
+                .await?
+                .is_some_and(|current| current.status == "DONE");
+            if done {
+                return Ok(());
+            }
+            return Err(err);
+        }
+        Ok(())
+    })
+    .await
+    .unwrap_or_else(|_| {
+        Err(anyhow::anyhow!(
+            "Product export exceeded 300 second time limit"
+        ))
+    });
+
+    if result.is_err() {
+        remove_file_if_present(&temporary_path)?;
+    }
+    result
+}
+
+struct ByteLimitWriter<W> {
+    inner: W,
+    written: u64,
+    limit: u64,
+}
+
+impl<W> ByteLimitWriter<W> {
+    fn new(inner: W, limit: u64) -> Self {
+        Self {
+            inner,
+            written: 0,
+            limit,
+        }
+    }
+
+    fn into_inner(self) -> W {
+        self.inner
+    }
+}
+
+impl<W: Write> Write for ByteLimitWriter<W> {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        let requested = u64::try_from(buffer.len()).unwrap_or(u64::MAX);
+        if self.written.saturating_add(requested) > self.limit {
+            return Err(std::io::Error::other(format!(
+                "Product export exceeds {} byte CSV limit",
+                self.limit
+            )));
+        }
+        let written = self.inner.write(buffer)?;
+        self.written = self.written.saturating_add(written as u64);
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+fn csv_safe_cell(value: &str) -> String {
+    let trimmed = value.trim_start_matches([' ', '\t', '\r', '\n']);
+    let begins_with_control = matches!(value.as_bytes().first(), Some(b'\t' | b'\r' | b'\n'));
+    let numeric_identifier = trimmed.bytes().all(|byte| byte.is_ascii_digit())
+        && (trimmed.len() >= 15 || (trimmed.len() > 1 && trimmed.starts_with('0')));
+    if begins_with_control
+        || numeric_identifier
+        || matches!(trimmed.as_bytes().first(), Some(b'=' | b'+' | b'-' | b'@'))
+    {
+        format!("'{value}")
+    } else {
+        value.to_string()
+    }
+}
+
+fn product_export_temporary_path(job: &ExportJob) -> PathBuf {
+    let mut path = export_job_file_path(job.tenant_id, job.job_id);
+    path.set_extension(format!("{}.csv.part", uuid::Uuid::new_v4().simple()));
+    path
+}
+
+fn remove_file_if_present(path: &Path) -> anyhow::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err.into()),
+    }
 }
 
 async fn import_skus(
@@ -1131,7 +1334,7 @@ async fn resolve_product_id(
                     Some(&row.sku_code),
                     Some("product_id"),
                     "product not found",
-                ))
+                ));
             }
         };
         ensure_category_match(&existing.category)?;
@@ -1787,6 +1990,32 @@ async fn update_progress(
     Ok(())
 }
 
+async fn update_progress_u64(
+    repo: &ExportJobsRepo<'_>,
+    job: &ExportJob,
+    processed: u64,
+    total: u64,
+) -> anyhow::Result<()> {
+    let progress = if total == 0 {
+        100
+    } else {
+        ((processed.saturating_mul(100)) / total).min(100) as i32
+    };
+    repo.update_job(
+        job.tenant_id,
+        job.job_id,
+        ExportJobUpdate {
+            status: None,
+            output_url: None,
+            progress: Some(progress),
+            last_error: None,
+            params_json: None,
+        },
+    )
+    .await?;
+    Ok(())
+}
+
 async fn finalize_job(repo: &ExportJobsRepo<'_>, job: &ExportJob) -> anyhow::Result<()> {
     let output_url = format!("/exports/jobs/{}/file", job.job_id);
     repo.update_job(
@@ -2120,5 +2349,60 @@ mod tests {
         assert_eq!(ordered_ids, expected);
 
         Ok(())
+    }
+
+    #[test]
+    fn product_csv_cells_neutralize_spreadsheet_formulas() {
+        for dangerous in [
+            "=1+1",
+            "+SUM(A1:A2)",
+            "-2+3",
+            "@cmd",
+            "  =HYPERLINK(\"https://example.invalid\")",
+            "\tformula",
+            "\rformula",
+            "\nformula",
+        ] {
+            assert_eq!(csv_safe_cell(dangerous), format!("'{dangerous}"));
+        }
+        assert_eq!(csv_safe_cell("ordinary product"), "ordinary product");
+        assert_eq!(csv_safe_cell("12345"), "12345");
+        assert_eq!(csv_safe_cell("0012345"), "'0012345");
+        assert_eq!(csv_safe_cell("123456789012345"), "'123456789012345");
+        for ordinary in ["product", "123", "", "  product"] {
+            assert_eq!(csv_safe_cell(ordinary), ordinary);
+        }
+    }
+
+    #[test]
+    fn product_csv_formula_protection_survives_csv_round_trip() -> anyhow::Result<()> {
+        let mut writer = WriterBuilder::new().from_writer(Vec::new());
+        writer.write_record([
+            csv_safe_cell("=HYPERLINK(\"https://example.invalid\")"),
+            csv_safe_cell("normal, quoted"),
+        ])?;
+        let bytes = writer.into_inner()?;
+        let record = ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(bytes.as_slice())
+            .records()
+            .next()
+            .transpose()?
+            .expect("one CSV record");
+        assert_eq!(
+            record.get(0),
+            Some("'=HYPERLINK(\"https://example.invalid\")")
+        );
+        assert_eq!(record.get(1), Some("normal, quoted"));
+        Ok(())
+    }
+
+    #[test]
+    fn product_byte_limit_writer_rejects_record_without_writing_past_limit() {
+        let mut writer = ByteLimitWriter::new(Vec::new(), 4);
+        writer.write_all(b"1234").expect("within limit");
+        let err = writer.write_all(b"5").expect_err("over limit");
+        assert_eq!(err.kind(), std::io::ErrorKind::Other);
+        assert_eq!(writer.into_inner(), b"1234");
     }
 }

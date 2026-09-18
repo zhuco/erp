@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+erp-grid-core = { path = "../erp-grid-core" }
 anyhow.workspace = true
 chrono.workspace = true
 serde.workspace = true

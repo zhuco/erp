@@ -1,7 +1,7 @@
 use std::fmt::Write;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
-use tracing_subscriber::{fmt, EnvFilter};
+use std::sync::atomic::{AtomicU64, Ordering};
+use tracing_subscriber::{EnvFilter, fmt};
 
 pub const METRICS_CONTENT_TYPE: &str = "text/plain; version=0.0.4";
 

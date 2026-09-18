@@ -12,6 +12,10 @@ pub fn build_app(state: AppState) -> Router {
         .route("/reports/dashboard", get(get_dashboard_report))
         .route("/reports/fulfillment", get(get_fulfillment_report))
         .route("/reports/inventory", get(get_inventory_report))
+        .route(
+            "/v1/tenants/:tenant_id/reports/inventory/aggregate",
+            post(post_inventory_aggregate),
+        )
         .route("/reports/finance", get(get_finance_report))
         .route(
             "/v1/tenants/:tenant_id/stats/health",
@@ -23,7 +27,9 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/exports/jobs",
-            get(list_export_jobs).post(create_export_job),
+            get(list_export_jobs)
+                .post(create_export_job)
+                .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024)),
         )
         .route("/exports/jobs/:job_id", get(get_export_job))
         .route("/exports/jobs/:job_id/file", get(download_export_job))
@@ -41,6 +47,46 @@ pub fn build_app(state: AppState) -> Router {
         .merge(orders::router())
         .merge(planning::router())
         .merge(sales_orders::router())
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches",
+            get(list_product_copy_batches).post(start_product_copy_batch),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches/:batch_id",
+            get(product_copy_batch_status),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches/:batch_id/results",
+            get(product_copy_batch_results),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches/:batch_id/advance",
+            post(advance_product_copy_batch),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches/:batch_id/cancel",
+            post(cancel_product_copy_batch),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/copy-batches/:batch_id/retry-review",
+            post(retry_product_copy_batch_review),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/selections",
+            post(freeze_product_selection),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/selections/:token/page",
+            post(product_selection_page),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/selections/:token/find",
+            post(find_product_selection_cell),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/selections/:token/count",
+            post(product_selection_count),
+        )
         .route(
             "/v1/tenants/:tenant_id/shipments",
             get(list_shipments).post(request_shipment),
@@ -443,6 +489,43 @@ pub fn build_app(state: AppState) -> Router {
             get(list_products).post(create_product),
         )
         .route(
+            "/v1/tenants/:tenant_id/products/query",
+            post(query_products),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/find",
+            post(find_product_cell),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/:product_id/skus/query",
+            post(query_skus_grid),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/:product_id/skus/query-ranges",
+            post(query_sku_ranges_grid),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/:product_id/skus/find",
+            post(find_sku_cell),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/options",
+            post(product_options),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/actions",
+            post(product_action),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/products/actions/:operation_id",
+            get(product_action_receipt),
+        )
+        .route("/v1/tenants/:tenant_id/skus/actions", post(sku_action))
+        .route(
+            "/v1/tenants/:tenant_id/skus/actions/:operation_id",
+            get(sku_action_receipt),
+        )
+        .route(
             "/v1/tenants/:tenant_id/products/:product_id",
             get(get_product).put(update_product).delete(delete_product),
         )
@@ -768,6 +851,10 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/v1/tenants/:tenant_id/warehouses",
             get(list_warehouses).post(create_warehouse),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/warehouses/tree",
+            post(query_warehouse_tree),
         )
         .route(
             "/v1/tenants/:tenant_id/warehouses/:warehouse_id",

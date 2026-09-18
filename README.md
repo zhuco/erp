@@ -1,10 +1,12 @@
-# 衡策云 (SaaS 多店铺 / 日百万单 / 平台订单为准)
+# 衡策云（店铺 ERP / 平台订单为准）
 
 > 当前版本：`0.1.9`（2026-05-10）
 
+> 当前方向（2026-09-09）：当前无用户、业余自用；新 UI 全部采用 Rust 原生桌面与 Rust/WASM Web，共享 egui 界面和自研网格。旧 React 前端冻结。先自用实用，再邀请 3—5 家商家试用，有稳定收入后建设 SaaS。全部业务表格统一迁入自研数据网格，禁止 AG Grid 社区版和企业版；目前规范已制定，代码迁移尚未完成。开发先读 [AGENTS.md](AGENTS.md)、[组件库规范](docs/UI_COMPONENT_LIBRARY.md) 和 [路线图](docs/ROADMAP.md)。
+
 衡策云是面向多平台电商经营的 ERP 基础工程骨架。当前版本聚焦“平台订单进入系统后，经过审单、库存、仓储、物流、售后、财务和报表形成可追溯闭环”，提供可编译的 Rust 多服务工程、React 管理端、OpenAPI 契约与工业化门禁。
 
-## 当前能力
+## 现存代码能力（不代表本次运行验收）
 - Webhook 入站 → Inbox 去重 → Outbox 事件
 - Outbox → NATS 投递（至少一次）
 - Worker 订阅 → 订单投影 upsert
@@ -24,7 +26,8 @@
 
 ## 目录结构
 - `crates/`: Rust workspace（通用库、适配器、服务）
-- `apps/erp-web`: Web UI（Vite + React + Ant Design Pro）
+- `apps/erp-ui`：首批 Rust/egui 网格实验台与 native/web 入口，参见 [运行说明](apps/erp-ui/README.md)
+- `apps/erp-web`：冻结的旧 Web UI（Vite + React + Ant Design Pro）
 - `migrations/`: 数据库迁移
 - `openapi/`: OpenAPI 规范
 - `infra/` / `docker-compose*.yml`: 基础设施与部署样例
@@ -32,11 +35,13 @@
 
 ## 依赖
 - Docker（Postgres/Redis/NATS）
-- Rust stable >= 1.78
+- Rust 1.98.1（根工具链固定）；Edition 2024、rustfmt style edition 2024。配置已更新，代码兼容及构建待验收。
 - `sqlx-cli`
 - `pnpm`（Web UI）
 
-## 快速开始（后端闭环）
+## 后端历史启动示例
+
+以下命令仅解释服务，实际构建先遵守 AGENTS.md 的统一入口/固定缓存规则。新 Rust UI 的启动与双端发布入口待实现。
 ```bash
 cp env/.env.example .env
 docker compose -f infra/docker-compose.yml up -d

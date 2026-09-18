@@ -1,0 +1,96 @@
+<!doctype html><meta charset="utf-8"><title>Action storage QA</title>
+<button id="run">Run storage checks</button>
+<button id="reopen">Verify persisted data</button>
+<pre id="result">Storage adapter QA only; no ERP API requests.</pre>
+<script type="module">
+import { loadCheckpoint, commitCheckpoint, loadDraft, commitDraft } from '/indexed_db.js';
+const result = document.querySelector('#result');
+const encode = text => new TextEncoder().encode(text);
+const decode = bytes => new TextDecoder().decode(bytes);
+const draft = (marker, now) => encode(JSON.stringify({ marker, expires_at: now + 600 }));
+const marker = bytes => JSON.parse(decode(bytes)).marker;
+const expect = (condition, message) => { if (!condition) throw new Error(message); };
+async function rejects(work, message) { let failed = false; try { await work(); } catch { failed = true; } expect(failed, message); }
+async function deleteDatabase() {
+  expect(location.origin === 'http://127.0.0.1:15439', 'Wrong QA origin');
+  await new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('erp-grid-actions-v1');
+    request.onsuccess = resolve;
+    request.onerror = () => reject(new Error('Fixture database reset failed'));
+  });
+}
+async function createVersionOneCheckpoint() {
+  await new Promise((resolve, reject) => {
+    const open = indexedDB.open('erp-grid-actions-v1', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('checkpoints');
+    open.onerror = () => reject(new Error('Version 1 fixture open failed'));
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction('checkpoints', 'readwrite', { durability: 'strict' });
+      tx.objectStore('checkpoints').put({ revision: 1, bytes: encode('v1 checkpoint') }, 'qa-v1');
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => { db.close(); reject(new Error('Version 1 fixture write failed')); };
+    };
+  });
+}
+async function verify() {
+  const [revision, bytes] = await loadCheckpoint('qa-v1');
+  expect(revision === 1 && decode(bytes) === 'v1 checkpoint', 'Version 1 checkpoint did not survive upgrade/reopen');
+  const [epoch, draft] = await loadDraft('qa-persisted');
+  expect(epoch > 0 && marker(draft) === 'persisted draft', 'Draft did not survive reopen');
+  result.textContent = `PASS: v1 checkpoint and draft survived reopen at epoch ${epoch}`;
+}
+document.querySelector('#run').onclick = async () => {
+  let stage = 'reset';
+  try {
+    await deleteDatabase();
+    stage = 'v1 fixture';
+    await createVersionOneCheckpoint();
+    stage = 'initial draft';
+    const now = Math.floor(Date.now() / 1000);
+    const [initialEpoch, empty] = await loadDraft('qa-empty');
+    expect(initialEpoch === 0 && empty === null, 'Missing key must return global epoch');
+    const persistedEpoch = await commitDraft('qa-persisted', initialEpoch, draft('persisted draft', now), false, now);
+    expect(marker((await loadDraft('qa-persisted'))[1]) === 'persisted draft', 'Draft write/read failed');
+
+    stage = 'concurrent CAS';
+    const concurrentEpoch = (await loadDraft('qa-a'))[0];
+    const competing = await Promise.allSettled([
+      commitDraft('qa-a', concurrentEpoch, draft('writer A', now), false, now),
+      commitDraft('qa-b', concurrentEpoch, draft('writer B', now), false, now),
+    ]);
+    expect(competing.filter(value => value.status === 'fulfilled').length === 1, 'Global CAS must allow exactly one writer');
+
+    stage = 'clear and stale writer';
+    let epoch = (await loadDraft('qa-persisted'))[0];
+    epoch = await commitDraft('qa-persisted', epoch, new Uint8Array(), true, now);
+    expect((await loadDraft('qa-persisted'))[1] === null, 'Clear must delete the active draft');
+    await rejects(
+      () => commitDraft('qa-stale', persistedEpoch, draft('stale', now), false, now),
+      'Writer loaded before clear was accepted'
+    );
+    epoch = await commitDraft('qa-persisted', epoch, draft('persisted draft', now), false, now);
+
+    stage = '32 active drafts';
+    for (let n = 0; n < 30; n++) {
+      epoch = await commitDraft(`qa-quota-${n}`, epoch, draft('quota fixture', now), false, now);
+    }
+    await rejects(
+      () => commitDraft('qa-overflow', epoch, draft('extra', now), false, now),
+      '32 active-draft quota ignored'
+    );
+    epoch = await commitDraft('qa-quota-0', epoch, new Uint8Array(), true, now);
+    epoch = await commitDraft('qa-reused-slot', epoch, draft('replacement', now), false, now);
+    expect(marker((await loadDraft('qa-reused-slot'))[1]) === 'replacement', 'Clear did not release an active slot');
+    stage = 'TTL cleanup';
+    const later = now + 601;
+    epoch = await commitDraft('qa-after-expiry', epoch, draft('expired slots released', later), false, later);
+    expect(marker((await loadDraft('qa-after-expiry'))[1]) === 'expired slots released', 'Expired drafts still consumed capacity');
+    epoch = await commitDraft('qa-persisted', epoch, draft('persisted draft', later), false, later);
+    stage = 'upgrade persistence';
+    await verify();
+    result.textContent = 'PASS: v1 checkpoint upgrade, draft write/read, global concurrent CAS, clear/expiry slot release, stale writer rejection, and 32 active-draft capacity. Reload or restart browser to verify persistence.';
+  } catch (error) { result.textContent = `FAIL at ${stage}: ${error.message}`; }
+};
+document.querySelector('#reopen').onclick = () => verify().catch(error => { result.textContent = `FAIL: ${error.message}`; });
+</script>

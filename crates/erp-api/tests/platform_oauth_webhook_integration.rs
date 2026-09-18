@@ -3,10 +3,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -436,8 +436,8 @@ async fn platform_integration_shop_overview_requires_permissions() {
 }
 
 #[tokio::test]
-async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_health(
-) -> anyhow::Result<()> {
+async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_health()
+-> anyhow::Result<()> {
     let Some(db) = load_db().await? else {
         return Ok(());
     };
@@ -862,9 +862,11 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         "last_webhook_processed_at",
         healthy_webhook_processed_at,
     );
-    assert!(healthy
-        .get("webhook_next_retry_at")
-        .is_some_and(Value::is_null));
+    assert!(
+        healthy
+            .get("webhook_next_retry_at")
+            .is_some_and(Value::is_null)
+    );
     assert!(parse_alerts(healthy).is_empty());
 
     let disconnected = items
@@ -893,15 +895,21 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
             .and_then(Value::as_str),
         Some("IDLE")
     );
-    assert!(disconnected
-        .get("last_webhook_received_at")
-        .is_some_and(Value::is_null));
-    assert!(disconnected
-        .get("last_webhook_processed_at")
-        .is_some_and(Value::is_null));
-    assert!(disconnected
-        .get("webhook_next_retry_at")
-        .is_some_and(Value::is_null));
+    assert!(
+        disconnected
+            .get("last_webhook_received_at")
+            .is_some_and(Value::is_null)
+    );
+    assert!(
+        disconnected
+            .get("last_webhook_processed_at")
+            .is_some_and(Value::is_null)
+    );
+    assert!(
+        disconnected
+            .get("webhook_next_retry_at")
+            .is_some_and(Value::is_null)
+    );
     assert_eq!(
         disconnected
             .get("webhook_failed_count")
@@ -937,12 +945,16 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         Some(1)
     );
     let disconnected_alerts = parse_alerts(disconnected);
-    assert!(disconnected_alerts
-        .iter()
-        .any(|value| value.contains("\u{6388}\u{6743}")));
-    assert!(disconnected_alerts
-        .iter()
-        .any(|value| value.contains("order_sync")));
+    assert!(
+        disconnected_alerts
+            .iter()
+            .any(|value| value.contains("\u{6388}\u{6743}"))
+    );
+    assert!(
+        disconnected_alerts
+            .iter()
+            .any(|value| value.contains("order_sync"))
+    );
 
     let webhook_warning = items
         .iter()
@@ -1014,9 +1026,11 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         "last_webhook_received_at",
         webhook_warning_received_at,
     );
-    assert!(webhook_warning
-        .get("last_webhook_processed_at")
-        .is_some_and(Value::is_null));
+    assert!(
+        webhook_warning
+            .get("last_webhook_processed_at")
+            .is_some_and(Value::is_null)
+    );
     assert_json_timestamp_eq(webhook_warning, "webhook_next_retry_at", webhook_retry_at);
     let webhook_alerts = parse_alerts(webhook_warning);
     let webhook_dead = items
@@ -1068,22 +1082,32 @@ async fn platform_integration_shop_overview_reflects_oauth_webhook_and_sync_heal
         "last_webhook_received_at",
         webhook_dead_received_at,
     );
-    assert!(webhook_dead
-        .get("last_webhook_processed_at")
-        .is_some_and(Value::is_null));
-    assert!(webhook_dead
-        .get("webhook_next_retry_at")
-        .is_some_and(Value::is_null));
+    assert!(
+        webhook_dead
+            .get("last_webhook_processed_at")
+            .is_some_and(Value::is_null)
+    );
+    assert!(
+        webhook_dead
+            .get("webhook_next_retry_at")
+            .is_some_and(Value::is_null)
+    );
     let webhook_dead_alerts = parse_alerts(webhook_dead);
-    assert!(webhook_dead_alerts
-        .iter()
-        .any(|value| value.contains("\u{6b7b}\u{4fe1}")));
-    assert!(webhook_alerts
-        .iter()
-        .any(|value| value.contains("\u{91cd}\u{8bd5}")));
-    assert!(webhook_alerts
-        .iter()
-        .any(|value| value.contains("\u{9a8c}\u{7b7e}")));
+    assert!(
+        webhook_dead_alerts
+            .iter()
+            .any(|value| value.contains("\u{6b7b}\u{4fe1}"))
+    );
+    assert!(
+        webhook_alerts
+            .iter()
+            .any(|value| value.contains("\u{91cd}\u{8bd5}"))
+    );
+    assert!(
+        webhook_alerts
+            .iter()
+            .any(|value| value.contains("\u{9a8c}\u{7b7e}"))
+    );
 
     Ok(())
 }

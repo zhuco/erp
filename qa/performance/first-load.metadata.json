@@ -1,0 +1,29 @@
+{
+  "native_sha256": "0281F84C8EA15CB0D079594D7BCD182B641EF4C09DD210B1F61D99C6EE2CE563",
+  "os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.26200"
+  },
+  "cpu": {
+    "Name": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz"
+  },
+  "reported_display_devices": [
+    {
+      "Name": "Todesk Virtual Display Adapter",
+      "DriverVersion": "16.44.2.509"
+    },
+    {
+      "Name": "NVIDIA GeForce GTX 1070 Ti",
+      "DriverVersion": "32.0.15.6094"
+    }
+  ],
+  "viewport": [
+    1280,
+    800
+  ],
+  "native_p95_independent": 4.8449,
+  "physical_input_verified": false,
+  "gpu_presentation_measured": false,
+  "wasm_sha256": "820787B44473037C4C7B3D25FAB309570D388006578A8999E5172F49336F5738",
+  "web_p95_independent": 36.5
+}

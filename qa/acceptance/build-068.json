@@ -1,0 +1,29 @@
+{
+  "native_build_seconds": 56.77,
+  "web_build_seconds": 34.41,
+  "reports": {
+    "freeze-068-cancel-fixed": {
+      "original": {
+        "excluded": [
+          "a1100000-0000-4000-8000-000000000101",
+          "a1100000-0000-4000-8000-000000000102"
+        ]
+      },
+      "cancelled": "net::ERR_ABORTED"
+    },
+    "freeze-068-recount": {
+      "status": 200,
+      "body": {
+        "affected": 27
+      },
+      "sent": {
+        "excluded": [
+          "a1100000-0000-4000-8000-000000000101",
+          "a1100000-0000-4000-8000-000000000102"
+        ]
+      }
+    }
+  },
+  "wasm_sha256": "EAECFC973F8C54DE427606E1CA1BC369EE7FB988BFA0E9E56D5661F7A511CB51",
+  "native_sha256": "524C7491D0E0ABFBED2075B09016457509F702E5B22DFF3D63E53FCE47C90910"
+}

@@ -1,5 +1,5 @@
 use crate::envelope::OutboxEnvelope;
-use crate::publisher::{subject_for, subject_for_print_job, Publisher};
+use crate::publisher::{Publisher, subject_for, subject_for_print_job};
 use async_nats::HeaderMap;
 use chrono::{Duration, Utc};
 use erp_common::telemetry::metrics;

@@ -305,7 +305,7 @@ pub(crate) async fn create_mapping(
             {
                 Ok(conflict) => conflict,
                 Err(err) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
                 }
             };
             if resolve_conflict {
@@ -328,13 +328,13 @@ pub(crate) async fn create_mapping(
                     Ok(Some(updated)) => updated,
                     Ok(None) => existing,
                     Err(e) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                     }
                 };
                 let view = match mapping_view_from_mapping(state.db.pool(), mapping).await {
                     Ok(v) => v,
                     Err(e) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                     }
                 };
                 return (StatusCode::OK, Json(view)).into_response();
@@ -379,7 +379,7 @@ pub(crate) async fn create_mapping(
                 Ok(Some(updated)) => updated,
                 Ok(None) => existing,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             }
         } else {
@@ -469,7 +469,7 @@ pub(crate) async fn update_mapping(
             {
                 Ok(conflict) => conflict,
                 Err(err) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{err}")).into_response();
                 }
             };
             if !resolve_conflict {
@@ -590,7 +590,7 @@ pub(crate) async fn batch_create_mappings(
                             Ok(None) => existing,
                             Err(e) => {
                                 return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"))
-                                    .into_response()
+                                    .into_response();
                             }
                         };
 
@@ -598,7 +598,7 @@ pub(crate) async fn batch_create_mappings(
                             Ok(v) => v,
                             Err(e) => {
                                 return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"))
-                                    .into_response()
+                                    .into_response();
                             }
                         };
                         items.push(view);
@@ -643,14 +643,14 @@ pub(crate) async fn batch_create_mappings(
                 Ok(Some(v)) => v,
                 Ok(None) => existing,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
 
             let view = match mapping_view_from_mapping(state.db.pool(), mapping).await {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             items.push(view);
@@ -1573,7 +1573,7 @@ pub(crate) async fn parse_shop_products(
             resolved = match match_code(state.db.pool(), tenant_id, &code).await {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             if resolved.is_some() {
@@ -1589,7 +1589,7 @@ pub(crate) async fn parse_shop_products(
                         Ok(v) => v,
                         Err(e) => {
                             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"))
-                                .into_response()
+                                .into_response();
                         }
                     };
                     if resolved.is_some() {
@@ -1604,7 +1604,7 @@ pub(crate) async fn parse_shop_products(
             resolved = match match_by_name_spec(state.db.pool(), tenant_id, &view).await {
                 Ok(v) => v,
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             if resolved.is_some() {

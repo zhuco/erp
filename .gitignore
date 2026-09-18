@@ -7,6 +7,13 @@ dist/
 dist-*/
 build/
 target/
+apps/erp-ui/pkg/
+qa/postgres-grid/
+qa/browser-action-storage/
+qa/browser-grid-acceptance/
+qa/acceptance/tools/
+qa/performance/*.heapsnapshot
+build.lock
 
 # 日志与临时文件
 *.log

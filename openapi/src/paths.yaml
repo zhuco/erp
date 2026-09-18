@@ -177,6 +177,59 @@
           application/json:
             schema:
               $ref: "#/components/schemas/InventoryReport"
+/v1/tenants/{tenant_id}/reports/inventory/aggregate:
+  post:
+    summary: Aggregate the authorized inventory snapshot
+    description: >
+      Aggregates the caller's full authorized current inventory snapshot, optionally restricted
+      to one authorized warehouse. The result is limited to 4096 buckets and an over-limit
+      result is rejected. Cost uses the current estimated SKU cost in cents; this endpoint does
+      not provide historical, monthly, or sales aggregation. Numeric aggregate values are strings
+      so clients can preserve full i128 precision.
+    security:
+      - bearerAuth: []
+    x-permissions:
+      - OPS.REPORT.READ
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InventoryAggregateQuery"
+    responses:
+      "200":
+        description: Current authorized inventory aggregate
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAggregateReport"
+      "400":
+        description: Invalid tenant or query
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ErrorResponse"
+      "401":
+        description: Missing or invalid bearer token
+      "403":
+        description: Tenant, permission, or warehouse access denied
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ErrorResponse"
+      "422":
+        description: Cost aggregation cannot be completed because current costs are missing
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAggregateMissingCostError"
+      "500":
+        description: Inventory aggregate storage failure
 /reports/finance:
   get:
     summary: Finance report
@@ -1713,6 +1766,241 @@
           application/json:
             schema:
               $ref: "#/components/schemas/ErrorResponse"
+/v1/tenants/{tenant_id}/products/{product_id}/skus/query:
+  post:
+    summary: Query one product's SKU grid page with exact total
+    description: Read-only POST. Tenant and parent product scope apply before filtering, sorting and paging. Count and rows share one repeatable-read transaction; subsequent pages are live queries. No write or inventory mutation occurs.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: product_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SkuGridQuery' }
+    responses:
+      '200':
+        description: Requested page and exact filtered count; unavailable parent yields an empty page
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SkuGridPage' }
+      '400': { description: Invalid identity, schema, page, column or filter }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '413': { description: Request exceeds server body limit }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Query failed or timed out }
+/v1/tenants/{tenant_id}/products/{product_id}/skus/query-ranges:
+  post:
+    summary: Read up to two bounded SKU query ranges from one snapshot
+    description: Read-only POST. Tenant and parent product scope, filters and stable sorting match the normal SKU grid query. Count and all requested ranges share one repeatable-read transaction. Query offset and limit are validated but ranges define returned pagination; overlapping ranges are returned as requested.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: product_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SkuGridRangesRequest' }
+    responses:
+      '200':
+        description: Exact filtered total and requested ranges from one database snapshot
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SkuGridRangesPage' }
+      '400': { description: Invalid identity, schema, range, column, sort or filter }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '413': { description: Request exceeds server body limit }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Query failed or timed out }
+/v1/tenants/{tenant_id}/products/query:
+  post:
+    summary: Query a bounded product grid page with exact total
+    description: Read-only POST. Filters apply to the full tenant catalogue before pagination. Count and page share one database snapshot; separate requests remain live and may observe changes. Dates use UTC civil seconds. Literal text search escapes SQL wildcard characters.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProductGridQuery'
+    responses:
+      '200':
+        description: Exact total and requested page; rows outside the total return an empty page
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductGridPage'
+      '400':
+        description: Invalid range, schema, column, or filter type
+      '401':
+        description: Authentication required
+      '403':
+        description: Tenant or permission denied
+      '413':
+        description: Request body exceeds the server limit
+      '422':
+        description: Invalid JSON shape
+      '500':
+        description: Query failed or exceeded database timeout; no database diagnostics exposed
+/v1/tenants/{tenant_id}/products/options:
+  post:
+    summary: Query complete-range distinct product filter options
+    description: Read-only POST requiring skus.read. Removes the requested column's own filter, preserves other filters and global search, and excludes deleted products. NULL and empty values are represented by one empty string. Count and page share a repeatable-read transaction. Only an unsearched first page containing all values with total at most 100 is a complete fixed dropdown.
+    tags: [Products]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProductOptionQuery'
+    responses:
+      '200':
+        description: Distinct values sorted by lower(value), value; total includes the option search
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductOptionPage'
+      '400':
+        description: Invalid column, query, search, or page range
+      '401':
+        description: Authentication required
+      '403':
+        description: Tenant or permission denied
+      '422':
+        description: Invalid JSON shape
+      '500':
+        description: Query failed or timed out
+/v1/tenants/{tenant_id}/products/actions:
+  post:
+    summary: Execute an idempotent product copy or versioned cell update
+    description: Requires migration 0096. Mutation, success audit, and receipt commit in one transaction. A 200 response can contain Applied or Rejected. Keep the same operation_id and identical command on retry; after transport failure query the receipt first. Copy reads a consistent current snapshot when expected_version is omitted. Update always requires expected_version.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read, skus.write]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductActionCommand' }
+    responses:
+      '200':
+        description: Durable result; inspect outcome before reporting success
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductActionReceipt' }
+      '400': { description: Invalid action, version or editable field }
+      '401': { description: Authentication required }
+      '403': { description: Tenant, permission or read-only policy denied }
+      '409': { description: Same operation identity was used with a different command }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Read-only policy could not be verified; action denied }
+      '503': { description: Result unknown; query the original operation receipt before retrying }
+/v1/tenants/{tenant_id}/products/actions/{operation_id}:
+  get:
+    summary: Read the current user's durable product action receipt
+    description: Scoped by tenant and authenticated user, including for administrators. A missing receipt does not prove an earlier in-flight request failed; any resend must reuse the same operation identity and payload.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: operation_id, in: path, required: true, schema: { type: string, format: uuid } }
+    responses:
+      '200':
+        description: Committed action receipt
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductActionReceipt' }
+      '400': { description: Invalid UUID }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: No receipt visible for this tenant and user yet }
+      '503': { description: Receipt lookup unavailable }
+/v1/tenants/{tenant_id}/skus/actions:
+  post:
+    summary: Execute an idempotent versioned SKU grid update
+    description: Requires migration 0098. The SKU mutation, success audit, and durable receipt commit atomically. A 200 response contains Applied or Rejected. Keep the same operation_id and byte-equivalent command on retry; after an unknown transport result query the receipt first. This POST is a write and receives no read-only policy exemption.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read, skus.write]
+    parameters:
+      - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SkuActionCommand' }
+    responses:
+      '200':
+        description: Durable result; inspect outcome before reporting success
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SkuActionReceipt' }
+      '400': { description: Invalid action, version, field, length, boolean, money precision, sign, or range }
+      '401': { description: Authentication required }
+      '403': { description: Tenant, read permission, write permission, or read-only policy denied }
+      '409': { description: Same operation identity was used with a different command }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Read-only policy could not be verified; action denied }
+      '503': { description: Result unknown; query the original operation receipt before retrying }
+/v1/tenants/{tenant_id}/skus/actions/{operation_id}:
+  get:
+    summary: Read the authenticated user's durable SKU action receipt
+    description: Scoped by tenant and the authenticated actor, including administrators. A missing receipt does not prove an earlier in-flight request failed; any resend must reuse the exact original operation identity and payload.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: operation_id, in: path, required: true, schema: { type: string, format: uuid } }
+    responses:
+      '200':
+        description: Committed SKU action receipt
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SkuActionReceipt' }
+      '400': { description: Invalid UUID }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or read permission denied }
+      '404': { description: No receipt visible for this tenant and authenticated actor yet }
+      '503': { description: Receipt lookup unavailable }
 /v1/tenants/{tenant_id}/products/{product_id}:
   get:
     summary: Get product
@@ -5613,6 +5901,39 @@
           application/json:
             schema:
               $ref: "#/components/schemas/ErrorResponse"
+/v1/tenants/{tenant_id}/warehouses/tree:
+  post:
+    summary: Read a page of warehouse roots or warehouse locations
+    description: >
+      Pure read of authorized warehouses and locations, ordered by code in C collation then ID.
+      A null parent loads warehouses; otherwise it loads locations in that warehouse. Search
+      matches warehouse code/name or descendant location code/name. A warehouse match includes
+      all its locations. Disabled records remain visible. Each request uses one database snapshot;
+      pages are a live traversal, not a frozen selection. Refresh to observe edits before the cursor.
+    security:
+      - bearerAuth: []
+    x-permissions: [BASIC.WAREHOUSE.READ, WMS.INVENTORY.READ]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/WarehouseTreeQuery" }
+    responses:
+      "200":
+        description: Full filtered count and a bounded page; next is null at the end
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WarehouseTreePage" }
+      "400": { description: Invalid query or response capacity exceeded }
+      "401": { description: Authentication required }
+      "403": { description: Tenant, permission or warehouse access denied }
+      "404": { description: Parent warehouse unavailable }
+      "500": { description: Query failed }
 /v1/tenants/{tenant_id}/warehouses:
   get:
     summary: List warehouses
@@ -16037,6 +16358,14 @@
       - name: total_amount_cent
         in: query
         schema: { type: integer, format: int64 }
+      - name: total_amount_min_cent
+        in: query
+        description: Inclusive minimum order total in cents.
+        schema: { type: integer, format: int64, minimum: 0 }
+      - name: total_amount_max_cent
+        in: query
+        description: Inclusive maximum order total in cents; must be greater than or equal to total_amount_min_cent.
+        schema: { type: integer, format: int64, minimum: 0 }
       - name: goods_qty
         in: query
         schema: { type: integer, format: int64 }
@@ -16216,6 +16545,8 @@
           application/json:
             schema:
               $ref: "#/components/schemas/OmsOrderDetail"
+      "409":
+        description: order version conflict
 /v1/tenants/{tenant_id}/orders/{order_id}/review:
   post:
     summary: Review order (manual)
@@ -17791,6 +18122,8 @@
           application/json:
             schema:
               $ref: "#/components/schemas/OmsOrderDetail"
+      "409":
+        description: order version conflict
 /v1/tenants/{tenant_id}/oms/orders/{order_id}/review:
   post:
     summary: Review order (alias)
@@ -27038,3 +27371,528 @@
           application/json:
             schema:
               $ref: "#/components/schemas/AfterSalesSyncSettingsView"
+/v1/tenants/{tenant_id}/products/selections:
+  post:
+    summary: Freeze an actor-bound product selection
+    description: Requires migration 0097 and skus.read. Freezes membership and grid row values for ten minutes, ordered by product_id, independently of display sorting. Rejects over 100000 rows; each actor and tenant may retain at most four active snapshots and 100000 rows total. This endpoint creates derived selection state, not business mutations. Batch execution is a separate contract.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductGridQuery' }
+    responses:
+      '200':
+        description: Frozen selection credential
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductSelectionToken' }
+      '400': { description: Invalid query }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '409': { description: Snapshot capacity exceeded or concurrent issuance conflict; retry after refreshing selection state }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Storage failure or timeout }
+/v1/tenants/{tenant_id}/products/selections/{token}/page:
+  post:
+    summary: Read a bounded frozen selection page
+    description: Checks the authenticated actor, tenant and expiry. Values and total refer to the frozen snapshot even if products subsequently change. Optional column sorts apply to frozen values before paging and preserve membership. query_order=true matches live query ordering; false preserves the original frozen-page behavior.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductSelectionPageRequest' }
+    responses:
+      '200':
+        description: Frozen grid rows in requested order with stable product identity tie breaker
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductSelectionPage' }
+      '400': { description: Invalid page range }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '410': { description: Selection expired or unavailable to this actor }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Storage failure or timeout }
+/v1/tenants/{tenant_id}/products/selections/{token}/count:
+  post:
+    summary: Count a frozen selection after validated exclusions
+    description: Exclusions must be unique non-nil product UUIDs belonging to the snapshot. Invalid or foreign exclusions are rejected rather than silently subtracted. This is an exact frozen membership count, not a promise that later writes will succeed.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductSelectionCountRequest' }
+    responses:
+      '200':
+        description: Exact affected membership count
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [affected]
+              properties:
+                affected: { type: integer, format: int64, minimum: 0, maximum: 100000 }
+      '400': { description: Invalid exclusions }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '410': { description: Selection expired or unavailable to this actor }
+      '422': { description: Invalid JSON shape }
+      '500': { description: Storage failure or timeout }
+/v1/tenants/{tenant_id}/products/copy-batches:
+  get:
+    summary: List actor-scoped product copy batches
+    description: Returns the durable server list, with active or unresolved batches first and at most twenty recent terminal records. The list is authoritative for recovery after reconnect or restart.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    responses:
+      '200':
+        description: Actor-scoped copy batch statuses
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 20
+              items: { $ref: '#/components/schemas/ProductCopyBatchStatus' }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '500': { description: Storage failure }
+  post:
+    summary: Start an all-match product copy batch
+    description: Starts durable server execution for a frozen selection. The target count must be 1..100000 and exclusions must be unique, non-nil and at most 10000. This is a write operation requiring read and write permissions; read-only mode does not exempt it. The batch is actor and tenant scoped.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read, skus.write]
+    x-read-only-exempt: false
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductCopyBatchStartRequest' }
+    responses:
+      '200':
+        description: Initial durable batch status
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchStatus' }
+      '400': { description: Invalid identity, exclusions or confirmed count }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Frozen selection unavailable }
+      '409': { description: Identity conflict or active batch capacity exceeded }
+      '500': { description: Storage or serialization failure }
+      '503': { description: Underlying action outcome is unknown; recover with status }
+/v1/tenants/{tenant_id}/products/copy-batches/{batch_id}:
+  get:
+    summary: Read a product copy batch status
+    description: Actor-scoped status read. Pending, unknown and cancel-requested states are durable and remain recoverable through this endpoint.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: batch_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    responses:
+      '200':
+        description: Durable batch status
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchStatus' }
+      '400': { description: Invalid batch ID }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Batch unavailable to this actor }
+      '500': { description: Storage failure }
+/v1/tenants/{tenant_id}/products/copy-batches/{batch_id}/results:
+  get:
+    summary: Read durable product copy results
+    description: Read-only actor-scoped inspection of durable batch item results. Results are ordered by ordinal and use an exclusive cursor. By default returns at most 100 items; failed_only returns only REJECTED items. Pending and in-flight items expose a null receipt, while applied and rejected items expose the validated original action receipt.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: batch_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: after
+        in: query
+        required: false
+        schema: { type: integer, format: int64, minimum: 0, maximum: 99999 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+      - name: failed_only
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: Durable result page
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchResults' }
+      '400': { description: Invalid batch ID or cursor/page parameters }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Batch unavailable to this actor }
+      '500': { description: Storage or result decoding failure }
+/v1/tenants/{tenant_id}/products/copy-batches/{batch_id}/advance:
+  post:
+    summary: Advance a product copy batch
+    description: Processes at most max_items unsent rows. Unknown action outcomes remain unknown and are recovered from the original receipt; they are never silently retried. Requires read and write permissions and is not exempt from read-only mode.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read, skus.write]
+    x-read-only-exempt: false
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: batch_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductCopyBatchAdvanceRequest' }
+    responses:
+      '200':
+        description: Updated durable batch status
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchStatus' }
+      '400': { description: Invalid batch ID or max_items outside 1..25 }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Batch unavailable }
+      '409': { description: Identity conflict }
+      '500': { description: Storage or serialization failure }
+      '503': { description: Action outcome unknown; recover with status }
+/v1/tenants/{tenant_id}/products/copy-batches/{batch_id}/cancel:
+  post:
+    summary: Request cancellation of a product copy batch
+    description: Marks cancellation durably; only unsent items can be prevented. Already sent actions retain their original identity and outcome, including unknown outcomes. Requires read and write permissions and is not exempt from read-only mode.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read, skus.write]
+    x-read-only-exempt: false
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: batch_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    responses:
+      '200':
+        description: Updated cancellation status
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchStatus' }
+      '400': { description: Invalid batch ID }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Batch unavailable }
+      '409': { description: Identity conflict }
+      '500': { description: Storage or serialization failure }
+      '503': { description: Action outcome unknown; recover with status }
+/v1/tenants/{tenant_id}/products/copy-batches/{batch_id}/retry-review:
+  post:
+    summary: Freeze rejected copy items for review retry
+    description: For a terminal batch with rejected items, creates a ten-minute actor-scoped frozen selection using the latest product versions and returns a selection token for review. The stable request_id makes retries idempotent for the same tenant, actor and original batch; the original batch operation receipts remain unchanged. This write operation requires read and write permissions and is not exempt from read-only mode.
+    security: [{ bearerAuth: [] }]
+    x-permissions: [skus.read, skus.write]
+    x-read-only-exempt: false
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: batch_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProductCopyBatchRetryReviewRequest' }
+    responses:
+      '200':
+        description: Idempotent retry-review selection
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCopyBatchRetryReview' }
+      '400': { description: Invalid batch or request identity }
+      '401': { description: Authentication required }
+      '403': { description: Tenant or permission denied }
+      '404': { description: Batch unavailable }
+      '409': { description: Batch is not terminal/retryable, identity conflict, source unavailable or snapshot capacity exceeded }
+      '500': { description: Storage failure }
+/v1/tenants/{tenant_id}/products/find:
+  post:
+    summary: Locate the next matching visible cell in the full product query
+    description: Read-only literal substring lookup under the current filters and sort order. Uses skus.read. Offset and page limit do not restrict lookup. A stable row/column anchor supports forward/backward traversal with one wrap. Results are live; hosts must verify row identity after loading the target page.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [query, text, columns]
+            additionalProperties: false
+            properties:
+              query:
+                $ref: '#/components/schemas/ProductGridQuery'
+              text: { type: string, minLength: 1, maxLength: 256 }
+              columns:
+                type: array
+                minItems: 1
+                maxItems: 7
+                uniqueItems: true
+                items: { type: integer, minimum: 0, maximum: 6 }
+              case_sensitive: { type: boolean, default: false }
+              backward: { type: boolean, default: false }
+              after:
+                type: object
+                nullable: true
+                required: [row_id, column]
+                additionalProperties: false
+                properties:
+                  row_id: { type: string, format: uuid }
+                  column: { type: integer, minimum: 0, maximum: 6 }
+    responses:
+      '200':
+        description: A hit or null when no visible cell matches
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hit]
+              properties:
+                hit:
+                  type: object
+                  nullable: true
+                  required: [row_id, column, offset, wrapped]
+                  properties:
+                    row_id: { type: string, format: uuid }
+                    column: { type: integer, minimum: 0, maximum: 6 }
+                    offset: { type: integer, format: int64, minimum: 0 }
+                    wrapped: { type: boolean }
+      '400':
+        description: Invalid query, text, visible columns or anchor
+      '401':
+        description: Authentication required
+      '403':
+        description: Tenant or permission denied
+      '422':
+        description: Invalid JSON shape
+      '500':
+        description: Lookup failed or exceeded statement timeout
+
+/v1/tenants/{tenant_id}/products/{product_id}/skus/find:
+  post:
+    summary: Locate the next matching visible cell in the full SKU child query
+    description: Read-only literal substring lookup within the tenant and parent product under the current filters and sort order. Uses skus.read. Offset and page limit do not restrict lookup. A stable row/column anchor supports forward/backward traversal with one wrap. Results are live; hosts must verify row identity after loading the target page.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: product_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [query, text, columns]
+            additionalProperties: false
+            properties:
+              query:
+                $ref: '#/components/schemas/SkuGridQuery'
+              text: { type: string, minLength: 1, maxLength: 256 }
+              columns:
+                type: array
+                minItems: 1
+                maxItems: 9
+                uniqueItems: true
+                items: { type: integer, minimum: 0, maximum: 8 }
+              case_sensitive: { type: boolean, default: false }
+              backward: { type: boolean, default: false }
+              after:
+                type: object
+                nullable: true
+                required: [row_id, column]
+                additionalProperties: false
+                properties:
+                  row_id: { type: string, format: uuid }
+                  column: { type: integer, minimum: 0, maximum: 8 }
+    responses:
+      '200':
+        description: A hit or null when no visible cell matches
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hit]
+              properties:
+                hit:
+                  type: object
+                  nullable: true
+                  required: [row_id, column, offset, wrapped]
+                  properties:
+                    row_id: { type: string, format: uuid }
+                    column: { type: integer, minimum: 0, maximum: 8 }
+                    offset: { type: integer, format: int64, minimum: 0 }
+                    wrapped: { type: boolean }
+      '400':
+        description: Invalid query, text, visible columns or anchor
+      '401':
+        description: Authentication required
+      '403':
+        description: Tenant or permission denied
+      '422':
+        description: Invalid JSON shape
+      '500':
+        description: Lookup failed or exceeded statement timeout
+
+/v1/tenants/{tenant_id}/products/selections/{token}/find:
+  post:
+    summary: Locate the next matching visible cell in the frozen product selection
+    description: Read-only literal substring lookup within an unexpired actor-bound frozen selection, including unchecked exclusions. Query filters/search/expression must be empty; only current frozen sort order applies. Uses skus.read. Offset and page limit do not restrict lookup. A stable row/column anchor supports forward/backward traversal with one wrap. Results are live; hosts must verify row identity after loading the target page.
+    security:
+      - bearerAuth: []
+    x-permissions: [skus.read]
+    parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [query, text, columns]
+            additionalProperties: false
+            properties:
+              query:
+                $ref: '#/components/schemas/ProductGridQuery'
+              text: { type: string, minLength: 1, maxLength: 256 }
+              columns:
+                type: array
+                minItems: 1
+                maxItems: 7
+                uniqueItems: true
+                items: { type: integer, minimum: 0, maximum: 6 }
+              case_sensitive: { type: boolean, default: false }
+              backward: { type: boolean, default: false }
+              after:
+                type: object
+                nullable: true
+                required: [row_id, column]
+                additionalProperties: false
+                properties:
+                  row_id: { type: string, format: uuid }
+                  column: { type: integer, minimum: 0, maximum: 6 }
+    responses:
+      '200':
+        description: A hit or null when no visible cell matches
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hit]
+              properties:
+                hit:
+                  type: object
+                  nullable: true
+                  required: [row_id, column, offset, wrapped]
+                  properties:
+                    row_id: { type: string, format: uuid }
+                    column: { type: integer, minimum: 0, maximum: 6 }
+                    offset: { type: integer, format: int64, minimum: 0 }
+                    wrapped: { type: boolean }
+      '400':
+        description: Invalid query, text, visible columns or anchor
+      '401':
+        description: Authentication required
+      '403':
+        description: Tenant or permission denied
+      '410':
+        description: Selection expired or unavailable
+      '422':
+        description: Invalid JSON shape
+      '500':
+        description: Lookup failed or exceeded statement timeout
+

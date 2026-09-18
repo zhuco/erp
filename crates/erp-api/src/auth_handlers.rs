@@ -95,7 +95,7 @@ pub(crate) async fn get_current_user(
         Ok(Some(v)) => v,
         Ok(None) => {
             return error_response(StatusCode::UNAUTHORIZED, "unauthorized", "user missing")
-                .into_response()
+                .into_response();
         }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };

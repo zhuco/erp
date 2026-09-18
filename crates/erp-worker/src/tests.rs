@@ -3,7 +3,7 @@ use anyhow::Result;
 use chrono::{Datelike, Duration as ChronoDuration, Utc};
 use erp_domain::OrderItemProjection;
 use erp_types::{AfterSaleState, OrderId, OrderStatus, Platform, RefundState};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -2066,9 +2066,10 @@ async fn order_upsert_skipped_when_feature_disabled() -> Result<()> {
     .await?;
     assert_eq!(case_count, 0);
 
-    assert!(logs
-        .contents()
-        .contains("feature disabled: aftersales write"));
+    assert!(
+        logs.contents()
+            .contains("feature disabled: aftersales write")
+    );
 
     Ok(())
 }

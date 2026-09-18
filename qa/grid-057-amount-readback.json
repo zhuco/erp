@@ -1,0 +1,38 @@
+{
+  "rejected": [
+    {
+      "query": "total_amount_min_cent=1251&total_amount_max_cent=1250",
+      "status": 400
+    },
+    {
+      "query": "total_amount_min_cent=-1",
+      "status": 400
+    },
+    {
+      "query": "total_amount_min_cent=invalid",
+      "status": 400
+    }
+  ],
+  "matched": [
+    {
+      "query": "total_amount_min_cent=1250&total_amount_max_cent=1250&limit=10&offset=0",
+      "total": 12,
+      "count": 10
+    },
+    {
+      "query": "total_amount_min_cent=1250&total_amount_max_cent=1250&limit=10&offset=10",
+      "total": 12,
+      "count": 2
+    },
+    {
+      "query": "total_amount_max_cent=1249",
+      "total": 0,
+      "count": 0
+    },
+    {
+      "query": "total_amount_min_cent=1251",
+      "total": 0,
+      "count": 0
+    }
+  ]
+}

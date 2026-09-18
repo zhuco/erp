@@ -1,4 +1,4 @@
-use calamine::{open_workbook_auto, Data, Reader};
+use calamine::{Data, Reader, open_workbook_auto};
 use csv::ReaderBuilder;
 use erp_repo::{
     after_sales::{AfterSalesCreateInput, AfterSalesItemCreate, AfterSalesRepo},
@@ -16,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 use tracing::{error, info, warn};
 
 const DEFAULT_POLL_INTERVAL_MS: u64 = 2000;

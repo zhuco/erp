@@ -158,10 +158,25 @@ function hasSkipLine(output) {
 }
 
 function runTarget(target) {
-  const args = ['test', '-p', 'erp-api', '--test', target, '--', '--nocapture', '--test-threads=1'];
-  console.log(`[release-gate] running cargo ${args.join(' ')}`);
+  const buildEntry = path.join(scriptDir, 'Invoke-ErpBuild.ps1');
+  const args = [
+    '-NoLogo',
+    '-NoProfile',
+    '-NonInteractive',
+    '-File',
+    buildEntry,
+    '-Action',
+    'test',
+    '-Platform',
+    'native',
+    '-Scope',
+    'api',
+    '-IntegrationTest',
+    target,
+  ];
+  console.log(`[release-gate] running guarded integration test ${target}`);
 
-  const result = spawnSync('cargo', args, {
+  const result = spawnSync('pwsh', args, {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: 'pipe',

@@ -1,12 +1,11 @@
 use anyhow::Result;
 use erp_repo::inbounds::{
-    InboundDocCreate, InboundDocItemCreate, InboundPutawayInput, InboundPutawayItem,
-    InboundReceiveInput, InboundReceiveItem, InboundsRepo, INBOUND_LEDGER_KIND,
-    INBOUND_STATUS_RECEIVING,
+    INBOUND_LEDGER_KIND, INBOUND_STATUS_RECEIVING, InboundDocCreate, InboundDocItemCreate,
+    InboundPutawayInput, InboundPutawayItem, InboundReceiveInput, InboundReceiveItem, InboundsRepo,
 };
 use erp_repo::inventory::InventoryRepo;
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

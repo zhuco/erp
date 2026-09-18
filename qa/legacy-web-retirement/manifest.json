@@ -1,0 +1,4881 @@
+{
+  "source": "G:\\erp\\apps\\erp-web",
+  "archiveSha256": "A7695C2F6AC2D9DD7ACDC7CB610141BF5FB580274A7BE3ACD0402F0BE2330F9D",
+  "files": [
+    {
+      "sha256": "5FB7DF9805718A354B54ED9028A43277C0A750E2EEAF14AD0997A217FCC9F64A",
+      "bytes": 131,
+      "path": ".env.example"
+    },
+    {
+      "sha256": "ABE309307BEF986BAEC4FBCCE680EECB53EA5EF4B9ACAFA4B7264DE957A67AA1",
+      "bytes": 88,
+      "path": ".eslintignore"
+    },
+    {
+      "sha256": "366561F9D78D6570B4B504537389DF96175003BBA0A7782BE30B38414E7ECF8C",
+      "bytes": 1042,
+      "path": ".eslintrc.cjs"
+    },
+    {
+      "sha256": "56537EBE03160A28FDB6E59AE18F408D6F8ABA609DF73C45917C9358FD3BAD52",
+      "bytes": 8,
+      "path": ".gitignore"
+    },
+    {
+      "sha256": "E4D9BD17C06B246BD7149C8A3BC1949BDD785F169DA44C18B3F0477301F27F2B",
+      "bytes": 45,
+      "path": ".prettierignore"
+    },
+    {
+      "sha256": "48D96356C17B152FBA889E068D410282AA44A9671B8BB03E67CD9FEE72154D89",
+      "bytes": 99,
+      "path": ".prettierrc.cjs"
+    },
+    {
+      "sha256": "4BAEACDD6AD91781970D47C704C78CAACA6037CD743058F243300672C55313F3",
+      "bytes": 495,
+      "path": "docker-healthcheck.sh"
+    },
+    {
+      "sha256": "4FB335199AC4A2BBB62393F3785E0B5B9EC65E05F70B14CE20D5874ADB8E810C",
+      "bytes": 1811,
+      "path": "Dockerfile"
+    },
+    {
+      "sha256": "0E1811A12DEAA3591D092BB6C7D525C8B4CAF1A716E2FA460334A5D4603883D5",
+      "bytes": 299,
+      "path": "index.html"
+    },
+    {
+      "sha256": "3F3E3D4D571FA29A37041AD629D71ED30915C881B4C635CBAFF358F17A007A0C",
+      "bytes": 2787,
+      "path": "nginx.conf"
+    },
+    {
+      "sha256": "A3150D1205E2676207D981A9A043A7ED7FC5C7D4B2A580C5030383405E4C67D1",
+      "bytes": 3338,
+      "path": "package.json"
+    },
+    {
+      "sha256": "C500F7FB8C29F1C66FE31F7C2E3C1ABAB0A605CA5442610DD83E43660ECA4D78",
+      "bytes": 388,
+      "path": "playwright.audit.config.ts"
+    },
+    {
+      "sha256": "B12A93FA075978A5A25BFAA6E17541AE95A906F053E3F10EE5254B7B497B7B54",
+      "bytes": 1356,
+      "path": "playwright.config.ts"
+    },
+    {
+      "sha256": "83A43A1F85A36BFD6A618996F2526E09C529388975D79B36764A7DC2933950A9",
+      "bytes": 845,
+      "path": "playwright.firefox.config.ts"
+    },
+    {
+      "sha256": "02ED2913A0F058BC8D41C7C1008526ECA4DA3CBDFA914DD851567560C314DCEB",
+      "bytes": 249,
+      "path": "tmp_pw_launch.cjs"
+    },
+    {
+      "sha256": "02ED2913A0F058BC8D41C7C1008526ECA4DA3CBDFA914DD851567560C314DCEB",
+      "bytes": 249,
+      "path": "tmp_pw_launch.js"
+    },
+    {
+      "sha256": "1A525B75875C4034CBA90E5F46253C0B574255E3881A386AEA4E2D704C65A0CB",
+      "bytes": 591,
+      "path": "tsconfig.json"
+    },
+    {
+      "sha256": "D49FCDD8F90981D64AD7D62C3FC6988C9E21A5903248C5593F33B3BF74D09886",
+      "bytes": 258,
+      "path": "tsconfig.node.json"
+    },
+    {
+      "sha256": "B399734E50B25B3839E27CC42C0FE2E716E684559981FB9FA2731A1520767ED8",
+      "bytes": 52256,
+      "path": "tsconfig.node.tsbuildinfo"
+    },
+    {
+      "sha256": "ACCD3668D1001F51C87EF01F0F7BE1DD481BEDEAE4CED51F25040E1DFCC668FF",
+      "bytes": 1298,
+      "path": "vite.config.ts"
+    },
+    {
+      "sha256": "08523E873837EDED06ECB44CC16F1C0454B5896A1CD0A64507234B0434EA348E",
+      "bytes": 1095,
+      "path": "e2e/after-sale-cases.spec.ts"
+    },
+    {
+      "sha256": "E807E3F78B1A15A757CB339E45A6DDD1C2B19B4E749D65B357744191433C604A",
+      "bytes": 930,
+      "path": "e2e/after-sales-list-detail.spec.ts"
+    },
+    {
+      "sha256": "92B49986EB20944C45D7834112BABAE4A8C8F715722AC92585BC6BE4E2BFBEED",
+      "bytes": 1506,
+      "path": "e2e/after-sales-receive.spec.ts"
+    },
+    {
+      "sha256": "BA9A005F2D66BBD43789FD1B12D1932DB1D2329CCC7AA758F004293A0FE8355C",
+      "bytes": 2390,
+      "path": "e2e/after-sales-return-resend-main-chain.spec.ts"
+    },
+    {
+      "sha256": "167A6928DCF4AF3F5C2F3FBF7C19C834296AAF91EA961B93F9B5FAE5C363B09A",
+      "bytes": 1380,
+      "path": "e2e/after-sales-ui.spec.ts"
+    },
+    {
+      "sha256": "47825BEE8F5F368CC0CCBC440F7E4F2A280BDD7F8032C16F808200633E3BCAB1",
+      "bytes": 3751,
+      "path": "e2e/after-sales-workflow.spec.ts"
+    },
+    {
+      "sha256": "EF8C22C3B4FA1B567FE49725687530F830DBF9097460B0C2E9639CF5C5953302",
+      "bytes": 279,
+      "path": "e2e/auth-flow.spec.ts"
+    },
+    {
+      "sha256": "AC41E4E99140365037F5704D983FEFEE1B6944F5BB1A88CEADA19FD7242F142D",
+      "bytes": 1029,
+      "path": "e2e/channels-shops-list-visibility.spec.ts"
+    },
+    {
+      "sha256": "F889D8ECD446C7B6850B6328F9A9626F80D212D642B55F6E916AA5CCF568DB68",
+      "bytes": 3113,
+      "path": "e2e/critical-paths.spec.ts"
+    },
+    {
+      "sha256": "9FC02592C5D8F05BE9D783D655B3CBFEC37C201F67C3A7115F1C0F442FEB1F63",
+      "bytes": 3267,
+      "path": "e2e/crm-stats-api.spec.ts"
+    },
+    {
+      "sha256": "FD0BAE6751DD7CADC6E2B698C786127877BE5E67560F9321490C7F36059E20F6",
+      "bytes": 2531,
+      "path": "e2e/customer-service-tickets.spec.ts"
+    },
+    {
+      "sha256": "0B35C67A2F64C018BA43ED329729B1079886156BA252698DA1A9022AC879F374",
+      "bytes": 1469,
+      "path": "e2e/customers-contextmenu-scroll.spec.ts"
+    },
+    {
+      "sha256": "CB36C13D54B9B25C4B2A57E7D8EF7EDF67DE4B8CE21554986B54326F8261DBF2",
+      "bytes": 1036,
+      "path": "e2e/finance-operations.spec.ts"
+    },
+    {
+      "sha256": "BB2E28F2110AE7E2502A706F11690A52A2D6BC2131DB142E51C1FF75BD2B9D39",
+      "bytes": 8418,
+      "path": "e2e/fixtures.ts"
+    },
+    {
+      "sha256": "D09F0E2B4903040953F6A6F2179D5E4CBD8F7992A4C3620ACA8497812F74C590",
+      "bytes": 3937,
+      "path": "e2e/frontend-route-observability.spec.ts"
+    },
+    {
+      "sha256": "892F5A0C5F2098B3A24DEBE750F4D630001F88E78DDDEA80046B763014CFCC0E",
+      "bytes": 1541,
+      "path": "e2e/inbound-flow.spec.ts"
+    },
+    {
+      "sha256": "24A78EADC87C571BC6377A636AC64A84F42E2A7719FD91EA161DDE5AD11FB23D",
+      "bytes": 7643,
+      "path": "e2e/insights-menu-all-functions.spec.ts"
+    },
+    {
+      "sha256": "5C35832E79BFFFDB8FBB4E8784D7D36CF7AF005BFAAC412D45CFBBA3CA263408",
+      "bytes": 3094,
+      "path": "e2e/inventory-governance-packaging.spec.ts"
+    },
+    {
+      "sha256": "7E7A4169A1D7736DFFDAB3C34FBF1AD2C9804D0FE6E54E9E12242249B34C16D0",
+      "bytes": 2734,
+      "path": "e2e/inventory.spec.ts"
+    },
+    {
+      "sha256": "4C26C37941F2C85F730A478BAF8A1CBDA3E0037305BA329BACBAE98955D379E3",
+      "bytes": 860,
+      "path": "e2e/kits.spec.ts"
+    },
+    {
+      "sha256": "A9F6FE9239E896FB54221B1EC779B5872F659777878EC6DD8D97F380779C2C21",
+      "bytes": 10133,
+      "path": "e2e/marketing-crud.spec.ts"
+    },
+    {
+      "sha256": "F4CB7C0B7777CE9CE074D97FC32388B10DB72BFA946B588B3873465CC090648C",
+      "bytes": 815,
+      "path": "e2e/multi-entity-governance.spec.ts"
+    },
+    {
+      "sha256": "B45337A2C852EE65C97192AC69F937D5B329578A1C3D75F17DDB470FE4D36AF9",
+      "bytes": 8238,
+      "path": "e2e/order-column-filter-refactor.spec.ts"
+    },
+    {
+      "sha256": "C1DA19EBFABD673C4E7C7818DDFFE09069DC3A614AF3579A3FAB5D6340DEF244",
+      "bytes": 35598,
+      "path": "e2e/order-exceptions.spec.ts"
+    },
+    {
+      "sha256": "A9A9A49FD619A261A07910D5ABE6BC279466D5B575BE1DB09DCD956C868386DC",
+      "bytes": 3063,
+      "path": "e2e/order-left-filter-highlight.spec.ts"
+    },
+    {
+      "sha256": "1F43DF9524E62DEF656BF4AEA9791C81D7C29D4B4829473CE0E7232C1EF9EFF1",
+      "bytes": 7577,
+      "path": "e2e/order-pagination-visibility.spec.ts"
+    },
+    {
+      "sha256": "6A0BBA25E999F6ED5343CD57D8D69F39BD171501D4BF4833D75A66C89B9A93D1",
+      "bytes": 5124,
+      "path": "e2e/order-processing-flow.spec.ts"
+    },
+    {
+      "sha256": "745EFE191529699A19CA5021BECB9DAEC18011CAB11D0E785716CBB7F5596873",
+      "bytes": 3762,
+      "path": "e2e/order-review-contextmenu-scroll.spec.ts"
+    },
+    {
+      "sha256": "67CF71F9BD7F46A7937DBE4C315D75AFA1CD8A2F3030BF2FEE9F061668AA42B2",
+      "bytes": 1979,
+      "path": "e2e/order-review-count-scope.spec.ts"
+    },
+    {
+      "sha256": "E5CDFAFC55D2A2375DED557BF2F55478E601A1AAFE209223B858281C1FB1E291",
+      "bytes": 6818,
+      "path": "e2e/order-review-interaction-latency-evaluation.spec.ts"
+    },
+    {
+      "sha256": "21362A063E97F94B0842D928F3785729B103725EAFABD5676BADBE7DA4201865",
+      "bytes": 5357,
+      "path": "e2e/order-review-interactions.spec.ts"
+    },
+    {
+      "sha256": "E47B968A7F6A9BABF01C4F9AA6B9707F4AAEB0482D9F123DB7E9E3F5BD5A0E19",
+      "bytes": 2695,
+      "path": "e2e/order-review-left-panel-regression.spec.ts"
+    },
+    {
+      "sha256": "CF4E45CE291CA3E8470537F71017FDF856FE4F5DD6187905A23EBB51B4808631",
+      "bytes": 3918,
+      "path": "e2e/order-review-performance-budget.spec.ts"
+    },
+    {
+      "sha256": "1EA111932A13FCBF8E8C2BFFBA0856A249B065153CF3CDEC42654FE76B649718",
+      "bytes": 3173,
+      "path": "e2e/order-review-query.spec.ts"
+    },
+    {
+      "sha256": "A72D15C397B4179CE4B61B0F3FD69DC46BA2D35ABAAB6BC38463A5858786252C",
+      "bytes": 13610,
+      "path": "e2e/order-review-scrollbar.spec.ts"
+    },
+    {
+      "sha256": "2C72F8F14EF7DA95CAC5FA7D76DF8C22A124771CBD7B242B901FA7BB5CBB1A9E",
+      "bytes": 46078,
+      "path": "e2e/order-review-selection.spec.ts"
+    },
+    {
+      "sha256": "95E3FB6D6CF42ABF0AB1F8A7D4AFA77B26CD601AF07EFAB82C4FBF7D8F060816",
+      "bytes": 3691,
+      "path": "e2e/order-unified-workbench-footer-contract.spec.ts"
+    },
+    {
+      "sha256": "7F887E4902CDB1266002E2A5B033F5CC87C6A1E0D0BF9AD19F823B6A01376AF5",
+      "bytes": 445,
+      "path": "e2e/order-workbench-pages.spec.ts"
+    },
+    {
+      "sha256": "21462F3BAF76D016A6F99A44F83C5F0786D3C608A0904EA80EDAEECDD9AC8712",
+      "bytes": 13644,
+      "path": "e2e/orders.spec.ts"
+    },
+    {
+      "sha256": "447C0B5612C7387BD3AFB315E0D7C803F979A5B90D6AED470B2AF89D1933622B",
+      "bytes": 3305,
+      "path": "e2e/orderWorkbenchGridHelpers.ts"
+    },
+    {
+      "sha256": "E7E913B15A48776646C63556422C91F7010D83021412B4534D27B3B96B9183A2",
+      "bytes": 858,
+      "path": "e2e/outbound-flow.spec.ts"
+    },
+    {
+      "sha256": "2532E94C6DD3FFC7CFDC7B053CF9AE2403C9E521A6C594226AEDA035CD2BFB95",
+      "bytes": 7130,
+      "path": "e2e/outbound-fulfillment-actions.spec.ts"
+    },
+    {
+      "sha256": "E929DCBC96F367F359E9FD24A3BC1A9E5533EF74308D9A01C95815B53061ED7C",
+      "bytes": 997,
+      "path": "e2e/outbound-fulfillment-flow.spec.ts"
+    },
+    {
+      "sha256": "F91E864CCB3A5FC0A1598A3859258553B86253BE479255E9FBF9669F5915B758",
+      "bytes": 2639,
+      "path": "e2e/planning-flow.spec.ts"
+    },
+    {
+      "sha256": "421B078B716B252EEFD053AED1265CD838D00105DC0F416C442AAC08DCFB081E",
+      "bytes": 1467,
+      "path": "e2e/print-jobs.spec.ts"
+    },
+    {
+      "sha256": "9FDEDCCD155561EEB9F5DE3E7A20787F1FA743B00A14F58679C6A1D9E415F83F",
+      "bytes": 3966,
+      "path": "e2e/procurement-pages.spec.ts"
+    },
+    {
+      "sha256": "6BA766C0272628694106D08D2F68DECBDDDAF3DA08C95918B8EB3F9883E72E92",
+      "bytes": 863,
+      "path": "e2e/product-barcodes.spec.ts"
+    },
+    {
+      "sha256": "1A6E44D0585F005112A4B02B5ABB9D4D44D08085D68ACBBB1DE7B926629C16F6",
+      "bytes": 1373,
+      "path": "e2e/product-change-control.spec.ts"
+    },
+    {
+      "sha256": "138161D2CCA338FEF615ACACB64E3FC3415C7C227298EE9FB94DF93D017B8FEF",
+      "bytes": 617,
+      "path": "e2e/product-channel-availability.spec.ts"
+    },
+    {
+      "sha256": "A4D11144E359217DB13A683B1C25709E7161DDA3C46BBED6ACA70BBC4EA20987",
+      "bytes": 561,
+      "path": "e2e/product-lifecycle.spec.ts"
+    },
+    {
+      "sha256": "88B0C6279CC0D33DD9BAD4C3685B5780D89E902AB6BFFC828CC24E3B5A98A632",
+      "bytes": 799,
+      "path": "e2e/product-units.spec.ts"
+    },
+    {
+      "sha256": "6507224B62212A842EB55135A1139AB12AF7AA999624C5307F12FBF250FA6C55",
+      "bytes": 10774,
+      "path": "e2e/products.spec.ts"
+    },
+    {
+      "sha256": "F758EF456B3BC86A92A9AEE6C5C87A4FAEC5CDCB9B0DCB0DE70F50499B99C0AF",
+      "bytes": 1417,
+      "path": "e2e/release-gate-cross-chain.spec.ts"
+    },
+    {
+      "sha256": "A7470876262124C5505AD98A7D4D3A98B054B7FB76831CBF45E8D0CF6CC82BD0",
+      "bytes": 1046,
+      "path": "e2e/release-gate-main-chain.spec.ts"
+    },
+    {
+      "sha256": "A78BB0A11AE42CAA05249DF8509FE503A06A3B8765AE7FEBE1D906510A6222AD",
+      "bytes": 1233,
+      "path": "e2e/shipments.spec.ts"
+    },
+    {
+      "sha256": "9DADA1DF3FD744FD35E58BFF06870EFE509EEF494E863689332950B617CA0406",
+      "bytes": 2721,
+      "path": "e2e/shop-product-match-governance.spec.ts"
+    },
+    {
+      "sha256": "C23A30032C1B028FCBD4FDB9B1A0AA5F7090042B37D8DC622659645DC7F7ED9D",
+      "bytes": 1221,
+      "path": "e2e/shop-products-vs-order-review-visual-compare.spec.ts"
+    },
+    {
+      "sha256": "996EEE2258A128A7D9E8CFF014D6113820BE03F015FF6911EA638BE3B2FB0F47",
+      "bytes": 8887,
+      "path": "e2e/sku-runtime-governance.spec.ts"
+    },
+    {
+      "sha256": "6240F50655D66275BF008572874FEA023F1151762D33B08BFFD09171B8E598EA",
+      "bytes": 320,
+      "path": "e2e/skus.spec.ts"
+    },
+    {
+      "sha256": "F14CB7E4F03ABF4A3F1C5E989C5BB8D2B8BFF82830051098217E2497A6929CFC",
+      "bytes": 7744,
+      "path": "e2e/space-selection-industrial-workbench.spec.ts"
+    },
+    {
+      "sha256": "A9668B4836B89CA5C684D9BCE6B995EC03BA1E869514591B393102EB01E53820",
+      "bytes": 6969,
+      "path": "e2e/strategy-layout-preview-interactions.spec.ts"
+    },
+    {
+      "sha256": "DFBD6A3695B88ED0AE9FF426A6084EF03E96F61E5FC1F52E9D6240281F4096D5",
+      "bytes": 1662,
+      "path": "e2e/strategy-layout-preview-regression.spec.ts"
+    },
+    {
+      "sha256": "5D7917D2C506642F8CE9D47EBFBB6D8595C45FA7C5CA69B14CFB74C68FCEC297",
+      "bytes": 1477,
+      "path": "e2e/system-governance.spec.ts"
+    },
+    {
+      "sha256": "0E719504E6360310F4623969F953743590B080E0AAD3E99178B8D761DA671960",
+      "bytes": 1451,
+      "path": "e2e/system-integrations.spec.ts"
+    },
+    {
+      "sha256": "23B9557940BBABFC29189549236BC8BFF8B6E4131E1C5A6675B13D08D96D36D1",
+      "bytes": 843,
+      "path": "e2e/task6-after-sales-logistics-profit.spec.ts"
+    },
+    {
+      "sha256": "12C7002C319839E2B7E76A732CCAED83E3FFE0289400A971B3EE82AE2922C333",
+      "bytes": 1616,
+      "path": "e2e/task8-stats-observability-sso.spec.ts"
+    },
+    {
+      "sha256": "F38E6782A2E1B3A3D477036A0F4F977B8F39780FAF3DD435FF3C42767CB6BE81",
+      "bytes": 154,
+      "path": "e2e/tsconfig.json"
+    },
+    {
+      "sha256": "5EDD4498E01A5FD50D9D9CF62678B7880E9049E45CC35757E1796B7B9A7AC1F1",
+      "bytes": 852,
+      "path": "e2e/wms-handover.spec.ts"
+    },
+    {
+      "sha256": "17D0346BD54877A70A5D23DB8781558373478E1C8ADB0608299F1EDF544A1949",
+      "bytes": 1914,
+      "path": "e2e/wms-site-execution.spec.ts"
+    },
+    {
+      "sha256": "5EC3D4B44C7F505A9AFBB0DD1EEA7BE4A86074D842688C7FB9A017DC2A3D63CB",
+      "bytes": 735,
+      "path": "e2e/wms-wave-main-chain.spec.ts"
+    },
+    {
+      "sha256": "C13531FED731413290EDCEA95094FF6A95652971ED60E2EB347634475289D421",
+      "bytes": 1248,
+      "path": "e2e/workbench-a11y.spec.ts"
+    },
+    {
+      "sha256": "61BD5C1451BE994DDA7F8C409D92ABFD6BBD426C0C1676A01B5595A52A827C17",
+      "bytes": 6031,
+      "path": "e2e/workbench-layout-presets.spec.ts"
+    },
+    {
+      "sha256": "FECF7F52C24EE752476CD59E7F4514EFEEB600D731A2676A8A0057E376DE0F1D",
+      "bytes": 7740,
+      "path": "e2e/workbench-main-table-visibility.spec.ts"
+    },
+    {
+      "sha256": "E38E7B66E01A81B150562D6AFD005F29997A0F8536EA8FADC299E3CCB35B3C12",
+      "bytes": 13119,
+      "path": "e2e/workbench-menu-navigation.spec.ts"
+    },
+    {
+      "sha256": "DB4A80A8AC6E90519DDAE133639A7A1C101DFA971F6143FFEDFF91C07E88E371",
+      "bytes": 1490,
+      "path": "e2e/workbench-typography.spec.ts"
+    },
+    {
+      "sha256": "F9A55C111F398DB0696BBB853BB853DE1E4FB3C6083C65018319232BCDB6D46C",
+      "bytes": 2007,
+      "path": "scripts/assess-ui-uniformity.data-testid.test.mjs"
+    },
+    {
+      "sha256": "46AFA82D34C2B698BFBA0AE508D613A0CACF8A6953F7B2FD5D3676BE8BC68D0C",
+      "bytes": 28512,
+      "path": "scripts/assess-ui-uniformity.mjs"
+    },
+    {
+      "sha256": "DA8EA91780234654FC4D9BAA084AB7C0293CF43C784EBFC91DC21D58C8D42FAF",
+      "bytes": 2149,
+      "path": "scripts/assess-ui-uniformity.toolbar-slots.test.mjs"
+    },
+    {
+      "sha256": "C82AFAE89D26EBEBC42F2E7E5376DAC77BA68E470314CDBF316EC708F373BA42",
+      "bytes": 12410,
+      "path": "scripts/check-page-template-usage.mjs"
+    },
+    {
+      "sha256": "04BD9A183E9906DC031CEE24120B9EF0255C6DC3E8D57A926F69CB699A75AFD2",
+      "bytes": 1440,
+      "path": "scripts/page-template-baseline.json"
+    },
+    {
+      "sha256": "67AE307FF41F849A7221B802EAFF437858FAEB8EF237C1366A0FF6A95B59C64D",
+      "bytes": 1804,
+      "path": "scripts/run_release_gate_e2e.mjs"
+    },
+    {
+      "sha256": "A9C45383FB896C420EE3287ABA37DE4479C05CEB291C332074D96BED2F0874B9",
+      "bytes": 1096,
+      "path": "src/main.tsx"
+    },
+    {
+      "sha256": "DF4FF9B07A4858C16CBC242E65E03AE1B1829328335C614C4F2002B776D91B4C",
+      "bytes": 22,
+      "path": "src/vite-env.d.ts"
+    },
+    {
+      "sha256": "E65C304C43791D38EA0FFB5A2FD3B2DC7932BA58A01AC3A8CCFA0C2AD5032B1F",
+      "bytes": 124,
+      "path": "e2e/fixtures/after-sales-import.csv"
+    },
+    {
+      "sha256": "89C3939DE5DBB4160F6F14D700080AB7D56A792989C765215B6DB1AB8DF52D2F",
+      "bytes": 1117,
+      "path": "e2e/utils/a11y.ts"
+    },
+    {
+      "sha256": "1A884A50850BAE6ED52037C5E5533C0ADA79EA98782103017613095E15DD9372",
+      "bytes": 786,
+      "path": "e2e/utils/select.ts"
+    },
+    {
+      "sha256": "323EE85179C88115C84A82B92DAD9F5AC8821FC40A6651710706F930C363349B",
+      "bytes": 395,
+      "path": "e2e/utils/table.ts"
+    },
+    {
+      "sha256": "60F76415EFF6E31FD9341012A1EC3AF0EBF93E114DAF824CEBE748D6F9129F71",
+      "bytes": 2061,
+      "path": "src/api/afterSales.ts"
+    },
+    {
+      "sha256": "511617AC346D2F2544D96B0C6CAAFDE2E2C6CE1984ACAED350AC8189D83423D9",
+      "bytes": 14325,
+      "path": "src/api/afterSalesOps.ts"
+    },
+    {
+      "sha256": "F07EBC6A8820234D0674CCE6419093FC93F2BF6E46779395434270FDC378F7E0",
+      "bytes": 6412,
+      "path": "src/api/afterSalesSettings.ts"
+    },
+    {
+      "sha256": "76B0D9C2E61732BBA150F18F32609F5023A4E873E3054AE3CEB807B64D05487E",
+      "bytes": 10964,
+      "path": "src/api/afterSalesWorkflow.ts"
+    },
+    {
+      "sha256": "E869C1AD7DDF79B0B341B0D053ACEBEA6F1A1D2EA5BA4E70D98EEED42187FCEB",
+      "bytes": 4803,
+      "path": "src/api/auth.ts"
+    },
+    {
+      "sha256": "5744AAC095D9AA570A77480D4EAAC3D0046585F06273562C6ECC09395E7DF6E7",
+      "bytes": 3646,
+      "path": "src/api/carriers.ts"
+    },
+    {
+      "sha256": "5BBE62ADBD671B02F53C8786BCACF4B88E20883C730B5E98D96A9999E3FD4083",
+      "bytes": 4273,
+      "path": "src/api/channelFieldMappings.ts"
+    },
+    {
+      "sha256": "7784432F1BC3EEBB6407431230130DBAE9E19186E61EA91A5E517930D6826AA7",
+      "bytes": 4717,
+      "path": "src/api/channels.ts"
+    },
+    {
+      "sha256": "8301062A9AA6A4F08C3FAFF759010825BBA546DC9194EC8D4855BC5E1DEB6BF2",
+      "bytes": 2122,
+      "path": "src/api/client.ts"
+    },
+    {
+      "sha256": "37E4F92C86E0076C2A97946AA5C893D9C66BB84D2B93D97A481DAF4A90B4F124",
+      "bytes": 7172,
+      "path": "src/api/containers.ts"
+    },
+    {
+      "sha256": "B24487EA189F9B6207773D62A07A0CD539DEFF4A7CED71F10F640426C67D3A7F",
+      "bytes": 3468,
+      "path": "src/api/couriers.ts"
+    },
+    {
+      "sha256": "38BAE489749C7F73D52A7A548CC98D04E88F629E0159A32BF015AC6B348BF352",
+      "bytes": 594,
+      "path": "src/api/cursor.ts"
+    },
+    {
+      "sha256": "BDB6812F01223B0622863B4D1D552823D6CDBDD8B74F387A09CE48E4B47C5F89",
+      "bytes": 3852,
+      "path": "src/api/customerCategories.ts"
+    },
+    {
+      "sha256": "280727D8F0081A991C7D5B9CA465097B6542B60527EFE012DD844175185EE1CE",
+      "bytes": 4360,
+      "path": "src/api/customerLifecycle.ts"
+    },
+    {
+      "sha256": "D708A165A310FD11812CD2CF93FB9E9F9992E60579CE795188D1483C1C091C0D",
+      "bytes": 3425,
+      "path": "src/api/customerLoyalty.ts"
+    },
+    {
+      "sha256": "CC8AF83F1FA2B8DFE1C3001F2FBBCA28134495378D21C78F93AD91F7D333E27C",
+      "bytes": 5376,
+      "path": "src/api/customers.ts"
+    },
+    {
+      "sha256": "64397D0BC121A91902B3532FECD5280DBDFBA5D105E3CBB112BE920CD71C01A0",
+      "bytes": 4121,
+      "path": "src/api/customerSegments.ts"
+    },
+    {
+      "sha256": "606454F13A250F86B927684BEF98FE4817B9DC1F7E3F32D474E5B981DB28FD2D",
+      "bytes": 5572,
+      "path": "src/api/customerServiceTickets.ts"
+    },
+    {
+      "sha256": "FC456C8C8C158AF2C208272174122588867BE56906B15B4D93BC4A055BCCE3A1",
+      "bytes": 3475,
+      "path": "src/api/customerTags.ts"
+    },
+    {
+      "sha256": "4DFE7CDD8A09640D7D5663618EF48EB6271EA73132759E306964D7115575D800",
+      "bytes": 2048,
+      "path": "src/api/errors.ts"
+    },
+    {
+      "sha256": "46D4A0746CAE36142C39E1602A5BECBF37F82483C905E38905507A4979009B6B",
+      "bytes": 1198,
+      "path": "src/api/exports.ts"
+    },
+    {
+      "sha256": "FF28E1534F2F146FCD0C2E8CD4B2F4D31313E327F5A01A68FE11DDC5B7837F85",
+      "bytes": 4744,
+      "path": "src/api/failureQueue.ts"
+    },
+    {
+      "sha256": "5200BC336EF5A3B13D3366352FE6CE7D3ECD8EB9D9B9E04EB60A759434B726D5",
+      "bytes": 32862,
+      "path": "src/api/finance.ts"
+    },
+    {
+      "sha256": "DE8798C388CCFFB923B8F3856FD3F7031D661CF2021667661408CBFF146ECEAC",
+      "bytes": 4043,
+      "path": "src/api/frontendRouteDiagnostics.test.ts"
+    },
+    {
+      "sha256": "E6744E6917CB2BA32D31839014CA80F1BB0CEF4DE0881934E4BF6ABE74387F71",
+      "bytes": 15948,
+      "path": "src/api/frontendRouteDiagnostics.ts"
+    },
+    {
+      "sha256": "BC23E8F7BA1EB8F5FC9E09119A91EE6C5443955C6A845A96EEF63116DC617135",
+      "bytes": 3446,
+      "path": "src/api/hooks.ts"
+    },
+    {
+      "sha256": "EE9F16F0009B720E8A2E5AFE2FE58BE1B5166B0FD69498FAFB6E59C5BD9FDAB8",
+      "bytes": 3009,
+      "path": "src/api/inboundRejects.ts"
+    },
+    {
+      "sha256": "D0E1F5F35903CD746DB70C7820A5D1F74A02DDC8ABBEBC5B7163E5075E06DB20",
+      "bytes": 8419,
+      "path": "src/api/inbounds.ts"
+    },
+    {
+      "sha256": "E9B21172778FFBA43BE2CBA505FC7CE07EBA37FBAC5BAB61AAA25986486FA07D",
+      "bytes": 15452,
+      "path": "src/api/inventory.ts"
+    },
+    {
+      "sha256": "EDAEF4B5B59D43E9D9BD0736B7B49FF4B7659ED253F9FDC37E15AB250CE5B7AD",
+      "bytes": 3853,
+      "path": "src/api/inventoryFreezes.ts"
+    },
+    {
+      "sha256": "F8CC2E844A774A12024956E0865B509F996D1C25688C84C75959C2DAC96A22C9",
+      "bytes": 4024,
+      "path": "src/api/inventoryGovernance.ts"
+    },
+    {
+      "sha256": "07D4484A782F67CA45C355ED0BB8B97338C3F988A6B673A8447D326788E9A957",
+      "bytes": 11862,
+      "path": "src/api/inventoryInsights.ts"
+    },
+    {
+      "sha256": "178F4914ED5E4A6E5BCBF72430F9045180CA897F154E271C8B08B7E7748AFB31",
+      "bytes": 5060,
+      "path": "src/api/inventoryLedgers.ts"
+    },
+    {
+      "sha256": "EB9D26073DDB25E4B1E33B360178B7226A85603505A245D9937439B595B3776A",
+      "bytes": 10492,
+      "path": "src/api/inventoryLocks.ts"
+    },
+    {
+      "sha256": "F6485AE99E3B5C524B45A7C1121F4867FB2CDCD5BFC32C9DEE2F7517DECB53A4",
+      "bytes": 6091,
+      "path": "src/api/inventorySyncJobs.ts"
+    },
+    {
+      "sha256": "F080B800E81E54A57A8FF659CA498E6FE79E2CDB9A31C7EA95B67A5DCE0A5309",
+      "bytes": 5151,
+      "path": "src/api/kits.ts"
+    },
+    {
+      "sha256": "DA1F317E3A5590A363F19EC2256C1F62B17456E42EDE3D05C64E68E9125F3627",
+      "bytes": 2070,
+      "path": "src/api/locationBalances.ts"
+    },
+    {
+      "sha256": "DD8B4C0586540D00E33D4E2A1E6AD0A87F431658D18C3AC08639155E913E62BD",
+      "bytes": 2638,
+      "path": "src/api/logistics.ts"
+    },
+    {
+      "sha256": "0D643462D3125BCE0A0D78BCF39CEE0B404FF43769231FF39171A9D8BB024F4B",
+      "bytes": 7939,
+      "path": "src/api/logisticsExceptions.ts"
+    },
+    {
+      "sha256": "48FA880E25D84225E1F9D04A9672D7417FBE912C27B1429EC92FBAF9E0811444",
+      "bytes": 5049,
+      "path": "src/api/logisticsInstallations.ts"
+    },
+    {
+      "sha256": "46DC0A2307E2D673D8D5CFE4836C01984BD900BD58107295D3F928628A9CB0FC",
+      "bytes": 6145,
+      "path": "src/api/logisticsInterfaces.ts"
+    },
+    {
+      "sha256": "BAEB6CD0B6C5A51C9CA6A58D444F4F66CF1AD27960CE8E617FAFBD343D7D9E40",
+      "bytes": 4951,
+      "path": "src/api/logisticsMatchRules.ts"
+    },
+    {
+      "sha256": "0E9D70203F57AECC46FE823E76301F3E431779561C5F1AF48BF3D885B17657FE",
+      "bytes": 6919,
+      "path": "src/api/logisticsOptimization.ts"
+    },
+    {
+      "sha256": "C0F0F6452D09F7172FD4EA954849450652643F393CFEE27D3028AD6CE239D683",
+      "bytes": 6263,
+      "path": "src/api/logisticsPrices.ts"
+    },
+    {
+      "sha256": "65749F49A8E92FD26F9EABA534E362FA5566D3923BC7BB6A6208E1CF78CF169B",
+      "bytes": 4515,
+      "path": "src/api/logisticsProducts.ts"
+    },
+    {
+      "sha256": "820331630A4EAAC7020C5E76C613509E468575364F760AF3B8AD38FADCBF37C7",
+      "bytes": 4422,
+      "path": "src/api/logisticsSettlements.ts"
+    },
+    {
+      "sha256": "48403344361B7FA9BF8500A38294D30AE261E4820CD5B4741D71226FB95AE120",
+      "bytes": 3501,
+      "path": "src/api/mappingRules.ts"
+    },
+    {
+      "sha256": "62C2EB369492B3725F05FA058E6EBD3BBE12DCA3B0D4311AC7E970749CB9641B",
+      "bytes": 4601,
+      "path": "src/api/mappings.ts"
+    },
+    {
+      "sha256": "B4217543099214E6E0F942D4CD20F9B5B8E1273E3373B9D6636EDA15019A7A15",
+      "bytes": 4193,
+      "path": "src/api/marketingCosts.ts"
+    },
+    {
+      "sha256": "36F1A269A1981CF11AEAED4FE2F6A4F79EAC3F2D36FE53D65C356E6A685FE4D2",
+      "bytes": 4407,
+      "path": "src/api/marketingCoupons.ts"
+    },
+    {
+      "sha256": "A053834808497C4FA095656651729C1C04596DB83776633F91A06D78207F06D2",
+      "bytes": 2813,
+      "path": "src/api/marketingErrors.test.ts"
+    },
+    {
+      "sha256": "F2AA5D211F5F4CBEB7563AC46A5D810E85D7EB5CB8E57E907F1F9EA7799DD716",
+      "bytes": 4283,
+      "path": "src/api/marketingGifts.ts"
+    },
+    {
+      "sha256": "2FDE6FD7436D92F04D098E4786C1C01DE79E04FCF023BD032A4AE92702B8988E",
+      "bytes": 4257,
+      "path": "src/api/marketingPostmortems.ts"
+    },
+    {
+      "sha256": "1EF0B7886A51A54F21BF041F327FD020542281F2720197153DF20C2314B92226",
+      "bytes": 2179,
+      "path": "src/api/marketingPriceLists.test.ts"
+    },
+    {
+      "sha256": "38D9F05A3EC5A67F26A3E640CBDFE5AA4097C76C08E56CC56B03425927FB294E",
+      "bytes": 7357,
+      "path": "src/api/marketingPriceLists.ts"
+    },
+    {
+      "sha256": "1B7350950A2031C990A6D769D800741EE0033923314BC964624E1A7AFB475263",
+      "bytes": 1770,
+      "path": "src/api/marketingPromotions.test.ts"
+    },
+    {
+      "sha256": "8C115D0574B8A1B5C4CD5979163A5E13C9397FE26A0D027C8192A072B9AAED66",
+      "bytes": 4484,
+      "path": "src/api/marketingPromotions.ts"
+    },
+    {
+      "sha256": "1072F9CFBB4DAADE857FD7FB3A8D200EA47E113CD5F548E99E13AB9E48BE7483",
+      "bytes": 3791,
+      "path": "src/api/memberLevels.ts"
+    },
+    {
+      "sha256": "654CB6487ED40DF43C0BF37B7B91B0E028BD8271C2CC9673304AB923370AE71D",
+      "bytes": 34,
+      "path": "src/api/mocks.ts"
+    },
+    {
+      "sha256": "67D854DA14305DC2D841DBE039D7C56DE896613C54F480732D7F7BD71F7CDACB",
+      "bytes": 9333,
+      "path": "src/api/omsShipments.ts"
+    },
+    {
+      "sha256": "8A2D1AA2EF3E422BFDE8FE2CD99F975CB786071F4A4CC12F52201CBE848A3DCE",
+      "bytes": 4709,
+      "path": "src/api/orderReviewRules.ts"
+    },
+    {
+      "sha256": "5EB97B21D8CE504B2D5DD61A284C80E1730B180BE2AF55C45B9622989D6149CC",
+      "bytes": 5395,
+      "path": "src/api/orders.mainChain.test.ts"
+    },
+    {
+      "sha256": "D9B18978A4C2C71B6E151E689701E61569CC2A028318FB31121C7D3556FFD467",
+      "bytes": 3421,
+      "path": "src/api/orders.settlementWorkbench.test.ts"
+    },
+    {
+      "sha256": "63CC74605F5F44BC22A93E8EA7EA7BD417165B9CE4B901565719844EC5AE9015",
+      "bytes": 38437,
+      "path": "src/api/orders.ts"
+    },
+    {
+      "sha256": "860579217F92216B43E4CFE49E80ADC3B98F87DFE76283FA090FA76CA0427688",
+      "bytes": 4149,
+      "path": "src/api/orderTagDefinitions.ts"
+    },
+    {
+      "sha256": "2F5FB8B37345A6C90E2586008EAECC73783A9B9D7B27D221A7379B17D4E002F1",
+      "bytes": 15130,
+      "path": "src/api/planning.ts"
+    },
+    {
+      "sha256": "D53C210AD745494ADACD2E002F61BA58B826CE273519407CCB80F1E4F70EEAF8",
+      "bytes": 4603,
+      "path": "src/api/printDevices.ts"
+    },
+    {
+      "sha256": "9A294161AC393BF1BA5AFE2D366B84D6B7999344452ACDA758B0CD79E65C4DD9",
+      "bytes": 7059,
+      "path": "src/api/printJobs.ts"
+    },
+    {
+      "sha256": "4D27162BF27755A4598AA1AFF3BE966BC41942509793556078D8175B38854A92",
+      "bytes": 2699,
+      "path": "src/api/printMappings.ts"
+    },
+    {
+      "sha256": "4CD1A2642A8ECD83C43D718A0B4233512A1CAE7AF1BF1B09BBB47A28537F0D77",
+      "bytes": 5081,
+      "path": "src/api/printTemplates.ts"
+    },
+    {
+      "sha256": "C1F909CA3F975602D8376C3252B9CE5198DA55B4CDCC6CAB31DC3F036DF833D1",
+      "bytes": 5882,
+      "path": "src/api/procurementInspections.ts"
+    },
+    {
+      "sha256": "7EEBB5A6F9446CF63EBEE7EBEEBA109A5FA525248418346A948D2AFA08EA9991",
+      "bytes": 5353,
+      "path": "src/api/procurementPlans.ts"
+    },
+    {
+      "sha256": "18740FC1964494D3C27A8E979C2F530909BA5D71674F7864BC2AA9481E864FEF",
+      "bytes": 4977,
+      "path": "src/api/procurementReconciliations.ts"
+    },
+    {
+      "sha256": "AC74B19E9A6436F7207D43967ECD2D45C38DB16B79655D1BD686901F297CB0F5",
+      "bytes": 5549,
+      "path": "src/api/procurementRequests.ts"
+    },
+    {
+      "sha256": "CDFBB6E357092A4FED31AD2FA08F1A04B22197348C09C1DB10C1B63F286E1F13",
+      "bytes": 4790,
+      "path": "src/api/procurementSourcing.ts"
+    },
+    {
+      "sha256": "58331DDE09632DF83C7853420101290BA042FC47C33B5273CD6B14FCA54E1CD0",
+      "bytes": 4655,
+      "path": "src/api/productBarcodes.ts"
+    },
+    {
+      "sha256": "B5C394788284DAAA4A60DB7783A960DD4B3A2438CA33D58BF77607E3E7263062",
+      "bytes": 3462,
+      "path": "src/api/productBrands.ts"
+    },
+    {
+      "sha256": "E7CE67BD3B7EC517D9A0F011548B67B6EC1D5D07810F4D0D38C2B9E895A48325",
+      "bytes": 3590,
+      "path": "src/api/productCategories.ts"
+    },
+    {
+      "sha256": "152F46EE70B989F8A6D1FCDA335BFA3AA992437D3F9F4D8DCFA8D20AE34B48C7",
+      "bytes": 5039,
+      "path": "src/api/productChangeRequests.ts"
+    },
+    {
+      "sha256": "E57AB9694FE1C604F3B544C4D4C88E7017CB022C25EEC1D1C4F47C605B87D278",
+      "bytes": 5361,
+      "path": "src/api/productChannelAvailability.ts"
+    },
+    {
+      "sha256": "10CB55A4DA36A96C07EC6A6CCF5ECC74CAEAE134ECBD46512FA05DB5E3DBACDB",
+      "bytes": 4379,
+      "path": "src/api/productLifecycles.ts"
+    },
+    {
+      "sha256": "4017B506F85A98DBAFEC8ECC5D5CFA99CBFD9609574B31FD1FFFE33A43C49A6B",
+      "bytes": 3114,
+      "path": "src/api/productPackagingSpecs.ts"
+    },
+    {
+      "sha256": "8C9E937C6FC31F56258FB40105DC94B4F2F84F910A6ABFF9E2337648FF05D40D",
+      "bytes": 2866,
+      "path": "src/api/products.ts"
+    },
+    {
+      "sha256": "9D822FD457A65B4F72C7F4E39D1DF347D96861CA1C52FD31FC3FDF3C4B0C14DE",
+      "bytes": 4833,
+      "path": "src/api/productUnitConversions.ts"
+    },
+    {
+      "sha256": "F6725041CBA305DB51D9127DBFED0BAA8FA83F023497DF0EEDBE0D886EDC6F24",
+      "bytes": 3011,
+      "path": "src/api/productUnits.ts"
+    },
+    {
+      "sha256": "7F8026C70E572240D48E7FE31F9D7DCBD84F37D65425E93A00B33CD0B57CCB92",
+      "bytes": 3410,
+      "path": "src/api/productWarehouses.ts"
+    },
+    {
+      "sha256": "7539F42534FF5AE3A7C25980BFCEAE71CC19506A7B33AEA1071EAC5E449C2F01",
+      "bytes": 7715,
+      "path": "src/api/purchaseOrders.ts"
+    },
+    {
+      "sha256": "A47AF076C25D0049B5D4B88ECAFBC565C7267E50350428701BED4CC5720B10BB",
+      "bytes": 3237,
+      "path": "src/api/purchaseReceipts.ts"
+    },
+    {
+      "sha256": "CAAE299DCD0F35D541A73C05E6733083F002FB7A3498273DF9D1BC7A67402D12",
+      "bytes": 4352,
+      "path": "src/api/purchaseReturns.ts"
+    },
+    {
+      "sha256": "8CB4F5EC744A0BFD0EE2CCBD4A85C22BF3F7A0DEE6C72697CB507F075641A986",
+      "bytes": 2103,
+      "path": "src/api/purchaseSuggestions.ts"
+    },
+    {
+      "sha256": "C886A01BC83C8BCAA2B6FCCD239271973D9C5DFFDBAA5C7B5EC2561F7C978563",
+      "bytes": 1821,
+      "path": "src/api/reports.ts"
+    },
+    {
+      "sha256": "EDFE2F709358112AB5F8A0AD5EAE6D812B84BF3ACCB3F6F897DF36543290031C",
+      "bytes": 3673,
+      "path": "src/api/salesShops.ts"
+    },
+    {
+      "sha256": "45487F9575F7096A964F23466A3F13DDC8DED195766355F4268D1DBF31FABC42",
+      "bytes": 8848,
+      "path": "src/api/senderAddresses.ts"
+    },
+    {
+      "sha256": "D0E3050E1126F167868CA297904AF6EC47940EC6B48FD46C62965AA4C16C9EDC",
+      "bytes": 2504,
+      "path": "src/api/shipmentPushAttempts.ts"
+    },
+    {
+      "sha256": "8F111E694A6066B52891137AA9A0AC5FC423AA7BBFB41205B786D3F3C59D9F12",
+      "bytes": 10155,
+      "path": "src/api/shipments.ts"
+    },
+    {
+      "sha256": "857DDD54AA96456B2EF5C143B2A84C784EFEC4EF120931D342DF19EE241AF59A",
+      "bytes": 9386,
+      "path": "src/api/shopProducts.ts"
+    },
+    {
+      "sha256": "FF9CF74E859C5727FB484E29684F17A038FF72C23FD2DB6567CA5C80B283DBB0",
+      "bytes": 6725,
+      "path": "src/api/shops.ts"
+    },
+    {
+      "sha256": "BAED1967D220C4232527C6C6AEA5A27FBEB245A9E8C7BF5C79F54742053DC823",
+      "bytes": 2263,
+      "path": "src/api/shortcuts.ts"
+    },
+    {
+      "sha256": "232A997C97FF388E5C46A48AF75D10BECB00E82D73F0B910851B8592EAC2B3E1",
+      "bytes": 2075,
+      "path": "src/api/skuBatches.ts"
+    },
+    {
+      "sha256": "25421F7F3B240C334A4BCC96785BB43B578DE3256BCE8109A840190EC484AE46",
+      "bytes": 3364,
+      "path": "src/api/skuBatchStrategies.ts"
+    },
+    {
+      "sha256": "5AC0D0926C6455031A0635524831A78B1CE8A5C45C0D0DAFC97CAB53C280342E",
+      "bytes": 11534,
+      "path": "src/api/skus.ts"
+    },
+    {
+      "sha256": "464B0BCDA1C82EDC78E996D3F55C616B6F158A226290152C3502C01941E5892D",
+      "bytes": 3292,
+      "path": "src/api/skuSerialRules.ts"
+    },
+    {
+      "sha256": "4142A1A21C04A5C5026653CCB530D40CA5473A130940661C4AF87A3C0E83EA91",
+      "bytes": 2041,
+      "path": "src/api/skuSerials.ts"
+    },
+    {
+      "sha256": "F37CBB1596C9BC4038C1FE558881C24BB6A6D0CCE07E77F8B708D37481D238B5",
+      "bytes": 3840,
+      "path": "src/api/skuTagDefinitions.ts"
+    },
+    {
+      "sha256": "A8C8A47CCF9ABA6565857A8E23FE0DB208009B2BC2178CEF2D56924A09274A5D",
+      "bytes": 3945,
+      "path": "src/api/stats.ts"
+    },
+    {
+      "sha256": "D76E1533F5722B0279905CE1A8F9B4B0F1A1BD43BC6EA5F7B4A17D164303FBDA",
+      "bytes": 4329,
+      "path": "src/api/stockAdjustments.ts"
+    },
+    {
+      "sha256": "B29FA9DDA5DF73DAB2A6D153114F7FF1FC441136E24D8987F5AEEED6B971E3A4",
+      "bytes": 7609,
+      "path": "src/api/stockCounts.ts"
+    },
+    {
+      "sha256": "7C6E7184D9128DEA4A9023B118F83268A249B1786CA3F4E2F2FA697070620B18",
+      "bytes": 4223,
+      "path": "src/api/stockMoves.ts"
+    },
+    {
+      "sha256": "F5CCD7D2FA3EA7F385075BA9EF401E67C410B6B513E320C395FD835A5830D5B2",
+      "bytes": 8498,
+      "path": "src/api/stocktakeTasks.ts"
+    },
+    {
+      "sha256": "D1E52D8BDB9A96A9F549F4979D349EC94BFDB1536DFFE9DDBAD80421F5D679D8",
+      "bytes": 4786,
+      "path": "src/api/stockTransfers.ts"
+    },
+    {
+      "sha256": "DB53E7504D54ED90ED4448E94C8651B84CC8BB73E2D7214CD1D80B3B8F6F69F5",
+      "bytes": 4878,
+      "path": "src/api/supplierPerformances.ts"
+    },
+    {
+      "sha256": "C05849A153477DB0B5591C1127D12F2DB4EC3608DB27E612AC100E288010F349",
+      "bytes": 3562,
+      "path": "src/api/suppliers.ts"
+    },
+    {
+      "sha256": "CEBD6151EAAC4FED86376A0600A4049A8764447DBE93FE0409E1FA0FC79D27F4",
+      "bytes": 2384,
+      "path": "src/api/syncJobRuns.ts"
+    },
+    {
+      "sha256": "F0BD720AA5875542722D4977D61C534FC72C95D5A0C160672BECA907E089708E",
+      "bytes": 6271,
+      "path": "src/api/syncJobs.ts"
+    },
+    {
+      "sha256": "22AC4BCD6917E863641674E69A09AD7A9B079FA5D180B95C10005916DB87B97A",
+      "bytes": 21825,
+      "path": "src/api/system.ts"
+    },
+    {
+      "sha256": "3D51481A1265EDAC48956DD79E7BEA5F1D0A2D1AE6879118F98F684CE90F36CF",
+      "bytes": 3455,
+      "path": "src/api/systemAuditReports.ts"
+    },
+    {
+      "sha256": "F0C4FB35982EF71964E9AB31BB27155C7A8CEB78117E72AF7DB810F679C2A2B3",
+      "bytes": 3946,
+      "path": "src/api/systemCustomFields.ts"
+    },
+    {
+      "sha256": "9923711575438A97FF0F344C75B0D4CFC8851265DC250AE624C9119227E37FFF",
+      "bytes": 10688,
+      "path": "src/api/systemIntegrations.ts"
+    },
+    {
+      "sha256": "87A26658DE7CC120004675638F3FA92D85B4793786FC358554994D9242452CFA",
+      "bytes": 5741,
+      "path": "src/api/systemWorkflows.ts"
+    },
+    {
+      "sha256": "F4D373864AAE510E61DAFDD92A0350AD65FC31E0C0902EF8C7053DFA2F825BC5",
+      "bytes": 8868,
+      "path": "src/api/warehouseAreas.ts"
+    },
+    {
+      "sha256": "D216176F0C590746B4B5918BB956F0A57CF6398961B466649371BDE2C3A0B0E0",
+      "bytes": 12552,
+      "path": "src/api/warehouseLocations.ts"
+    },
+    {
+      "sha256": "371CBDD13BEFAC8090655AFBF7B8981D6980646B0EDEB2A1FDC3157EC0674291",
+      "bytes": 5073,
+      "path": "src/api/warehouses.ts"
+    },
+    {
+      "sha256": "EE1A5C113F0D029D8631D77E46348D7B5E876EF811E19032BC65E95F8BA40D4B",
+      "bytes": 12104,
+      "path": "src/api/warehouseStrategies.ts"
+    },
+    {
+      "sha256": "EAF2029AFA57634EA9172030EA248A2F295B9DBD4487C964868AAEBB155BE854",
+      "bytes": 20292,
+      "path": "src/api/wms.ts"
+    },
+    {
+      "sha256": "76603AC2A122C513CA03400A4DF59548967F4539E83D603DA1483559DB57DE92",
+      "bytes": 1444,
+      "path": "src/api/wms.waveShip.test.ts"
+    },
+    {
+      "sha256": "35627010D3262F33A1F5AAB857309B902CAC77E46A03FA066F7BFAB26DE8D2FE",
+      "bytes": 3245,
+      "path": "src/api/wmsExecution.test.ts"
+    },
+    {
+      "sha256": "DFB406002DAFBD066F3EA9BD37A5B051C1D65BEB681A6EC2E64C0F32F0C8F9F6",
+      "bytes": 10180,
+      "path": "src/api/wmsExecution.ts"
+    },
+    {
+      "sha256": "E4D26EDC885A538D3BFE36317EC0EDF23CC7DD3FBD1C6116302459A2CCE30D7B",
+      "bytes": 1536,
+      "path": "src/api/workflowConfigs.test.ts"
+    },
+    {
+      "sha256": "8547F12CBBEC0717125779CD85DF99BD4418176508ED6FE8E53067E5B2446CA2",
+      "bytes": 2094,
+      "path": "src/api/workflowConfigs.ts"
+    },
+    {
+      "sha256": "65514433C6FB747CD536D9EAE99A875EE2EAF6E70CBA912D4C78A43F7CCC57A5",
+      "bytes": 4308,
+      "path": "src/app/AppProviders.tsx"
+    },
+    {
+      "sha256": "F5988BE5D1AE39FF3A30F47D399B7534EFA4CD444A1B519A59BC6D6EF301F4B6",
+      "bytes": 490,
+      "path": "src/app/queryClient.ts"
+    },
+    {
+      "sha256": "4CC18A8B20333654FD73DECBB2658E6DC734A6DEF480CFCC32C11E1E6297C12D",
+      "bytes": 432,
+      "path": "src/app/router.future-flags.test.ts"
+    },
+    {
+      "sha256": "A9766E98AD1FDA9408412130C5424B898DB81C1F1D244AF18BB7DA8A8142DBCA",
+      "bytes": 1219,
+      "path": "src/app/router.goods-module.test.ts"
+    },
+    {
+      "sha256": "9598B58667F775C5AE0ECBD08D3AEBEAF3FEEA6EF9F5923BBAEEEE9633AC0B66",
+      "bytes": 18752,
+      "path": "src/app/router.tsx"
+    },
+    {
+      "sha256": "14300B4CC135BA9DDE3501D1670FBB298E35454061C380A396BACF16210DCCE2",
+      "bytes": 1185,
+      "path": "src/app/routeRegistry.test.ts"
+    },
+    {
+      "sha256": "A32FEFD44C95EFBDB1233F46DF1801700A6A3B8DFC8527F1EF4989F6B58F7C4A",
+      "bytes": 5199,
+      "path": "src/app/routeRegistry.ts"
+    },
+    {
+      "sha256": "F04AE3A6EE4858D55F152D18F6195EC7294FCB3DC036C8A376D8FB2E6856B41B",
+      "bytes": 1261,
+      "path": "src/app/themeTypographyConfig.test.ts"
+    },
+    {
+      "sha256": "DD6AD4AD7F3D7B0F67B4C624CBA03E144944D86BE64C5283424C2CDA41EB9870",
+      "bytes": 3557,
+      "path": "src/build/manualChunks.ts"
+    },
+    {
+      "sha256": "FBA58B68B7F50C82A57EB0DBDAFE439567E80B544064EB3EEE4CED9B66CDC8DC",
+      "bytes": 5219,
+      "path": "src/components/agGridColumnState.ts"
+    },
+    {
+      "sha256": "AC7BE0D981689D9605CCDF41BFDF96B3BA156915A797B835A070E22E07B23B56",
+      "bytes": 1712,
+      "path": "src/components/agGridEnterpriseModules.test.ts"
+    },
+    {
+      "sha256": "F9C3842F25161C5FA96079D5B6C9B7DB3ACFED8913D01C69EC7FD5FD536B2839",
+      "bytes": 868,
+      "path": "src/components/agGridEnterpriseModules.ts"
+    },
+    {
+      "sha256": "90E540938C03891AEBFE3077F59E014FA5FAD4365553C7C93A69F020979A4BB8",
+      "bytes": 265,
+      "path": "src/components/AppVersion.tsx"
+    },
+    {
+      "sha256": "23E24CA46348FE3ED96AFEFE8D9D4AEE7F76BFCE6DCDF5D9C81345700ADE40F6",
+      "bytes": 562,
+      "path": "src/components/EmptyState.tsx"
+    },
+    {
+      "sha256": "8FF1411A236423E48AC27EB540403750C5DAC5111DCE3AEA5E4CAF204E573446",
+      "bytes": 4057,
+      "path": "src/components/ErpDataGrid.columnState.test.ts"
+    },
+    {
+      "sha256": "E3A632525E6FD101B0B01F39091F799F1D606FCCF8F1F8D21AFF18BAE378732D",
+      "bytes": 5098,
+      "path": "src/components/ErpDataGrid.css"
+    },
+    {
+      "sha256": "CB9CE56227668AC1B265442AAB1D3A50658FF4189ACC60861D8522C1FBE61D34",
+      "bytes": 51149,
+      "path": "src/components/ErpDataGrid.tsx"
+    },
+    {
+      "sha256": "D2E567780C2E46DDF0F4A03A9CFE56949A2EBD2E0D15875494290B8FD7CD006C",
+      "bytes": 344,
+      "path": "src/components/ErpDataGridNext.css"
+    },
+    {
+      "sha256": "3C98A3557A3C5617A7176C6F29C13E64BE5AA8E63993BD8A66E6E117626D0AA0",
+      "bytes": 9996,
+      "path": "src/components/ErpDataGridNext.tsx"
+    },
+    {
+      "sha256": "F7FF4C62D9076C57B5A92915F27951BDA57C8014F885632194ADF5AB9ED17922",
+      "bytes": 866,
+      "path": "src/components/ErrorBoundary.tsx"
+    },
+    {
+      "sha256": "28BA626B8B4A6DC350E927146B896B76DCC5F0BB667FDB1E12B7297AACC3CE7D",
+      "bytes": 345,
+      "path": "src/components/ForbiddenState.tsx"
+    },
+    {
+      "sha256": "F735DE42BA1EE788DD297C0B6D2AB900A043B5A2D40A7095BC63BDC644B187DE",
+      "bytes": 1683,
+      "path": "src/components/industrialGridPresets.test.ts"
+    },
+    {
+      "sha256": "7CD78E2A65CC3B5E2991D22A95974E0DBBA696B9400A2C634EEB1C0F8E7A6D56",
+      "bytes": 1094,
+      "path": "src/components/industrialGridPresets.ts"
+    },
+    {
+      "sha256": "34E3802C9DAA01988F1ED1E21F36B44A7CA3295B9200994FD2371C525D620AAD",
+      "bytes": 8962,
+      "path": "src/components/IndustrialWorkbenchGrid.css"
+    },
+    {
+      "sha256": "BE49F078ADDDBE36BBFC4A621F439F4D303B61FAAEE9CC8D1F30E5FA9C34A98E",
+      "bytes": 25517,
+      "path": "src/components/IndustrialWorkbenchGrid.tsx"
+    },
+    {
+      "sha256": "558D74530B1A7058D77AD0516630B03D182BB3620029D2B445BA48BFE19992AF",
+      "bytes": 12119,
+      "path": "src/components/industrialWorkbenchGridFilters.tsx"
+    },
+    {
+      "sha256": "DD37152BC16B49351559DCA0DE213FA26448B6EAE6FD9B1D3C5B039A87966140",
+      "bytes": 301,
+      "path": "src/components/LoadingSkeleton.tsx"
+    },
+    {
+      "sha256": "0B010D5F410B1D1A0641B7D60D26E3E53F7DEAD39694C81770074BF27AD06B97",
+      "bytes": 773,
+      "path": "src/components/OperationButton.tsx"
+    },
+    {
+      "sha256": "AC6AF67FF5DE6FA9F2245A49558736F5E9EE8C50944A27158A2D3C426056CB53",
+      "bytes": 5245,
+      "path": "src/components/OrderQuickFilterCells.tsx"
+    },
+    {
+      "sha256": "D1CF81FECE5D99C6BD4EF103A160626FA1903FCF6759653333B09DDD3DF9BDE2",
+      "bytes": 889,
+      "path": "src/components/OrderTagBadges.css"
+    },
+    {
+      "sha256": "7EE14D94F3641B8005725DF1A33D527FE069B5BAD80DBA71835BB3A7CB7022C4",
+      "bytes": 1154,
+      "path": "src/components/OrderTagBadges.test.ts"
+    },
+    {
+      "sha256": "4E3ECFC59036BC1EF3B9398E0707BD84E5E77C4506A92D26A59B0505FF4BE930",
+      "bytes": 1569,
+      "path": "src/components/OrderTagBadges.tsx"
+    },
+    {
+      "sha256": "BBB080D77A784E004397BB6FE965852975281CB083FA55CF32F2E50749BA137F",
+      "bytes": 502,
+      "path": "src/components/PlatformTag.tsx"
+    },
+    {
+      "sha256": "64885A792EA44D4EF04E08262836011186B0D242F9681DD64B3DB687D5CBDAC9",
+      "bytes": 3062,
+      "path": "src/components/QueryState.tsx"
+    },
+    {
+      "sha256": "24194F63ED6A6103F163EC3FEF05D1DC820CAE7EF8CDF3F47439154FCA7E2063",
+      "bytes": 419,
+      "path": "src/components/RequestErrorToast.tsx"
+    },
+    {
+      "sha256": "66656F5265A04F9B9D2F41C683CAD0204620C05126F4919CE0C722F99A23FDD1",
+      "bytes": 1727,
+      "path": "src/components/ServerTable.css"
+    },
+    {
+      "sha256": "D26A6489AB0E84C63A0AB1BCD7A03E8F604E5F33A062C8426B8110ED12590EFE",
+      "bytes": 21066,
+      "path": "src/components/ServerTable.tsx"
+    },
+    {
+      "sha256": "CE21D113CF98C8AFE0B5C66C63486126E62152AF3D3FEF01AF9FF1177F5CC404",
+      "bytes": 844,
+      "path": "src/components/ShipmentStatusTag.tsx"
+    },
+    {
+      "sha256": "96630F066B58539E2E483E762A9D68C00F7786B0B8E968F50CB1AA10A3C86C03",
+      "bytes": 1859,
+      "path": "src/components/TenantSelectionModal.tsx"
+    },
+    {
+      "sha256": "3CF336D478CEE2BCAA175A87B26697E28DCD0B570546E59DA7B5C8CB6DF372BE",
+      "bytes": 600,
+      "path": "src/features/autoMergeSettings.ts"
+    },
+    {
+      "sha256": "DF78B7F1281F14A9E1D0D2944F28E18DD7F57A21158DC70B94402978202F2621",
+      "bytes": 2625,
+      "path": "src/features/capabilities.ts"
+    },
+    {
+      "sha256": "C33BBD63035B300BF12F596722EF604F55655C381DB30265529170933586D39D",
+      "bytes": 596,
+      "path": "src/features/fastModeSettings.ts"
+    },
+    {
+      "sha256": "D0419310BEBF2B21547DC9A9AFF895D7941BDF50848F8C326527CFD21F630420",
+      "bytes": 6395,
+      "path": "src/features/featureFlags.ts"
+    },
+    {
+      "sha256": "3E7188746114DED9C9E2EDE4BE90CF5A3FBBEA608E5C323E998699DBAA3A246F",
+      "bytes": 1319,
+      "path": "src/features/featureGate.tsx"
+    },
+    {
+      "sha256": "291C72A472DF9FABA5791863D865ACC0CD2192A7656D1F835568D69DF4DEA5C5",
+      "bytes": 600,
+      "path": "src/features/menuCacheSettings.ts"
+    },
+    {
+      "sha256": "EFEC69458D8E3BB91528121598621DB26494E52DE82ECF1620DA4D7FE20C9F73",
+      "bytes": 892,
+      "path": "src/features/mockFeatureFallbacks.test.ts"
+    },
+    {
+      "sha256": "AEDCDDC39286A788CEB7C15B1750FEF746B3168503B89E6AC506E379CC1C2886",
+      "bytes": 2880,
+      "path": "src/features/operations.ts"
+    },
+    {
+      "sha256": "1F9108999EE44820DD97EC484BDE6C816AAFA9FF182763B50DA5EA36E68041F8",
+      "bytes": 814,
+      "path": "src/features/orderAuditSettings.ts"
+    },
+    {
+      "sha256": "E03754B4FA8A561FF9759BFF298098FA5551D1BC1E9B0937FBBC1AFB0F50BCBA",
+      "bytes": 3221,
+      "path": "src/features/orderTags.test.ts"
+    },
+    {
+      "sha256": "CBFC031DDE2B2A917473447D449A975AC5F75B945A1D696BF7C99E35A7DC4C83",
+      "bytes": 10821,
+      "path": "src/features/orderTags.ts"
+    },
+    {
+      "sha256": "3C69CE8449FAF8DB9615F31665F5707EE5B5CD33B15BBBAC75B5A626491D51D6",
+      "bytes": 533,
+      "path": "src/features/platform.ts"
+    },
+    {
+      "sha256": "AD88B19C5803A38E8E03A91E5EBA08D5CC1E05B58EB05EC5A97902B2DEB26773",
+      "bytes": 14157,
+      "path": "src/features/rbac.tsx"
+    },
+    {
+      "sha256": "FAA6764A21247809637C22BE9372809D9F0618576E9286D8ED34140EECE27E78",
+      "bytes": 2382,
+      "path": "src/features/salesStrategies.ts"
+    },
+    {
+      "sha256": "0AD08C8036C7D4B475B3BE065BDEB3B298CB15B3645797954056DE3E9619AC55",
+      "bytes": 4679,
+      "path": "src/features/sessionStore.ts"
+    },
+    {
+      "sha256": "B47211F1A826060EBC7AAF1830B0AB366283ADE8E0AC759B203031181B858C95",
+      "bytes": 3132,
+      "path": "src/features/tenant.tsx"
+    },
+    {
+      "sha256": "9B01AA47E689404E85013CA07E341CBC63F76743874716F58E51569F0883D164",
+      "bytes": 451,
+      "path": "src/features/tenantOptions.ts"
+    },
+    {
+      "sha256": "E17F05A1663BDE0BCD05CFE8BFCACF1BF1345579BE49F45A405D08513FD9C494",
+      "bytes": 922,
+      "path": "src/features/uiSettings.ts"
+    },
+    {
+      "sha256": "36866097CF6D0AE747ABFD079099CF767F6B2D775CEF4C022B56473DF4DE5036",
+      "bytes": 9628,
+      "path": "src/pages/Dashboard.tsx"
+    },
+    {
+      "sha256": "7053CBAB5FA0F05BAE38F26E11D5CE438AAAD247AE8517BAA70C4E860764AC37",
+      "bytes": 630,
+      "path": "src/pages/dashboardPage.css"
+    },
+    {
+      "sha256": "7F92D2F443C346B9CE3A9E908531063C457277D06412F9891C1855141DE7780D",
+      "bytes": 1589,
+      "path": "src/pages/dashboardWorkbenchModel.test.ts"
+    },
+    {
+      "sha256": "A91E09D961E2D0415B360245F3A823D62E66445BCE40D1378C987D6BE1CF4CE2",
+      "bytes": 3222,
+      "path": "src/pages/dashboardWorkbenchModel.ts"
+    },
+    {
+      "sha256": "F1DB5AA5F42DF6989BDA5A5870DDF94CD848DD4CE12BF22EF3252C5231EDD556",
+      "bytes": 118,
+      "path": "src/pages/Forbidden.tsx"
+    },
+    {
+      "sha256": "984C25902929F9249C067255866A3F9D5D96BB987455A98EB1755ED26AEB4222",
+      "bytes": 454,
+      "path": "src/pages/LoginPage.navigation.test.ts"
+    },
+    {
+      "sha256": "13619F51A03D0845AC941AD704E16C14F6AF76691902C91A7EA014D061ABCA99",
+      "bytes": 569,
+      "path": "src/pages/LoginPage.test.ts"
+    },
+    {
+      "sha256": "C20EDCEADDE9C44C01EAD3477F9769BCAD5138047E3F045DAA54A0402BADC81A",
+      "bytes": 6057,
+      "path": "src/pages/LoginPage.tsx"
+    },
+    {
+      "sha256": "17465B102B32211DADA41B08B381ED98F131EA3959B68F8B03C469CCF82B704F",
+      "bytes": 304,
+      "path": "src/pages/NotFound.tsx"
+    },
+    {
+      "sha256": "D90FF0CA72EC829606EDA9FE96909F48A790E964AD9017FDBADA68FAF5860B0A",
+      "bytes": 1782,
+      "path": "src/pages/Placeholders.tsx"
+    },
+    {
+      "sha256": "CD81EC5117182B00D292B36C3E4451378C11A2F0BF5C6F983262906D91242511",
+      "bytes": 5063,
+      "path": "src/styles/theme.css"
+    },
+    {
+      "sha256": "ED3021EBC2D111FEA3BEF14B4040632CFD4BA64D6545B84DB1B9CB45917B856A",
+      "bytes": 1096,
+      "path": "src/styles/typography.ts"
+    },
+    {
+      "sha256": "D1D3622E645A5B2EE8C1439EB12425E2486B200BAD80A3CADBE56C2E131DF9EB",
+      "bytes": 739,
+      "path": "src/styles/workbenchTypography.test.ts"
+    },
+    {
+      "sha256": "225D46BC76A31B6C5AA84020FCAF89834DD82F2AA7497D49412B285B6D6BE9F6",
+      "bytes": 644,
+      "path": "src/utils/device.ts"
+    },
+    {
+      "sha256": "555BEEB75A294E3AF213E6FCD690C2CC9C990EF6EB79922A0C3791494E9A48F7",
+      "bytes": 1341,
+      "path": "src/utils/env.ts"
+    },
+    {
+      "sha256": "60A03F00BDC1A972EA4119DC806A33E56BB060318CDE9B795C3E7C147B241B16",
+      "bytes": 276,
+      "path": "src/utils/errors.ts"
+    },
+    {
+      "sha256": "55F7953E1470B53C548036450577B32DF4A8C6ED7B2F389AFD6DFCC92332EE33",
+      "bytes": 5083,
+      "path": "src/utils/logLabels.ts"
+    },
+    {
+      "sha256": "264719DFF7D370E706C9C5507FF210173FBF6097F12DCB0E246E588012D6F2A2",
+      "bytes": 417,
+      "path": "src/utils/requestError.ts"
+    },
+    {
+      "sha256": "CF177BE7CE73562BA07D949AEE4B80BD4D221AD01B044683D614057054F4339C",
+      "bytes": 2475,
+      "path": "src/utils/statsDiff.ts"
+    },
+    {
+      "sha256": "8F12E55FAA4CBB04C2774B56DF8D35B051D9872DFFC7EE6F505AFD2566BB47A7",
+      "bytes": 901,
+      "path": "src/utils/suppressAgGridLicenseLogs.test.ts"
+    },
+    {
+      "sha256": "7438A885B4CC9A5C43D62BEDBC00A2D7ACAD75466AA86F5841C07235EBBDA0FA",
+      "bytes": 1199,
+      "path": "src/utils/suppressAgGridLicenseLogs.ts"
+    },
+    {
+      "sha256": "E8DBF29D09B461ACEA3482C381ACA7FAC5646D34FC66E5B5ACA469CACEE10699",
+      "bytes": 119586,
+      "path": "e2e/artifacts/pagination-visibility/01-order-review-pagination-visible.png"
+    },
+    {
+      "sha256": "710FDFC564C0C768AD11AB70AE9771C60DE2FA915230E069EC9796CA2C30C527",
+      "bytes": 795014,
+      "path": "src/api/generated/schema.ts"
+    },
+    {
+      "sha256": "CF5044D5654D2AB2517280CA1338B259199AD04C7221D81008267AC9E226BE93",
+      "bytes": 447,
+      "path": "src/api/mocks/_tmp_print.test.ts"
+    },
+    {
+      "sha256": "33EE5C70923C2ADC7E87DFC434448B1911535C5E3C5EF63E051D9F1398510C70",
+      "bytes": 711,
+      "path": "src/api/mocks/afterSales.contract.test.ts"
+    },
+    {
+      "sha256": "EED64CCAFFFBDF037C9682A1BDEF64813AAA1508E98E8A9E90B09CAC6B75E909",
+      "bytes": 20828,
+      "path": "src/api/mocks/afterSales.ts"
+    },
+    {
+      "sha256": "430ED0103F81DBE5B9859D57B700E50BEB194104CAD8F16CBA323AD0993CFCD3",
+      "bytes": 2451,
+      "path": "src/api/mocks/afterSalesSettings.contract.test.ts"
+    },
+    {
+      "sha256": "530CFB197CADC605DEEABB5BDA0640FD497ADF5DE1BB5E22A3D8B8314714AA26",
+      "bytes": 7934,
+      "path": "src/api/mocks/afterSalesSettings.ts"
+    },
+    {
+      "sha256": "84E6D025B3935A5A4500EC0694DAF6D304A37EA419256961EE0261840D901A54",
+      "bytes": 18703,
+      "path": "src/api/mocks/crm.ts"
+    },
+    {
+      "sha256": "4E4557A3F9F8CE806FC9A323D9C2579957E09B046F279F4E8D4A0B166E1750A0",
+      "bytes": 98263,
+      "path": "src/api/mocks/data.ts"
+    },
+    {
+      "sha256": "D82A87AF4072A125FAAB107D5FE3AE9D0E6866E206D87DB959DF2463532E5F55",
+      "bytes": 2216,
+      "path": "src/api/mocks/finance.ts"
+    },
+    {
+      "sha256": "EDDD9A794E3AB2026D17477455083F7A2587486809F3469A5ACAB21E814C481F",
+      "bytes": 975,
+      "path": "src/api/mocks/handlers.ts"
+    },
+    {
+      "sha256": "DE8FFE62B4CDDF6028D35AB9B4DEE025E0FC99B2E581690EE748C351FC5857B1",
+      "bytes": 6608,
+      "path": "src/api/mocks/inventory.ts"
+    },
+    {
+      "sha256": "D4712829BAED041D8D66001E80395DF59DFEA45EE91C4E49835D900ED5D1820F",
+      "bytes": 3542,
+      "path": "src/api/mocks/inventoryFreezes.ts"
+    },
+    {
+      "sha256": "560C0500374D76773C298A73CA82781FE6E8710A260A7AB9AED641728B3E67B6",
+      "bytes": 14092,
+      "path": "src/api/mocks/inventoryInsights.ts"
+    },
+    {
+      "sha256": "4221BCF6ACBA4192A4A6A11397C99FCBBEB3334574D46BCFB11C09D1F977D63F",
+      "bytes": 11111,
+      "path": "src/api/mocks/inventoryLocks.ts"
+    },
+    {
+      "sha256": "E52EC821464F380480C303FB6D2F76FF2797AC6EE7B617C5F2B8D70C4DF2B1C6",
+      "bytes": 2668,
+      "path": "src/api/mocks/kits.ts"
+    },
+    {
+      "sha256": "8CAD7F2DACAB0B3C21A744D681D9EC616A579BECA8C4FBAB03F0165A27E8597D",
+      "bytes": 7724,
+      "path": "src/api/mocks/logisticsExceptions.ts"
+    },
+    {
+      "sha256": "A0703B20A02A6651D612662D4B6AC9CE3D3E3198F1D67B3BF37D8E7076E01F51",
+      "bytes": 5520,
+      "path": "src/api/mocks/logisticsInstallations.ts"
+    },
+    {
+      "sha256": "3F6074A6CE1E5F0F0A1FC7B61E9ECC56F5576CDA0B1B181661D2D8AE17CC20D4",
+      "bytes": 6939,
+      "path": "src/api/mocks/logisticsInterfaces.ts"
+    },
+    {
+      "sha256": "7C12BFA70D63AA7AADAF4DBE5228B3D6C2E9A3A89F9A5E920A03B8D395A620F4",
+      "bytes": 6169,
+      "path": "src/api/mocks/logisticsOptimization.ts"
+    },
+    {
+      "sha256": "7B42E6FA416CE5B870918A63200AF301F8B2E3B69D07BF61C19D546DB9C367DE",
+      "bytes": 3174,
+      "path": "src/api/mocks/logisticsSettlements.ts"
+    },
+    {
+      "sha256": "78A5C3DBCF527820D2B56DEEBA0DDD4CCA8C2D81375D0DC44B54B7E427C0DD05",
+      "bytes": 2560,
+      "path": "src/api/mocks/mappingRules.ts"
+    },
+    {
+      "sha256": "F956A3895918138FE793B49617DDA7E6A5D74EAAFDE6474325DCB17ED19F9374",
+      "bytes": 2926,
+      "path": "src/api/mocks/mappings.ts"
+    },
+    {
+      "sha256": "45B92FB7051AC9B39779F516F81AA5302A035811E653C4DFBE07F85120981E96",
+      "bytes": 23458,
+      "path": "src/api/mocks/marketing.ts"
+    },
+    {
+      "sha256": "CC74861892C9D8DA7B7492E89275B16DFEE9B0FFE4C7512AE613C16889CB5B74",
+      "bytes": 4285,
+      "path": "src/api/mocks/masterData.directory-seeds.test.ts"
+    },
+    {
+      "sha256": "F572AC86B4507B86F045F8458AE7045ADB4F9AFA3ED8A7706B184B0CD792BECF",
+      "bytes": 41909,
+      "path": "src/api/mocks/masterData.ts"
+    },
+    {
+      "sha256": "46F155336E7AD265431BCA7A97C42520544F93462D87AADB8A2E146706D01587",
+      "bytes": 1370,
+      "path": "src/api/mocks/orderExceptionsDataset.test.ts"
+    },
+    {
+      "sha256": "90012DA54EB12E81F1D16A02E3CEDD6B6CA49B1CC12089D50BC5551D33E40314",
+      "bytes": 1644,
+      "path": "src/api/mocks/orderMockGovernance.test.ts"
+    },
+    {
+      "sha256": "1CFE333B3EC5A22544EEE0D92C13BBDBC5B8CA2AD616E9930904952981BC2957",
+      "bytes": 3842,
+      "path": "src/api/mocks/orderMockGovernance.ts"
+    },
+    {
+      "sha256": "D0DA9FD38D178178ECDEC6C662776E1FC670673668B8FF0B7FDF0732CC2358D7",
+      "bytes": 2244,
+      "path": "src/api/mocks/orders.dataset-scale.test.ts"
+    },
+    {
+      "sha256": "84DC2B3D9541FA1DDE0C8543B93C3663B0DABEC0BBD0911EEF19AEA19C5DF906",
+      "bytes": 1318,
+      "path": "src/api/mocks/orders.logistics.test.ts"
+    },
+    {
+      "sha256": "04A1C350DABF89D927903E1925D6E164F8105DEA6B1D49ADEBFB6A8CBDA72DF6",
+      "bytes": 67889,
+      "path": "src/api/mocks/orders.ts"
+    },
+    {
+      "sha256": "CEB3C609B1434CC549307B70CE7CE9C244004B63ECBC299643B87447CAA67484",
+      "bytes": 7283,
+      "path": "src/api/mocks/print.ts"
+    },
+    {
+      "sha256": "656C1CFDECF525B5A3C367DA81C031F35F6EB9EFDF6A0FAE91226ED196690198",
+      "bytes": 32943,
+      "path": "src/api/mocks/procurement.ts"
+    },
+    {
+      "sha256": "3ED924FC2BF7F951A0420866FFC3B59F550887D755AA1E8065FAF2E4391E0D2B",
+      "bytes": 39670,
+      "path": "src/api/mocks/productMasterData.ts"
+    },
+    {
+      "sha256": "899FA1CCA876BCC16A8F52AD6651B99D93C8708A7912303067FD06CEC6D33AAE",
+      "bytes": 6645,
+      "path": "src/api/mocks/products.ts"
+    },
+    {
+      "sha256": "F388A4C04CFC09BD881F072561856B3F9931C4F4507E09488F13C85CD7C1C2BC",
+      "bytes": 14965,
+      "path": "src/api/mocks/purchases.ts"
+    },
+    {
+      "sha256": "99E88CACD5961807E9245B3BDF50390EAE0E462750BAB762426480689955BDF6",
+      "bytes": 3830,
+      "path": "src/api/mocks/shipments.ts"
+    },
+    {
+      "sha256": "69B73288338D2E2613114726508CD2A5FD7C960702FD9163C07B6B8A07AFDC5E",
+      "bytes": 4067,
+      "path": "src/api/mocks/shopProducts.match-governance.test.ts"
+    },
+    {
+      "sha256": "684FF8F2F823F1EB8B18558AF2BBAE116835B30AE98054E54E000F508FB2550A",
+      "bytes": 13931,
+      "path": "src/api/mocks/shopProducts.ts"
+    },
+    {
+      "sha256": "397CF3CF1C9FEFABE1245D1D9258C582A163C16DDCC7DE93102B1B1A70CFD88E",
+      "bytes": 1634,
+      "path": "src/api/mocks/skus.runtime-governance.test.ts"
+    },
+    {
+      "sha256": "637FBD55C9D30CB372A75DCBC667FD12F6BCE165B4B8D4E55B53D84A1832BCE1",
+      "bytes": 13206,
+      "path": "src/api/mocks/skus.ts"
+    },
+    {
+      "sha256": "C14CAD7524603FC835DD4C84E3F67974B7706D52ED9BD0389D25F7DB5AC37EA9",
+      "bytes": 4554,
+      "path": "src/api/mocks/stats.ts"
+    },
+    {
+      "sha256": "76405E5B99EE9AF99142527D432CB7F1DA58BEFB215C5D1EEE6BEABBEF1A6158",
+      "bytes": 8843,
+      "path": "src/api/mocks/stocktakeTasks.ts"
+    },
+    {
+      "sha256": "27B4D11E34E4ABBFBB6BA10783794D518F4452727ACE1ACCC8333E4777852F9B",
+      "bytes": 3442,
+      "path": "src/api/mocks/tagDefinitions.test.ts"
+    },
+    {
+      "sha256": "1A791439762CAA5E7C526F414E9F88E251FACC655EDF9C5DDA888D873D575D32",
+      "bytes": 12284,
+      "path": "src/api/mocks/tagDefinitions.ts"
+    },
+    {
+      "sha256": "E9B5DD8809D5B82AC14BA162EB8667823C42129F83D0E5A56EE954855A699487",
+      "bytes": 2893,
+      "path": "src/api/mocks/wms.runtime-governance.test.ts"
+    },
+    {
+      "sha256": "F3DE4769F24E084AD0CB227789E585EAC70BB771A733334C0083A9CE44298116",
+      "bytes": 29536,
+      "path": "src/api/mocks/wms.ts"
+    },
+    {
+      "sha256": "9419A6F6F41A6AD6319BE1615DB0997A58923B8EF2060C8D9EEDA6CBBA692A84",
+      "bytes": 8380,
+      "path": "src/api/mocks/wmsExecution.ts"
+    },
+    {
+      "sha256": "82825263B55EBB20A1BB69377446B48DEAB88F2C2B4AC49E347113421B7378AD",
+      "bytes": 418,
+      "path": "src/app/guards/AuthGuard.tsx"
+    },
+    {
+      "sha256": "45CE9D1394CE61377AC21BEC2BCEF0208F5294F62221017CE2D9EB9219071103",
+      "bytes": 473,
+      "path": "src/app/guards/PermissionGuard.tsx"
+    },
+    {
+      "sha256": "8F322B50636432F9E89A539519B328362BA4BE111FF5FD66EE46B1AED4D52C32",
+      "bytes": 1301,
+      "path": "src/app/guards/TenantGuard.tsx"
+    },
+    {
+      "sha256": "DACDD748B14EB689A59EE77EE45F917D9A8D611F75428B49A41422045D4617AA",
+      "bytes": 1351,
+      "path": "src/app/layout/appLayout.css"
+    },
+    {
+      "sha256": "2F23DBA5137B53B629E7A24E1B39AF5ABCEDF9D4E80DA7C0DA68D362CA66CE4D",
+      "bytes": 17528,
+      "path": "src/app/layout/AppLayout.tsx"
+    },
+    {
+      "sha256": "CC8E67AB3C00F626B4D5F8B7838B0A280E01FE499295F1F59B65153DCD4A1FE7",
+      "bytes": 3459,
+      "path": "src/app/layout/headerMenuModel.test.ts"
+    },
+    {
+      "sha256": "516058AC04D99280D5E30685D82C95FC1B381F64A7EADCD2035F1C3BB0ACAFD8",
+      "bytes": 4312,
+      "path": "src/app/layout/headerMenuModel.ts"
+    },
+    {
+      "sha256": "A51A7E4A1FFBF8AE3C4AD22781D8CBD94BB2E659BFE5F1079970BD51930C8ABB",
+      "bytes": 2441,
+      "path": "src/app/layout/headerSharedSubmenu.test.ts"
+    },
+    {
+      "sha256": "578AF195A99803FE47A1E634E8E4F0599A3EDCB63D808EA3DA12455431B7158C",
+      "bytes": 1592,
+      "path": "src/app/layout/headerSharedSubmenu.ts"
+    },
+    {
+      "sha256": "1132A2402E05F2402FB08D4FACD5C18A94E10DD78DDBD4894F67E5C028D41328",
+      "bytes": 2530,
+      "path": "src/app/layout/menu.test.ts"
+    },
+    {
+      "sha256": "0F453492B9B5925145F806B68D85E6C1E2DAB7376B8BCECEF25D2AF5A46F4F9A",
+      "bytes": 5341,
+      "path": "src/app/layout/menu.tsx"
+    },
+    {
+      "sha256": "93679450B2A26BC9F648A634F09934C8B438AA46E42525E5EE16937ECD705BA6",
+      "bytes": 1215,
+      "path": "src/app/layout/ModuleHeader.a11y-labels.test.ts"
+    },
+    {
+      "sha256": "85DD330FF3E15A354752461AD9B630E044F77CD7E38039F5B650A70FE9B8977F",
+      "bytes": 1537,
+      "path": "src/app/layout/ModuleHeader.industrial-upgrade.test.ts"
+    },
+    {
+      "sha256": "B93095D3A234A212822A52141954BDD857D6019766A8960DD0942BA0A0B5450D",
+      "bytes": 580,
+      "path": "src/app/layout/ModuleHeader.search-focus-bridge.test.ts"
+    },
+    {
+      "sha256": "D27CF7D71516BD07CE4755E01E627B8B5B885946D60460BF241C48CF08FC0012",
+      "bytes": 20390,
+      "path": "src/app/layout/ModuleHeader.tsx"
+    },
+    {
+      "sha256": "8C898EF508C4CF9389CC9E54C17BF3F2A9DC8A8C868F37CC717CDBA94BED56E2",
+      "bytes": 6699,
+      "path": "src/app/layout/moduleSearch.test.ts"
+    },
+    {
+      "sha256": "79F6729E456F702B77B7E8E439AC001D5E52C57337481CC7F47B6D86B147295B",
+      "bytes": 7050,
+      "path": "src/app/layout/moduleSearch.ts"
+    },
+    {
+      "sha256": "5B2053809BB20DCA35DB7A55EC78DE9B5F27D8292E4DCEBC8B84380CC24FB7B9",
+      "bytes": 1898,
+      "path": "src/app/layout/reducedTemplateInventory.test.ts"
+    },
+    {
+      "sha256": "BFD165A5733A827D46D1AFBC7A3625E1F066F64BD2692C968E74ECCBED10ED76",
+      "bytes": 562,
+      "path": "src/app/layout/routeMeta.test.ts"
+    },
+    {
+      "sha256": "AFCFA5573A9C0164AC0DD4D6E6432E3731B148CCEB8C009FA9B02F48A95113AD",
+      "bytes": 2172,
+      "path": "src/app/layout/routeMeta.ts"
+    },
+    {
+      "sha256": "83A55C62045101D066227030B4697CD700A04827D5BF7B7F7C5B114F85C8C402",
+      "bytes": 1485,
+      "path": "src/app/layout/RouteTabs.keyboard-flow.test.ts"
+    },
+    {
+      "sha256": "1A065DFDD9FE5D052D2BDDFDF0D61D997E7E5EF5DDE6844F6A3FAEBE71A00B5D",
+      "bytes": 11203,
+      "path": "src/app/layout/RouteTabs.tsx"
+    },
+    {
+      "sha256": "810BB7DC9B07A9275709151C7BC4B8DCDC7116F73FE96F028E146C2FD7BAC5FF",
+      "bytes": 1788,
+      "path": "src/app/layout/ShortcutToolbar.css"
+    },
+    {
+      "sha256": "2439A9C56D64EA998D9279FCD51B93F4BD04347FB903F384D717E15CD54BD800",
+      "bytes": 1211,
+      "path": "src/app/layout/ShortcutToolbar.industrial-upgrade.test.ts"
+    },
+    {
+      "sha256": "302E3935503704EAC9F4071A0FD0EA10651B951AA032D8E1888EBFCDDE947339",
+      "bytes": 1099,
+      "path": "src/app/layout/ShortcutToolbar.keyboard-reorder.test.ts"
+    },
+    {
+      "sha256": "E5E874161187BFAE195FC20E1FA52B920302B2B35D92505520D48A9677B86733",
+      "bytes": 18020,
+      "path": "src/app/layout/ShortcutToolbar.tsx"
+    },
+    {
+      "sha256": "2B6730649072BFEC13F9CF74B288943D12EA343C5481397D4A14BA170BB6B93F",
+      "bytes": 2300,
+      "path": "src/app/layout/tabsStore.ts"
+    },
+    {
+      "sha256": "86CAB9E0530CFB6534F8AA88F5CAB6A4BE66BB76721EBDBA2A6908BA6BF9AB9A",
+      "bytes": 1296,
+      "path": "src/app/layout/useFocusReturn.ts"
+    },
+    {
+      "sha256": "B9E1EA224F745E10AD5681D1096A4C09CF1E4915AAB7C70C244251EC2C6EF434",
+      "bytes": 1473,
+      "path": "src/app/layout/visibleText.test.ts"
+    },
+    {
+      "sha256": "EC91D0CE3D3174C1410BF2DAC457744B9EA6DB20471351770BD75E6E7D066929",
+      "bytes": 625,
+      "path": "src/app/layout/visibleText.ts"
+    },
+    {
+      "sha256": "53218EB22F4D6F2086C707B8154B1B2B9F06C4AE2AC938490A0F5F15D1821296",
+      "bytes": 2453,
+      "path": "src/app/layout/visibleTextEncoding.test.ts"
+    },
+    {
+      "sha256": "3AA3D3EFBBB98C34667F94C7667EC162E501900536D96502590614F3744AD931",
+      "bytes": 5574,
+      "path": "src/app/layout/workbenchI18n.ts"
+    },
+    {
+      "sha256": "509453D1C11FE58FF2F1424FE4B4573EF8D8A728A955348AA776198FA9D9C2E8",
+      "bytes": 1302,
+      "path": "src/app/layout/WorkbenchLayout.command-palette.test.ts"
+    },
+    {
+      "sha256": "64089BBCB950B4F8414D97A6C26E5ED80CF97E9DD0EB5032574C319347181F8E",
+      "bytes": 18440,
+      "path": "src/app/layout/workbenchLayout.css"
+    },
+    {
+      "sha256": "A03983168DBEA3F9DE7159F1D5472E25A21FA495D42AA91620AD2436E2A12224",
+      "bytes": 5764,
+      "path": "src/app/layout/WorkbenchLayout.industrial-upgrade.test.ts"
+    },
+    {
+      "sha256": "9D0B22C74EF73A36FCCCAC71D2AA6012FAC0F1C5B9B4B025A50AD7058F7A6D3D",
+      "bytes": 1285,
+      "path": "src/app/layout/WorkbenchLayout.interactions.test.ts"
+    },
+    {
+      "sha256": "DE4AD30CDA9B81396D48BD2C53A095410AEF66C391C59A8750FAF41D81771ABC",
+      "bytes": 1625,
+      "path": "src/app/layout/WorkbenchLayout.preset-memory-motion.test.ts"
+    },
+    {
+      "sha256": "906428B00C2C89614620867C91606E2210475A08348B0AB281960FA9C1536F32",
+      "bytes": 1517,
+      "path": "src/app/layout/WorkbenchLayout.quick-presets.test.ts"
+    },
+    {
+      "sha256": "F47972FD287EAB9E98668BF7F9ECFF5FB6A515B8972D2063497A76E45F197843",
+      "bytes": 1383,
+      "path": "src/app/layout/WorkbenchLayout.reduced-ui-shell.test.ts"
+    },
+    {
+      "sha256": "2ACECFC650006FF883FE38DA308BE959EB2AFE58772A7B747F11E2A3C16DE678",
+      "bytes": 1156,
+      "path": "src/app/layout/WorkbenchLayout.splitter-a11y.test.ts"
+    },
+    {
+      "sha256": "249719210676D8FA4C1E1FE083230754B917FB579DA72D6146832B34DED2CFB2",
+      "bytes": 84946,
+      "path": "src/app/layout/WorkbenchLayout.tsx"
+    },
+    {
+      "sha256": "300DEE0135883B6878A24BA971B4A4AAC355C88E68CFE2E0F5B985155284F1FC",
+      "bytes": 1376,
+      "path": "src/app/layout/workbenchPanels.tsx"
+    },
+    {
+      "sha256": "385CEFE82F2A1AA9D1BEC2731D88D91288BE5AD5ECB47A3E12DEFB6B90DD840B",
+      "bytes": 977,
+      "path": "src/app/layout/workbenchPanelSizing.test.ts"
+    },
+    {
+      "sha256": "C6A9FA29C379E8BF5BB8DD8857D5420A277A47E4BC738AED0CA4568CF8826628",
+      "bytes": 603,
+      "path": "src/app/layout/workbenchPanelSizing.ts"
+    },
+    {
+      "sha256": "121CC930BEBBD11892E5E62922BE4C4E8BB1C7FC3DD98BF71C8355C55DADC151",
+      "bytes": 2711,
+      "path": "src/app/layout/workbenchWarmup.test.ts"
+    },
+    {
+      "sha256": "61FF54451E53D3181730E80B5540637C1F8CCB1C846A813AE618C9B49FFDB648",
+      "bytes": 2612,
+      "path": "src/app/layout/workbenchWarmup.ts"
+    },
+    {
+      "sha256": "F1538EF2A7F43456F61B6288684C3205B5F6408DC99CCCB6D4A2343DFA5233C0",
+      "bytes": 2020,
+      "path": "src/app/navigation/routeAliases.test.ts"
+    },
+    {
+      "sha256": "2182320F2633664E304EF13A028866ABFB5BA99D3DCC601FF1900CCF8C44A3E3",
+      "bytes": 1339,
+      "path": "src/app/navigation/routeAliases.ts"
+    },
+    {
+      "sha256": "727696CD7EF4340383637431EAA7613E34AE6182244707563ECB62C53BD35A8E",
+      "bytes": 4359,
+      "path": "src/app/navigation/RouteDiagnosticsReporter.tsx"
+    },
+    {
+      "sha256": "08B18DC46F78943497B25AC009A8157E728DB5585354F52E9CF722E15D0B3AFD",
+      "bytes": 3154,
+      "path": "src/app/navigation/routeDiagnosticsReporting.test.ts"
+    },
+    {
+      "sha256": "1B7F57E4076B9C5B48AD63979A76AE3236663DDA177FE195893385192582A03E",
+      "bytes": 1817,
+      "path": "src/app/navigation/routeDiagnosticsReporting.ts"
+    },
+    {
+      "sha256": "00F32C852F9F7AFFD17B7D87D04F67AAA4B0D0A6B9CE93CC580B45DE254FA2A9",
+      "bytes": 4340,
+      "path": "src/app/navigation/routeLoadingDiagnostics.test.ts"
+    },
+    {
+      "sha256": "7F5117575D5F7D4449166D11EF721C2B43DC8179F18F2A4C70207814A610B21B",
+      "bytes": 12309,
+      "path": "src/app/navigation/routeLoadingDiagnostics.ts"
+    },
+    {
+      "sha256": "0A3AA1A1D7EB775CE22154322FC4D9BAF79736040558A077397B488CCAAEBF22",
+      "bytes": 3845,
+      "path": "src/app/navigation/routePrefetch.test.ts"
+    },
+    {
+      "sha256": "4E1BB9E0632981DB6055EDA25A5708D0B3C2FB27764345C53AF7CCC9062CD958",
+      "bytes": 7360,
+      "path": "src/app/navigation/routePrefetch.ts"
+    },
+    {
+      "sha256": "6B9519ACFE289B3C98DE9FECAD9469DDC21E1B0FDF2E6E783A8999B31589A656",
+      "bytes": 516597,
+      "path": "src/assets/brand/hengceyun-logo.png"
+    },
+    {
+      "sha256": "84C73816F7BA8A2306C57A1A7C708D34703D3FAFE90113343CB40FF995485A88",
+      "bytes": 228,
+      "path": "src/components/industrial/index.ts"
+    },
+    {
+      "sha256": "3F19401AF0F476F4E7511FC8D4DF7EA161DD0CEDA93AE5D89B3770A769176377",
+      "bytes": 384,
+      "path": "src/components/industrial/IndustrialCard.tsx"
+    },
+    {
+      "sha256": "1238F7C070AA2E5A5CDA9F692CE39886A7C6E7F8D78A421710B6E6132340E351",
+      "bytes": 489,
+      "path": "src/components/industrial/IndustrialTable.tsx"
+    },
+    {
+      "sha256": "794D8CE2AF6F375E0FBDF91C1902C9681810A745BF0131F9439D306D24EB06D5",
+      "bytes": 57,
+      "path": "src/components/page-templates/index.ts"
+    },
+    {
+      "sha256": "82F0B87074D9C1A661091F83B086CA6D8CCBD7A73713F08256CC8E5FC4529F2C",
+      "bytes": 2494,
+      "path": "src/components/ui-modules/index.ts"
+    },
+    {
+      "sha256": "B855C18CEE7A8D8DB5C779B662CC74093B66B1BB78C8CA3A3E32A9954CEF9B76",
+      "bytes": 1650,
+      "path": "src/components/ui-modules/UiModule01LogisticsQuerySettings.tsx"
+    },
+    {
+      "sha256": "FA8FE22E74F3034CD42D780A4C5E749BEC5414BAF3C71F45F840A3F37200F1F7",
+      "bytes": 3820,
+      "path": "src/components/ui-modules/UiModule01QuickFilters.css"
+    },
+    {
+      "sha256": "C2B78B7B14D7814928B3AF94F97EC5BA7BBF08325CC8B38A0F38AE5208C77871",
+      "bytes": 9531,
+      "path": "src/components/ui-modules/UiModule01QuickFilters.tsx"
+    },
+    {
+      "sha256": "F5DF94DA2AEB110C4A600C029E43B2D58C43F70A2326015B7B7D3EE51B1DD335",
+      "bytes": 3082,
+      "path": "src/components/ui-modules/UiModule02ActionSearchToolbar.test.ts"
+    },
+    {
+      "sha256": "4E356063B0CA1DB19D0970DA0E3CEA7EEE9A5A6C8D0C9C3A44C7CD25032E0633",
+      "bytes": 3153,
+      "path": "src/components/ui-modules/UiModule02ActionSearchToolbar.tsx"
+    },
+    {
+      "sha256": "39DFECD80E21C261C7FDE98C05FE2A6BAA4C305F882B9512A51B2CAE0E0D944F",
+      "bytes": 974,
+      "path": "src/components/ui-modules/UiModule02ToolbarRight.tsx"
+    },
+    {
+      "sha256": "43C0501B924E7EAA6EA3A225AD83940354097B22BB9D3CEEBBCDD3E0AFB9C099",
+      "bytes": 2041,
+      "path": "src/components/ui-modules/UiModule03ContextMenu.tsx"
+    },
+    {
+      "sha256": "84BC4786DC9BF44B43A00AEF1773F548D1AF95047A267A9C1EC8B8DC14AA10A3",
+      "bytes": 28509,
+      "path": "src/components/ui-modules/UiModule03MainTableInteractions.tsx"
+    },
+    {
+      "sha256": "A6319B2A5A460E58FD18CB34B94C25B9E1CE91DFDAE535E5D449E59E2ADA08A3",
+      "bytes": 1676,
+      "path": "src/components/ui-modules/UiModule03MainTableSection.contract.test.ts"
+    },
+    {
+      "sha256": "F7E9CCC4FCACE9DDCD1D78C906148BCC5CD4233D18A204FCD38BF0EE226A58FE",
+      "bytes": 1538,
+      "path": "src/components/ui-modules/UiModule03MainTableSection.css"
+    },
+    {
+      "sha256": "5608EE9BBA6A55291C86E8C0D52440EAE0792F059E94715A2765A002FE2527D8",
+      "bytes": 822,
+      "path": "src/components/ui-modules/UiModule03MainTableSection.idlessRows.test.ts"
+    },
+    {
+      "sha256": "8CE8748429B23178117E9549B894D20510F6CAF3CB2D31C53658CA09A3F62EE5",
+      "bytes": 15836,
+      "path": "src/components/ui-modules/UiModule03MainTableSection.tsx"
+    },
+    {
+      "sha256": "E554B028DFCEDC3DC58FB966316C9AEA16A15527705CCEF1DF1C39A2E07D165C",
+      "bytes": 733,
+      "path": "src/components/ui-modules/UiModule03OrderItemEditorModal.css"
+    },
+    {
+      "sha256": "C4D2DF0E75DB84079A4659271F265C290347778E5849E5DDE81F37450A4AC2EE",
+      "bytes": 16238,
+      "path": "src/components/ui-modules/UiModule03OrderItemEditorModal.tsx"
+    },
+    {
+      "sha256": "4889A06B03BB22E5A8CD0423982A0A242BD5701CE16EA26B648FB8058265FAA5",
+      "bytes": 12356,
+      "path": "src/components/ui-modules/UiModule03QuickFilters.tsx"
+    },
+    {
+      "sha256": "178BC784B71B9F9AD7B29F0219155FCEA9091204594B4BA4185EAB19AE3EF5A4",
+      "bytes": 810,
+      "path": "src/components/ui-modules/UiModule03SkuSelectorModal.css"
+    },
+    {
+      "sha256": "A5B0C0247712A76D9BCBDD16268AD6EAD84798C7180504A133421EFEE80D6DDF",
+      "bytes": 6184,
+      "path": "src/components/ui-modules/UiModule03SkuSelectorModal.tsx"
+    },
+    {
+      "sha256": "2D77064E94644EDAAD39D855A0D1065BAD7F47E23EDCB123B13BBF04B2C1F2CF",
+      "bytes": 2179,
+      "path": "src/components/ui-modules/UiModule03TableFooter.css"
+    },
+    {
+      "sha256": "DCAF33D1676E877DE5F423502F0C8027BA8D14BE612FD8049EE5D7B6EBB3FB39",
+      "bytes": 2215,
+      "path": "src/components/ui-modules/UiModule03TableFooter.tsx"
+    },
+    {
+      "sha256": "F1F37BC202344361F38C875D61E1DE59504524E785AC6FE86DDB13DB00A05D1D",
+      "bytes": 1181,
+      "path": "src/components/ui-modules/UiModule04BottomTable.css"
+    },
+    {
+      "sha256": "E4620F0FF78620CAC80CB216B631EDDF6BDDD2B622AA130D29D44D78FEE7BECA",
+      "bytes": 1979,
+      "path": "src/components/ui-modules/UiModule04BottomTable.scrollbar-contract.test.ts"
+    },
+    {
+      "sha256": "A851DF4391454F6337F0066BA9EAD6D2999A18D74ACA44D22695AE507B715717",
+      "bytes": 4104,
+      "path": "src/components/ui-modules/UiModule04BottomTable.tsx"
+    },
+    {
+      "sha256": "E4F3D43A915B951BE93C52E297C804FBEC75F67562F5108CC1BEB05B7309E480",
+      "bytes": 654,
+      "path": "src/components/ui-modules/UiModule05DetailPanel.tsx"
+    },
+    {
+      "sha256": "1B8B94F88A5272C18918D341424A75F66A3E8A2114F044894B9E68AE3E64AA85",
+      "bytes": 2598,
+      "path": "src/components/ui-modules/UiModule05OrderReviewRightPanelTemplate.css"
+    },
+    {
+      "sha256": "6536DEDF6DF0FD3CF241E86518373783D6B878BA46E72A6FD8A4E97D6F548B78",
+      "bytes": 1513,
+      "path": "src/components/ui-modules/UiModule05OrderReviewRightPanelTemplate.test.ts"
+    },
+    {
+      "sha256": "1936A262E00D18EC6B1830CFBA9DCB163AC23E76F094C55E46C1C04BC53DF43A",
+      "bytes": 15645,
+      "path": "src/components/ui-modules/UiModule05OrderReviewRightPanelTemplate.tsx"
+    },
+    {
+      "sha256": "09435BE0C1BEC00EB4539B1487C27449C0C25875777EB03135F04389593142E0",
+      "bytes": 1471,
+      "path": "src/components/ui-modules/UiModule06StrategyTable.tsx"
+    },
+    {
+      "sha256": "D0C8BE270580727591BEAACD6CFD9F24968A47EEB1FD1117EADFF5DEEEB8A6C3",
+      "bytes": 829,
+      "path": "src/components/ui-modules/UiModule07SettingsLayout.css"
+    },
+    {
+      "sha256": "944914A033232C7C12316B992CBAF81DFC8AF3DA5875D4A28618AE3776F03852",
+      "bytes": 1574,
+      "path": "src/components/ui-modules/UiModule07SettingsLayout.tsx"
+    },
+    {
+      "sha256": "E87429D275103E908C287EDDF189AD0CB864511195DA0F6C43B24C5F7C9F2599",
+      "bytes": 599,
+      "path": "src/components/ui-modules/UiModule07SettingsLayout.typography.test.ts"
+    },
+    {
+      "sha256": "55515DACC6E1B40B2D15E4A485434ED03E9D867790AA092D0748B30EAEB0024F",
+      "bytes": 5273,
+      "path": "src/components/ui-modules/UiModule08OrderReviewLeftPanelTemplate.css"
+    },
+    {
+      "sha256": "72E41823C7728731A8CBAF21B36B889F37499B489631B6DC96E1F1C49EA8CDA4",
+      "bytes": 8003,
+      "path": "src/components/ui-modules/UiModule08OrderReviewLeftPanelTemplate.tsx"
+    },
+    {
+      "sha256": "BDF03C9E8DFBDDA8E60244427A56620CE75B99AAA8AD232E7310B8909433254F",
+      "bytes": 1528,
+      "path": "src/components/ui-modules/UiModule08StrategyScreenFilterForm.css"
+    },
+    {
+      "sha256": "B8F19DB7563BD918CAE3687A473A43A6C06FCB68A055B2C061D4730EAC6F3CA7",
+      "bytes": 9364,
+      "path": "src/components/ui-modules/UiModule08StrategyScreenFilterForm.tsx"
+    },
+    {
+      "sha256": "1508955FE76DE39B64B5E58D03933AB15F78CED3EA90F4DE04F6DD642A59198B",
+      "bytes": 3250,
+      "path": "src/components/workbench/workbenchListPage.css"
+    },
+    {
+      "sha256": "7B9CB979CD79EE2BAC8A5CE89861B0698370BC65812457B0E759B72316AA6FE3",
+      "bytes": 589,
+      "path": "src/components/workbench/workbenchTableQuery.css"
+    },
+    {
+      "sha256": "50BC5B332BE25B43BFF14BDCCFE57B759B97FC3FEE31889249CF878AD8E37ACF",
+      "bytes": 4429,
+      "path": "src/components/workbench/WorkbenchTableQuery.tsx"
+    },
+    {
+      "sha256": "6F3060D0121B1682F0DA6324826B30EC798ACFAC0C03FBAC94E1CB1113E45C6F",
+      "bytes": 1115,
+      "path": "src/features/insights/insightDimensionCatalog.ts"
+    },
+    {
+      "sha256": "81A28F16CC71D3BFF893625494F0056B6453F0280A799E66DE0EC3D6BEC22717",
+      "bytes": 4571,
+      "path": "src/features/insights/insightFeatureCatalog.test.ts"
+    },
+    {
+      "sha256": "F88D78A4F7E9A75E695EAA8AEAE865EA8E53F4D5735638515E7EFAAC3FD06880",
+      "bytes": 10488,
+      "path": "src/features/insights/insightFeatureCatalog.ts"
+    },
+    {
+      "sha256": "BC5A1167B346D2388431FDAE3E9C988BB8241D2C034C99D0341D3F7C0BF5FD04",
+      "bytes": 3318,
+      "path": "src/features/oms-wms-main-chain/guards.test.ts"
+    },
+    {
+      "sha256": "BAC247F2F7DC5CA74CF20CC1321451F1F46A82B2ED389E51268AA7A1EE8FB832",
+      "bytes": 2685,
+      "path": "src/features/oms-wms-main-chain/guards.ts"
+    },
+    {
+      "sha256": "C4A7E75DA5B3583DC1A6A83DDE9202E266DE10C256811DC8B137ADC42E0B9887",
+      "bytes": 3580,
+      "path": "src/features/oms-wms-main-chain/statuses.test.ts"
+    },
+    {
+      "sha256": "3E8B7ACCF09B76848E1554675CA35209A806EE4B6AB31F220AF07CE9C349F684",
+      "bytes": 3078,
+      "path": "src/features/oms-wms-main-chain/statuses.ts"
+    },
+    {
+      "sha256": "0100267CA0754A16CA2DF298E4B95F8616DB8287EFE90B95145F1A231A37FBE1",
+      "bytes": 3097,
+      "path": "src/features/printing/PrintBridge.ts"
+    },
+    {
+      "sha256": "2E3121C3764CA13FC16D049A2A240E292DEFAB23541FD4F036728DA9F59DA8E4",
+      "bytes": 4449,
+      "path": "src/features/printing/printJobFlow.ts"
+    },
+    {
+      "sha256": "112693F1463AB937D9DE9E8873D780F70C6BA5517C7F036273C68934920F7EAE",
+      "bytes": 1843,
+      "path": "src/features/printing/printTemplateSettings.ts"
+    },
+    {
+      "sha256": "DD4518F6058E0C532D7D20CFCAD316D8FC04BE54F09D818837432554D21B2D20",
+      "bytes": 255,
+      "path": "src/features/printing/types.ts"
+    },
+    {
+      "sha256": "93F66AC8DEB082B85BFC2BC674383CF6B3FE14AB0C0B44EB379A212BC2E35465",
+      "bytes": 9134,
+      "path": "src/pages/afterSales/AfterSaleCaseDetailPage.tsx"
+    },
+    {
+      "sha256": "818D2E56A7A0D5CD8199EA1513DC86A153B2BC40E4193BF905087251E1247EE3",
+      "bytes": 1376,
+      "path": "src/pages/afterSales/AfterSaleCaseListPage.contract.test.ts"
+    },
+    {
+      "sha256": "2E28726053392714DCA9C8493845CB5BE09B33DDC9FF64C42116FC8B5FA1A99A",
+      "bytes": 7884,
+      "path": "src/pages/afterSales/AfterSaleCaseListPage.tsx"
+    },
+    {
+      "sha256": "E34E2F7D8F5F4B11FEBF5474B7C3219F2486B3F3F6827B32F5B548628AB9D6FC",
+      "bytes": 3754,
+      "path": "src/pages/afterSales/afterSalesActionGuards.test.ts"
+    },
+    {
+      "sha256": "DDAEA91A44CCF2ECF34CB22EFD9AE8B7FCDF1B2005E56C60375062604897C33B",
+      "bytes": 1847,
+      "path": "src/pages/afterSales/afterSalesActionGuards.ts"
+    },
+    {
+      "sha256": "D8F91B4DFF638AC492EF24718E7C538A2A2207A736E7B7E9B16A49073649C211",
+      "bytes": 16149,
+      "path": "src/pages/afterSales/AfterSalesDetailPage.tsx"
+    },
+    {
+      "sha256": "343857F15BF320E39B7B5BBA9ED8FEB36386BA720B99F206D3898549EEF5D763",
+      "bytes": 2217,
+      "path": "src/pages/afterSales/AfterSalesExchangesPage.contract.test.ts"
+    },
+    {
+      "sha256": "43A17663FA29AAA42135EED53AC6C72279265EA4BD8EBC13816FD48BE5E7DF3F",
+      "bytes": 8365,
+      "path": "src/pages/afterSales/AfterSalesExchangesPage.tsx"
+    },
+    {
+      "sha256": "D3DB004FE8AF4C602543889B6473CD749B1C781DE1611E3E8B075BFFD5465818",
+      "bytes": 1730,
+      "path": "src/pages/afterSales/AfterSalesInspectionsPage.contract.test.ts"
+    },
+    {
+      "sha256": "0AE0E5A54A5A0926B7623E7C9959EC1696628E42B8BC913A3A152A87E9A86968",
+      "bytes": 12297,
+      "path": "src/pages/afterSales/AfterSalesInspectionsPage.tsx"
+    },
+    {
+      "sha256": "E2C69A1C72D2029BFA397869A6578C378A3EDC09475305126352B348BE79C21E",
+      "bytes": 2126,
+      "path": "src/pages/afterSales/AfterSalesInterceptsPage.contract.test.ts"
+    },
+    {
+      "sha256": "0110E08D481812ECE0DD895DECD1511DED565A8A1ABE7814AC3EA930BC6958E6",
+      "bytes": 10836,
+      "path": "src/pages/afterSales/AfterSalesInterceptsPage.tsx"
+    },
+    {
+      "sha256": "95EDF2BA61BA2005EF18FCC5CF65588432AA61FA687F270C23527B77E64A9748",
+      "bytes": 1616,
+      "path": "src/pages/afterSales/AfterSalesListPage.contract.test.ts"
+    },
+    {
+      "sha256": "B4F7D4A458ABBF2B8AAEA6C98813C89DEBB172518EB0140ECC7D36E72A9545DA",
+      "bytes": 20238,
+      "path": "src/pages/afterSales/AfterSalesListPage.tsx"
+    },
+    {
+      "sha256": "489F8FD03DDC61EED6F6068281F94ED1C4983D0EF350B25E1E8C22BDE0A13CE2",
+      "bytes": 1815,
+      "path": "src/pages/afterSales/afterSalesReceiveModel.test.ts"
+    },
+    {
+      "sha256": "264FB86A5CDF4A31BBD4993F9EF9E24A54FD0AC0C6E0D908915AED8CC8C2653D",
+      "bytes": 1919,
+      "path": "src/pages/afterSales/afterSalesReceiveModel.ts"
+    },
+    {
+      "sha256": "5737D93645DF5D639EAA6DACB8A7677ECAE028BCD927D24239CD734E620B0F39",
+      "bytes": 1438,
+      "path": "src/pages/afterSales/AfterSalesReceivePage.contract.test.ts"
+    },
+    {
+      "sha256": "BABDC20C5CA3394DF6AB7947A22C493BA2794A4063FDF670999D8131B8EE77F3",
+      "bytes": 6240,
+      "path": "src/pages/afterSales/AfterSalesReceivePage.tsx"
+    },
+    {
+      "sha256": "C81064332AB18B4ED847DC85B49D896E15970994002C0251D5779C8567D3C74F",
+      "bytes": 22396,
+      "path": "src/pages/afterSales/AfterSalesSettingsPage.tsx"
+    },
+    {
+      "sha256": "BD218B8D7B3DA83C62568EEAD07ED1F2B3B84FDA718D90D458B1A662B60D35E5",
+      "bytes": 1804,
+      "path": "src/pages/afterSales/AfterSalesSlaPage.contract.test.ts"
+    },
+    {
+      "sha256": "33534BB9819E5C54D6B7F849648008EC7749B9CFA3B891A0A34AAE2A3ADCF05B",
+      "bytes": 11919,
+      "path": "src/pages/afterSales/AfterSalesSlaPage.tsx"
+    },
+    {
+      "sha256": "BABF9B8B9B7480D1822116182E2A92E96BA92A1F2D64CC1E3845B0DBC8B4CDBC",
+      "bytes": 1680,
+      "path": "src/pages/afterSales/RefundDocsPage.contract.test.ts"
+    },
+    {
+      "sha256": "F5FB9D94C84217D3DF8A87BC59E7F37D8774A64886373F42364095D18B24A1E9",
+      "bytes": 6300,
+      "path": "src/pages/afterSales/RefundDocsPage.tsx"
+    },
+    {
+      "sha256": "3CBE1B04EF4B5D4B2DFCC24185AC211180BBE4BCF6375A2DC4E90B1D31B2261E",
+      "bytes": 741,
+      "path": "src/pages/channels/ChannelAuthorizePage.tsx"
+    },
+    {
+      "sha256": "64A944CE70D2BDB6B5257EFA161F91FF937B1966678EFFA89116EC70BB3F0418",
+      "bytes": 6005,
+      "path": "src/pages/channels/channelDirectoryColumns.tsx"
+    },
+    {
+      "sha256": "2DD989D66645E72AA6E9421262F659FBD0A938458BA02F13AABDCC85F2DF1F40",
+      "bytes": 3424,
+      "path": "src/pages/channels/channelDirectoryModel.test.ts"
+    },
+    {
+      "sha256": "52E27168606750839C6CEA4DE3EA6FF00F8F92BACD7318AD9988274F10EF1F06",
+      "bytes": 17459,
+      "path": "src/pages/channels/channelDirectoryModel.ts"
+    },
+    {
+      "sha256": "F4B04B08F34ECD3C7E0BBB944460C76211D6261FF9356AB642FD4C649CC78B49",
+      "bytes": 628,
+      "path": "src/pages/channels/channelDirectoryPage.css"
+    },
+    {
+      "sha256": "AD2D88430E1B2EC4FC5D24C6F9D886EE1E3E78970454905AEBF575F8719D27C5",
+      "bytes": 2734,
+      "path": "src/pages/channels/channelDirectoryPage.test.ts"
+    },
+    {
+      "sha256": "CB7B0E0D77F275F308F3F23FD9075105DDC3615DD3B5662AAFBF3092BEB8A70A",
+      "bytes": 35513,
+      "path": "src/pages/channels/ChannelDirectoryPage.tsx"
+    },
+    {
+      "sha256": "BF749122BE9EF045F18E57FB1B582A1CB6FF14179B7FF6814BC31770FE6A8BC0",
+      "bytes": 8080,
+      "path": "src/pages/channels/ChannelDirectoryPanels.tsx"
+    },
+    {
+      "sha256": "DD4A4ADF543670C9A29EB610828141DEB8B5FEE1A591D3CBA45EAEF42600C71D",
+      "bytes": 767,
+      "path": "src/pages/channels/ChannelServicePurchasePage.tsx"
+    },
+    {
+      "sha256": "D8E457901B4582D1C4F30FDA7D2DCAEF3C768C445CE31D089B516C9419D6F1E0",
+      "bytes": 405,
+      "path": "src/pages/channels/channelsPage.css"
+    },
+    {
+      "sha256": "3BEE2B64EEBDA1FF81433A90990E9FDE48889A603765C5C2E4C16E7363E0537E",
+      "bytes": 138,
+      "path": "src/pages/channels/ChannelsPage.tsx"
+    },
+    {
+      "sha256": "2433FCA7067A968A0EFD61FB60BE376E8EAE45CFA8F26BC06555D70E72275141",
+      "bytes": 6961,
+      "path": "src/pages/channels/channelWorkbenchModel.test.ts"
+    },
+    {
+      "sha256": "6E046B673A558C502B3C211651DF0E6D38BE3900065B324D762BDDB599E3AE40",
+      "bytes": 11304,
+      "path": "src/pages/channels/channelWorkbenchModel.ts"
+    },
+    {
+      "sha256": "09474F9F04F5B2D3EF97099F72B22F560DA0420E8D92BC8731137F0763740CDA",
+      "bytes": 3446,
+      "path": "src/pages/channels/ChannelWorkbenchPanels.test.ts"
+    },
+    {
+      "sha256": "ADEB9E6307F860EFDB6FA19F5999DBAFDFCD5F5224E4EB632A1BF0E242AEBB59",
+      "bytes": 9832,
+      "path": "src/pages/channels/ChannelWorkbenchPanels.tsx"
+    },
+    {
+      "sha256": "C8C1C27189479E27CB2F059F6FBF884A628B6013875634AAD7ED0CAC99AB80ED",
+      "bytes": 2177,
+      "path": "src/pages/channels/shopAccessModel.test.ts"
+    },
+    {
+      "sha256": "1E8514DF3EEF1A11860DC3AE0E1A78558F05E7D660E1BD526C82AED923BCBB81",
+      "bytes": 2350,
+      "path": "src/pages/channels/shopAccessModel.ts"
+    },
+    {
+      "sha256": "A661B16964EBCA0387C47C1DCCD88F0B53F0089D31592B1D495ED19554B82FEF",
+      "bytes": 149,
+      "path": "src/pages/channels/ShopAccessPage.tsx"
+    },
+    {
+      "sha256": "4495645981D332F77CE41446F35AE9504EE2E1D0524F9F39D2272D2738A659D1",
+      "bytes": 1287,
+      "path": "src/pages/couriers/CouriersPage.test.ts"
+    },
+    {
+      "sha256": "40E7F7FF029263595D909533B0270F22B897DED6374E7B34F99C98472D797324",
+      "bytes": 33622,
+      "path": "src/pages/couriers/CouriersPage.tsx"
+    },
+    {
+      "sha256": "7862676CE0DC195C9A575FB2F9F426CFE6E80BA5B7E8F68527A99F73E900CEF6",
+      "bytes": 25454,
+      "path": "src/pages/customers/CustomerCategoriesPage.tsx"
+    },
+    {
+      "sha256": "4BC8BB0A471260DD7A4DD2F7883899822FE1C9FDEDB5AB7C2B970916D506D121",
+      "bytes": 9390,
+      "path": "src/pages/customers/CustomerDetailPage.tsx"
+    },
+    {
+      "sha256": "52A75A6C63E01DD1D82517632EB4DFA17B8D1509C2E9F61D294E3709AB1CB7BD",
+      "bytes": 11723,
+      "path": "src/pages/customers/CustomerLifecyclePage.tsx"
+    },
+    {
+      "sha256": "77DB1C205333933295808937107CDFC487184D95EE05A3DEEB3CF4BDD9C65D3E",
+      "bytes": 9396,
+      "path": "src/pages/customers/CustomerLoyaltyPage.tsx"
+    },
+    {
+      "sha256": "59034ACFE4C01EDDA7E893DE30213AB749C9B07DD4ACA3D17E3FB1FF55FB1E97",
+      "bytes": 11166,
+      "path": "src/pages/customers/CustomerSegmentsPage.tsx"
+    },
+    {
+      "sha256": "0DC2D9B7080C25C46E2C52920133D4501B70A6CC12FB014CA925948A9F2AF90A",
+      "bytes": 18393,
+      "path": "src/pages/customers/CustomerServiceTicketsPage.tsx"
+    },
+    {
+      "sha256": "B6D37DAF4FA136A53BF3F9ABE99692906FB3E856E376010890A167889FFF9861",
+      "bytes": 13601,
+      "path": "src/pages/customers/CustomersPage.tsx"
+    },
+    {
+      "sha256": "9EBA6B6C5692646E01D5D36D67B22626FDCF8353456DD4360DA900E47EED7352",
+      "bytes": 22847,
+      "path": "src/pages/customers/CustomerTagsPage.tsx"
+    },
+    {
+      "sha256": "2A488769CFFA44247AB86E7E8C9C43BF7207C1EA5543E1267877BFC0E49F0934",
+      "bytes": 26061,
+      "path": "src/pages/customers/MemberLevelsPage.tsx"
+    },
+    {
+      "sha256": "410BA00F8543C7843CF2FAF98A473C896743A36926074EFDAD8BA307B58D9FEE",
+      "bytes": 6466,
+      "path": "src/pages/exports/ExportJobsPage.tsx"
+    },
+    {
+      "sha256": "8E71372483F2D0AE6985D2ACD6E07B38688CD24EB6161CA5268897CA21519748",
+      "bytes": 15396,
+      "path": "src/pages/failureQueue/FailureQueuePage.tsx"
+    },
+    {
+      "sha256": "3FFC37D47748B4DAD4799618AFC36ABF83CA7C17C33329BD00A51EF007F3BC54",
+      "bytes": 1215,
+      "path": "src/pages/finance/ApDocsPage.contract.test.ts"
+    },
+    {
+      "sha256": "9477621080E0FC178A316C19199DAB2ECB86D08EB2C69005DA94A79D8D3178CF",
+      "bytes": 8810,
+      "path": "src/pages/finance/ApDocsPage.tsx"
+    },
+    {
+      "sha256": "59792FF29FBB6E12C0B18109BC558C0D83EDBC79DE66146359A356E59DC898B6",
+      "bytes": 2217,
+      "path": "src/pages/finance/ApManagementPage.contract.test.ts"
+    },
+    {
+      "sha256": "21E1194AD1816CCBE39EF5C33B8DF076782D529026450F64B2DBA59FE45768EE",
+      "bytes": 15603,
+      "path": "src/pages/finance/ApManagementPage.tsx"
+    },
+    {
+      "sha256": "3466086643F9214D7C9016C5792DEFF40D40B204C5414474567AFE77BF13500E",
+      "bytes": 1217,
+      "path": "src/pages/finance/ArManagementPage.contract.test.ts"
+    },
+    {
+      "sha256": "EA88B7076B147F7A94776793D89D224B818FC520A2074ECB375578D5B2056BFC",
+      "bytes": 10623,
+      "path": "src/pages/finance/ArManagementPage.tsx"
+    },
+    {
+      "sha256": "A0F5B540BB90FF8710B858E115384712E2D3F08262FDC372D5C182EDB358F5F9",
+      "bytes": 2044,
+      "path": "src/pages/finance/ConsignmentPage.contract.test.ts"
+    },
+    {
+      "sha256": "F3E90B8251D0B458AC30CF26A73ECFBC08B856A6F32A3D320C57A1BC09A5F2E0",
+      "bytes": 11642,
+      "path": "src/pages/finance/ConsignmentPage.tsx"
+    },
+    {
+      "sha256": "7EF0AFDE6C587FEE61707CEC494F1F2D81E95C285DEA70E3A403B166AC68259A",
+      "bytes": 2263,
+      "path": "src/pages/finance/CostingPage.contract.test.ts"
+    },
+    {
+      "sha256": "2131FDE2DD1C4DCFE702A59D98F96CD5CB10BC47CFE160CE53F636643FFCE98A",
+      "bytes": 9560,
+      "path": "src/pages/finance/CostingPage.tsx"
+    },
+    {
+      "sha256": "1F227E6B5C3EA88884BB2B5B5AC17102224D6BBD00C43C73802EBE74FE4F06B5",
+      "bytes": 1387,
+      "path": "src/pages/finance/ExpenseAllocationPage.contract.test.ts"
+    },
+    {
+      "sha256": "F3B769CAC9F0780594C58EFDDCADECCE81E9FEFD6D4EC119F22A580EF68F2324",
+      "bytes": 11076,
+      "path": "src/pages/finance/ExpenseAllocationPage.tsx"
+    },
+    {
+      "sha256": "60A7D6D77808FEE00A2FF2F0416ADB9BC4C38D40D361EF5E07BFBE92199C1BD8",
+      "bytes": 1181,
+      "path": "src/pages/finance/InvoicesPage.contract.test.ts"
+    },
+    {
+      "sha256": "903B991C0A919B918B5F9587DF54EAA8DB4FCC6AB466514CA2236F09D9D3B135",
+      "bytes": 5759,
+      "path": "src/pages/finance/InvoicesPage.tsx"
+    },
+    {
+      "sha256": "B6BD4B9A776933F1379EB21EBDE18D18A9EF8D96846F24EC53686B514CA73BB8",
+      "bytes": 1443,
+      "path": "src/pages/finance/ProfitPage.contract.test.ts"
+    },
+    {
+      "sha256": "B61513C0C329FA2E092333C6C38F271208247E851D675437A7E43AC0892E0147",
+      "bytes": 4793,
+      "path": "src/pages/finance/ProfitPage.tsx"
+    },
+    {
+      "sha256": "C206961D2477B550D41BC598F2B83D91F7FEE05DC3E1BE55340E9E596ED9661B",
+      "bytes": 2260,
+      "path": "src/pages/finance/ReconcilePage.contract.test.ts"
+    },
+    {
+      "sha256": "5F80D0BFAB8EF6A162345CC537F2BFC9D94A093C4E21A6B1F0D3FD4705116278",
+      "bytes": 26079,
+      "path": "src/pages/finance/ReconcilePage.tsx"
+    },
+    {
+      "sha256": "7DF6E2530DCEBB6D3F10D99308A16FD51BDDD734A9B4A4679E1638E113319792",
+      "bytes": 1570,
+      "path": "src/pages/finance/TaxManagementPage.contract.test.ts"
+    },
+    {
+      "sha256": "50DB5FE7D81EE2A3C6E4A78A1BAC2A033C682B4B9623E8084C47EFFC74FAEBAE",
+      "bytes": 17445,
+      "path": "src/pages/finance/TaxManagementPage.tsx"
+    },
+    {
+      "sha256": "702D76CB9C8AF3147D6EB8ABD4F76535E5D34CFF39750F70B2A6CC80BC6DF3A2",
+      "bytes": 8606,
+      "path": "src/pages/goods/goodsModuleSource.contract.test.ts"
+    },
+    {
+      "sha256": "9165B70033671E6E2EE9A290907337536BC146E9DF2535885AC2C5494D3E975E",
+      "bytes": 2149,
+      "path": "src/pages/goods/GoodsRoutePlaceholders.tsx"
+    },
+    {
+      "sha256": "C092C9AF5559B87752A4A068184516B9DD4BDC02F4C9A4A2E55A5D763CA5711C",
+      "bytes": 13275,
+      "path": "src/pages/inbounds/InboundDetailPage.tsx"
+    },
+    {
+      "sha256": "CB557313E8630D81AB56D412C9580D11E706CCA42236A478BDC37CA02355FE08",
+      "bytes": 11464,
+      "path": "src/pages/inbounds/InboundInspectPage.tsx"
+    },
+    {
+      "sha256": "6F34723818AF025A5E3E71B75640A27C7B61C2F2C0CAA4224ECA0BC2AA4F3FDA",
+      "bytes": 16864,
+      "path": "src/pages/inbounds/InboundListPage.tsx"
+    },
+    {
+      "sha256": "2905E7F1B2666DAB9BB9CE489D37378095A71F6708FF5D82E05007EE993A48A0",
+      "bytes": 10168,
+      "path": "src/pages/inbounds/InboundPutawayPage.tsx"
+    },
+    {
+      "sha256": "10B13F273194377FFB1CE4E6C503D51134882B61C6904C2C6C1F7ACFFF5A1DD7",
+      "bytes": 8958,
+      "path": "src/pages/inbounds/InboundQuickReceivePage.tsx"
+    },
+    {
+      "sha256": "5105CE8C565967D73FD3EAEDECA201752404D8A9531140DA4D23705D07F15F39",
+      "bytes": 19003,
+      "path": "src/pages/inbounds/InboundReceivePage.tsx"
+    },
+    {
+      "sha256": "3CF42868ED42B4B868F304C7793A5E86A6F42BE7BA706A88578C10054F30C413",
+      "bytes": 6723,
+      "path": "src/pages/inbounds/InboundRejectsPage.tsx"
+    },
+    {
+      "sha256": "BBA8C002D9144741387BCE0BF02AC19A21B496D6E5154BF7F5D31C8BAEBA33B9",
+      "bytes": 10064,
+      "path": "src/pages/inbounds/InboundSearchPage.tsx"
+    },
+    {
+      "sha256": "F2F860D072DFEDCF642AC1BFD46D8201DEA3C9814B152E69BAC255BF422D6E71",
+      "bytes": 10303,
+      "path": "src/pages/inbounds/ReturnInboundPage.tsx"
+    },
+    {
+      "sha256": "E7CF394CC4C69A58C0441DC5B4E73F7AE625AADE69239D6D73BA09107767E451",
+      "bytes": 2434,
+      "path": "src/pages/inventory/InventoryAlertsPage.contract.test.ts"
+    },
+    {
+      "sha256": "1F73452922B91436303044C0237050D4D05614A1EC974FA0AE846B558B04CAF4",
+      "bytes": 1881,
+      "path": "src/pages/inventory/inventoryAlertsPage.css"
+    },
+    {
+      "sha256": "CFE6EEE8C77374A31F81D8EDB433C855D01D9195A8FCAA6BB4207E90F7580BB5",
+      "bytes": 40119,
+      "path": "src/pages/inventory/InventoryAlertsPage.tsx"
+    },
+    {
+      "sha256": "1DEB30DE591627C57BD3DC259C25232B8D9737AE178D6B000F629C6D5FBCDFF8",
+      "bytes": 1587,
+      "path": "src/pages/inventory/InventoryCostsPage.contract.test.ts"
+    },
+    {
+      "sha256": "138F38F66A84979250EAD285DAA13878F0701A96CAEBE5C95D78C265607AD112",
+      "bytes": 8636,
+      "path": "src/pages/inventory/InventoryCostsPage.tsx"
+    },
+    {
+      "sha256": "AE0B780B5A52E17CEA4B028E5CAA61092499E07FA1AC9B720F444FB5051908BA",
+      "bytes": 1271,
+      "path": "src/pages/inventory/InventoryLedgerPage.contract.test.ts"
+    },
+    {
+      "sha256": "063D0939DBDEEDC3D09F9D1FA930286ACAFA099BFB7ED8D5782BE6F6C7FFCFEE",
+      "bytes": 8056,
+      "path": "src/pages/inventory/InventoryLedgerPage.tsx"
+    },
+    {
+      "sha256": "47426C50294D4F7853C443954CE6C0B9187818157DD34E711A09D01B3BBE6B06",
+      "bytes": 3831,
+      "path": "src/pages/inventory/InventoryLocksPage.contract.test.ts"
+    },
+    {
+      "sha256": "04A606D60C5A7DCF76F129F36F65D9CAB2AC3BFBB60BE393511C2D29EEAA84FF",
+      "bytes": 32625,
+      "path": "src/pages/inventory/InventoryLocksPage.tsx"
+    },
+    {
+      "sha256": "92DD546DAD8426973F32130C60D2DC199FB22A6853D30C40BEE4458EAAC18CAE",
+      "bytes": 1265,
+      "path": "src/pages/inventory/InventoryPage.contract.test.ts"
+    },
+    {
+      "sha256": "910AD5AEABD4F9C6D15942E945689B4A8171CD2FDC99CBD149908876F279232A",
+      "bytes": 18780,
+      "path": "src/pages/inventory/InventoryPage.tsx"
+    },
+    {
+      "sha256": "C38642D9B3251FB272351CA33DE24019F066F1CD6B2C791F72860102E410EDA2",
+      "bytes": 780,
+      "path": "src/pages/inventory/inventorySummaryPage.css"
+    },
+    {
+      "sha256": "8E70DEC3898D11539B063F8FC895760FE3284FE368AB06F8F5BB2738B4421660",
+      "bytes": 1287,
+      "path": "src/pages/inventory/InventorySyncJobsPage.contract.test.ts"
+    },
+    {
+      "sha256": "B168673B05BA430AC9024FF6A6D5D2294EC39EF61ED3105D95FCCD02EED70445",
+      "bytes": 10996,
+      "path": "src/pages/inventory/InventorySyncJobsPage.tsx"
+    },
+    {
+      "sha256": "F48D2C7A621A4E2F3A9239D724D3F0EAC9DB2BFE900F06AEB6EB462F2DA28468",
+      "bytes": 3251,
+      "path": "src/pages/inventory/StocktakesPage.contract.test.ts"
+    },
+    {
+      "sha256": "835EEFC22D1C37D87ADC9637AE0ED6A073DE7CEA50B05DFFF4010810248C48BC",
+      "bytes": 52448,
+      "path": "src/pages/inventory/StocktakesPage.tsx"
+    },
+    {
+      "sha256": "351141AAA42EE45012C40BD2A07E73C779AAB63E4ACD793E3E19A3F22B70B0E8",
+      "bytes": 3041,
+      "path": "src/pages/inventory/StocktakeTasksPage.contract.test.ts"
+    },
+    {
+      "sha256": "6DDE674500A77B9E4C9A7DEB3B644214124E57AA6B39804CE4A327528058853C",
+      "bytes": 35128,
+      "path": "src/pages/inventory/StocktakeTasksPage.tsx"
+    },
+    {
+      "sha256": "F877F9AC4E8EDB53F447956206A982FF97018F0E3A47909AC21BF638F5D9B215",
+      "bytes": 20667,
+      "path": "src/pages/kits/KitEditorPage.tsx"
+    },
+    {
+      "sha256": "C92645976B9B46AA997120EE5B9B90F8FA1A8312209BCE22E8941F5CD3A0ADA0",
+      "bytes": 19989,
+      "path": "src/pages/kits/KitsPage.tsx"
+    },
+    {
+      "sha256": "222CF52ABA821AD337FCD10982DFE0C467476D764FDEED5DC04AEAFBCEFA43CB",
+      "bytes": 13407,
+      "path": "src/pages/logistics/LogisticsExceptionsPage.tsx"
+    },
+    {
+      "sha256": "4009D072FA8AE339488ADE8105AFF0C9E1BB9C6EBBA678629452F427DCEC2DE4",
+      "bytes": 959,
+      "path": "src/pages/logistics/LogisticsFeeDirectoryPage.test.ts"
+    },
+    {
+      "sha256": "F2F7136B0DC72B3D20A5D476087EFC0F50C125CDAF78E0EDABDFF6BB082CF8FB",
+      "bytes": 23330,
+      "path": "src/pages/logistics/LogisticsFeeDirectoryPage.tsx"
+    },
+    {
+      "sha256": "BB4E7A6025264CA66FF5A9CC68D5E7B186E850FC95C26402523EF054FBB3652A",
+      "bytes": 11739,
+      "path": "src/pages/logistics/LogisticsInstallationsPage.tsx"
+    },
+    {
+      "sha256": "FED1CF185CBFFA40B2452D1C243E9E0220A05B3945111EFA8D95E374A5C503A6",
+      "bytes": 12626,
+      "path": "src/pages/logistics/LogisticsInterfacesPage.tsx"
+    },
+    {
+      "sha256": "CCF3AB0C6AE39D2AF2AA1C1D76EC436BC289E3245B11524614F4856EC09DA32C",
+      "bytes": 13465,
+      "path": "src/pages/logistics/LogisticsPricesPage.tsx"
+    },
+    {
+      "sha256": "F899E58BAAB505F64C535A4395F444F2B57DE78A2FCE0E7355E06F6F1558B490",
+      "bytes": 10719,
+      "path": "src/pages/logistics/LogisticsProductsPage.tsx"
+    },
+    {
+      "sha256": "7F6B4B4EDB7111EBDB0D0FE4E7DFA39614F3FE226F8B7727F0B1D6FD88E36AFA",
+      "bytes": 10216,
+      "path": "src/pages/logistics/LogisticsSettlementsPage.tsx"
+    },
+    {
+      "sha256": "7E2404107C256F7ADE14D52B5A7B71FED7EE7B5F2B5F9C9981BF649CE88FDFEF",
+      "bytes": 6494,
+      "path": "src/pages/logistics/LogisticsTrackingPage.tsx"
+    },
+    {
+      "sha256": "BAC9E3242C5F73B7CB2A7C62684EA0BF5D8D503A9667B33F4736EFB24531F0F3",
+      "bytes": 11423,
+      "path": "src/pages/logistics/WarehouseOptimizationPage.tsx"
+    },
+    {
+      "sha256": "36FAC485F3F219CD640F1D647747537D956BD59E45E96C64123B51AB5FBD4A38",
+      "bytes": 4709,
+      "path": "src/pages/mappings/ChannelMappingsPage.tsx"
+    },
+    {
+      "sha256": "82BF981671EADCFAD3A2156AE7DAA75F73966F965D09B250D2695C6FB804CAA9",
+      "bytes": 11997,
+      "path": "src/pages/marketing/MarketingCostsPage.tsx"
+    },
+    {
+      "sha256": "783D7792D1B34E9697F1B170113A4A78D8F8A9F660F958AECE905C57C8E9CDB9",
+      "bytes": 12195,
+      "path": "src/pages/marketing/MarketingCouponsPage.tsx"
+    },
+    {
+      "sha256": "921A4369031C521A6F7624309D6A93ACAF5C1BFF20A1F3CD5BFE064CE729FC77",
+      "bytes": 11295,
+      "path": "src/pages/marketing/MarketingGiftPoliciesPage.tsx"
+    },
+    {
+      "sha256": "459B5B67BA1439E1C83613AA0927234CC134833CC27A459A3D479BD6C12E9FF6",
+      "bytes": 11580,
+      "path": "src/pages/marketing/MarketingPostmortemsPage.tsx"
+    },
+    {
+      "sha256": "711F2462562F4D7D7073E92F4A34B93472B933E1DA529F30DD2BF3E135C06151",
+      "bytes": 18464,
+      "path": "src/pages/marketing/MarketingPriceListsPage.tsx"
+    },
+    {
+      "sha256": "160D79F9015E84CD6B33B4B2580035A1FA727E01C339B1FCC66BFE187EEDA079",
+      "bytes": 12507,
+      "path": "src/pages/marketing/MarketingPromotionsPage.tsx"
+    },
+    {
+      "sha256": "F86EDE9E1EBB91295BCC7E7701C5CDFED4030C40F0F20E5B5037A44185F151F1",
+      "bytes": 35085,
+      "path": "src/pages/orders/OrderDetailPage.tsx"
+    },
+    {
+      "sha256": "24D5B9E3A0C0B83AF9559E55FFE5B1A969B25198343659042084B55040F7827B",
+      "bytes": 2227,
+      "path": "src/pages/orders/orderExceptionsPage.css"
+    },
+    {
+      "sha256": "FD9664FB215CF1A296FB30B42D9677C9D092AF5E8D724474E47242E81DDE2130",
+      "bytes": 54561,
+      "path": "src/pages/orders/OrderExceptionsPage.tsx"
+    },
+    {
+      "sha256": "709C9922484D35271D2BB7A8A65F2F9306253714EE59894F54902372C21777E2",
+      "bytes": 4407,
+      "path": "src/pages/orders/orderQueryPage.css"
+    },
+    {
+      "sha256": "7DE75EFF9A0C5F904C44BD64052A2EC6C64613D3CB59B17C8CC52223909D05E1",
+      "bytes": 96983,
+      "path": "src/pages/orders/OrderQueryPage.tsx"
+    },
+    {
+      "sha256": "E6A908C5B21507E16A69EF8031F6168D14BB32F3186FE4211991031CDD7E78EC",
+      "bytes": 125,
+      "path": "src/pages/orders/OrderRecheckPage.tsx"
+    },
+    {
+      "sha256": "D88630AD3430DC8C479F653D468BE2D9954FF3EDF0113EF0085A2958BF116DF6",
+      "bytes": 1788,
+      "path": "src/pages/orders/orderReviewAgLeftModel.test.ts"
+    },
+    {
+      "sha256": "88E98359949EA5F1BD85ADE8EE89A860DC22E8AEEDD8B703192F289176A50204",
+      "bytes": 2385,
+      "path": "src/pages/orders/orderReviewAgLeftModel.ts"
+    },
+    {
+      "sha256": "962A69CF4CFEA57822C62804BDE60AA1299169C371F9E9838E1ADB84C5FB34FF",
+      "bytes": 35898,
+      "path": "src/pages/orders/orderReviewPage.css"
+    },
+    {
+      "sha256": "59B51821FB193AFB82B9498AD3510D3140C95A6054BD51747E53714A0D65692E",
+      "bytes": 1278,
+      "path": "src/pages/orders/OrderReviewPage.keyboard-efficiency.test.ts"
+    },
+    {
+      "sha256": "D0D2678076A8FB0665491F6A2A58B06CE65874F893BF338976F66D2196E4EEF4",
+      "bytes": 90321,
+      "path": "src/pages/orders/OrderReviewPage.tsx"
+    },
+    {
+      "sha256": "8F2121324F32ACC1FBF09E60C156EB3A19B2183E2C91C610CCB124EBB2AC4EA2",
+      "bytes": 1284,
+      "path": "src/pages/orders/OrderReviewRulesPage.contract.test.ts"
+    },
+    {
+      "sha256": "C2558A01311BB95CBAA4AA23F29B98AC8913B88E440D764F1040DA29A5972E9D",
+      "bytes": 18070,
+      "path": "src/pages/orders/OrderReviewRulesPage.tsx"
+    },
+    {
+      "sha256": "DE1AC400932013F89976851F205711D95583A6B159E9FB754AFE7EA28F469E56",
+      "bytes": 83082,
+      "path": "src/pages/orders/OrderSplitMergeLegacyPage.tsx"
+    },
+    {
+      "sha256": "A68DC3671EAA3DF36CFA6D667EC20EFCCB4D31DE6AF5F4141770DE14E53B98D3",
+      "bytes": 14266,
+      "path": "src/pages/orders/ShipOrderDrawer.tsx"
+    },
+    {
+      "sha256": "46092877B76DE5E98B17FD41376F4C73BD20DC97A41AE9AF1FB47EAC11489067",
+      "bytes": 619,
+      "path": "src/pages/planning/PlanExecutionPage.contract.test.ts"
+    },
+    {
+      "sha256": "C95B9BDFBE2644E3B8FCFC1BD3BCD08ADF7E5809450E887E731DDC5FF0E47889",
+      "bytes": 3380,
+      "path": "src/pages/planning/PlanExecutionPage.tsx"
+    },
+    {
+      "sha256": "239239192645083569B490E106FC2664390CF5BA7EFCFED6790165F3944F328A",
+      "bytes": 623,
+      "path": "src/pages/planning/PromoStockingPage.contract.test.ts"
+    },
+    {
+      "sha256": "FB47C8BBBEEF00602F08827DD783378D7B5B466DCD5DDF0BAF693A90D02FF3C7",
+      "bytes": 4968,
+      "path": "src/pages/planning/PromoStockingPage.tsx"
+    },
+    {
+      "sha256": "F0153DE836BCAFBB64F86BB77804BC632D5D8AF196EA178966B076FDDA287B7F",
+      "bytes": 617,
+      "path": "src/pages/planning/PurchasePlansPage.contract.test.ts"
+    },
+    {
+      "sha256": "FCCBDAA6D08783AB6F9F938043F84620EBBD265FBD00D7A77DA25D0121774CF6",
+      "bytes": 4298,
+      "path": "src/pages/planning/PurchasePlansPage.tsx"
+    },
+    {
+      "sha256": "8C9B37E7D2DCA9C23E3425136D42856D54357BA24F6F63EA163D4E48F0C49498",
+      "bytes": 637,
+      "path": "src/pages/planning/ReplenishmentRulesPage.contract.test.ts"
+    },
+    {
+      "sha256": "BF2968696E3ECA31358D6BCB743A11CEC5DF99341184AE3782267BFAD510B099",
+      "bytes": 6885,
+      "path": "src/pages/planning/ReplenishmentRulesPage.tsx"
+    },
+    {
+      "sha256": "420687CC0C9D6A601CAB1707229396CAA32F73152DCE0AD57C6B4723C29E2A86",
+      "bytes": 619,
+      "path": "src/pages/planning/SalesForecastPage.contract.test.ts"
+    },
+    {
+      "sha256": "71B267AD026E61B21DAE8254D30B25281B2CF409465FDCFCCC82C9837BFEF887",
+      "bytes": 5883,
+      "path": "src/pages/planning/SalesForecastPage.tsx"
+    },
+    {
+      "sha256": "58237ABC64CFAA0BA51E557221DB999F81C611E90C308A986C112F111C030CE9",
+      "bytes": 635,
+      "path": "src/pages/planning/TransferSuggestionsPage.contract.test.ts"
+    },
+    {
+      "sha256": "07347560F73E75997BAE80E86DAFE21265F4069A00DFDFE5B68D805328380890",
+      "bytes": 4133,
+      "path": "src/pages/planning/TransferSuggestionsPage.tsx"
+    },
+    {
+      "sha256": "2DDEF25F63EC265137CE1EBCF9FED453AECF659D8306ACFE297EBBB8C6F8FA09",
+      "bytes": 14067,
+      "path": "src/pages/printJobs/PrintJobsPage.tsx"
+    },
+    {
+      "sha256": "3FBCED9E2A485F73E38D182797119C682C99758DE689F7F53C1F3A33EE13C18D",
+      "bytes": 12979,
+      "path": "src/pages/printTemplates/PrintTemplatesPage.tsx"
+    },
+    {
+      "sha256": "B56637B10653AAF28AD1AFAE744E6DBD44188D6BED0D5144985AA9658C26CCBD",
+      "bytes": 1312,
+      "path": "src/pages/procurement/ProcurementInspectionsPage.contract.test.ts"
+    },
+    {
+      "sha256": "FEEAA10BC65EB225C185FB2AF3B9B6908C627A45D22F68D105ABF7B61E29125B",
+      "bytes": 16346,
+      "path": "src/pages/procurement/ProcurementInspectionsPage.tsx"
+    },
+    {
+      "sha256": "05318AD5F061EBC75BE8955D293D167CDCAE79D215F94B836A177FF4605B8630",
+      "bytes": 1282,
+      "path": "src/pages/procurement/ProcurementPlansPage.contract.test.ts"
+    },
+    {
+      "sha256": "FD0AD0BF26F818C81A3981FA7A0E187D03607B4A16C811A510C150F8BBE8BDB5",
+      "bytes": 14336,
+      "path": "src/pages/procurement/ProcurementPlansPage.tsx"
+    },
+    {
+      "sha256": "56816541972ADFBBF6238A82FF36A50A2B38A63AD61A7635E8A2CC2FF66C5060",
+      "bytes": 1332,
+      "path": "src/pages/procurement/ProcurementReconciliationsPage.contract.test.ts"
+    },
+    {
+      "sha256": "D34740408DF7353FB3A3D7972D0DD16915A78181091B14606491EE2737B68110",
+      "bytes": 11937,
+      "path": "src/pages/procurement/ProcurementReconciliationsPage.tsx"
+    },
+    {
+      "sha256": "FD9F23C53ECBC1037F5B29C0B39CF18895009BFCE5BB4E8FA58847C1055474B6",
+      "bytes": 1297,
+      "path": "src/pages/procurement/ProcurementRequestsPage.contract.test.ts"
+    },
+    {
+      "sha256": "22D1F3D51132BAE9F21D836C4C31B50F59EE647D1779AB889EC9B58CDD1EDF62",
+      "bytes": 13433,
+      "path": "src/pages/procurement/ProcurementRequestsPage.tsx"
+    },
+    {
+      "sha256": "44606F645B7AA70018F87E010126236FD6D534E675DBC77CB17B745625F04D0F",
+      "bytes": 1298,
+      "path": "src/pages/procurement/ProcurementSourcingPage.contract.test.ts"
+    },
+    {
+      "sha256": "7D31202AF5AB3DC9CB50F4A0A6DA5D40036AA43D260FAC6907A920495FA36C43",
+      "bytes": 11896,
+      "path": "src/pages/procurement/ProcurementSourcingPage.tsx"
+    },
+    {
+      "sha256": "E3E5E094486986528A0448491276083DB7499AA629AEB32C331070E44DE872CB",
+      "bytes": 12307,
+      "path": "src/pages/procurement/PurchaseOrderDetailPage.tsx"
+    },
+    {
+      "sha256": "A291D93C0B6072A5363E21B6798964B54B0D0254EBC8278126EA7143A9A8974E",
+      "bytes": 1279,
+      "path": "src/pages/procurement/PurchaseOrdersPage.contract.test.ts"
+    },
+    {
+      "sha256": "B06947B3C2977E9D8E770487003D6640314BF9C5FAE4DB57B5C40E97C27B67A9",
+      "bytes": 17380,
+      "path": "src/pages/procurement/PurchaseOrdersPage.tsx"
+    },
+    {
+      "sha256": "987BFFA582B5E248BD542117E9B325B410123E3C2A23584CDB6496F29DC26665",
+      "bytes": 3676,
+      "path": "src/pages/procurement/PurchaseReceiptsPage.contract.test.ts"
+    },
+    {
+      "sha256": "F0C33EB976491F406246A4396F1365C48070B09736CADF36E62A37B1F4914358",
+      "bytes": 10793,
+      "path": "src/pages/procurement/PurchaseReceiptsPage.tsx"
+    },
+    {
+      "sha256": "62A749D631B3EBC184EA89353ED7CD7A887CA745BBB1737C78411A40F099A0A9",
+      "bytes": 2826,
+      "path": "src/pages/procurement/PurchaseReturnsPage.contract.test.ts"
+    },
+    {
+      "sha256": "D413F5E3A1A68A6D90495CBC8567C2C5C52354351A0D6668029C6581350FFD09",
+      "bytes": 15444,
+      "path": "src/pages/procurement/PurchaseReturnsPage.tsx"
+    },
+    {
+      "sha256": "926A86C318EAED88D29B6C0AEF2975FC870D66411C647198D5AD26C02DB228E4",
+      "bytes": 1297,
+      "path": "src/pages/procurement/PurchaseSuggestionsPage.contract.test.ts"
+    },
+    {
+      "sha256": "FAA8B2180AA032CE3F9FA4A77BAE9BCF3FF91CEBCC875FBCA1EC2D21E4F303E5",
+      "bytes": 10441,
+      "path": "src/pages/procurement/PurchaseSuggestionsPage.tsx"
+    },
+    {
+      "sha256": "EAACC47A0C305245BD35EE2D7B106542A86AE5FC955F49D264037318DE2B51F1",
+      "bytes": 1309,
+      "path": "src/pages/procurement/SupplierPerformancePage.contract.test.ts"
+    },
+    {
+      "sha256": "D198876BE2B179FD215CA2EF7AA1362A8F89F8EF28D9AFDDFBA088E40588010B",
+      "bytes": 12369,
+      "path": "src/pages/procurement/SupplierPerformancePage.tsx"
+    },
+    {
+      "sha256": "A5FA84753399CBD52FDDD5C6D535270D79D206A6C3253B7627B0132B9BBE865D",
+      "bytes": 2828,
+      "path": "src/pages/products/ProductBarcodesPage.contract.test.ts"
+    },
+    {
+      "sha256": "6840B9650D8A89C2B722C3EC7B5FA7461D1200778C84BB1C34C72E6844FA1DB0",
+      "bytes": 19972,
+      "path": "src/pages/products/ProductBarcodesPage.tsx"
+    },
+    {
+      "sha256": "1076A23D98FD08975F81B53EC4602FD66392B4F3498CE51F5B7E7ABE626BF42C",
+      "bytes": 1079,
+      "path": "src/pages/products/ProductChangeControlPage.contract.test.ts"
+    },
+    {
+      "sha256": "588BA4D2D7F1FEB3D54D3C5B83DC2E2DF13B7804CDE8537361A654153AC55F9E",
+      "bytes": 19141,
+      "path": "src/pages/products/ProductChangeControlPage.tsx"
+    },
+    {
+      "sha256": "CAB78AC93407BCE575C51C705EEE38AE10C0812CB8E4B5556B1D827A46C1484B",
+      "bytes": 2599,
+      "path": "src/pages/products/ProductChannelAvailabilityPage.contract.test.ts"
+    },
+    {
+      "sha256": "288D7D389C08E45081365663695E0FE132871668B2EF6FE5142B1A0E52F37302",
+      "bytes": 12359,
+      "path": "src/pages/products/ProductChannelAvailabilityPage.tsx"
+    },
+    {
+      "sha256": "BC479E6BD0C0C23B54C9D70CF81013D78C6B9EF376B9FBAC8152CD9C4E3850B7",
+      "bytes": 19318,
+      "path": "src/pages/products/ProductDiffPage.tsx"
+    },
+    {
+      "sha256": "BDC7966E1982FE20FA1CB0973A9A332B7B35DCD5A99E4270305BFAF64759A2C7",
+      "bytes": 4201,
+      "path": "src/pages/products/productIndustry.test.ts"
+    },
+    {
+      "sha256": "4A6C27DD24E6C213E2C398A364E2424E61C765A19A834056B3EE1E192366DB05",
+      "bytes": 10295,
+      "path": "src/pages/products/productIndustry.ts"
+    },
+    {
+      "sha256": "C6A210F974F4A55928E5274B3299B8409DF08DFC49F6D4A8CA4F256413DFF8DB",
+      "bytes": 1079,
+      "path": "src/pages/products/ProductLifecyclePage.contract.test.ts"
+    },
+    {
+      "sha256": "32E17E4F74E444D10FAEDBB93DF483F2D1EA5612549CF86B30810DA754CDCE2E",
+      "bytes": 11313,
+      "path": "src/pages/products/ProductLifecyclePage.tsx"
+    },
+    {
+      "sha256": "FDE7744D0435FC033B9F275624B752FA361BF12FFACCBA71158E0EC93A76102E",
+      "bytes": 1232,
+      "path": "src/pages/products/ProductPackagingSpecsPage.contract.test.ts"
+    },
+    {
+      "sha256": "422F738A6E5B77B9524F05A0E69D63A6E82426B9A5358EE628DD0295EA0A9917",
+      "bytes": 8620,
+      "path": "src/pages/products/ProductPackagingSpecsPage.tsx"
+    },
+    {
+      "sha256": "F31379E7F3BCDE8CDBF1FC4AB7AF8CEB568E511E872A7CAD206166D160D30569",
+      "bytes": 1680,
+      "path": "src/pages/products/ProductsPage.contract.test.ts"
+    },
+    {
+      "sha256": "D2D55AF384ABFA13235D6D3E63C695DD28EA073E0C5752799286D73A06E3FA2A",
+      "bytes": 3670,
+      "path": "src/pages/products/productsPage.css"
+    },
+    {
+      "sha256": "A32B5A6ABD99F38A07422E82001C2657461ECE0941979CFD6701482CF327EB62",
+      "bytes": 102475,
+      "path": "src/pages/products/ProductsPage.tsx"
+    },
+    {
+      "sha256": "7AA1AE763206145F9345D88B379F49C91EA5420F4CF2363AF6431671C2138CA6",
+      "bytes": 1062,
+      "path": "src/pages/products/ProductUnitsPage.contract.test.ts"
+    },
+    {
+      "sha256": "24B048A2A3A66C4093222E03577C5556D16C8C5C66B87928B60CA96CCE91CA98",
+      "bytes": 17727,
+      "path": "src/pages/products/ProductUnitsPage.tsx"
+    },
+    {
+      "sha256": "F6408B25534A07E828B20010989C3CF7BDDE5C85BB98AFCED9C7C5FA4C47A6CD",
+      "bytes": 8199,
+      "path": "src/pages/reports/ReportsPage.tsx"
+    },
+    {
+      "sha256": "8100DD042BBF386AA39B84E9174C9773FAE940AF44153AB382F627798FD47F62",
+      "bytes": 1211,
+      "path": "src/pages/sales/LogisticsUploadPage.contract.test.ts"
+    },
+    {
+      "sha256": "CA117FAE11C8B0AC053F779D9A766DB00D81A78D3AD4765D01E63FD66C5F4523",
+      "bytes": 2147,
+      "path": "src/pages/sales/logisticsUploadPage.css"
+    },
+    {
+      "sha256": "C4C7C2CB9B6965F886A1552FB763BFEFE8BB7CCDC9B9AF1357F6E57DA3062298",
+      "bytes": 21715,
+      "path": "src/pages/sales/LogisticsUploadPage.tsx"
+    },
+    {
+      "sha256": "47FE0330913D915ED4411E2F970D94DFFCC3DE8913F23473CC49D4AED44DD419",
+      "bytes": 1526,
+      "path": "src/pages/sales/SalesEcommercePlaceholderPages.tsx"
+    },
+    {
+      "sha256": "B2795D95EAA7B4CA508A739FD6AD7ECEA8652F3CD85997CB3DB57EEEE9146D9B",
+      "bytes": 1058,
+      "path": "src/pages/sales/salesOrderCreatePage.css"
+    },
+    {
+      "sha256": "8E374F280525E826D9B85C2E3A21A1640CE81999EE9448D35A06E81BEB7F1856",
+      "bytes": 12421,
+      "path": "src/pages/sales/SalesOrderCreatePage.tsx"
+    },
+    {
+      "sha256": "88F7132E36FBE6038A64F678A015D664462D4221466BDC8917120BCBC44F985D",
+      "bytes": 1834,
+      "path": "src/pages/sales/SalesOrderImportPage.contract.test.ts"
+    },
+    {
+      "sha256": "F5A8DA1820FC1D1991D4F34DD26A7C9FA1AAD302C09FF0AB08CCDD7F8DDB90BB",
+      "bytes": 7272,
+      "path": "src/pages/sales/SalesOrderImportPage.tsx"
+    },
+    {
+      "sha256": "32AE8F2F33534EDC9371F296D77E046732E94E045AB87FAF77D9843D3EAFBD4F",
+      "bytes": 4099,
+      "path": "src/pages/sales/SalesOrderQueryWorkbenchPage.test.ts"
+    },
+    {
+      "sha256": "22E989C1836A41EEA491EF20682688B2D12E96886C33B0855D2A4A0C1360A64D",
+      "bytes": 32696,
+      "path": "src/pages/sales/SalesOrderQueryWorkbenchPage.tsx"
+    },
+    {
+      "sha256": "FC3450A115D39BD133348DBB6270AA767B574A2B124BDCD88E4A39DED99B5773",
+      "bytes": 182,
+      "path": "src/pages/sales/SalesProductMatchPage.tsx"
+    },
+    {
+      "sha256": "AA57D2CD6B78D63885D11CB71B9CCBE3633B619A7A4729B52CE7B161565C3844",
+      "bytes": 549,
+      "path": "src/pages/sales/SalesSettingsPage.contract.test.ts"
+    },
+    {
+      "sha256": "6A67C069E85C126594F9C95178D688F416D1ADBAA7AE5937B4C2E2A14A02EBFD",
+      "bytes": 8712,
+      "path": "src/pages/sales/salesSettingsPage.css"
+    },
+    {
+      "sha256": "9FE4C74488189740750FB7848C6E09CBB38F679E764EB1AB993206472936143C",
+      "bytes": 30094,
+      "path": "src/pages/sales/SalesSettingsPage.tsx"
+    },
+    {
+      "sha256": "DCF568BDE82C1D00BEDD874BEFBBF6AD2633DBD29ACF08E3B5259E6B305D5ED1",
+      "bytes": 4571,
+      "path": "src/pages/sales/salesSettingsWorkbenchModel.test.ts"
+    },
+    {
+      "sha256": "15D931EF054D690E8FD62D548537843F0EB73B416A48337D03847CA26D4CB4CD",
+      "bytes": 7745,
+      "path": "src/pages/sales/salesSettingsWorkbenchModel.ts"
+    },
+    {
+      "sha256": "F2FC0FF462A5F70E5800A3A4377AD0A24E502EB102E22CBC50207AD91A2E47E7",
+      "bytes": 3309,
+      "path": "src/pages/sales/salesShopConfigModel.test.ts"
+    },
+    {
+      "sha256": "F2F5C160D970BF81D3260F89762E2D2C3CF8D5947283B1F7E9AA11226917F745",
+      "bytes": 2075,
+      "path": "src/pages/sales/salesShopConfigModel.ts"
+    },
+    {
+      "sha256": "39C2BE48E24BB0B61C9F1666CBF1D5F42513AE7EB2BC5940A648FF332C6504E7",
+      "bytes": 48981,
+      "path": "src/pages/sales/SalesShopConfigPage.tsx"
+    },
+    {
+      "sha256": "B78AEC74E68C8736019652200D08780E78CA1520848E64082C1C4A2CE23AD041",
+      "bytes": 3497,
+      "path": "src/pages/sales/salesStrategySettingsPage.css"
+    },
+    {
+      "sha256": "B1AC2E57F771BFD7BEB45C3CF7FC43D1FA5C1B58B9F992436CC5CD2648E619CF",
+      "bytes": 66116,
+      "path": "src/pages/sales/SalesStrategySettingsPage.tsx"
+    },
+    {
+      "sha256": "DEE2056B563122369CF86BF664876CDC74AAE819F591360BF9CB3358877CB0E7",
+      "bytes": 1576,
+      "path": "src/pages/sales/ShopOrderQueryPage.contract.test.ts"
+    },
+    {
+      "sha256": "0A5E86A608D730EEE9FABF743BD88566D1A61C6BA22DBFA21461B0652D495A2E",
+      "bytes": 427,
+      "path": "src/pages/sales/shopOrderQueryPage.css"
+    },
+    {
+      "sha256": "D256BB906B3DC5515926C9A1DF413EE3115B4E717BB852915A8A9ADCF23011EC",
+      "bytes": 30609,
+      "path": "src/pages/sales/ShopOrderQueryPage.tsx"
+    },
+    {
+      "sha256": "2DEFD1924C29DA79CB7882178F67621B0CE31B710EE4D49136BAC84524BBA5FC",
+      "bytes": 1190,
+      "path": "src/pages/sales/SyncJobRunsPage.contract.test.ts"
+    },
+    {
+      "sha256": "ADE6C22A0FE97272D2E61B6A463587B7FFCC73D1A450DAB3C5CCF82E5AE77113",
+      "bytes": 6418,
+      "path": "src/pages/sales/SyncJobRunsPage.tsx"
+    },
+    {
+      "sha256": "F9635A2CB08571069B3D8E0C07FA2B39803FB9100E6F260C77ACAE75E77B2695",
+      "bytes": 2154,
+      "path": "src/pages/shared/directoryWorkbenchUtils.tsx"
+    },
+    {
+      "sha256": "12A04490FBD60F2CBC76F4DC084D7E259AF2F8CE5C9BA7DDCA3646F2BF34E9EC",
+      "bytes": 1299,
+      "path": "src/pages/shared/workbenchImportSurface.test.ts"
+    },
+    {
+      "sha256": "6C13062B363EF940A59D826B78615B5B326DBABE59CB906AFE4B044B78D5D7A5",
+      "bytes": 4487,
+      "path": "src/pages/shared/workbenchIndustrialDirectoryExpansion.test.ts"
+    },
+    {
+      "sha256": "D06990EAF23CAA97C4F6CE4101F1D2E2B7D5DE8932C59816C73C3C0C95020A73",
+      "bytes": 4396,
+      "path": "src/pages/shared/workbenchIndustrialGridAdoption.test.ts"
+    },
+    {
+      "sha256": "4979A0B2D735120932E49348F7B4920818B8A68430032AF0E6C13AE758A4D735",
+      "bytes": 18442,
+      "path": "src/pages/shipments/OmsShipmentsPage.tsx"
+    },
+    {
+      "sha256": "8BED12FABEEFE48E14A75E6A9B8D988588B2C7EA13013BD53F8DEA2F9C9AD8D2",
+      "bytes": 8864,
+      "path": "src/pages/shipments/ShipmentPushFailuresPage.tsx"
+    },
+    {
+      "sha256": "9D85AD186644A7CBAA2D43FA2283B0B768B9BE0602378A6A0297BA3D411F9332",
+      "bytes": 21153,
+      "path": "src/pages/shipments/ShipmentsPage.tsx"
+    },
+    {
+      "sha256": "C91A3A981113FB827A39917D29618CF44F44314D90A4CE742DD02C6F6C3DAC3E",
+      "bytes": 1223,
+      "path": "src/pages/shopProducts/shopProductDownloadPage.css"
+    },
+    {
+      "sha256": "8FBE7DE36E7BD5435C3F9CDD5E01F887C722A1408CC514F6A4664671BB57AADE",
+      "bytes": 28477,
+      "path": "src/pages/shopProducts/ShopProductDownloadPage.tsx"
+    },
+    {
+      "sha256": "6551B1E5A63CF7B2AFA093E32306D8B7E1A1CD72CC32BCF6D21B6981413729AA",
+      "bytes": 4718,
+      "path": "src/pages/shopProducts/ShopProductWorkbenchBottomPanel.tsx"
+    },
+    {
+      "sha256": "B1467C7E8A4ECA8A86A4A016E29FE48E7C650CDE674FA94152E53C5F6BFE5C2A",
+      "bytes": 5676,
+      "path": "src/pages/shopProducts/ShopProductWorkbenchDetailPanel.tsx"
+    },
+    {
+      "sha256": "F55A0BEEF127C37C8254BB7214441DCF546A2D8B06C03A052B473B3F49F81920",
+      "bytes": 4452,
+      "path": "src/pages/shopProducts/ShopProductWorkbenchLeftPanel.tsx"
+    },
+    {
+      "sha256": "BF5EF2B333604DBC02B1F56C7566683F7D37E69A93010974EAF2C1DC751E8780",
+      "bytes": 12193,
+      "path": "src/pages/shopProducts/ShopProductWorkbenchMainTable.tsx"
+    },
+    {
+      "sha256": "26036DDB62C05295212DE1AE01FD2C92BC6697BDB5EF0A16173CA19B0CA3B603",
+      "bytes": 2401,
+      "path": "src/pages/shopProducts/shopProductWorkbenchModel.test.ts"
+    },
+    {
+      "sha256": "89465C940CA6A2500498FA67F007BED38AA3658884093A3C8D6B47E2776B0809",
+      "bytes": 1187,
+      "path": "src/pages/shopProducts/shopProductWorkbenchModel.ts"
+    },
+    {
+      "sha256": "FAC0D39AC41F97484AAAE6402E5BE4429D39EC38D8F4277D3094D011C21D61A8",
+      "bytes": 4553,
+      "path": "src/pages/shopProducts/ShopProductWorkbenchPanels.test.ts"
+    },
+    {
+      "sha256": "773FBC4062ADD0415A473DDA9B9E3483B635BAD1022B90BAF6985CB48052E8E3",
+      "bytes": 9731,
+      "path": "src/pages/shops/SyncJobsPage.tsx"
+    },
+    {
+      "sha256": "72DCD21D7607608D36D00C352AC0FCAB5CB6128EB41981921801E3498141D946",
+      "bytes": 36309,
+      "path": "src/pages/skuBatches/SkuBatchesPage.tsx"
+    },
+    {
+      "sha256": "396ED4C0EDAEA2CCCDAF57F967C29A19D3F4A8F2A273148636F489161F35044D",
+      "bytes": 8500,
+      "path": "src/pages/skus/SkuImportPage.tsx"
+    },
+    {
+      "sha256": "8CB34A71F51AA12AC789BDA04337659519B1306656A32D2231E485490296E30F",
+      "bytes": 48813,
+      "path": "src/pages/skus/SkuListPage.tsx"
+    },
+    {
+      "sha256": "E2BD99FE5E130E03715005F1A1F3CCCD03551470B637DB85505D5A080879D4E4",
+      "bytes": 14690,
+      "path": "src/pages/skus/SkuPage.tsx"
+    },
+    {
+      "sha256": "82B22408BC1C98A358C4C66A5973CFDFC9C72FC81AC1CE4008A4C955A2448C32",
+      "bytes": 2693,
+      "path": "src/pages/skus/skuScanRules.test.ts"
+    },
+    {
+      "sha256": "7B9554A6A58D231A0A4C5D74A99090DCC1FE956ECF0773EFBB50A95129309D97",
+      "bytes": 1257,
+      "path": "src/pages/skus/skuScanRules.ts"
+    },
+    {
+      "sha256": "F96F0E878B322DC9A57559BA845034723934F597FEF828872587031B5D5D0297",
+      "bytes": 34358,
+      "path": "src/pages/skuSerials/SkuSerialsPage.tsx"
+    },
+    {
+      "sha256": "E3555DF81A6439E068D26E517B595475CE90C9A4E35212869A226EA8C1C25D75",
+      "bytes": 753,
+      "path": "src/pages/stats/BestSellerAnalysisPage.tsx"
+    },
+    {
+      "sha256": "57A285323728BBD1F19AC9B0688E80CD47E33BA811B274BE93B3B7C3EB5455D7",
+      "bytes": 721,
+      "path": "src/pages/stats/SalesCyclePage.tsx"
+    },
+    {
+      "sha256": "8A47ADB4A5A8C413A79BD6DB1563378BA316F1A1757C3098937740A012863308",
+      "bytes": 739,
+      "path": "src/pages/stats/SalesDailyReportPage.tsx"
+    },
+    {
+      "sha256": "BF2F7404CE7EC909F79BEC4AE8B239C4E4B1621F4E49B0A5169F8E72E1ECFA21",
+      "bytes": 794,
+      "path": "src/pages/stats/SalesStatsPage.tsx"
+    },
+    {
+      "sha256": "98545C2BB8F8B6A4EBCE98940E3885EF9D195EF339935D306242FE179962781B",
+      "bytes": 937,
+      "path": "src/pages/stats/SalesTrendAnalysisPage.tsx"
+    },
+    {
+      "sha256": "176C0A2B1C128742EABFD25AF61ADA860504215E6B44070C1938484484EEB0A6",
+      "bytes": 757,
+      "path": "src/pages/stats/ShippingStatsPage.tsx"
+    },
+    {
+      "sha256": "CC178D5281BE473B19E93C6F8FDE4A8E6B0CD2D376EDB76D8E362226A374C6BF",
+      "bytes": 755,
+      "path": "src/pages/stats/SlowMovingAnalysisPage.tsx"
+    },
+    {
+      "sha256": "E90D24D6A60A537451E8DDD906FACEF847F29FDC6444AD3D31CDE4C421AB74BF",
+      "bytes": 12613,
+      "path": "src/pages/stats/StatsPlaceholder.tsx"
+    },
+    {
+      "sha256": "4276536E6753CF8B13C4500960C68AE014A9E7038F019455B650F8E85EB65FDB",
+      "bytes": 1046,
+      "path": "src/pages/suppliers/SuppliersPage.test.ts"
+    },
+    {
+      "sha256": "65E681B0269588D540E1E87449018C5784584D404B336A060E9E6638E7AF5CC3",
+      "bytes": 24925,
+      "path": "src/pages/suppliers/SuppliersPage.tsx"
+    },
+    {
+      "sha256": "1E4F042E6B9809279B08CA7880C14DCBE9DE28E80CD8B2A505D218C2644E0E8F",
+      "bytes": 300,
+      "path": "src/pages/system/agGridEnterpriseDemoPage.css"
+    },
+    {
+      "sha256": "50E0EC20F34998817BE5659F256400059D9B667E98036DDE0BF4F6819E9D464E",
+      "bytes": 6443,
+      "path": "src/pages/system/AgGridEnterpriseDemoPage.tsx"
+    },
+    {
+      "sha256": "24F75B0EB787AAED877F14D808414679208D9298602578939B9E2E90BCD3F32B",
+      "bytes": 6342,
+      "path": "src/pages/system/AuditLogsPage.tsx"
+    },
+    {
+      "sha256": "A318913884F8EF12F01C2567229E6ABC0E850B0F767F36EBAE1C3B1FC14D27A4",
+      "bytes": 5416,
+      "path": "src/pages/system/DataScopesPage.tsx"
+    },
+    {
+      "sha256": "32B37542C873BE7600ED6857C7482EDCE20F75FE0EF65BA10C5605BDDB631756",
+      "bytes": 8600,
+      "path": "src/pages/system/frontendRouteObservability.test.ts"
+    },
+    {
+      "sha256": "8F51F258286FF6FE51192901B12F0E48FB03E2460438BFB215AB207BCC111009",
+      "bytes": 20764,
+      "path": "src/pages/system/frontendRouteObservability.ts"
+    },
+    {
+      "sha256": "390FFFF4823B43CA56085FBD8EF6818DDC112A298C38E42ABA1FB3D52818AFB8",
+      "bytes": 46743,
+      "path": "src/pages/system/ObservabilityPage.tsx"
+    },
+    {
+      "sha256": "7DC0120DBDED18E4B750351871A8E4415B0DF6934077510442FBFF3E0D1C4900",
+      "bytes": 6815,
+      "path": "src/pages/system/OperationLogsPage.tsx"
+    },
+    {
+      "sha256": "612F60D57675C59D5C3768E2842F3DDB1F0CC5DF9FBA36AF13270ECAA62505DF",
+      "bytes": 18410,
+      "path": "src/pages/system/PermissionsPage.tsx"
+    },
+    {
+      "sha256": "7234F4C6631A7CA23BD2F1FBFBC1679483C52F0B2A1B2B3FAA3D126B2449225D",
+      "bytes": 13806,
+      "path": "src/pages/system/PrintDevicesPage.tsx"
+    },
+    {
+      "sha256": "BE04A8FE7F3D13D04217593522715B1FAB67658BE6F76D53B1629036832C8411",
+      "bytes": 11608,
+      "path": "src/pages/system/PrintMappingsPage.tsx"
+    },
+    {
+      "sha256": "F32F6D6420A3A3B76BC3BCFB973BA1116902655BCAD8B727B2FFF0DEDE4CFE48",
+      "bytes": 5616,
+      "path": "src/pages/system/ProfilePage.tsx"
+    },
+    {
+      "sha256": "911FE1DF177C8C87D7DE446BA489382AA7CDA806AD77B967643A3D48016B9E60",
+      "bytes": 21074,
+      "path": "src/pages/system/RolesPage.tsx"
+    },
+    {
+      "sha256": "EF7882714C96C3363AF559C378FA631BC3EFE69D70C53EE71192AE034A864C4C",
+      "bytes": 8916,
+      "path": "src/pages/system/SystemAuditReportsPage.tsx"
+    },
+    {
+      "sha256": "A06EAA57C60556B98A3FE78EE9C0C437B49DC3C9EC7123BC0DEBF247FC159066",
+      "bytes": 13259,
+      "path": "src/pages/system/SystemCustomFieldsPage.tsx"
+    },
+    {
+      "sha256": "BAF739118DACF418DA1B175E1C5DB277E81F3B829B258E8881E688DF0CC9E7FA",
+      "bytes": 26508,
+      "path": "src/pages/system/SystemIntegrationsPage.tsx"
+    },
+    {
+      "sha256": "6B8F0010ED93D3C6EDE822DB5D402BFD85DB03BF06489CA97E2CCAD7754CA9D9",
+      "bytes": 1643,
+      "path": "src/pages/system/systemSettingsPage.css"
+    },
+    {
+      "sha256": "06056F9A1CAFE0AEED0B0D740BE893123DB4EB3F63CDFF1791046CE658726AE9",
+      "bytes": 26066,
+      "path": "src/pages/system/SystemSettingsPage.tsx"
+    },
+    {
+      "sha256": "9DD1C3FBE1CD0C0DB1C2F6A20C1F234012025C4D542C625DEC0F32C0FF7E686D",
+      "bytes": 11970,
+      "path": "src/pages/system/SystemSyncJobsPage.tsx"
+    },
+    {
+      "sha256": "034E6B0DDFC524B0ADDA6CA638AB3300B181C7E0A0899F47E82332E8E985AE75",
+      "bytes": 21865,
+      "path": "src/pages/system/SystemWorkflowsPage.tsx"
+    },
+    {
+      "sha256": "477B2BF57E70203F050E82020FD69712CA4898DA950A27D8CA759D50C3F79B73",
+      "bytes": 11161,
+      "path": "src/pages/system/UsersPage.tsx"
+    },
+    {
+      "sha256": "19272A2418D30008FC643C30D43F864FC4AAEA376297AD6D169E37E7D2421960",
+      "bytes": 325,
+      "path": "src/pages/tags/OrderTagDefinitionsPage.tsx"
+    },
+    {
+      "sha256": "955A537C01468467CAE2D651D69B766CB04310F574F2835F293859F99132ECB0",
+      "bytes": 317,
+      "path": "src/pages/tags/SkuTagDefinitionsPage.tsx"
+    },
+    {
+      "sha256": "6B179B90D678759F7209A211366CDEBF170C9D2ABBB1F591D6CA110C645270A3",
+      "bytes": 1226,
+      "path": "src/pages/tags/tagDirectoryPage.css"
+    },
+    {
+      "sha256": "42F7505652091D25E424B784AE784E8835CFED11045D1956450307374D5850D2",
+      "bytes": 2413,
+      "path": "src/pages/tags/tagDirectoryPage.test.ts"
+    },
+    {
+      "sha256": "9E86BDF72181EDD9009E5047DE9ECEC7036A5645A1180D5FF5A1F6971450D724",
+      "bytes": 1290,
+      "path": "src/pages/tags/TagDirectoryPage.tsx"
+    },
+    {
+      "sha256": "00805646C110145BB734CF990541760EAB0154886DD8B0D5D482772075B9B2B7",
+      "bytes": 69000,
+      "path": "src/pages/tags/TagDirectoryWorkbench.tsx"
+    },
+    {
+      "sha256": "B54AB45975B3619E342D14790D5CB5E998CBA84CF2AC069BE41152127F691283",
+      "bytes": 1175,
+      "path": "src/pages/warehouses/warehouseDirectoryPage.test.ts"
+    },
+    {
+      "sha256": "DCF47DE5F2F2C1DE3410F1D82D66B5C98AD8C00C8EFEEA5AFA75B5171459BA35",
+      "bytes": 25868,
+      "path": "src/pages/warehouses/WarehouseDirectoryPage.tsx"
+    },
+    {
+      "sha256": "6BDF06316F25B96D202F5D3DC537C5EE9AE50F7795E06C86960A43EF1FAAD497",
+      "bytes": 23799,
+      "path": "src/pages/wms/ContainersPage.tsx"
+    },
+    {
+      "sha256": "24981F5442D07C84A952D99B92753DA4ACBD5D63B51F99D2501AF766CED1C891",
+      "bytes": 912,
+      "path": "src/pages/wms/InventoryFreezesPage.contract.test.ts"
+    },
+    {
+      "sha256": "00F103301502AD6B6BDF41DDE463F4DF697BF97E9955B1B75181C89E65CA668C",
+      "bytes": 7393,
+      "path": "src/pages/wms/InventoryFreezesPage.tsx"
+    },
+    {
+      "sha256": "4F3A2D354D9A05396A797974B64BC2896F6A1E52D0F4FD7FD62CC985EA8FD924",
+      "bytes": 912,
+      "path": "src/pages/wms/LocationBalancesPage.contract.test.ts"
+    },
+    {
+      "sha256": "03C6895B226E5F73F2D53A6C9CDFD98D2699E71E60ECEC59206892A2739FE060",
+      "bytes": 4612,
+      "path": "src/pages/wms/LocationBalancesPage.tsx"
+    },
+    {
+      "sha256": "2A708ED0B4749A62F11D10143C3D3B5EABEE4251F380337998F6A89FC38551AB",
+      "bytes": 1437,
+      "path": "src/pages/wms/PickRecommendStrategiesPage.contract.test.ts"
+    },
+    {
+      "sha256": "798E0E8165554809F279EA2C93A393B88AA7F1EB7F0905A6A6E0AE2114A8F0FC",
+      "bytes": 16543,
+      "path": "src/pages/wms/PickRecommendStrategiesPage.tsx"
+    },
+    {
+      "sha256": "BAE86C1B3A157622E0F3E796D091DE963C6E76DF944337105EB0AC76CE9190B1",
+      "bytes": 25378,
+      "path": "src/pages/wms/SenderAddressesPage.tsx"
+    },
+    {
+      "sha256": "71A0A5ED547169BD79300E43D6349038406A0BEBAFA25DB9B69F6B1369A088B6",
+      "bytes": 1477,
+      "path": "src/pages/wms/ShipmentPreprocessStrategiesPage.contract.test.ts"
+    },
+    {
+      "sha256": "777CBC5CFF971BE4194151F488004519BCDEDF0EBAD3E563B10F76887560E1D6",
+      "bytes": 18688,
+      "path": "src/pages/wms/ShipmentPreprocessStrategiesPage.tsx"
+    },
+    {
+      "sha256": "B220562244B5B5B5F328AFFCF6A341A84789A12265B0DF2B651196B147A5526C",
+      "bytes": 2019,
+      "path": "src/pages/wms/StockAdjustmentsPage.contract.test.ts"
+    },
+    {
+      "sha256": "1C5B0C7A7AB8A5DDCD2C6CC3375B9CDF6B09033DADFC46716E1D2052308E659B",
+      "bytes": 11095,
+      "path": "src/pages/wms/StockAdjustmentsPage.tsx"
+    },
+    {
+      "sha256": "E1D5CF63CA649FD1C4E32D230076272AF1CAA129AF9552109DE22BE6D836E941",
+      "bytes": 1323,
+      "path": "src/pages/wms/StockCountsPage.contract.test.ts"
+    },
+    {
+      "sha256": "50F30611A86C329CA50B7FCF599CAE0FC22C1F85E9EC419DEA06ECB6674925BF",
+      "bytes": 21206,
+      "path": "src/pages/wms/StockCountsPage.tsx"
+    },
+    {
+      "sha256": "AC5D7B988E5B6C7EAE5AFF366AA0A1A4F3FF0A07E39894315FE570077F043CCF",
+      "bytes": 1434,
+      "path": "src/pages/wms/StockCountStrategiesPage.contract.test.ts"
+    },
+    {
+      "sha256": "91B894D066C82C1B4592CE25023133692E30843AF06A535AC5F40E6800413840",
+      "bytes": 19263,
+      "path": "src/pages/wms/StockCountStrategiesPage.tsx"
+    },
+    {
+      "sha256": "3E1DB2A339328280D31ECF65C864138B78D75AF1E18AD6D4AA74321E63A39117",
+      "bytes": 1381,
+      "path": "src/pages/wms/StockMovesPage.contract.test.ts"
+    },
+    {
+      "sha256": "490DDF8FCB44E507D0D6A2B4059B45AEC15D4AF88E9667FA3EA1E7A7421D5BBB",
+      "bytes": 11569,
+      "path": "src/pages/wms/StockMovesPage.tsx"
+    },
+    {
+      "sha256": "E1233AC06BB1F46F37A9219D1A39D050E14382BB56953AC9A2C402785F5D12B0",
+      "bytes": 1689,
+      "path": "src/pages/wms/StockTransfersPage.contract.test.ts"
+    },
+    {
+      "sha256": "FAE8B0CA74C1D15901C6C740608C0897EB31A95A41594F58FDB33C07C0C9C4E7",
+      "bytes": 11894,
+      "path": "src/pages/wms/StockTransfersPage.tsx"
+    },
+    {
+      "sha256": "BA1D69321F3105EFB25DD453A9BA1512BEE040079B57BEF6BFFC8FB2312E979D",
+      "bytes": 26423,
+      "path": "src/pages/wms/WarehouseAreasPage.tsx"
+    },
+    {
+      "sha256": "FF51AB43A61006FA92D9D863D76514771E1A80DC298BD05B1353E8A44B678580",
+      "bytes": 30842,
+      "path": "src/pages/wms/WarehouseLocationsPage.tsx"
+    },
+    {
+      "sha256": "1AA51FB6955FA9C92AFEF16DF1AB6CB2F11E6468C14D137D62CD565615707F3F",
+      "bytes": 885,
+      "path": "src/pages/wms/WmsDockYardPage.contract.test.ts"
+    },
+    {
+      "sha256": "B02921E986E76FDF8A26417B7DB0077218F4D2041A3E414DBA9DADE55F6040AB",
+      "bytes": 4752,
+      "path": "src/pages/wms/WmsDockYardPage.tsx"
+    },
+    {
+      "sha256": "E0ABEC238CDE50A852B7F86774B95EF53D9D4C485DCE6C184855E67D69B623EF",
+      "bytes": 865,
+      "path": "src/pages/wms/WmsLaborPage.contract.test.ts"
+    },
+    {
+      "sha256": "2AE45293F19584AEAB90FE95C594818E3D4EEF6EEA62AF1EAB5136BD95873988",
+      "bytes": 5931,
+      "path": "src/pages/wms/WmsLaborPage.tsx"
+    },
+    {
+      "sha256": "C828F3D9DEE1D3C9DDF3276381925057BA2B4A8C4D5603AF1559364D95058C8D",
+      "bytes": 434,
+      "path": "src/pages/wms/wmsOutboundConfirmPage.css"
+    },
+    {
+      "sha256": "8E204EE897B35D0353AAC601AD0378A59857844CB1DF9A06DDD60BBF354F990D",
+      "bytes": 21740,
+      "path": "src/pages/wms/WmsOutboundConfirmPage.tsx"
+    },
+    {
+      "sha256": "102AE40AD1A3942C281678027D70D69765114C369ED59C30A0CBA759C867BAD1",
+      "bytes": 895,
+      "path": "src/pages/wms/WmsOutboundsPage.contract.test.ts"
+    },
+    {
+      "sha256": "8C263F401EA2A44937CAE33E4CE69E7C018271AAAAF80546535A7040D1C4B0D8",
+      "bytes": 14458,
+      "path": "src/pages/wms/WmsOutboundsPage.tsx"
+    },
+    {
+      "sha256": "BCD30B5556B8CAC9CDF19F5D46F7040A2BFAB61537FD3D85D867F38BE21F5C5B",
+      "bytes": 875,
+      "path": "src/pages/wms/WmsPackPage.contract.test.ts"
+    },
+    {
+      "sha256": "BF71FABFE9B341EF3D56D6AD22CBEAF0DFE8F831DE38C5A406EFFCAB05D42B53",
+      "bytes": 22920,
+      "path": "src/pages/wms/WmsPackPage.tsx"
+    },
+    {
+      "sha256": "AF321A8FCCF9AFD2AF328BCA71A815D4DFE97EB58D3DCC681B044463F63D9AF1",
+      "bytes": 894,
+      "path": "src/pages/wms/WmsPickTasksPage.contract.test.ts"
+    },
+    {
+      "sha256": "9AFF40FA06EA0417149B649F2769AE8C8BC500A2E334429C737FD94D2DBCA5F2",
+      "bytes": 7890,
+      "path": "src/pages/wms/WmsPickTasksPage.tsx"
+    },
+    {
+      "sha256": "A920FED2DF466551D38BCD3A58321BFC4B6B0DDE04415A6F63FECD38ECA11EBA",
+      "bytes": 905,
+      "path": "src/pages/wms/WmsReplenishmentPage.contract.test.ts"
+    },
+    {
+      "sha256": "F2A6F8A67CF95E0029F2076CA01308F12462E250DAC798312215621B75463AB9",
+      "bytes": 4166,
+      "path": "src/pages/wms/WmsReplenishmentPage.tsx"
+    },
+    {
+      "sha256": "977DAC218B31D0EA0B35F5E93D50ADD25A64FD38CB7171DC405D2D8671362121",
+      "bytes": 875,
+      "path": "src/pages/wms/WmsShipPage.contract.test.ts"
+    },
+    {
+      "sha256": "559CC9B0F589733D952E0997F5319807C2B3C94D7DF4F54EAC2D3BEAD5A3B7A1",
+      "bytes": 11264,
+      "path": "src/pages/wms/WmsShipPage.tsx"
+    },
+    {
+      "sha256": "6C977BE8E2D8D51CB8E28CD36026C41DE386F235104CBC8F3DB9B2BEBD7EC846",
+      "bytes": 886,
+      "path": "src/pages/wms/WmsSlottingPage.contract.test.ts"
+    },
+    {
+      "sha256": "62116E30E1EAC861100109C35401A1234CE729DDB7EDE61D1D9FEAEB1155CCED",
+      "bytes": 5498,
+      "path": "src/pages/wms/WmsSlottingPage.tsx"
+    },
+    {
+      "sha256": "D19ABD98B508AF573AC05F77E878348DBC0547F938213D45E7BD2CDABAE77ADD",
+      "bytes": 868,
+      "path": "src/pages/wms/WmsWavesPage.contract.test.ts"
+    },
+    {
+      "sha256": "C36C3CFFD4DC1A8897BD278FC5D024A1AF345B6B26D5F40D68E61D025F6D6EF4",
+      "bytes": 21509,
+      "path": "src/pages/wms/WmsWavesPage.tsx"
+    },
+    {
+      "sha256": "F16B0C1C4FD3C8AF321716D9E2E51D8978C0B98A27353603D3F399978AFB70A4",
+      "bytes": 5881,
+      "path": "src/pages/wms/WorkflowConfigPage.tsx"
+    },
+    {
+      "sha256": "8D72207EE51B0CC138A70B5FA0ED03D086E643375D763DF8C58A44B4C1E8CFBF",
+      "bytes": 84,
+      "path": "src/components/page-templates/settings/index.ts"
+    },
+    {
+      "sha256": "41ECA2C7100D1EFB0EADB4E9AA03F6F42630678125B19F9DC6E86EB21365B05E",
+      "bytes": 172,
+      "path": "src/components/page-templates/settings/SettingsPageTemplate.tsx"
+    },
+    {
+      "sha256": "26436BDB9C9903EB7E313BE59D200F9F033079D32BE7AD3B56B663A16BCF2F23",
+      "bytes": 1077,
+      "path": "src/components/page-templates/workbench/contracts.ts"
+    },
+    {
+      "sha256": "198E9E2CA9C8828C54823C0F9D7AEE7AECDAC80534D72A9CA03B6B735722E9E3",
+      "bytes": 3128,
+      "path": "src/components/page-templates/workbench/index.ts"
+    },
+    {
+      "sha256": "FB1B62879DF9D37C590AE790E174104D0BD9C1A90834BFF4A5D08146E0D4165B",
+      "bytes": 883,
+      "path": "src/components/page-templates/workbench/industrialWorkbenchTemplate.css"
+    },
+    {
+      "sha256": "2D313A77BC763C3963BCA79E312840024109C668EA6D27B080AD13102B2863E0",
+      "bytes": 8722,
+      "path": "src/components/page-templates/workbench/IndustrialWorkbenchTemplate.test.ts"
+    },
+    {
+      "sha256": "5FE580679C4DB0A358CE6B48B8714E6D550D0B39A00BC1604A33812AE80D1BA5",
+      "bytes": 11529,
+      "path": "src/components/page-templates/workbench/IndustrialWorkbenchTemplate.tsx"
+    },
+    {
+      "sha256": "49500A1AC2EECF52A8062A1EC9C737E5E65854FE04351F9A6E6D3D3F8175F9CD",
+      "bytes": 1289,
+      "path": "src/components/page-templates/workbench/types.ts"
+    },
+    {
+      "sha256": "8E722039FFC65C4FBDAF17E068ADD48B1C251BBF22DF53A89B4DBD33BFCFE4DB",
+      "bytes": 3429,
+      "path": "src/components/page-templates/workbench/useWorkbenchColumnSettings.ts"
+    },
+    {
+      "sha256": "7F1FA107F383EC371E1CA90E72CBD570FF1602CFB4999E59B1AB4970E94C9757",
+      "bytes": 1512,
+      "path": "src/components/page-templates/workbench/useWorkbenchInteractionController.test.ts"
+    },
+    {
+      "sha256": "D1ECE8A52B28C328EF94F6084A83CA8B51528E93621BDCEC41E6A3F0433F2753",
+      "bytes": 3395,
+      "path": "src/components/page-templates/workbench/useWorkbenchInteractionController.ts"
+    },
+    {
+      "sha256": "A7E9BA66229D41C90F0BF25EDDC61AAD5781ADEE25A3AD58C68E90AF087976C0",
+      "bytes": 1379,
+      "path": "src/components/page-templates/workbench/useWorkbenchLayoutController.test.ts"
+    },
+    {
+      "sha256": "71FB75A772B8559579B907CC9498B3EF0CB5830AA709F8AF803283373C7062D6",
+      "bytes": 4436,
+      "path": "src/components/page-templates/workbench/useWorkbenchLayoutController.ts"
+    },
+    {
+      "sha256": "E11895177A6FDC02B1B2120B32DC566D15D2773783608D23741B5BFEA24FF224",
+      "bytes": 3313,
+      "path": "src/components/page-templates/workbench/useWorkbenchRecordEditor.ts"
+    },
+    {
+      "sha256": "94AEF6C8B42EF6FC3547F9951511EB21D99FCA3BFF3EE61A7318EA157A1140E7",
+      "bytes": 106,
+      "path": "src/components/page-templates/workbench/useWorkbenchSavedViewState.ts"
+    },
+    {
+      "sha256": "B37F5237EEB2ABD18D0DDFAD1DC4370E18D03B750A27472C61CEDE4429D0FF51",
+      "bytes": 1882,
+      "path": "src/components/page-templates/workbench/useWorkbenchSelectionController.test.ts"
+    },
+    {
+      "sha256": "111AC7093562136AB03F295082760239B0E45AE3788179FAA3A79068003F8536",
+      "bytes": 6476,
+      "path": "src/components/page-templates/workbench/useWorkbenchSelectionController.ts"
+    },
+    {
+      "sha256": "45878EFE477992E3904A544CD70544D9AD6224F086DD9BC433B2AFA50447D8F8",
+      "bytes": 108,
+      "path": "src/components/page-templates/workbench/useWorkbenchTablePagination.ts"
+    },
+    {
+      "sha256": "C094DF7DE018C0F2CB4329A8911F5182F724BFF6A8FE0CF9A89EBDF05A952870",
+      "bytes": 2987,
+      "path": "src/components/page-templates/workbench/useWorkbenchViewStateController.test.ts"
+    },
+    {
+      "sha256": "D4D281F71F9CCCAF54B99DD8D35171D4634F6D8D28C10913C93E1B24DCC20A2B",
+      "bytes": 4577,
+      "path": "src/components/page-templates/workbench/useWorkbenchViewStateController.ts"
+    },
+    {
+      "sha256": "17FF7F5C7CC7913F356003E211675CFCE11D42AEAB824037E2E32DBF82D23F4A",
+      "bytes": 4055,
+      "path": "src/components/page-templates/workbench/workbenchColumnSettings.css"
+    },
+    {
+      "sha256": "C2DC1571F2A0CE88F21C94DBB50BD9CA76E7AD5F425808454BC253DCEB03A6D1",
+      "bytes": 3167,
+      "path": "src/components/page-templates/workbench/workbenchColumnSettings.test.ts"
+    },
+    {
+      "sha256": "A15B7050C6EBA69B22E99C618E2B6B56E67B88D1DE9923C6EC044E78B7C44362",
+      "bytes": 3533,
+      "path": "src/components/page-templates/workbench/workbenchColumnSettings.ts"
+    },
+    {
+      "sha256": "71C17054C32837CB0C7A70BB04E10C588B6CC73ECC0B334955345DD44C17C34B",
+      "bytes": 5277,
+      "path": "src/components/page-templates/workbench/WorkbenchColumnSettingsDialog.tsx"
+    },
+    {
+      "sha256": "0ED90104E12B0B1A90BE516506128D22B4F6FA6E736B0B3BDC5A42D9DD143D45",
+      "bytes": 2082,
+      "path": "src/components/page-templates/workbench/WorkbenchColumnSettingsFloatingControl.test.ts"
+    },
+    {
+      "sha256": "886679D0A1BF9707FB4EFC9902CF33CA7DA081F4A73F2C6F4013EC2D0C0A9E7F",
+      "bytes": 1420,
+      "path": "src/components/page-templates/workbench/WorkbenchColumnSettingsFloatingControl.tsx"
+    },
+    {
+      "sha256": "3B4EDFDF5DF06ACE3081FE7DFB29FC4F5DEAA906200061AAF9658737DE041DB0",
+      "bytes": 7520,
+      "path": "src/components/page-templates/workbench/workbenchContracts.test.ts"
+    },
+    {
+      "sha256": "4339BF237DAF35062FC3822A0ED3936DEDDA45697D53B1A291F1CBAB2173BAD0",
+      "bytes": 158,
+      "path": "src/components/page-templates/workbench/WorkbenchDetailPanelTemplate.tsx"
+    },
+    {
+      "sha256": "C1B3F5DD803B11855F003215287E4083D3FD0AC238F98E78CB70734B1FA4344B",
+      "bytes": 3284,
+      "path": "src/components/page-templates/workbench/workbenchGridColumnPolicy.test.ts"
+    },
+    {
+      "sha256": "BCBCB966C7C32D8F3922A72B0123413C39887E067EC04DA49FBD0F4DBF9048FC",
+      "bytes": 4850,
+      "path": "src/components/page-templates/workbench/workbenchGridColumnPolicy.ts"
+    },
+    {
+      "sha256": "220AAEB047E591E1B7C3AF1D5CC221AD3B309807BCCC8C932E6BCE93CDE8F8B8",
+      "bytes": 489,
+      "path": "src/components/page-templates/workbench/WorkbenchLeftPanelTemplate.tsx"
+    },
+    {
+      "sha256": "5F509A31EF7FD8E875F3477BEFCDD338FA812289E9E008B47120D43D3C8B812D",
+      "bytes": 1018,
+      "path": "src/components/page-templates/workbench/WorkbenchPageTemplate.tsx"
+    },
+    {
+      "sha256": "EB23BA32ABF5E8688A410F51EBFB97B639016208BDEB450B8ABB1B2465F42B2A",
+      "bytes": 605,
+      "path": "src/components/page-templates/workbench/WorkbenchRecordEditorDialog.test.ts"
+    },
+    {
+      "sha256": "AC5F3775EE8F6D47BB686B7275DD42482FFC97BD70344E64CE923F2D4471066F",
+      "bytes": 9961,
+      "path": "src/components/page-templates/workbench/WorkbenchRecordEditorDialog.tsx"
+    },
+    {
+      "sha256": "D68CA2AB14E1D386FE0DE4B6568A4B0E067E6125EA2DF2E774AAAC32BB35B71A",
+      "bytes": 1336,
+      "path": "src/components/page-templates/workbench/workbenchTemplateMetrics.test.ts"
+    },
+    {
+      "sha256": "39EE5B26D502202F68BBA1850AAAF9C354481C22324CC8D877442F3EB9AC7BD8",
+      "bytes": 1263,
+      "path": "src/components/page-templates/workbench/workbenchTemplateMetrics.ts"
+    },
+    {
+      "sha256": "64AF3842B4C9CD26F9769CD6ACEF09C6FE1ED32F58B69B2CA1A81D9D42F2F4AC",
+      "bytes": 426,
+      "path": "src/components/page-templates/workbench/WorkbenchToolbar.tsx"
+    },
+    {
+      "sha256": "7047C21CDD4C1BB9DF7C1233798B64A3EBB96291D2D2AA9B1CE233FFA1E60264",
+      "bytes": 10621,
+      "path": "src/components/ui-modules/hooks/useHorizontalScrollSync.ts"
+    },
+    {
+      "sha256": "E6F8FEFC0D8432A92E4156CBC674D3875FACD2DE1C9438B3E718F9CFA957F9A8",
+      "bytes": 533,
+      "path": "src/components/workbench/templates/index.ts"
+    },
+    {
+      "sha256": "FE3FFA820E473188ACF875ADA9E9BB581046A26C3A3E2752B232A0477536F443",
+      "bytes": 7927,
+      "path": "src/components/workbench/templates/OrderReviewWorkbenchTemplate.css"
+    },
+    {
+      "sha256": "EC77FA37C0810DA1A569E5C0372487DE8D719D922C8F71842018001B5C752DF8",
+      "bytes": 8386,
+      "path": "src/components/workbench/templates/OrderReviewWorkbenchTemplate.tsx"
+    },
+    {
+      "sha256": "5B0C6B4847F1169CEFB561D5183B85EAB00AD82BFBBE6C1B8C9DE15033832DF3",
+      "bytes": 855,
+      "path": "src/components/workbench/templates/OrderReviewWorkbenchTemplate.typography.test.ts"
+    },
+    {
+      "sha256": "7DC3BEE003FC6FB85D13DD4C6E6AD469FB871DE796EAABD8837F3ADC0FD56980",
+      "bytes": 3985,
+      "path": "src/components/workbench/templates/OrderReviewWorkbenchToolbarTemplate.test.ts"
+    },
+    {
+      "sha256": "0C1D4462F8230DADB7645F3B2D275E61CDB0C593896382F02DC6C5FE005B0F0F",
+      "bytes": 1182,
+      "path": "src/components/workbench/templates/OrderReviewWorkbenchToolbarTemplate.tsx"
+    },
+    {
+      "sha256": "FA0C403CE2C26467A5CDA2635D8C8C0B563315F52200C6CC5D89D9135715A24A",
+      "bytes": 1455,
+      "path": "src/components/workbench/templates/useWorkbenchSavedViewState.test.ts"
+    },
+    {
+      "sha256": "5374A5BBE1C42C94D09F3F434241995BCED094CF5F85EBE5F9D3F80EDEA5C2FF",
+      "bytes": 1961,
+      "path": "src/components/workbench/templates/useWorkbenchSavedViewState.ts"
+    },
+    {
+      "sha256": "24955C93C50F238F3FBDDA2C8CF5FD1DA59B759829C22E7A1614F2F4331CCA58",
+      "bytes": 3190,
+      "path": "src/components/workbench/templates/useWorkbenchTablePagination.ts"
+    },
+    {
+      "sha256": "443E7C80A00BF7785135071B17CFAE564C94973C91DA85F8F96830F620915E00",
+      "bytes": 2261,
+      "path": "src/components/workbench/templates/workbenchFooterContract.regression.test.ts"
+    },
+    {
+      "sha256": "10399FAD52E982C50A6C2CB4EC11D6568844032D21EA9C70DAC431391BAFFC24",
+      "bytes": 1324,
+      "path": "src/components/workbench/templates/workbenchStatePersistence.regression.test.ts"
+    },
+    {
+      "sha256": "18DF74FDEF354BEBBE93BA71DD3F4868EDCCE1783A6C09A2D7CA1802D6E4533F",
+      "bytes": 2838,
+      "path": "src/components/workbench/templates/workbenchViewStateCache.ts"
+    },
+    {
+      "sha256": "45135A812A6CA5BCEB67C4B7A1E2832BD27295642E8DB93D8608DE3E32A7FDBE",
+      "bytes": 9375,
+      "path": "src/pages/goods/kit-form/GoodsKitCreatePage.tsx"
+    },
+    {
+      "sha256": "21EBF53F4E8FAA8914B74448AF3C7EAA4B4D0F4CC657496A1254973F53983EBA",
+      "bytes": 5185,
+      "path": "src/pages/goods/kit-form/GoodsKitEditorDialog.tsx"
+    },
+    {
+      "sha256": "80EF05483898055132A3A8C1CFCCE78E0386D3938A2E9BE956F43A4AC5C9099A",
+      "bytes": 10042,
+      "path": "src/pages/goods/kit-form/GoodsKitEditPage.tsx"
+    },
+    {
+      "sha256": "31CF06ADDFCF882A49514A44B28526B9F15428F6806F77E9A9E1FB50A7442E9F",
+      "bytes": 14033,
+      "path": "src/pages/goods/kit-form/KitForm.tsx"
+    },
+    {
+      "sha256": "7ACAD6E21EC58CA6BFA5D1BC5B137C794C384B11D0B1D51783B0DE0171C176F9",
+      "bytes": 14921,
+      "path": "src/pages/goods/kits-query/GoodsKitsQueryPage.tsx"
+    },
+    {
+      "sha256": "E5DD57CD5422093EE33595A20A3135B6F4BE75E63CDF4FC6D09284E2193CD287",
+      "bytes": 8597,
+      "path": "src/pages/goods/product-form/GoodsProductCreatePage.tsx"
+    },
+    {
+      "sha256": "8FB90454C98B3C69182416A1715A2E2D33C7FAB0F79A5B0D17C80DBB6AB59F42",
+      "bytes": 3386,
+      "path": "src/pages/goods/product-form/GoodsProductEditorDialog.tsx"
+    },
+    {
+      "sha256": "265FBBA9BCF54E6EF28DD95888F0B82C159942DD51EAD81918CA0FD3840FEE2A",
+      "bytes": 8509,
+      "path": "src/pages/goods/product-form/GoodsProductEditPage.tsx"
+    },
+    {
+      "sha256": "6599E152A69DDA35B81254DF507FF25795A74179EC0FBFEA0C838884C378D948",
+      "bytes": 8564,
+      "path": "src/pages/goods/product-form/ProductForm.tsx"
+    },
+    {
+      "sha256": "498BCC3A55ED6E389569AD24368C5C7A511402C7ACDA2F9869EFB9793DC3746C",
+      "bytes": 21873,
+      "path": "src/pages/goods/products-query/GoodsProductsQueryPage.tsx"
+    },
+    {
+      "sha256": "6F27AEFC380C4DD4FE181EE15D0049314F3B42A95BB25868B913B8044095E4EB",
+      "bytes": 3862,
+      "path": "src/pages/goods/shared/goodsCreateWorkbench.css"
+    },
+    {
+      "sha256": "61CAC491058EEB3B0D0AE0682F95FC491BD20FD0531F098DC27F09E94B71BE95",
+      "bytes": 4771,
+      "path": "src/pages/goods/shared/GoodsCreateWorkbench.tsx"
+    },
+    {
+      "sha256": "9A97DE6E07C8924128556DEB10692A2DD628529C36B05F33EB2FE7A641F249EE",
+      "bytes": 11169,
+      "path": "src/pages/goods/shared/goodsDomain.test.ts"
+    },
+    {
+      "sha256": "CE146A38B64F3528A98C6AEB96308F699C9B4D3EA16AAF652FB57887982F07E9",
+      "bytes": 1026,
+      "path": "src/pages/goods/shared/goodsFields.ts"
+    },
+    {
+      "sha256": "1A8C86AF61BD7C36D73E8D698350F0687B066F3CA900B863B22B14FFB4D7CD8E",
+      "bytes": 8875,
+      "path": "src/pages/goods/shared/goodsFormUtils.ts"
+    },
+    {
+      "sha256": "0697FF450D385498E28FBA10AEB869B5071B65AA0B3B01ACE3C44A2C4BADBC0B",
+      "bytes": 3083,
+      "path": "src/pages/goods/shared/goodsRoutes.test.ts"
+    },
+    {
+      "sha256": "D0C2A45571F2BE1F3C526859C55F17F0B2BCE4C0CF94CF0260CC858A10820E0B",
+      "bytes": 2359,
+      "path": "src/pages/goods/shared/goodsRoutes.ts"
+    },
+    {
+      "sha256": "3A63148920A3683423953245AF0A935088BA6757B74CF79EF52982C05C1F1075",
+      "bytes": 2870,
+      "path": "src/pages/goods/shared/useGoodsMasterData.ts"
+    },
+    {
+      "sha256": "3D5F4FE881D688011592B7DE408AF68EB44EE305346A741442628111B6D61495",
+      "bytes": 828,
+      "path": "src/pages/insights/catalog/BundleComboPage.tsx"
+    },
+    {
+      "sha256": "9679E503B0E42331C1AB6254C2FB9256AEC508014032F5674EDF2603FF4C6B53",
+      "bytes": 582,
+      "path": "src/pages/insights/catalog/catalogInsightPages.test.ts"
+    },
+    {
+      "sha256": "175A805708A1CAD20DC8896190E60349E1B3BF611BEEE7B945A32BA6241664EE",
+      "bytes": 209,
+      "path": "src/pages/insights/catalog/HotSkuPage.tsx"
+    },
+    {
+      "sha256": "508A61A05BC8BB37D51910208C0776D8316AA077686593B96D3CB061016352DB",
+      "bytes": 211,
+      "path": "src/pages/insights/catalog/SlowSkuPage.tsx"
+    },
+    {
+      "sha256": "0789BB1E6E8E11E9CC12600B5C84ECA50D14DC0199E82BA6962692C6898FF05F",
+      "bytes": 1502,
+      "path": "src/pages/insights/fulfillment/fulfillmentInsightPages.test.ts"
+    },
+    {
+      "sha256": "837D344CB8110ACB5F95034813C3F7F389D7ED8ADB1BDF81B8BCC60DABCCD431",
+      "bytes": 202,
+      "path": "src/pages/insights/fulfillment/LeadTimePage.tsx"
+    },
+    {
+      "sha256": "B4160C74D6BB8138D649E92EC85318B8F724431C256DB967FC0EC5EBB4C7A76A",
+      "bytes": 844,
+      "path": "src/pages/insights/fulfillment/OperationAccuracyPage.tsx"
+    },
+    {
+      "sha256": "F054A2C809C84B7ABB885CDFA6919223192BF78CE2F82D91E89D56747DCC5BAB",
+      "bytes": 990,
+      "path": "src/pages/insights/fulfillment/OperationLedgerPage.tsx"
+    },
+    {
+      "sha256": "0808819F5894FD3244BFF9AFA83E1C121078ADE58A7E4032354D6CDE6AD47792",
+      "bytes": 197,
+      "path": "src/pages/insights/fulfillment/OrderCyclePage.tsx"
+    },
+    {
+      "sha256": "70DE22D1C64FC0212515844CD6171273B07D6F38A5D615401F43B804E1B71B57",
+      "bytes": 809,
+      "path": "src/pages/insights/fulfillment/PackagingUsagePage.tsx"
+    },
+    {
+      "sha256": "7907242703C01880196BF27F2C2ADA1389112128B5726C355A05047F7CADECB4",
+      "bytes": 797,
+      "path": "src/pages/insights/fulfillment/StocktakeVariancePage.tsx"
+    },
+    {
+      "sha256": "6C3BDBF6FB5F1B0555E4BA4A7DDC8432919C5D4C0738897C0EB4A4A253CBD99C",
+      "bytes": 827,
+      "path": "src/pages/insights/fulfillment/WarehouseNetworkEfficiencyPage.tsx"
+    },
+    {
+      "sha256": "A7EFF8F85C37A7CDFFFB04FBF3913B8EE132D83F06BAD5DDE1D79EAA90937FC1",
+      "bytes": 839,
+      "path": "src/pages/insights/inventory/NegativeStockAlertPage.tsx"
+    },
+    {
+      "sha256": "CF25875E57B0F9C4FDD13C37641A687B0F126DE53E155DE05D7177F65B91D41A",
+      "bytes": 941,
+      "path": "src/pages/insights/inventory/StockAgingPage.tsx"
+    },
+    {
+      "sha256": "0FCB02E6BCB1CB588593A6BBB84E9AEE8E602352669186FA54A04B77A7D3101A",
+      "bytes": 1033,
+      "path": "src/pages/insights/inventory/StockBalancePage.test.ts"
+    },
+    {
+      "sha256": "ED2C5BC57B70F0BF687D7C6C5F43F06AF8770EC9586E27F15301FA7D1FAB0103",
+      "bytes": 924,
+      "path": "src/pages/insights/inventory/StockBalancePage.tsx"
+    },
+    {
+      "sha256": "C75E26A85781128A29720B1DC48B1C70E9679A2C0193460FAF97B9D6AE0F8B2D",
+      "bytes": 882,
+      "path": "src/pages/insights/inventory/TransferBenefitPage.tsx"
+    },
+    {
+      "sha256": "C2A2E08A419FB47E61F6E44B2FFA25827935E1F57F86140BAA252389072024A8",
+      "bytes": 894,
+      "path": "src/pages/insights/inventory/TurnoverVelocityPage.tsx"
+    },
+    {
+      "sha256": "9CE971A3F5F515811C8DAC669F2424F273C03AC39F8D7A2B1140D2AB41420EE1",
+      "bytes": 211,
+      "path": "src/pages/insights/revenue/DailyBriefPage.tsx"
+    },
+    {
+      "sha256": "568D75D4830EF9F80CFC9BCF7EA846EB06E911B9C638BB62F43529FB706F9A30",
+      "bytes": 977,
+      "path": "src/pages/insights/revenue/DiscountInsightPage.tsx"
+    },
+    {
+      "sha256": "21102F06AA3E071A19C1C57E53A0C97CF545A111454E824529CA80A2F8806EA2",
+      "bytes": 954,
+      "path": "src/pages/insights/revenue/OrderMixPage.tsx"
+    },
+    {
+      "sha256": "C8E1C990ACFDD23D53039764DDB8D68DC48F19FC934CDA4ED6258A96E99EC729",
+      "bytes": 1005,
+      "path": "src/pages/insights/revenue/revenueInsightPages.test.ts"
+    },
+    {
+      "sha256": "05A11E7209226B89B3199814C3E396EBEBC4F0F42D2BE2095DD24416FEAF1E54",
+      "bytes": 195,
+      "path": "src/pages/insights/revenue/RevenueOverviewPage.tsx"
+    },
+    {
+      "sha256": "AE2D451643FBFC80C95ED7423A6851F792341885B44EA9DF60E4E75E7508BD1D",
+      "bytes": 217,
+      "path": "src/pages/insights/revenue/TrendRadarPage.tsx"
+    },
+    {
+      "sha256": "23C055AF98417BD6BBFC90439AEDB9DC0445C428211A6D3AF6636B81828AA453",
+      "bytes": 794,
+      "path": "src/pages/insights/service/CompensationPage.test.ts"
+    },
+    {
+      "sha256": "E767571641D6D61C3ED6FCF0B8CDEF23D43A85A478A07541EDAB85E39A35E8A1",
+      "bytes": 936,
+      "path": "src/pages/insights/service/CompensationPage.tsx"
+    },
+    {
+      "sha256": "FA960658719AB8DAD162625E5B6DBCA95F77A8ACB588850036A4570FD2D1F7A6",
+      "bytes": 822,
+      "path": "src/pages/insights/service/ReshipQualityPage.tsx"
+    },
+    {
+      "sha256": "AAF791AB509811863F8C4C72A637D44BA58DD088E97E49BAE4B5B39D7A145E3E",
+      "bytes": 840,
+      "path": "src/pages/insights/service/ReturnLoopPage.tsx"
+    },
+    {
+      "sha256": "CECF331DA6B1BCB9939784C3A95B3434D71B3DE31F5A73E583AD1331F3965C89",
+      "bytes": 845,
+      "path": "src/pages/insights/service/TicketEfficiencyPage.tsx"
+    },
+    {
+      "sha256": "C21F73034B3884625C782BA7B0913E0C40ACF0FA814C84ABDBDE3DE6354CC88F",
+      "bytes": 2742,
+      "path": "src/pages/insights/shared/InsightPlaceholderPage.tsx"
+    },
+    {
+      "sha256": "8C72EBD35A7ED0FE38FEA87020826BC3A2094F78037B199E12D8B0EA05E96923",
+      "bytes": 199,
+      "path": "src/pages/insights/workbench/ExportQueuePage.tsx"
+    },
+    {
+      "sha256": "0A409E0DD2662FE143D62F2C3F15B48A3471C2A93A9C9F6F516C5F6BE9734EB8",
+      "bytes": 192,
+      "path": "src/pages/insights/workbench/ReportCenterPage.tsx"
+    },
+    {
+      "sha256": "16726E7DD8108C1B77E7D1FEF8D89FCBDC9ED2311A2726EFED7336E8E36B8CB3",
+      "bytes": 481,
+      "path": "src/pages/insights/workbench/workbenchInsightPages.test.ts"
+    },
+    {
+      "sha256": "1EFFD8CF6CDD940CFA125D3794446EEA7269FD7EC2B4C633DF45123867FAF4B1",
+      "bytes": 3191,
+      "path": "src/pages/orders/components/orderManagementColumns.test.ts"
+    },
+    {
+      "sha256": "7D6D0633662EE289C21F63AA8514005893A55A64484F16E131EFF85512E2A34A",
+      "bytes": 8108,
+      "path": "src/pages/orders/components/orderManagementColumns.tsx"
+    },
+    {
+      "sha256": "DE684796794D40D7EE98131FEDE22AE408C2D95C8FDD86EE70C1A604A8B30DAC",
+      "bytes": 2096,
+      "path": "src/pages/orders/components/orderQueryLeftInteractions.test.ts"
+    },
+    {
+      "sha256": "049DE10E2B058DD852BEA8775B2A040322AC285304CBB443605F921AAED794A1",
+      "bytes": 2067,
+      "path": "src/pages/orders/components/orderQueryLeftInteractions.ts"
+    },
+    {
+      "sha256": "9124C243A439A84BE7921718BEBB522DA1721F529FC9EDB8EFD21B47ABF5B601",
+      "bytes": 1711,
+      "path": "src/pages/orders/components/OrderQueryLeftPanel.tsx"
+    },
+    {
+      "sha256": "13A2B04F1955FB4A18C6F8055A210973C03398AEFF83B06F1CC3ACB7F28F1CA3",
+      "bytes": 1055,
+      "path": "src/pages/orders/components/OrderQueryPanels.tsx"
+    },
+    {
+      "sha256": "17BE373CC36BD9FEB72E4BDB5273E1E739839EF1F5D0CB1FB2F84E5D670B5DD4",
+      "bytes": 1171,
+      "path": "src/pages/orders/components/OrderQueryToolbar.tsx"
+    },
+    {
+      "sha256": "B8F5EEBBD33ED55A40880E2EC8FEEBFE3C6F4A74A63B259EC3D4FD7525977B54",
+      "bytes": 531,
+      "path": "src/pages/orders/components/OrderReviewPanels.tsx"
+    },
+    {
+      "sha256": "CE88C0A0170A33C282A9FC6DE3AA4BEBFE0750D5B23BDD01B34B790B22A394CF",
+      "bytes": 138,
+      "path": "src/pages/orders/components/OrderReviewTableSection.tsx"
+    },
+    {
+      "sha256": "FA25F4ADDB3FEAD975A134C3A8CB03B75E9A8D41352D6259335BD013573880A0",
+      "bytes": 3605,
+      "path": "src/pages/orders/components/OrderReviewToolbar.tsx"
+    },
+    {
+      "sha256": "6AD35862C36A5FC0DBFF7ABA67364011A043285EB1EC6737CBED351CDAE068D6",
+      "bytes": 2863,
+      "path": "src/pages/orders/exceptions-native/orderExceptionDisplayTags.test.ts"
+    },
+    {
+      "sha256": "A9455A133CB03D2990A2F634F00B9CDEB99BE1965E6F1F07C0D3020FD80CD67E",
+      "bytes": 2655,
+      "path": "src/pages/orders/exceptions-native/orderExceptionDisplayTags.ts"
+    },
+    {
+      "sha256": "92A6263602F8F523FEF2C3E54E4938EB42A7142214090A21E4E4B275FEE10C5D",
+      "bytes": 1307,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsGridFilters.test.ts"
+    },
+    {
+      "sha256": "D7C26CE1BDADCAA4514E69022DC2E8DA00144CEFFE0FB2A5559D814B137AF04A",
+      "bytes": 13245,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsGridFilters.ts"
+    },
+    {
+      "sha256": "D6757BA243730EC9B28EDFA675D2B0B2C9906019474F74C8670D7312A2452981",
+      "bytes": 1632,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsGridRows.test.ts"
+    },
+    {
+      "sha256": "3D96B6B626582B4EDBD57F6ED45B165F5D81761BE93543AB1DE10DA2FE8675B5",
+      "bytes": 970,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsGridRows.ts"
+    },
+    {
+      "sha256": "76D5A173810B9F975CC06BC34B7DB0F7BF44991B8F7EBBBF5E350E9BCFBFE72D",
+      "bytes": 5218,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsLeftInteractions.test.ts"
+    },
+    {
+      "sha256": "CF93A2CD0DAEF7906F56029703DB7A6894623553EF2B9FE0DDFE6AC09ECB9F30",
+      "bytes": 6646,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsLeftInteractions.ts"
+    },
+    {
+      "sha256": "D33429438DE1E9E521DA6F00404A618DF6BCE7074CD605FFAD5BD944259D78E2",
+      "bytes": 1326,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsLeftPanel.tsx"
+    },
+    {
+      "sha256": "F3DE03AE523B6037614C5953E62F9CC3840F0E1D5519CE9478FC86F65BD3AF28",
+      "bytes": 6200,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsMainGrid.test.ts"
+    },
+    {
+      "sha256": "33DA85F29AAEC1017EDAD95EE559BCB2EABA071C9A918328CFAE4925C8F97014",
+      "bytes": 41696,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsMainGrid.tsx"
+    },
+    {
+      "sha256": "7BC8A1F8977535E97FAB47759FA6D49DC0E3C3B1D3F3D65B0BDB7D1207D75A87",
+      "bytes": 1765,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsRowKey.test.ts"
+    },
+    {
+      "sha256": "68C20D68587FDBFD5AE44ADDF11B3399DB9DD2F5B3301EC6925D792B723EBC46",
+      "bytes": 1783,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsRowKey.ts"
+    },
+    {
+      "sha256": "F06EE6353A45C8A05973B5220D2BD6A2A983A26C5C82B2BB565000294DB29739",
+      "bytes": 4911,
+      "path": "src/pages/orders/exceptions-native/OrderExceptionsScreenFilterForm.tsx"
+    },
+    {
+      "sha256": "D14A8622967DE73959114B27F714DC0F40397E524EF52CBF43FE921984689AFE",
+      "bytes": 3940,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsScreenFilters.test.ts"
+    },
+    {
+      "sha256": "91D5000F6F76DEA76F55E7E023B0AA16ABA19A21C0B9D3C3DDCC1102EBCB5005",
+      "bytes": 4465,
+      "path": "src/pages/orders/exceptions-native/orderExceptionsScreenFilters.ts"
+    },
+    {
+      "sha256": "3CA5A8572B3B32A2E2D94033C21BEF1806ED0546540F42DD69682CE16358F716",
+      "bytes": 9338,
+      "path": "src/pages/orders/exceptions-native/useOrderExceptionsLeftModule.tsx"
+    },
+    {
+      "sha256": "C130979EBE618D7E5BFD867E938871F8CB2CFD035861C26D9DC164EA015FB49B",
+      "bytes": 1570,
+      "path": "src/pages/orders/review-native/helpers.test.ts"
+    },
+    {
+      "sha256": "1B96C56B3AFDD6ABDD1B9569865BAEC73DC726FDE7CF93D412699B11D666FF34",
+      "bytes": 2715,
+      "path": "src/pages/orders/review-native/helpers.ts"
+    },
+    {
+      "sha256": "B791800B8EF228AEB23E95A8B762D16C3256E900CB0CAB1CAAE582A2A00456F8",
+      "bytes": 3304,
+      "path": "src/pages/orders/review-native/OrderReviewBottomPanel.contract.test.ts"
+    },
+    {
+      "sha256": "A4074BE2B07D2FB0C3F990B14DAC8B8EB620D908D7C201ACE3949CAE5B6E10C5",
+      "bytes": 5799,
+      "path": "src/pages/orders/review-native/OrderReviewBottomPanel.css"
+    },
+    {
+      "sha256": "38917D42C03338E494ED86D5E22449B4EE558881C974F8C619CD341293C7BDE6",
+      "bytes": 31263,
+      "path": "src/pages/orders/review-native/OrderReviewBottomPanel.tsx"
+    },
+    {
+      "sha256": "BA1C5EBC3F981B20E9DE5E5E695BD5B5DD942CFBAFD958B8972DE2260B4EA38C",
+      "bytes": 3868,
+      "path": "src/pages/orders/review-native/OrderReviewDetailPanel.test.ts"
+    },
+    {
+      "sha256": "126C41721AA47B4259C570DC842DB456088F6824D553EE64E1DFEDED723D059A",
+      "bytes": 6129,
+      "path": "src/pages/orders/review-native/OrderReviewDetailPanel.tsx"
+    },
+    {
+      "sha256": "3506C961B0BCC3927416BE604D1CE459B12B7C2571E15C5EA0A8E90AE1381D86",
+      "bytes": 2472,
+      "path": "src/pages/orders/review-native/orderReviewGridActions.test.ts"
+    },
+    {
+      "sha256": "DE6A74DE7F8D5A16C8E026B6EB1A28892EEA5A210BD025A33365B6A8DC177FF4",
+      "bytes": 4472,
+      "path": "src/pages/orders/review-native/orderReviewGridActions.ts"
+    },
+    {
+      "sha256": "79A71F3F1C80F01A900654130AE5CDA0E0028907B8A05BE7F2617749C9378AA3",
+      "bytes": 2635,
+      "path": "src/pages/orders/review-native/OrderReviewGridFilters.test.ts"
+    },
+    {
+      "sha256": "93332D3831CFD623BCA537D087683A0169FCEAF74AB1FAB45C46C879C4D0BEE7",
+      "bytes": 16248,
+      "path": "src/pages/orders/review-native/OrderReviewGridFilters.tsx"
+    },
+    {
+      "sha256": "950D97160FFA2D02064192CE9D42639D865E905B521D8610B4859AD5B7A594FC",
+      "bytes": 4083,
+      "path": "src/pages/orders/review-native/orderReviewLeftInteractions.test.ts"
+    },
+    {
+      "sha256": "EBED78E82EB161335453E652183DC71BDF11661C0AB9D30F9100F5E0CB230BC3",
+      "bytes": 5337,
+      "path": "src/pages/orders/review-native/orderReviewLeftInteractions.ts"
+    },
+    {
+      "sha256": "DB8987A4097C4D8FB7C6BE4FCCFF258F0995314376391AB02B1C1D0D37863927",
+      "bytes": 2221,
+      "path": "src/pages/orders/review-native/OrderReviewLeftPanel.tsx"
+    },
+    {
+      "sha256": "C038D9C8F80B6675280BCD622EA062E8B5AF0FAA013947FB52D56BE2E85EA745",
+      "bytes": 8011,
+      "path": "src/pages/orders/review-native/OrderReviewMainGrid.test.ts"
+    },
+    {
+      "sha256": "7D2146A220DF3844428A2A249F196A0E50053A03868FF1AAA0756411784678A5",
+      "bytes": 39963,
+      "path": "src/pages/orders/review-native/OrderReviewMainGrid.tsx"
+    },
+    {
+      "sha256": "6F198E9B934F0B101C3B423C7514137C3BA6005394079FD22365BE61F77F24B8",
+      "bytes": 12252,
+      "path": "src/pages/orders/review-native/orderReviewToolbarActions.test.ts"
+    },
+    {
+      "sha256": "7D684AB93F06F568E726C9EBDD15F5031CDE224D9C552E0428D767B44CBA6B42",
+      "bytes": 5271,
+      "path": "src/pages/orders/review-native/orderReviewToolbarActions.ts"
+    },
+    {
+      "sha256": "D1D3F45BE3EDEB29FB5C86213080D761F64F1CB74EC9B57B9BE1B3B25F326BAB",
+      "bytes": 1777,
+      "path": "src/pages/orders/review-native/types.ts"
+    },
+    {
+      "sha256": "E3F6A68EB1E5539B224B0CDF574F7914CA37B8738BD86CF82353BD743ECE7794",
+      "bytes": 2047,
+      "path": "src/pages/orders/shared/agGridFocusRefreshHelpers.test.ts"
+    },
+    {
+      "sha256": "B4041C2C535A491A1A95680A637211D3D92B126A3368D8B35C761996981436C4",
+      "bytes": 1603,
+      "path": "src/pages/orders/shared/agGridFocusRefreshHelpers.ts"
+    },
+    {
+      "sha256": "31480FD902E9FA46C314E5C59E18EB6A3A2FA4E140E1D83CD403B3C8B023E678",
+      "bytes": 3254,
+      "path": "src/pages/orders/shared/AgGridSelectionHeaderCheckbox.tsx"
+    },
+    {
+      "sha256": "032C4A18EA59B3CA93AF406F771978025437082B97A4242F0E5C0ABAF294A143",
+      "bytes": 4765,
+      "path": "src/pages/orders/shared/agGridSelectionHelpers.test.ts"
+    },
+    {
+      "sha256": "DCC0D89E85D1E32F48D3607885D3A23ECF7A69E4B52E5E69B5876DE219ED0C8A",
+      "bytes": 3543,
+      "path": "src/pages/orders/shared/agGridSelectionHelpers.ts"
+    },
+    {
+      "sha256": "31B095804DD743348EFBA4D810BB385C505F778051B5D388C58FAD98018FE9BA",
+      "bytes": 3825,
+      "path": "src/pages/orders/shared/agGridWorkbenchStructuralColumns.css"
+    },
+    {
+      "sha256": "203371E8EA752ED76D50D2D7245A83A00CC83C17E73EB4B62D76876540696040",
+      "bytes": 8319,
+      "path": "src/pages/orders/shared/agGridWorkbenchStructuralColumns.test.ts"
+    },
+    {
+      "sha256": "5103BBD91C8AB87F1C17EA37653D5D7B598F0170390450D1104121785C120E10",
+      "bytes": 6332,
+      "path": "src/pages/orders/shared/agGridWorkbenchStructuralColumns.tsx"
+    },
+    {
+      "sha256": "968A2A23E585096807F06534C5E4A0ADFEC26FF312DF35E160C3338F3520F775",
+      "bytes": 773,
+      "path": "src/pages/orders/shared/courierDisplay.test.ts"
+    },
+    {
+      "sha256": "690596D972B80046BD89C5A0B5A37664C3BCAC8FF0545AF8332374FFA8BF5F97",
+      "bytes": 1422,
+      "path": "src/pages/orders/shared/courierDisplay.ts"
+    },
+    {
+      "sha256": "393A64412441BE14CA3BC596903F3F9B31C82A0B93F84F79A5E9D0997C23DD8E",
+      "bytes": 901,
+      "path": "src/pages/orders/shared/fetchAllOrdersByScan.ts"
+    },
+    {
+      "sha256": "096EA0C9C0BA6C4B0426637936AEE08A55DCD5FCEFAEA0EDE93CE50AA81317B8",
+      "bytes": 1080,
+      "path": "src/pages/orders/shared/orderReviewActionGuards.test.ts"
+    },
+    {
+      "sha256": "50759A70A9D9F78E05B4F5DECE6043FB46971197EF88DC5D8C27A814E29C56BA",
+      "bytes": 998,
+      "path": "src/pages/orders/shared/orderReviewActionGuards.ts"
+    },
+    {
+      "sha256": "46832C716F64BCFD63891364B54908A9AE69EA0CDE7610C96FEA41CEB9D520B1",
+      "bytes": 9203,
+      "path": "src/pages/orders/shared/OrderReviewGridAdapters.tsx"
+    },
+    {
+      "sha256": "8897AF34841AC40FA6F7D9BCBF3E4B04FDA453BD96BDB78394B171FBD81E2BEE",
+      "bytes": 3637,
+      "path": "src/pages/orders/shared/orderWorkbenchDetailData.test.ts"
+    },
+    {
+      "sha256": "6054B2A80E9FE93A091AF5A7128EEF4E594F4F6791943B8AFDD6EA7D0AAFFFC5",
+      "bytes": 6135,
+      "path": "src/pages/orders/shared/orderWorkbenchDetailData.ts"
+    },
+    {
+      "sha256": "E2572BD4F08FD53E37835DE1AAB8C611899CC3A5546ED12AF8786D823FCD33E4",
+      "bytes": 3621,
+      "path": "src/pages/orders/shared/orderWorkbenchEditorAdapter.test.ts"
+    },
+    {
+      "sha256": "D019015E174A3DC2E7347E577F16B56AA7E8B7788AC2F9586EE4F9471FA54AB4",
+      "bytes": 3581,
+      "path": "src/pages/orders/shared/orderWorkbenchEditorAdapter.ts"
+    },
+    {
+      "sha256": "316D2F507A72AC6EA54DCB04404017B5F6DC55D5A0EE2A29EDB06539566457CF",
+      "bytes": 7246,
+      "path": "src/pages/orders/shared/orderWorkbenchEntryRegression.test.ts"
+    },
+    {
+      "sha256": "396FF2FFEB57260F5DC496031E8249C12F64363B9C9AA22555BB48F844673A44",
+      "bytes": 1292,
+      "path": "src/pages/orders/shared/orderWorkbenchGoodsRows.test.ts"
+    },
+    {
+      "sha256": "29EADE59056E3013F4E336F8AC6A281026B33FC833F091E7DF7B55859039607B",
+      "bytes": 2674,
+      "path": "src/pages/orders/shared/orderWorkbenchGoodsRows.ts"
+    },
+    {
+      "sha256": "B25D9935F8B28171EC1ACFA12B1691C2CE34E716FF59054F4D3954A97F471277",
+      "bytes": 105,
+      "path": "src/pages/orders/shared/orderWorkbenchGridMetrics.ts"
+    },
+    {
+      "sha256": "04D908BD61FD933F6CD64DBDF6B76291D5926B4F4CDAE0016510E385E050F192",
+      "bytes": 1529,
+      "path": "src/pages/orders/shared/OrderWorkbenchMainGridEntry.tsx"
+    },
+    {
+      "sha256": "06486C9B7C4C51DA43754036B6224D72C05BBE0C7D462C1EE60FBF9EA186C398",
+      "bytes": 758,
+      "path": "src/pages/orders/shared/selectionDiagnostics.ts"
+    },
+    {
+      "sha256": "620945925663F67B0188991B8B7A755FF0CE1DC487172B4BC340DBA263B85B62",
+      "bytes": 4144,
+      "path": "src/pages/orders/shared/useAgGridWorkbenchSelection.test.ts"
+    },
+    {
+      "sha256": "32F1FE00F9B0BF1277F2D33853C1125BB0B11F54D313FF517C2D3BDE8CA4AE7B",
+      "bytes": 21427,
+      "path": "src/pages/orders/shared/useAgGridWorkbenchSelection.ts"
+    },
+    {
+      "sha256": "34669D6CD37CD8D8473467F4930A551313197EF39B3B5CBBF72CF9C21FE1D71F",
+      "bytes": 1834,
+      "path": "src/pages/orders/shared/useLeftFilterModule.test.ts"
+    },
+    {
+      "sha256": "0BB1A31E8542E1DB70F588C4E08452CD1F4E334F6264C1636D54D2409748CEF8",
+      "bytes": 5732,
+      "path": "src/pages/orders/shared/useLeftFilterModule.tsx"
+    },
+    {
+      "sha256": "9EF91B7C2D0717EA86C297E580E0A053507C0055769A123CEF74C8B2072C320D",
+      "bytes": 2651,
+      "path": "src/pages/orders/shared/useLeftFilterModuleWidth.test.ts"
+    },
+    {
+      "sha256": "069EC1AF7FC4CB372777091DAD1D3DB40019926ECD9833372AC9626EB3B70A6D",
+      "bytes": 3544,
+      "path": "src/pages/orders/shared/workbenchUnifiedTemplateAdoption.test.ts"
+    },
+    {
+      "sha256": "7095818299E5CEA78A8D5AE35F9470DE6558E7BB0C135E1AC17D3EEA3DAA1E32",
+      "bytes": 2366,
+      "path": "src/pages/products/components/ProductApparelSpecComposer.tsx"
+    },
+    {
+      "sha256": "9BA1332143CB2EDBC9AC89EAC3626BFB0E063B9AE5D5B018B012264CBF420FDF",
+      "bytes": 4335,
+      "path": "src/pages/products/components/ProductIndustrySections.tsx"
+    },
+    {
+      "sha256": "D4B525771B23F8D1D736E5FF8A2167E39A97D5DDB2462ABDC3F1720975AFC394",
+      "bytes": 1504,
+      "path": "src/pages/products/components/ProductIndustrySummary.tsx"
+    }
+  ]
+}

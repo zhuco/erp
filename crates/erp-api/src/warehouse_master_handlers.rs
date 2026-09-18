@@ -2150,7 +2150,7 @@ pub(crate) async fn estimate_logistics_price(
                 Ok(Some(v)) => v,
                 Ok(None) => return not_found("order not found").into_response(),
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             };
             region_code = detail

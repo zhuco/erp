@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ERP Grid Lab</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#171c22}canvas{width:100%;height:100%;display:block}</style></head>
+<body><canvas id="erp-grid"></canvas><script type="module">import init from './pkg/erp_ui.js'; const params = new URL(location.href).searchParams; if(params.has('modules')) { document.body.setAttribute('data-ui-modules',''); document.title='易格 UI 模块示例'; } if(params.has('erp')) { document.body.setAttribute('data-erp-app',''); document.title='易格 ERP'; } if(params.has('grid-perf')) document.body.setAttribute('data-grid-perf',''); if(params.has('grid-pages')) document.body.setAttribute('data-grid-pages',''); if(params.has('grid-first-load')) document.body.setAttribute('data-grid-first-load',''); if(params.has('grid-updates')) document.body.setAttribute('data-grid-updates',''); init().catch(error => {document.body.textContent = `Grid failed to load: ${error}`;});</script></body>
+</html>
+
+

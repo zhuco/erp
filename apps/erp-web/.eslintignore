@@ -1,7 +1,0 @@
-dist
-coverage
-playwright-report
-test-results
-e2e
-playwright.config.ts
-src/api/generated

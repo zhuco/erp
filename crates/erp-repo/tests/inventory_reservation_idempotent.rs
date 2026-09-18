@@ -3,7 +3,7 @@ use erp_repo::inventory::{
     InventoryAdjustment, InventoryRepo, InventoryReservationAction, InventoryReservationInput,
 };
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

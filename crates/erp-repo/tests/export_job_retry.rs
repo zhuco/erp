@@ -1,7 +1,7 @@
 use anyhow::Result;
 use erp_repo::export_jobs::ExportJobsRepo;
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {
@@ -36,6 +36,11 @@ async fn setup_schema(pool: &PgPool) -> Result<()> {
     for stmt in statements {
         sqlx::query(stmt).execute(pool).await?;
     }
+    sqlx::raw_sql(include_str!(
+        "../../../migrations/0101_grid_product_selection_export_items.sql"
+    ))
+    .execute(pool)
+    .await?;
     Ok(())
 }
 

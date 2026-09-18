@@ -4,7 +4,7 @@ use axum::{
     response::Response,
 };
 use chrono::{Datelike, Utc};
-use erp_api::{build_app, AppState, Claims, JwtService};
+use erp_api::{AppState, Claims, JwtService, build_app};
 use erp_repo::db::Db;
 use http_body_util::BodyExt;
 use std::sync::Arc;
@@ -661,9 +661,11 @@ async fn user_data_scopes_roundtrip() -> anyhow::Result<()> {
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
-    assert!(shops
-        .iter()
-        .any(|v| v.as_str() == Some(&shop_id.to_string())));
+    assert!(
+        shops
+            .iter()
+            .any(|v| v.as_str() == Some(&shop_id.to_string()))
+    );
 
     let body = serde_json::json!({
         "shop_ids": [shop_id.to_string()],

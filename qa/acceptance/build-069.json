@@ -1,0 +1,10 @@
+{
+  "native_build_seconds": 40.66,
+  "native_exit_code": 0,
+  "native_sha256": "94F0DCE5346B12BCA6BA617873CC2434FD4A877AAE5D0D6EC72E7A811EAF1C00",
+  "wasm_sha256": "09E0A4B4648C539B70D2A3B2792881CEDBEC214922882E619423FD5489C978A7",
+  "download_csv_sha256": "D5C4F445417E06638E64064E413A0CB45A573BA7B39EFB95E578B62F8E46D949",
+  "download_exact_readback": true,
+  "evidence": "download-069-fixed.log",
+  "boundary": "Browser route fixture, Blob fallback; not native picker or actual export worker acceptance"
+}

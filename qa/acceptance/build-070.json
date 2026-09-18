@@ -1,0 +1,11 @@
+{
+  "rows": 100,
+  "price": "-1.25",
+  "status": "Hold",
+  "date": "2026-01-02 00:00:00",
+  "related_sku": "00000000-0000-0000-0000-0000000186ab",
+  "native_sha256": "61C1EF5AE60661215A185E73D52C228E94FCD8432AEF5A66D8EBBC0069E40FD4",
+  "wasm_sha256": "185E8806415E09ADC196454D80D778A4534533BEBED11E4EA53BA4521EA2CE0C",
+  "csv_sha256": "68DA138CB926C674F8BECAD14A53B0A3A0D21996EBB0A57FFF992B68D73550BC",
+  "boundary": "Actual Web Lab edits and CSV download; local object catalogue, no business API writes"
+}

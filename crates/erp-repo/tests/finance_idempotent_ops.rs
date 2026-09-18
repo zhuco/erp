@@ -2,7 +2,7 @@ use anyhow::Result;
 use erp_repo::finance_ap_plans::{ApPaymentPlanCreate, ApPaymentPlansRepo};
 use erp_repo::finance_ar::{ArDocCreate, ArDocsRepo};
 use erp_types::TenantId;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

@@ -64,7 +64,7 @@ pub struct OmsOrderSummary {
     pub tracking_no: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct OmsOrderListFilters {
     pub platform: Option<Platform>,
     pub platforms: Option<Vec<Platform>>,
@@ -90,6 +90,8 @@ pub struct OmsOrderListFilters {
     pub platform_order_id: Option<String>,
     pub item_keyword: Option<String>,
     pub total_amount_cent: Option<i64>,
+    pub total_amount_min_cent: Option<i64>,
+    pub total_amount_max_cent: Option<i64>,
     pub goods_qty: Option<i64>,
     pub customer_account: Option<String>,
     pub receiver_name: Option<String>,
@@ -224,7 +226,16 @@ pub struct OrderEditItemInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct OrderItemEditInput {
+    pub line_id: String,
+    pub qty: Option<i32>,
+    pub price_cent: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
 pub struct OrderEditInput {
+    /// Required when replacing `items` or applying `item_edits`; optional for scalar-only edits.
+    pub expected_version: Option<i32>,
     pub receiver_name: Option<String>,
     pub receiver_phone: Option<String>,
     pub receiver_tel: Option<String>,
@@ -255,6 +266,16 @@ pub struct OrderEditInput {
     pub exception_reason: Option<String>,
     pub extra_remark: Option<String>,
     pub items: Option<Vec<OrderEditItemInput>>,
+    pub item_edits: Option<Vec<OrderItemEditInput>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OrderEditOutcome {
+    Updated,
+    NotFound,
+    MissingExpectedVersion,
+    VersionConflict,
+    InvalidItemEdits,
 }
 
 #[derive(Debug, Clone)]

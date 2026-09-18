@@ -346,6 +346,10 @@ pub(super) async fn merge_orders(
             tenant_id,
             target_order_id,
             OrderEditInput {
+                expected_version: details
+                    .iter()
+                    .find(|detail| detail.order.id == target_order_id)
+                    .map(|detail| detail.order.version),
                 receiver_name: None,
                 receiver_phone: None,
                 receiver_tel: None,
@@ -376,12 +380,28 @@ pub(super) async fn merge_orders(
                 exception_reason: None,
                 extra_remark: None,
                 items: Some(merged_items),
+                item_edits: None,
             },
         )
         .await;
     match update_result {
-        Ok(Some(())) => {}
-        Ok(None) => return not_found("target order not found").into_response(),
+        Ok(erp_repo::orders::OrderEditOutcome::Updated) => {}
+        Ok(erp_repo::orders::OrderEditOutcome::NotFound) => {
+            return not_found("target order not found").into_response();
+        }
+        Ok(erp_repo::orders::OrderEditOutcome::MissingExpectedVersion) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "target order version missing",
+            )
+                .into_response();
+        }
+        Ok(erp_repo::orders::OrderEditOutcome::VersionConflict) => {
+            return conflict("target order version conflict").into_response();
+        }
+        Ok(erp_repo::orders::OrderEditOutcome::InvalidItemEdits) => {
+            return bad_request("invalid item edits").into_response();
+        }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     }
 
@@ -396,11 +416,7 @@ pub(super) async fn merge_orders(
             sum += v;
             has_value = true;
         }
-        if has_value {
-            Some(sum)
-        } else {
-            None
-        }
+        if has_value { Some(sum) } else { None }
     };
     let goods_amount_cent = sum_optional(
         details

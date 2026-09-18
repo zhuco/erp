@@ -3,7 +3,7 @@ use chrono::Utc;
 use erp_domain::{OrderItemProjection, OrderProjection};
 use erp_repo::orders::OrdersRepo;
 use erp_types::{AfterSaleState, OrderStatus, Platform, RefundState, ShopId, TenantId};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 async fn setup_schema(pool: &PgPool) -> Result<()> {

@@ -1,0 +1,7 @@
+{
+  "api_readback": "qa/grid-057-amount-readback.json",
+  "listener_pid": 28720,
+  "api_sha256": "34530B9844460EA01B7F1AE8DCBE3E784DEFDC8B06CCDD5DF8BCD981F9282026",
+  "ui_integrated": false,
+  "stage": "0.57 backend amount range"
+}

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
 use crate::operation_logs::{
-    OperationLogCreate, OperationLogsRepo, OP_ACTION_SYSTEM_FRONTEND_ROUTE_DIAGNOSTIC,
+    OP_ACTION_SYSTEM_FRONTEND_ROUTE_DIAGNOSTIC, OperationLogCreate, OperationLogsRepo,
 };
 
 pub const FRONTEND_ROUTE_DIAGNOSTIC_REF_TYPE: &str = "FRONTEND_ROUTE";

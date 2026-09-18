@@ -6,6 +6,7 @@ rust-version.workspace = true
 default-run = "erp-worker"
 
 [dependencies]
+erp-grid-core = { path = "../erp-grid-core" }
 anyhow.workspace = true
 async-nats.workspace = true
 axum.workspace = true
@@ -38,3 +39,4 @@ erp-types = { path = "../erp-types" }
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
+

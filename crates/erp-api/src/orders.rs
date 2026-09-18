@@ -480,9 +480,9 @@ pub fn router() -> Router<AppState> {
 mod tests {
     use super::*;
     use axum::{
+        Extension,
         body::Body,
         http::{Request, StatusCode},
-        Extension,
     };
     use tower::ServiceExt;
 

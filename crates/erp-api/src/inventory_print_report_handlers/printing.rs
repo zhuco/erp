@@ -711,7 +711,7 @@ pub(crate) async fn attach_waybill_to_payload(
                     Err(e) => {
                         return Err(
                             (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
-                        )
+                        );
                     }
                 };
                 (v, shipment)
@@ -725,7 +725,7 @@ pub(crate) async fn attach_waybill_to_payload(
             {
                 Ok(v) => v,
                 Err(e) => {
-                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
                 }
             };
             let shipment_id = shipment.as_ref().map(|s| s.shipment_id).unwrap_or_else(|| {
@@ -747,7 +747,7 @@ pub(crate) async fn attach_waybill_to_payload(
         {
             Ok(v) => v,
             Err(e) => {
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
             }
         }
     };
@@ -919,7 +919,7 @@ pub(crate) async fn create_print_job(
                 Ok(Some(_)) => Some(trimmed.to_string()),
                 Ok(None) => return bad_request("print device not found").into_response(),
                 Err(e) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response()
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
                 }
             }
         }

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use erp_types::TenantId;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use sqlx::PgPool;
 

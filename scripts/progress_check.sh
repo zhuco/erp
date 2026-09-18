@@ -5,37 +5,30 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPORT_DIR="${ROOT_DIR}/tmp/progress-reports"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 REPORT_FILE="${REPORT_DIR}/progress_check_${TIMESTAMP}.md"
-
-mkdir -p "${REPORT_DIR}"
-
 FAILED=0
 
-write_header() {
-  cat <<EOF >"${REPORT_FILE}"
+mkdir -p "${REPORT_DIR}"
+cat >"${REPORT_FILE}" <<EOF
 # Progress Check Report
 - Generated at: $(date -Iseconds)
-- Repo: ${ROOT_DIR}
+- Roadmap: docs/ROADMAP.md
+- UI: Rust egui native + WASM
+- Legacy Web source metrics: retired and excluded
 EOF
-}
 
 append_section() {
-  local title="$1"
-  echo "" >>"${REPORT_FILE}"
-  echo "## ${title}" >>"${REPORT_FILE}"
+  printf '\n## %s\n' "$1" >>"${REPORT_FILE}"
 }
 
 run_check() {
   local title="$1"
   local display_cmd="$2"
   shift 2
-
   append_section "${title}"
   echo "- Command: \`${display_cmd}\`" >>"${REPORT_FILE}"
-
   local output status
   output="$("$@" 2>&1)"
   status=$?
-
   if [[ ${status} -eq 0 ]]; then
     echo "- Status: PASS" >>"${REPORT_FILE}"
   else
@@ -46,142 +39,35 @@ run_check() {
     echo '```' >>"${REPORT_FILE}"
     FAILED=1
   fi
-
-  echo "-> ${title}: ${status}"
 }
 
-record_skip() {
-  local title="$1"
-  local reason="$2"
-  append_section "${title}"
-  echo "- Status: SKIPPED" >>"${REPORT_FILE}"
-  echo "- Reason: ${reason}" >>"${REPORT_FILE}"
+record_unknown() {
+  append_section "$1"
+  echo "- Status: UNKNOWN" >>"${REPORT_FILE}"
+  echo "- Reason: $2" >>"${REPORT_FILE}"
 }
 
-check_openapi() {
-  local file="${ROOT_DIR}/openapi/erp_api_v1.yaml"
-  if [[ ! -f "${file}" ]]; then
-    echo "OpenAPI file missing: ${file}"
-    return 1
-  fi
-
-  local -a paths=(
-    "/healthz:"
-    "/auth/login:"
-    "/reports/dashboard:"
-    "/v1/tenants/{tenant_id}/orders:"
-    "/v1/tenants/{tenant_id}/inventory:"
-  )
-
-  for path in "${paths[@]}"; do
-    if ! rg -F -q "${path}" "${file}"; then
-      echo "Missing OpenAPI path: ${path}"
-      return 1
-    fi
-  done
-}
-
-check_migrations() {
-  local -a tables=(
-    "tenants"
-    "shops"
-    "orders"
-    "order_items"
-    "outbox_events"
-    "inventory_balances"
-  )
-  local missing=()
-
-  for table in "${tables[@]}"; do
-    if ! rg -F -q "create table if not exists ${table}" "${ROOT_DIR}/migrations"; then
-      missing+=("${table}")
-    fi
-  done
-
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    echo "Missing tables in migrations: ${missing[*]}"
-    return 1
-  fi
-}
-
-check_rg_scan() {
-  local -a scans=(
-    "migrations:tenant_id"
-    "crates:tenant_id"
-    "openapi:x-permissions"
-  )
-
-  local scope pattern
-  for entry in "${scans[@]}"; do
-    scope="${entry%%:*}"
-    pattern="${entry#*:}"
-    if ! rg -F -q "${pattern}" "${ROOT_DIR}/${scope}"; then
-      echo "Missing pattern '${pattern}' in ${scope}"
-      return 1
-    fi
-  done
-}
-
-check_frontend() {
-  if [[ -x "${ROOT_DIR}/scripts/accept_web.sh" ]]; then
-    bash "${ROOT_DIR}/scripts/accept_web.sh"
-    return $?
-  fi
-
-  if rg -q "^accept-web" "${ROOT_DIR}/Makefile"; then
-    make -C "${ROOT_DIR}" accept-web
-    return $?
-  fi
-
-  if ! command -v pnpm >/dev/null 2>&1; then
-    echo "pnpm not found; install with: npm install -g pnpm"
-    return 1
-  fi
-
-  pnpm --filter erp-web build
-}
-
-check_smoke() {
-  local webhook_url="${PROGRESS_SMOKE_WEBHOOK_URL:-}"
-  if [[ -z "${webhook_url}" ]]; then
-    echo "PROGRESS_SMOKE_WEBHOOK_URL is required when PROGRESS_SMOKE=1"
-    return 1
-  fi
-
-  curl -fsS -XPOST "${webhook_url}" \
-    -H "Content-Type: application/json" \
-    -d '{"platform_order_id":"SMOKE_001","created_at":"2026-01-06T10:00:00Z","total_cent":1000}' \
-    >/dev/null
-}
-
-write_header
-
-run_check "Tooling: ripgrep" "rg --version" rg --version
-run_check "Backend: cargo fmt" "cargo fmt --all" cargo fmt --all
-run_check "Backend: cargo clippy" "cargo clippy --all-targets --all-features -- -D warnings" \
-  cargo clippy --all-targets --all-features -- -D warnings
-run_check "Backend: cargo test" "cargo test --all" cargo test --all
-run_check "Backend: cargo build" "cargo build --all" cargo build --all
-run_check "OpenAPI coverage" "rg -F -q <paths> openapi/erp_api_v1.yaml" check_openapi
-run_check "Migrations: key tables" "rg -F -q create table if not exists <table> migrations/" check_migrations
-run_check "RG scan: tenant/outbox/permissions" "rg -F -q <pattern> <scope>" check_rg_scan
-run_check "Frontend: acceptance" "scripts/accept_web.sh (or make accept-web)" check_frontend
-
-if [[ "${PROGRESS_SMOKE:-}" == "1" || "${PROGRESS_SMOKE:-}" == "true" ]]; then
-  run_check "Smoke test: webhook ingestion" "curl -XPOST ${PROGRESS_SMOKE_WEBHOOK_URL}" check_smoke
+if ! command -v pnpm >/dev/null 2>&1; then
+  record_unknown "Repository policy" "pnpm unavailable; gate not run"
+  record_unknown "Rust UI native checks" "pnpm unavailable; gates not run"
+  record_unknown "Rust UI WASM acceptance" "pnpm unavailable; gate not run"
+  record_unknown "Backend acceptance" "pnpm unavailable; gate not run"
+  FAILED=1
 else
-  record_skip "Smoke test: webhook ingestion" "Set PROGRESS_SMOKE=1 and PROGRESS_SMOKE_WEBHOOK_URL"
+  run_check "Repository policy" "pnpm run repo:verify" pnpm -C "${ROOT_DIR}" run repo:verify
+  run_check "Rust UI native typecheck" "pnpm run typecheck" pnpm -C "${ROOT_DIR}" run typecheck
+  run_check "Rust UI native Clippy" "pnpm run lint" pnpm -C "${ROOT_DIR}" run lint
+  run_check "Rust UI native tests" "pnpm run test:ui" pnpm -C "${ROOT_DIR}" run test:ui
+  run_check "Rust UI WASM acceptance" "pnpm run accept:web" pnpm -C "${ROOT_DIR}" run accept:web
+  run_check "Backend acceptance" "pnpm run accept:backend" pnpm -C "${ROOT_DIR}" run accept:backend
 fi
 
 append_section "Summary"
 if [[ ${FAILED} -eq 0 ]]; then
   echo "- Status: PASS" >>"${REPORT_FILE}"
 else
-  echo "- Status: FAIL" >>"${REPORT_FILE}"
+  echo "- Status: FAIL_OR_UNKNOWN" >>"${REPORT_FILE}"
 fi
 
 echo "Report written to ${REPORT_FILE}"
-
-if [[ ${FAILED} -ne 0 ]]; then
-  exit 1
-fi
+[[ ${FAILED} -eq 0 ]]

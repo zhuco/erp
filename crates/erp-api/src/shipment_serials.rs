@@ -32,7 +32,7 @@ pub(super) async fn bind_serials_for_shipment(
         {
             Ok(v) => v,
             Err(e) => {
-                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response())
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
             }
         };
 

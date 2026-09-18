@@ -1,5 +1,179 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "product_grid_tests.rs"]
+mod product_grid_tests;
+
+pub(crate) async fn find_product_cell(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(request): Json<erp_repo::product_grid_find::FindRequest>,
+) -> impl IntoResponse {
+    let tenant = match TenantId::from_str(&tenant_id) {
+        Ok(tenant) => tenant,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(response) = ensure_tenant_access(&ctx, tenant) {
+        return response.into_response();
+    }
+    if let Err(response) = ensure_permission(&ctx, "skus.read") {
+        return response.into_response();
+    }
+    if let Err(message) = erp_repo::product_grid_find::validate(&request) {
+        return bad_request(message).into_response();
+    }
+    match erp_repo::product_grid_find::find(state.db.pool(), tenant, &request).await {
+        Ok(hit) => (StatusCode::OK, Json(serde_json::json!({"hit": hit}))).into_response(),
+        Err(error) => {
+            tracing::error!(%error, "product grid find failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Product find failed").into_response()
+        }
+    }
+}
+
+pub(crate) async fn product_action(
+    State(state): State<AppState>,
+    Path(tenant): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(command): Json<erp_grid_core::actions::ActionCommand>,
+) -> impl IntoResponse {
+    let tenant = match TenantId::from_str(&tenant) {
+        Ok(tenant) => tenant,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(response) = ensure_tenant_access(&ctx, tenant) {
+        return response.into_response();
+    }
+    for permission in ["skus.read", "skus.write"] {
+        if let Err(response) = ensure_permission(&ctx, permission) {
+            return response.into_response();
+        }
+    }
+    if let Err(error) = erp_repo::product_actions::validate(&command) {
+        return product_action_error(error);
+    }
+    match state
+        .products_repo
+        .execute_action(tenant, ctx.user_id, &command)
+        .await
+    {
+        Ok(receipt) => (StatusCode::OK, Json(receipt)).into_response(),
+        Err(error) => product_action_error(error),
+    }
+}
+
+pub(crate) async fn product_action_receipt(
+    State(state): State<AppState>,
+    Path((tenant, operation)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant = match TenantId::from_str(&tenant) {
+        Ok(tenant) => tenant,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    let operation = match erp_grid_core::RowId::from_uuid(&operation) {
+        Some(id) => id,
+        None => return bad_request("bad operation_id").into_response(),
+    };
+    if let Err(response) = ensure_tenant_access(&ctx, tenant) {
+        return response.into_response();
+    }
+    if let Err(response) = ensure_permission(&ctx, "skus.read") {
+        return response.into_response();
+    }
+    match state
+        .products_repo
+        .action_receipt(tenant, ctx.user_id, operation)
+        .await
+    {
+        Ok(Some(receipt)) => (StatusCode::OK, Json(receipt)).into_response(),
+        Ok(None) => {
+            not_found("Operation receipt not found; any resend must use the original identity")
+                .into_response()
+        }
+        Err(error) => product_action_error(error),
+    }
+}
+
+fn product_action_error(error: erp_repo::product_actions::ActionError) -> axum::response::Response {
+    use erp_repo::product_actions::ActionError;
+    match error {
+        ActionError::Invalid(message) => bad_request(message).into_response(),
+        ActionError::IdentityConflict => {
+            (StatusCode::CONFLICT, "Operation identity conflict").into_response()
+        }
+        error => {
+            tracing::error!(%error, "product action storage failed; caller must check receipt");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Operation result unknown; check the original operation receipt",
+            )
+                .into_response()
+        }
+    }
+}
+
+pub(crate) async fn query_products(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(query): Json<erp_grid_core::paged_query::PageQuery>,
+) -> impl IntoResponse {
+    let tenant = match TenantId::from_str(&tenant_id) {
+        Ok(tenant) => tenant,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(response) = ensure_tenant_access(&ctx, tenant) {
+        return response.into_response();
+    }
+    if let Err(response) = ensure_permission(&ctx, "skus.read") {
+        return response.into_response();
+    }
+    if let Err(message) = erp_repo::product_grid::validate(&query) {
+        return bad_request(message).into_response();
+    }
+    match state.products_repo.query_products(tenant, &query).await {
+        Ok(page) => (StatusCode::OK, Json(page)).into_response(),
+        Err(error) => {
+            tracing::error!(%error, "product grid query failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Product query failed").into_response()
+        }
+    }
+}
+
+pub(crate) async fn product_options(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(query): Json<erp_repo::product_grid_options::OptionQuery>,
+) -> impl IntoResponse {
+    let tenant = match TenantId::from_str(&tenant_id) {
+        Ok(tenant) => tenant,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(response) = ensure_tenant_access(&ctx, tenant) {
+        return response.into_response();
+    }
+    if let Err(response) = ensure_permission(&ctx, "skus.read") {
+        return response.into_response();
+    }
+    if let Err(error) = erp_repo::product_grid_options::validate(&query) {
+        return bad_request(&error.to_string()).into_response();
+    }
+    match state.products_repo.product_options(tenant, &query).await {
+        Ok(page) => (StatusCode::OK, Json(page)).into_response(),
+        Err(error) => {
+            tracing::error!(%error, "product options query failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Product options query failed",
+            )
+                .into_response()
+        }
+    }
+}
+
 pub(crate) async fn list_products(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,

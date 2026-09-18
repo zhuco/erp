@@ -237,11 +237,12 @@ async fn pull_refunds_should_use_refund_api_and_write_meta() {
         .unwrap_or_default();
     assert_eq!(urls.len(), 1);
     assert_eq!(urls[0].as_str(), Some("https://example.com/p1.jpg"));
-    assert!(meta
-        .get("updated_at")
-        .and_then(|v| v.as_str())
-        .map(|v| v.contains('T'))
-        .unwrap_or(false));
+    assert!(
+        meta.get("updated_at")
+            .and_then(|v| v.as_str())
+            .map(|v| v.contains('T'))
+            .unwrap_or(false)
+    );
 }
 
 #[tokio::test]

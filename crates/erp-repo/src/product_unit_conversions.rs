@@ -568,32 +568,38 @@ mod tests {
 
     #[test]
     fn validates_conversion_state() {
-        assert!(normalize_conversion_state(
-            "BOX".to_string(),
-            "PCS".to_string(),
-            12,
-            "round".to_string(),
-            "SALES".to_string(),
-            "active".to_string(),
-        )
-        .is_ok());
-        assert!(normalize_conversion_state(
-            "PCS".to_string(),
-            "PCS".to_string(),
-            1,
-            "ROUND".to_string(),
-            "SALES".to_string(),
-            "ACTIVE".to_string(),
-        )
-        .is_err());
-        assert!(normalize_conversion_state(
-            "BOX".to_string(),
-            "PCS".to_string(),
-            0,
-            "ROUND".to_string(),
-            "SALES".to_string(),
-            "ACTIVE".to_string(),
-        )
-        .is_err());
+        assert!(
+            normalize_conversion_state(
+                "BOX".to_string(),
+                "PCS".to_string(),
+                12,
+                "round".to_string(),
+                "SALES".to_string(),
+                "active".to_string(),
+            )
+            .is_ok()
+        );
+        assert!(
+            normalize_conversion_state(
+                "PCS".to_string(),
+                "PCS".to_string(),
+                1,
+                "ROUND".to_string(),
+                "SALES".to_string(),
+                "ACTIVE".to_string(),
+            )
+            .is_err()
+        );
+        assert!(
+            normalize_conversion_state(
+                "BOX".to_string(),
+                "PCS".to_string(),
+                0,
+                "ROUND".to_string(),
+                "SALES".to_string(),
+                "ACTIVE".to_string(),
+            )
+            .is_err()
+        );
     }
 }

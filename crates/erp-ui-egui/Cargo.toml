@@ -1,0 +1,12 @@
+[package]
+name = "erp-ui-egui"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+accesskit = "=0.24.1"
+erp-grid-core = { path = "../erp-grid-core" }
+egui = "=0.36.1"

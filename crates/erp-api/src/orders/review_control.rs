@@ -232,6 +232,8 @@ pub(super) async fn list_recheck_queue(
         platform_order_id: None,
         item_keyword,
         total_amount_cent: None,
+        total_amount_min_cent: None,
+        total_amount_max_cent: None,
         goods_qty: None,
         customer_account: None,
         receiver_name: None,
