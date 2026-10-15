@@ -1,4 +1,8 @@
 use super::*;
+mod quantity;
+mod revision_lines;
+mod documents;
+use quantity::SalesQuantity;
 use erp_repo::sales_orders::{
     SalesOrder, SalesOrderCreate, SalesOrderDetail, SalesOrderItem, SalesOrderItemInput,
     SalesOrderListFilters, SalesOrderStatusUpdate, SalesOrderUpdate, SalesOrdersRepo,
@@ -6,6 +10,10 @@ use erp_repo::sales_orders::{
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/v1/tenants/:tenant_id/trade-sales-order-lookup",get(documents::lookup))
+        .route("/v1/tenants/:tenant_id/trade-sales-order-commands/:request_id",get(documents::command))
+        .route("/v1/tenants/:tenant_id/trade-sales-orders",get(documents::list).post(documents::save))
+        .route("/v1/tenants/:tenant_id/trade-sales-orders/:so_id",get(documents::read))
         .route(
             "/v1/tenants/:tenant_id/sales-orders",
             get(list_sales_orders).post(create_sales_order),
@@ -17,6 +25,26 @@ pub fn router() -> Router<AppState> {
         .route(
             "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/status",
             patch(update_sales_order_status),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/confirm",
+            post(confirm_scaled_trade_sale_route),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/deliveries",
+            post(create_sales_delivery),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/returns",
+            post(create_sales_return),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/returns/:return_id",
+            get(read_sales_return),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/sales-orders/:sales_order_id/actions",
+            get(list_sales_actions).post(create_sales_action),
         )
 }
 
@@ -46,7 +74,12 @@ struct SalesOrderItemRequest {
     sku_id: Option<String>,
     sku_code: Option<String>,
     sku_name: Option<String>,
-    qty: i32,
+    qty: SalesQuantity,
+    line_no: Option<i32>,
+    tax_cent: Option<i64>,
+    due_date: Option<String>,
+    address: Option<String>,
+    source_kind: Option<String>,
     price_cent: i64,
     tax_rate: Option<f64>,
     discount_cent: Option<i64>,
@@ -97,6 +130,29 @@ struct SalesOrderCreateRequest {
     freeze_reason: Option<String>,
     exception_flags: Option<Vec<String>>,
     items: Vec<SalesOrderItemRequest>,
+    /// Shared command identity. Present only for the decimal trade sale path.
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    confirm_balance: Option<bool>,
+    #[serde(default)]
+    partner_code: Option<String>,
+    #[serde(default)]
+    revision_action: Option<String>,
+    #[serde(default)]
+    so_id: Option<String>,
+    #[serde(default)]
+    expected_version: Option<i32>,
+    #[serde(default)]
+    customer_code: Option<String>,
+    #[serde(default)]
+    due_date: Option<String>,
+    #[serde(default)]
+    address: Option<String>,
+    #[serde(default)]
+    source_kind: Option<String>,
+    #[serde(default)]
+    tax_cent: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -403,12 +459,634 @@ async fn get_sales_order(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+#[derive(Debug, Deserialize)]
+struct SalesDeliveryRequest {
+    request_id: String,
+    line_no: i32,
+    expected_version: i32,
+    qty_micros: i64,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    delivery_id: Option<String>,
+    #[serde(default)]
+    carrier_ref: Option<String>,
+    #[serde(default)]
+    warehouse_id: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    sku_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    delivery_request: Option<String>,
+    #[serde(default)]
+    cancel_qty_micros: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SalesReturnRequest {
+    request_id: String,
+    delivery_id: String,
+    good_micros: i64,
+    rejected_micros: i64,
+    unit_cost_cent: i64,
+    warehouse_id: String,
+    location_id: String,
+    sku_id: String,
+    batch_code: String,
+    customer_code: String,
+    #[serde(default)]
+    cash_offset_cent: Option<i64>,
+    #[serde(default)]
+    balance_id: Option<String>,
+    #[serde(default)]
+    currency: Option<String>,
+    #[serde(default)]
+    account_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SalesActionRequest {
+    request_id: String,
+    action: String,
+    actor_user_id: String,
+    #[serde(default)]
+    has_downstream: bool,
+    #[serde(default)]
+    expected_version: Option<i32>,
+}
+
+async fn create_sales_action(
+    State(state): State<AppState>,
+    Path((tenant_id, sales_order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<SalesActionRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let document_id = match uuid::Uuid::parse_str(&sales_order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("sales_order_id 无效").into_response(),
+    };
+    let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .record_document_action(
+            tenant_id,
+            &req.request_id,
+            &req.request_id,
+            "SALES",
+            document_id,
+            &req.action,
+            &req.actor_user_id,
+            req.has_downstream,
+            req.expected_version,
+        )
+        .await;
+    let (write, action_id, status) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "action_id": action_id,
+            "status": status,
+            "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+        })),
+    )
+        .into_response()
+}
+
+async fn list_sales_actions(
+    State(state): State<AppState>,
+    Path((tenant_id, sales_order_id)): Path<(String, String)>,
+    Query(query): Query<SalesOrderListQuery>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let document_id = match uuid::Uuid::parse_str(&sales_order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("sales_order_id 无效").into_response(),
+    };
+    let page = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .read_document_actions(tenant_id, "SALES", document_id, query.offset.unwrap_or(0), query.limit.unwrap_or(20))
+        .await;
+    let (total, rows) = match page {
+        Ok(value) => value,
+        Err(error) => return (StatusCode::BAD_REQUEST, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "total": total,
+            "items": rows.into_iter().map(|(id, action, status, version, reverses)| serde_json::json!({
+                "action_id": id,
+                "action": action,
+                "status": status,
+                "version_no": version,
+                "reverses_action_id": reverses,
+            })).collect::<Vec<_>>(),
+        })),
+    )
+        .into_response()
+}
+
+async fn read_sales_return(
+    State(state): State<AppState>,
+    Path((tenant_id, _sales_order_id, return_id)): Path<(String, String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let return_id = match uuid::Uuid::parse_str(&return_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad return_id").into_response(),
+    };
+    match erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .read_sales_return(tenant_id, return_id)
+        .await
+    {
+        Ok(Some((delivery_id, good, rejected, cost, credit, posted))) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "return_id": return_id,
+                "delivery_id": delivery_id,
+                "good_micros": good,
+                "rejected_micros": rejected,
+                "cost_cent": cost,
+                "credit_cent": credit,
+                "posted_cent": posted,
+            })),
+        )
+            .into_response(),
+        Ok(None) => not_found("退货不存在").into_response(),
+        Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    }
+}
+
+async fn create_sales_return(
+    State(state): State<AppState>,
+    Path((tenant_id, _sales_order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<SalesReturnRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let delivery_id = match uuid::Uuid::parse_str(&req.delivery_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad delivery_id").into_response(),
+    };
+    let warehouse_id = match uuid::Uuid::parse_str(&req.warehouse_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad warehouse_id").into_response(),
+    };
+    let location_id = match uuid::Uuid::parse_str(&req.location_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad location_id").into_response(),
+    };
+    let sku_id = match uuid::Uuid::parse_str(&req.sku_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad sku_id").into_response(),
+    };
+    if let Some(offset) = req.cash_offset_cent.filter(|value| *value > 0) {
+        let balance_id = match req.balance_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) {
+            Some(value) => value,
+            None => return bad_request("bad balance_id").into_response(),
+        };
+        let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+            .save_return_cash_offset(erp_repo::shared_contract::ReturnCashOffsetInput { tenant_id, request_id: &req.request_id, payload_hash: &req.request_id, balance_id, partner_code: &req.customer_code, currency: req.currency.as_deref().unwrap_or(""), account_code: req.account_code.as_deref().unwrap_or(""), return_cent: offset })
+            .await;
+        let (write, left) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "open_cent": left,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .return_sales_delivery(
+            tenant_id,
+            &req.request_id,
+            &req.request_id,
+            delivery_id,
+            req.good_micros,
+            req.rejected_micros,
+            req.unit_cost_cent,
+            warehouse_id,
+            location_id,
+            sku_id,
+            &req.batch_code,
+            &req.customer_code,
+        )
+        .await;
+    let (write, return_id, credit) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "return_id": return_id,
+            "credit_cent": credit,
+            "shop_required": false,
+            "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+        })),
+    )
+        .into_response()
+}
+
+async fn create_sales_delivery(
+    State(state): State<AppState>,
+    Path((tenant_id, sales_order_id)): Path<(String, String)>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<SalesDeliveryRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let so_id = match uuid::Uuid::parse_str(&sales_order_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("sales_order_id 无效").into_response(),
+    };
+    let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+    if let Some(cancel_qty) = req.cancel_qty_micros.filter(|qty| *qty > 0) {
+        let saved = repo
+            .cancel_sales_remainder(
+                tenant_id,
+                &req.request_id,
+                &req.request_id,
+                so_id,
+                req.line_no,
+                cancel_qty,
+            )
+            .await;
+        let (write, left) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "remaining_micros": left,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    if let Some(delivery_request) = req.delivery_request.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        let saved = repo
+            .lookup_sales_delivery(
+                tenant_id,
+                &req.request_id,
+                &req.request_id,
+                delivery_request,
+            )
+            .await;
+        let (write, delivery_id, stage, qty) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "delivery_id": delivery_id,
+                "stage": stage,
+                "qty_micros": qty,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    if let Some(action) = req.action.as_deref() {
+        let delivery_id = match req.delivery_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) {
+            Some(value) => value,
+            None => return bad_request("bad delivery_id").into_response(),
+        };
+        let warehouse_id = match req.warehouse_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) {
+            Some(value) => value,
+            None => return bad_request("bad warehouse_id").into_response(),
+        };
+        let location_id = match req.location_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) {
+            Some(value) => value,
+            None => return bad_request("bad location_id").into_response(),
+        };
+        let sku_id = match req.sku_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) {
+            Some(value) => value,
+            None => return bad_request("bad sku_id").into_response(),
+        };
+        let saved = repo
+            .advance_sales_delivery(erp_repo::shared_contract::SalesDeliveryAdvanceInput { tenant_id, request_id: &req.request_id, payload_hash: &req.request_id, delivery_id, action, carrier_ref: req.carrier_ref.as_deref().unwrap_or(""), warehouse_id, location_id, sku_id, batch_code: req.batch_code.as_deref().unwrap_or("") })
+            .await;
+        let (write, stage) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "delivery_id": delivery_id,
+                "stage": stage,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    let saved = repo
+        .plan_sales_delivery(erp_repo::shared_contract::SalesDeliveryPlanInput { tenant_id, request_id: &req.request_id, payload_hash: &req.request_id, so_id, line_no: req.line_no, expected_version: req.expected_version, qty_micros: req.qty_micros })
+        .await;
+    let (write, delivery_id) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "delivery_id": delivery_id,
+            "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+        })),
+    )
+        .into_response()
+}
+
+async fn confirm_sales_balance(
+    state: &AppState,
+    tenant_id: String,
+    ctx: &AuthContext,
+    req: &SalesOrderCreateRequest,
+    request_id: &str,
+) -> Response {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let Some(document_id) = req.so_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) else {
+        return bad_request("bad so_id").into_response();
+    };
+    let partner_code = req.partner_code.as_deref().unwrap_or("").trim();
+    let currency = req.currency_code.as_deref().unwrap_or("").trim();
+    let due_date = req.due_date.as_deref().unwrap_or("").trim();
+    match erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .confirm_document_balance(erp_repo::shared_contract::DocumentBalanceInput { tenant_id, request_id, payload_hash: request_id, document_id, document_kind: "SALES", partner_code, currency, due_date })
+        .await
+    {
+        Ok(Ok((write, balance_id, amount))) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "balance_id": balance_id,
+                "amount_cent": amount,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response(),
+        Ok(Err(_)) => conflict("payload conflict").into_response(),
+        Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    }
+}
+
+async fn save_sales_revision_request(
+    state: &AppState,
+    tenant_id: String,
+    ctx: &AuthContext,
+    req: &SalesOrderCreateRequest,
+    request_id: &str,
+) -> Response {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(response) = ensure_permission(ctx, "orders.write") { return response.into_response(); }
+    let (lines, so_id, fingerprint) = match revision_lines::prepare(req) {
+        Ok(prepared) => prepared,
+        Err(error) => return bad_request(error).into_response(),
+    };
+    let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .save_sales_revision(erp_repo::shared_contract::TradeSalesRevisionInput { tenant_id, request_id, payload_hash: &fingerprint, so_id, customer_code: req.customer_code.as_deref().unwrap_or("").trim(), expected_version: req.expected_version, action: req.revision_action.as_deref().unwrap_or("SUBMIT").trim(), lines: &lines })
+        .await;
+    let (write, revision_id, version) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "revision_id": revision_id,
+            "version_no": version,
+            "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            "shop_required": false,
+            "bom_required": false,
+        })),
+    )
+        .into_response()
+}
+
+async fn save_scaled_trade_sale(
+    state: &AppState,
+    tenant_id: String,
+    ctx: &AuthContext,
+    req: &SalesOrderCreateRequest,
+    request_id: &str,
+) -> Response {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(ctx, "orders.write") {
+        return resp.into_response();
+    }
+    if req.items.len() != 1 {
+        return bad_request("shared trade sale accepts one line").into_response();
+    }
+    let item = &req.items[0];
+    let customer_id = match parse_optional_uuid(req.customer_id.clone(), "customer_id") {
+        Ok(Some(value)) => value,
+        _ => return bad_request("customer_id 无效").into_response(),
+    };
+    let sku_id = match item.sku_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value.trim()).ok()) {
+        Some(value) => value,
+        None => return bad_request("sku_id 无效").into_response(),
+    };
+    let warehouse_id = match item.warehouse_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value.trim()).ok()) {
+        Some(value) => value,
+        None => return bad_request("warehouse_id 无效").into_response(),
+    };
+    let qty_text = item.qty.units();
+    let qty_micros = match erp_domain::trade::document_qty_micros(&qty_text) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad trade quantity").into_response(),
+    };
+    let payload = format!("{customer_id}:{sku_id}:{warehouse_id}:{qty_text}:{}", item.price_cent);
+    let saved = match erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .save_scaled_trade_sale(erp_repo::shared_contract::ScaledTradeSaleInput { tenant_id, request_id, payload_hash: &payload, customer_id, sku_id, warehouse_id, qty_text: &qty_text, unit_price_cent: item.price_cent, currency: req.currency_code.as_deref().unwrap_or("CNY"), partner_code: req.partner_code.as_deref().unwrap_or("") })
+        .await
+    {
+        Ok(Ok(saved)) => saved,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    };
+    let (write, stored_micros, total, replay) = match saved {
+        (erp_repo::shared_contract::SharedWrite::Stored(receipt), micros, total) => (receipt, micros, total, false),
+        (erp_repo::shared_contract::SharedWrite::Replay(receipt), micros, total) => (receipt, micros, total, true),
+    };
+    if stored_micros != qty_micros {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "stored quantity disagrees").into_response();
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "request_id": write.request_id,
+            "status": write.status.as_str(),
+            "replay": replay,
+            "sales_order_id": write.effect_id,
+            "qty_micros": stored_micros,
+            "price_cent": item.price_cent,
+            "total_cent": total,
+            "bom_required": false,
+        })),
+    )
+        .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfirmScaledSaleRequest {
+    request_id: String,
+    document_date: String,
+}
+
+async fn confirm_scaled_trade_sale_route(
+    State(state): State<AppState>,
+    Path((tenant_id, sales_order_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<ConfirmScaledSaleRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(tenant_id.trim()) {
+        Ok(id) => id,
+        Err(_) => return bad_request("tenant_id 无效").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "orders.write") {
+        return resp.into_response();
+    }
+    let sales_order_id = match uuid::Uuid::parse_str(sales_order_id.trim()) {
+        Ok(id) => id,
+        Err(_) => return bad_request("bad sales_order_id").into_response(),
+    };
+    let request_id = match shared_request_id(&headers, Some(&req.request_id)) {
+        Ok(Some(id)) => id,
+        Ok(None) => return bad_request("request_id required").into_response(),
+        Err(resp) => return resp,
+    };
+    if req.document_date.trim().len() != 10 {
+        return bad_request("bad document_date").into_response();
+    }
+    let payload = format!("1:{sales_order_id}:{}", req.document_date.trim());
+    match erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+        .confirm_scaled_trade_sale(
+            tenant_id,
+            &request_id,
+            &payload,
+            sales_order_id,
+            req.document_date.trim(),
+        )
+        .await
+    {
+        Ok(Ok(write)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "request_id": request_id,
+                "status": "SUCCEEDED",
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                "effect_id": sales_order_id,
+            })),
+        )
+            .into_response(),
+        Ok(Err(_)) => conflict("payload conflict").into_response(),
+        Err(error) => (StatusCode::UNPROCESSABLE_ENTITY, format!("{error}")).into_response(),
+    }
+}
+
 async fn create_sales_order(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<SalesOrderCreateRequest>,
 ) -> impl IntoResponse {
+    let header_key = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_key = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_key, body_key) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        if req.confirm_balance.unwrap_or(false) {
+            return confirm_sales_balance(&state, tenant_id, &ctx, &req, &request_id).await;
+        }
+        if req.revision_action.is_some() {
+            return save_sales_revision_request(&state, tenant_id, &ctx, &req, &request_id).await;
+        }
+        return save_scaled_trade_sale(&state, tenant_id, &ctx, &req, &request_id).await;
+    }
     let tenant_id = match TenantId::from_str(&tenant_id) {
         Ok(v) => v,
         Err(_) => return bad_request("tenant_id 无效").into_response(),
@@ -739,7 +1417,8 @@ fn parse_sales_order_items(
 ) -> Result<Vec<SalesOrderItemInput>, ValidationError> {
     let mut parsed = Vec::with_capacity(items.len());
     for item in items {
-        if item.qty <= 0 {
+        let qty = item.qty.legacy_integer().map_err(ValidationError::new)?;
+        if qty <= 0 {
             return Err(ValidationError::new("明细数量必须大于 0"));
         }
         let line_id = parse_optional_uuid(item.line_id, "line_id")?;
@@ -748,17 +1427,17 @@ fn parse_sales_order_items(
         let delivery_deadline =
             parse_optional_datetime(item.delivery_deadline, "delivery_deadline")?;
         let discount_cent = item.discount_cent.unwrap_or(0);
-        let amount_cent = item.amount_cent.unwrap_or_else(|| {
-            item.price_cent
-                .saturating_mul(item.qty.max(0) as i64)
-                .saturating_sub(discount_cent)
-        });
+        let amount_cent = match item.amount_cent {
+            Some(amount) => amount,
+            None => item.price_cent.checked_mul(i64::from(qty)).and_then(|amount| amount.checked_sub(discount_cent))
+                .ok_or_else(|| ValidationError::new("sales amount overflow"))?,
+        };
         parsed.push(SalesOrderItemInput {
             line_id,
             sku_id,
             sku_code: item.sku_code.and_then(non_empty),
             sku_name: item.sku_name.and_then(non_empty),
-            qty: item.qty,
+            qty,
             price_cent: item.price_cent,
             tax_rate: item.tax_rate,
             discount_cent,

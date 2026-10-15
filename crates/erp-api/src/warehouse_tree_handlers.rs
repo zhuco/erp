@@ -91,6 +91,7 @@ mod tests {
                 warehouse_ids: vec![allowed],
                 merchant_ids: vec![],
                 organization_ids: vec![],
+            session_id: None,
             };
             let request = serde_json::from_value(serde_json::json!({
                 "schema":schema,"parent":parent,"after":null,"limit":100,"search":null

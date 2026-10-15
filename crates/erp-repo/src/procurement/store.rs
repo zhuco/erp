@@ -439,10 +439,10 @@ impl<'a> PurchaseOrdersStore<'a> {
         if approval_required && order_row.status == PURCHASE_ORDER_STATUS_SENT {
             return Err(anyhow!("purchase order not confirmed"));
         }
-        if let Some(warehouse_id) = order_row.warehouse_id {
-            if warehouse_id != input.warehouse_id {
-                return Err(anyhow!("warehouse mismatch"));
-            }
+        if let Some(warehouse_id) = order_row.warehouse_id
+            && warehouse_id != input.warehouse_id
+        {
+            return Err(anyhow!("warehouse mismatch"));
         }
 
         let receipt_id = uuid::Uuid::new_v4();
@@ -2166,10 +2166,10 @@ fn extract_numeric_setting(value: Option<serde_json::Value>) -> Option<i64> {
     if let Some(num) = value.as_i64() {
         return Some(num);
     }
-    if let Some(obj) = value.as_object() {
-        if let Some(v) = obj.get("value").and_then(|v| v.as_i64()) {
-            return Some(v);
-        }
+    if let Some(obj) = value.as_object()
+        && let Some(v) = obj.get("value").and_then(|v| v.as_i64())
+    {
+        return Some(v);
     }
     None
 }
@@ -2190,10 +2190,10 @@ fn extract_bool_setting(value: Option<serde_json::Value>) -> Option<bool> {
             _ => None,
         };
     }
-    if let Some(obj) = value.as_object() {
-        if let Some(v) = obj.get("value") {
-            return extract_bool_setting(Some(v.clone()));
-        }
+    if let Some(obj) = value.as_object()
+        && let Some(v) = obj.get("value")
+    {
+        return extract_bool_setting(Some(v.clone()));
     }
     None
 }

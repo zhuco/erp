@@ -10,6 +10,49 @@ pub struct Claims {
     pub is_admin: bool,
     pub iat: usize,
     pub exp: usize,
+    /// Login session. Absent only on tokens issued before sessions existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sid: Option<String>,
+    /// Credential epoch captured when the session was opened.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cep: Option<i32>,
+}
+
+impl Claims {
+    pub fn bearer(
+        sub: impl Into<String>,
+        tenant_id: impl Into<String>,
+        perms: Vec<String>,
+        is_admin: bool,
+        iat: usize,
+        exp: usize,
+    ) -> Self {
+        Self {
+            sub: sub.into(),
+            tenant_id: tenant_id.into(),
+            perms,
+            is_admin,
+            iat,
+            exp,
+            sid: None,
+            cep: None,
+        }
+    }
+}
+
+impl Default for Claims {
+    fn default() -> Self {
+        Self {
+            sub: String::new(),
+            tenant_id: String::new(),
+            perms: Vec::new(),
+            is_admin: false,
+            iat: 0,
+            exp: 0,
+            sid: None,
+            cep: None,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -29,9 +72,18 @@ impl JwtService {
     }
 
     pub fn decode(&self, token: &str) -> anyhow::Result<Claims> {
+        self.decode_with(token, true)
+    }
+
+    /// Signature still binds the caller. Expiry is ignored only for session renewal.
+    pub fn decode_ignoring_exp(&self, token: &str) -> anyhow::Result<Claims> {
+        self.decode_with(token, false)
+    }
+
+    fn decode_with(&self, token: &str, validate_exp: bool) -> anyhow::Result<Claims> {
         let key = jsonwebtoken::DecodingKey::from_secret(self.secret.as_bytes());
         let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256);
-        validation.validate_exp = true;
+        validation.validate_exp = validate_exp;
         let data = jsonwebtoken::decode::<Claims>(token, &key, &validation)?;
         Ok(data.claims)
     }

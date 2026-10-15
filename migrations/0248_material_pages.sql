@@ -1,0 +1,2 @@
+-- Issue lines keep a display order separate from the line number. A substitute cites the planned component.
+-- This file is not applied here.

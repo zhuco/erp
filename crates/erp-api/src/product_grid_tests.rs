@@ -87,6 +87,7 @@ async fn product_options_handler_authorizes_and_validates_before_query() {
             warehouse_ids: vec![],
             merchant_ids: vec![],
             organization_ids: vec![],
+        session_id: None,
         };
         let router = Router::new()
             .route(
@@ -467,6 +468,7 @@ async fn product_selection_handlers_forward_identity_and_reject_denied_context()
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let app = Router::new()
         .route(
@@ -577,6 +579,7 @@ async fn product_selection_unavailable_maps_to_gone() {
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let app = Router::new()
         .route(
@@ -621,6 +624,7 @@ async fn copy_batch_routes_validate_before_repo_and_keep_post_write_guard() {
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let app = Router::new()
         .route(
@@ -725,6 +729,7 @@ async fn copy_batch_valid_routes_forward_identity_and_keep_reads_non_mutating() 
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let routes = || {
         Router::new()
@@ -894,6 +899,7 @@ async fn copy_batch_retry_review_forwards_identity_and_guards_request_shape() {
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let app = Router::new()
         .route(
@@ -981,6 +987,7 @@ async fn copy_batch_results_get_forwards_read_only_page_arguments_once() {
             warehouse_ids: vec![],
             merchant_ids: vec![],
             organization_ids: vec![],
+        session_id: None,
         }))
         .with_state(state(repo.clone()));
     let response = app
@@ -1019,6 +1026,7 @@ async fn product_grid_handler_checks_tenant_permissions_and_wire_before_repo() {
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     for (path_tenant, perms, body, expected) in [
         (tenant, auth.perms.clone(), query_body(), StatusCode::OK),
@@ -1092,14 +1100,14 @@ async fn product_grid_real_router_requires_jwt_and_allows_read_post() {
     let now = Utc::now().timestamp() as usize;
     let token = state
         .jwt
-        .encode(&Claims {
-            sub: uuid::Uuid::from_u128(2).to_string(),
-            tenant_id: uuid::Uuid::from_u128(1).to_string(),
-            perms: vec![],
-            is_admin: true,
-            iat: now,
-            exp: now + 3600,
-        })
+        .encode(&Claims::bearer(
+            uuid::Uuid::from_u128(2).to_string(),
+            uuid::Uuid::from_u128(1).to_string(),
+            vec![],
+            true,
+            now,
+            now + 3600,
+        ))
         .unwrap();
     for token in [None, Some(token)] {
         let mut request = axum::http::Request::builder()
@@ -1154,6 +1162,7 @@ async fn product_actions_http_permissions_receipts_and_identity_conflicts() {
         warehouse_ids: vec![],
         merchant_ids: vec![],
         organization_ids: vec![],
+    session_id: None,
     };
     let copy = ActionCommand {
         operation_id: RowId(99),
@@ -1292,6 +1301,7 @@ async fn product_find_rejects_foreign_tenant_denied_permission_and_invalid_reque
             warehouse_ids: vec![],
             merchant_ids: vec![],
             organization_ids: vec![],
+        session_id: None,
         };
         let app = Router::new()
             .route(

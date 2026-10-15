@@ -1,5 +1,44 @@
 # REAL API acceptance database
 
+## Current complete free ERP UI QA baseline (2026-10-08)
+
+`erp_free_ui_acceptance` on the same loopback PostgreSQL port 15438 is the fixed
+fresh-install UI database. Initialize/resume it with
+`python qa/acceptance/free-erp-ui-migrate.py`. The script checks database, role,
+address, port and an ownership marker; applies official SQL in full filename
+order with one transaction per file; records each successful SHA; refuses
+changed applied hashes; and never drops/reinitializes any database. The current
+320 SQL files, including duplicate numeric prefixes, are all retained as
+distinct filename identities. The fixed `--fresh-install` mode creates/resumes
+only `erp_free_install_acceptance` with its own ownership marker and separate
+fixed-purpose logs/ledger; it never drops either database. All 320 files passed
+on that actual empty database, including the 12 runtime tables in 0311 without
+acceptance-test CREATE. This is not populated-upgrade, backup-restore or release
+qualification. The latest full backend target passed 577 functional cases, but
+the original-data verifier found a fairness fixture globally closing two old
+queue rows. The fixture now uses a real isolated queue; its targeted rerun and
+new preservation window passed. Do not call the earlier full window protected
+or infer a new full run from the repaired target; see
+`free-erp-runtime-tables-oct8-repair.json`.
+
+Create the separate owned product samples with
+`python qa/acceptance/free-erp-product-web-fixture.py`; this is add-only and does
+not reset the historical deterministic seed below. API `DATABASE_URL` must be
+`postgresql://erp_grid_test@127.0.0.1:15438/erp_free_ui_acceptance`. The fixed QA
+credential belongs only to this fresh fixture; the manifest contains no password
+or token. Real browser captures are under `output/playwright/product-web` and
+are reconciled by `free-erp-product-web-verify.py`. The two retained source/SQL
+windows each contain 1007 hashes. See
+`free-erp-product-web-oct8-repair.json` for scope and remaining gates.
+
+`erp_shared_contract_test` is a protected partial compatibility schema for
+historical backend facts; it is not the whole-application UI database.
+`erp_grid_acceptance` below retains its historical migration ledger through
+0101 and its old samples. Do not silently fill missing columns in either old
+database to claim current complete migration or whole-UI acceptance.
+
+## Historical grid fixture
+
 This fixture is isolated to PostgreSQL `127.0.0.1:15438/erp_grid_acceptance` as role
 `erp_grid_test`. Never point these commands at port 5432.
 

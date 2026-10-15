@@ -67,8 +67,8 @@ impl<'a> LogisticsPricesRepo<'a> {
         region_code: &str,
         weight_kg: f64,
     ) -> anyhow::Result<Option<LogisticsPrice>> {
-        if let Some(product_id) = product_id {
-            if let Some(price) = self
+        if let Some(product_id) = product_id
+            && let Some(price) = self
                 .fetch_price(
                     tenant_id,
                     carrier_code,
@@ -77,9 +77,8 @@ impl<'a> LogisticsPricesRepo<'a> {
                     weight_kg,
                 )
                 .await?
-            {
-                return Ok(Some(price));
-            }
+        {
+            return Ok(Some(price));
         }
 
         self.fetch_price(tenant_id, carrier_code, None, region_code, weight_kg)

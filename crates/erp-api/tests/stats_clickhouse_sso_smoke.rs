@@ -20,14 +20,14 @@ fn build_state() -> (axum::Router, JwtService) {
 
 fn build_token(jwt: &JwtService, tenant_id: uuid::Uuid, perms: Vec<&str>) -> String {
     let now = chrono::Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|perm| perm.to_string()).collect(),
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|perm| perm.to_string()).collect(),
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 
@@ -140,19 +140,9 @@ async fn stats_health_returns_clickhouse_and_sso_snapshot() -> anyhow::Result<()
             .and_then(|v| v.as_bool())
             .is_some()
     );
-    assert!(
-        payload
-            .get("clickhouse_endpoint")
-            .map(|value| value.is_string() || value.is_null())
-            .unwrap_or(false)
-    );
+    assert!(payload.get("clickhouse_endpoint").is_none());
     assert!(payload.get("sso_ready").and_then(|v| v.as_bool()).is_some());
-    assert!(
-        payload
-            .get("sso_issuer")
-            .map(|value| value.is_string() || value.is_null())
-            .unwrap_or(false)
-    );
+    assert!(payload.get("sso_issuer").is_none());
     assert!(payload.get("checked_at").and_then(|v| v.as_str()).is_some());
 
     Ok(())

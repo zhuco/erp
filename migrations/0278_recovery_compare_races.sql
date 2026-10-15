@@ -1,0 +1,3 @@
+-- 0278: two compares of one checkpoint lock the checkpoint first.
+-- The second compare does not store another row and does not post stock again.
+-- This comment does not add a table.

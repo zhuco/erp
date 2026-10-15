@@ -1,0 +1,3 @@
+-- 0277: a download and a scope revoke lock the same warehouse row.
+-- The download rechecks the current scope and records a denial when the row is gone.
+-- This comment does not add a table.

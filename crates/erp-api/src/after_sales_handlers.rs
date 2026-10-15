@@ -2188,6 +2188,7 @@ pub(crate) async fn create_after_sales_exchange_shipment(
     State(state): State<AppState>,
     Path((tenant_id, after_sales_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<AfterSalesShipmentRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -2244,7 +2245,8 @@ pub(crate) async fn create_after_sales_exchange_shipment(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    let fulfillment_repo = FulfillmentRepo::new(state.db.pool());
+    let fulfillment_repo =
+        FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(&req_ctx));
     let result = match fulfillment_repo
         .create_exchange_shipments(
             tenant_id,
@@ -2255,7 +2257,7 @@ pub(crate) async fn create_after_sales_exchange_shipment(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let outbound_items: Vec<OutboundDocItemInput> = detail
@@ -2425,6 +2427,7 @@ pub(crate) async fn create_after_sales_resend_shipment(
     State(state): State<AppState>,
     Path((tenant_id, after_sales_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
+    Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<AfterSalesShipmentRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -2481,7 +2484,8 @@ pub(crate) async fn create_after_sales_resend_shipment(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    let fulfillment_repo = FulfillmentRepo::new(state.db.pool());
+    let fulfillment_repo =
+        FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(&req_ctx));
     let result = match fulfillment_repo
         .create_resend_shipments(
             tenant_id,
@@ -2492,7 +2496,7 @@ pub(crate) async fn create_after_sales_resend_shipment(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let shipment_records = result
@@ -2695,7 +2699,7 @@ pub(crate) async fn create_after_sales_import_job(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
-    (StatusCode::OK, Json(after_sales_import_job_view(job))).into_response()
+    (StatusCode::OK, Json(after_sales_import_job_view(&job))).into_response()
 }
 
 pub(crate) async fn list_after_sales_import_jobs(
@@ -2741,7 +2745,7 @@ pub(crate) async fn list_after_sales_import_jobs(
     let items = result
         .items
         .into_iter()
-        .map(after_sales_import_job_view)
+        .map(|job| after_sales_import_job_view(&job))
         .collect::<Vec<_>>();
     let response = AfterSalesImportJobListResponse {
         items,
@@ -2779,7 +2783,7 @@ pub(crate) async fn get_after_sales_import_job(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
-    (StatusCode::OK, Json(after_sales_import_job_view(job))).into_response()
+    (StatusCode::OK, Json(after_sales_import_job_view(&job))).into_response()
 }
 
 pub(crate) async fn list_refund_docs(
@@ -3828,19 +3832,19 @@ pub(crate) fn after_sales_detail_view(
 }
 
 pub(crate) fn after_sales_import_job_view(
-    job: erp_repo::after_sales_import_jobs::AfterSalesImportJob,
+    job: &erp_repo::after_sales_import_jobs::AfterSalesImportJob,
 ) -> AfterSalesImportJobView {
     AfterSalesImportJobView {
         job_id: job.job_id,
-        file_name: job.file_name,
-        file_type: job.file_type,
-        status: job.status,
+        file_name: job.file_name.clone(),
+        file_type: job.file_type.clone(),
+        status: job.status.clone(),
         progress: job.progress,
         total_rows: job.total_rows,
         success_rows: job.success_rows,
         failed_rows: job.failed_rows,
         attempts: job.attempts,
-        last_error: job.last_error,
+        last_error: job.last_error.clone(),
         created_at: job.created_at,
         updated_at: job.updated_at,
     }

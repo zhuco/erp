@@ -42,12 +42,13 @@ function validatePackage() {
   const expectedSuffixes = new Set([
     "/src/action_store/indexed_db.js",
     "/src/http/download.js",
+    "/src/workbench/detail_db.js",
   ]);
   if (imports.length !== expectedSuffixes.size) {
     throw new Error(`Generated glue has an unexpected module import count: ${imports.length}`);
   }
   for (const specifier of imports) {
-    if (!/^\.\/snippets\/[A-Za-z0-9-]+\/src\/(action_store\/indexed_db|http\/download)\.js$/.test(specifier)) {
+    if (!/^\.\/snippets\/[A-Za-z0-9-]+\/src\/(action_store\/indexed_db|http\/download|workbench\/detail_db)\.js$/.test(specifier)) {
       throw new Error(`Generated glue imports an unexpected module: ${specifier}`);
     }
     const suffix = specifier.slice(specifier.indexOf("/src/"));

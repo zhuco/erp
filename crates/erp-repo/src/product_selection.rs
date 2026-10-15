@@ -676,17 +676,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(ids(&query_default), [15, 13, 14, 12, 11, 10]);
-        let query_code = page_query_order(
-            &pool,
-            tenant,
-            actor,
-            frozen.token,
-            0,
-            500,
-            &code_ascending,
-        )
-        .await
-        .unwrap();
+        let query_code =
+            page_query_order(&pool, tenant, actor, frozen.token, 0, 500, &code_ascending)
+                .await
+                .unwrap();
         assert_eq!(ids(&query_code), [14, 12, 11, 15, 13, 10]);
 
         let code_descending = [SortRule {

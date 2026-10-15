@@ -1,0 +1,2 @@
+-- 0275: a second enqueue of the same event or effect is refused after the first task is stored.
+-- The event is locked. This comment does not add a table.

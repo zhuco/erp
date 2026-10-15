@@ -841,6 +841,7 @@ impl Orders {
                     query,
                     json: None,
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -939,6 +940,7 @@ impl Orders {
                     query: Vec::new(),
                     json: Some(prepared.json.clone()),
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -996,6 +998,7 @@ impl Orders {
                 query: Vec::new(),
                 json: Some(unknown.json.clone()),
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         ) {
@@ -1347,6 +1350,7 @@ fn get_detail(session: &Session, order: &str, ctx: &egui::Context) -> Result<Htt
             query: Vec::new(),
             json: None,
             bearer: Some(session.token.clone()),
+            idempotency_key: None,
         },
         ctx,
     )

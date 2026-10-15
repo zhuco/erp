@@ -82,6 +82,8 @@ pub struct GridState {
     pub theme: Option<GridTheme>,
     pub quick_search_open: bool,
     pub quick_search: std::collections::BTreeMap<ColumnId, erp_grid_core::FilterDraft>,
+    /// Last painted query input. Hosts compare it with current keyboard focus before routing IME.
+    pub query_input_focus: Option<Id>,
     pub selection: Selection,
     pub focus: Option<Cell>,
     pub message: Option<String>,
@@ -125,6 +127,7 @@ impl Default for GridState {
             row_number_start: 0,
             theme: None,
             quick_search: Default::default(),
+            query_input_focus: None,
             selection: Default::default(),
             focus: None,
             message: None,
@@ -792,6 +795,7 @@ impl DataGrid<'_> {
             state,
             row_id,
         } = self;
+        state.query_input_focus = None;
         let metrics = state.metrics.bounded();
         let row_height = metrics.row_height;
         let column_header_height = metrics.header_height;
@@ -1891,6 +1895,17 @@ impl DataGrid<'_> {
                                 None
                             }
                         };
+                        // An awaiting editor owns the displayed value; never paint
+                        // the stale cell beneath its frozen draft.
+                        let text = match state.editor.as_ref() {
+                            Some(editor)
+                                if editor.column == column.id
+                                    && row_id.is_some_and(|map| editor.row == map(row)) =>
+                            {
+                                editor.awaiting.then(|| editor.draft.clone())
+                            }
+                            _ => text,
+                        };
                         if let Some(text) = text {
                             cell_text::paint(
                                 &painter,
@@ -1934,12 +1949,17 @@ impl DataGrid<'_> {
                             && rect.intersect(cell_clip).is_positive()
                         {
                             output.editor_drawn = true;
-                            let outcome = ui
-                                .scope(|ui| {
+                            let outcome = if editor.awaiting {
+                                ui.interact(rect, id.with("pending-editor"), Sense::hover())
+                                    .on_hover_text("Waiting for save result");
+                                editor::Outcome::default()
+                            } else {
+                                ui.scope(|ui| {
                                     ui.set_clip_rect(cell_clip);
                                     editor::show(ui, rect, id.with("cell-editor"), column, editor)
                                 })
-                                .inner;
+                                .inner
+                            };
                             output.edit_navigation = outcome.navigation;
                             if let Some(edit) = outcome.edit {
                                 output.edit_ticket = Some(editor.ticket);
@@ -2133,13 +2153,15 @@ impl DataGrid<'_> {
                                         erp_grid_core::FilterDraft::for_kind(&column.filter)
                                     });
                                 ui.set_clip_rect(search_clip.intersect(column_clip(index)));
-                                output.quick_search_changed |= quick_search::show(
+                                let search = quick_search::show(
                                     ui,
                                     rect,
                                     id.with(("search", column.id.0)),
                                     column,
                                     value,
                                 );
+                                output.quick_search_changed |= search.changed;
+                                state.query_input_focus = search.focused.or(state.query_input_focus);
                             }
                         }
                     });

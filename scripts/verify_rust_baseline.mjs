@@ -12,7 +12,7 @@ for (const file of [
   '.editorconfig', '.gitattributes', '.gitignore', 'rustfmt.toml', 'clippy.toml',
   'rust-toolchain.toml', 'apps/erp-ui/Cargo.toml', 'crates/erp-grid-core/Cargo.toml',
   'crates/erp-ui-egui/Cargo.toml', 'scripts/Invoke-ErpBuild.ps1',
-  'scripts/verify_no_ag_grid.mjs', 'qa/acceptance/browser-smoke.mjs',
+  'scripts/verify_no_ag_grid.mjs', 'scripts/verify_dependency_licenses.mjs', 'qa/acceptance/browser-smoke.mjs',
 ]) requireContract(fs.existsSync(path.join(root, file)), `Missing baseline file: ${file}`);
 
 const pkg = JSON.parse(read('package.json'));

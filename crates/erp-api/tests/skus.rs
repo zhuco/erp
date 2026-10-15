@@ -23,16 +23,23 @@ struct SkusRepoStub;
 #[async_trait::async_trait]
 impl SkuRepo for SkusRepoStub {
     async fn execute_grid_action(
-        &self, _tenant: erp_types::TenantId, _actor: erp_types::UserId,
+        &self,
+        _tenant: erp_types::TenantId,
+        _actor: erp_types::UserId,
         _command: &erp_grid_core::actions::ActionCommand,
     ) -> Result<erp_grid_core::actions::ActionReceipt, erp_repo::product_actions::ActionError> {
-        Err(erp_repo::product_actions::ActionError::Invalid("not implemented"))
+        Err(erp_repo::product_actions::ActionError::Invalid(
+            "not implemented",
+        ))
     }
 
     async fn grid_action_receipt(
-        &self, _tenant: erp_types::TenantId, _actor: erp_types::UserId,
+        &self,
+        _tenant: erp_types::TenantId,
+        _actor: erp_types::UserId,
         _operation: erp_grid_core::RowId,
-    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError> {
+    ) -> Result<Option<erp_grid_core::actions::ActionReceipt>, erp_repo::product_actions::ActionError>
+    {
         Ok(None)
     }
 
@@ -145,14 +152,14 @@ fn build_state() -> (axum::Router, JwtService) {
 
 fn build_token(jwt: &JwtService, tenant_id: &str, perms: Vec<&str>, is_admin: bool) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|p| p.to_string()).collect(),
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|p| p.to_string()).collect(),
         is_admin,
-        iat: now,
-        exp: now + 3600,
-    };
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

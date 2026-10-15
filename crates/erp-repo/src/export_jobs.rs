@@ -1,3 +1,5 @@
+mod rows;
+use rows::ExportJobRow;
 use chrono::{DateTime, Utc};
 use erp_grid_core::SortRule;
 use erp_types::TenantId;
@@ -153,10 +155,7 @@ impl<'a> ExportJobsRepo<'a> {
         .rows_affected()
             == 1;
 
-        let row: Option<(
-            uuid::Uuid, uuid::Uuid, String, Value, String, Option<String>,
-            i32, i32, String, DateTime<Utc>, DateTime<Utc>,
-        )> = sqlx::query_as(
+        let row: Option<ExportJobRow> = sqlx::query_as(
             "select job_id, tenant_id, job_type, params_json, status, output_url, progress, attempts, last_error, created_at, updated_at from export_jobs where job_id = $1 for share",
         )
         .bind(request_id)
@@ -166,19 +165,7 @@ impl<'a> ExportJobsRepo<'a> {
         let Some(row) = row else {
             return Err(ProductExportCreateError::Conflict);
         };
-        let job = ExportJob {
-            job_id: row.0,
-            tenant_id: TenantId(row.1),
-            job_type: row.2,
-            params_json: row.3,
-            status: row.4,
-            output_url: row.5,
-            progress: row.6,
-            attempts: row.7,
-            last_error: row.8,
-            created_at: row.9,
-            updated_at: row.10,
-        };
+        let job: ExportJob = row.into();
         if job.tenant_id != tenant_id
             || job.job_type != "PRODUCT_EXPORT"
             || job.params_json != params_json
@@ -479,10 +466,34 @@ impl<'a> ExportJobsRepo<'a> {
         tenant_id: TenantId,
         filters: ExportJobListFilters,
     ) -> anyhow::Result<ExportJobListResult> {
+        self.list_jobs_filtered(tenant_id, filters, false, None)
+            .await
+    }
+
+    pub async fn list_jobs_visible_inventory(
+        &self,
+        tenant_id: TenantId,
+        filters: ExportJobListFilters,
+        visibility: Option<crate::inventory_export_jobs::InventoryExportVisibility>,
+    ) -> anyhow::Result<ExportJobListResult> {
+        self.list_jobs_filtered(tenant_id, filters, true, visibility)
+            .await
+    }
+
+    async fn list_jobs_filtered(
+        &self,
+        tenant_id: TenantId,
+        filters: ExportJobListFilters,
+        restrict_inventory: bool,
+        visibility: Option<crate::inventory_export_jobs::InventoryExportVisibility>,
+    ) -> anyhow::Result<ExportJobListResult> {
         let mut count_qb =
             QueryBuilder::<Postgres>::new("select count(*) from export_jobs where tenant_id = ");
         count_qb.push_bind(uuid::Uuid::from(tenant_id));
         apply_list_filters(&mut count_qb, &filters);
+        if restrict_inventory {
+            apply_inventory_visibility(&mut count_qb, visibility.as_ref());
+        }
         let total: i64 = count_qb.build_query_scalar().fetch_one(self.pool).await?;
 
         let mut qb = QueryBuilder::<Postgres>::new(
@@ -496,6 +507,9 @@ impl<'a> ExportJobsRepo<'a> {
         );
         qb.push_bind(uuid::Uuid::from(tenant_id));
         apply_list_filters(&mut qb, &filters);
+        if restrict_inventory {
+            apply_inventory_visibility(&mut qb, visibility.as_ref());
+        }
         qb.push(" order by created_at desc, job_id desc");
         qb.push(" limit ");
         qb.push_bind(filters.limit);
@@ -726,19 +740,7 @@ async fn insert_and_load_product_job(
     .map_err(anyhow::Error::from)?
     .rows_affected()
         == 1;
-    let row: Option<(
-        uuid::Uuid,
-        uuid::Uuid,
-        String,
-        Value,
-        String,
-        Option<String>,
-        i32,
-        i32,
-        String,
-        DateTime<Utc>,
-        DateTime<Utc>,
-    )> = sqlx::query_as(
+    let row: Option<ExportJobRow> = sqlx::query_as(
         "select job_id,tenant_id,job_type,params_json,status,output_url,progress,attempts,last_error,created_at,updated_at from export_jobs where job_id=$1 for share",
     )
     .bind(request_id)
@@ -748,19 +750,7 @@ async fn insert_and_load_product_job(
     let Some(row) = row else {
         return Err(ProductExportCreateError::Conflict);
     };
-    let job = ExportJob {
-        job_id: row.0,
-        tenant_id: TenantId(row.1),
-        job_type: row.2,
-        params_json: row.3,
-        status: row.4,
-        output_url: row.5,
-        progress: row.6,
-        attempts: row.7,
-        last_error: row.8,
-        created_at: row.9,
-        updated_at: row.10,
-    };
+    let job: ExportJob = row.into();
     if job.tenant_id != tenant_id
         || job.job_type != "PRODUCT_EXPORT"
         || job.params_json != *params_json
@@ -827,6 +817,24 @@ fn append_snapshot_ordering<'a>(
     }
     query.push(stable_tie_breaker);
     Ok(())
+}
+
+fn apply_inventory_visibility(
+    qb: &mut QueryBuilder<'_, Postgres>,
+    visibility: Option<&crate::inventory_export_jobs::InventoryExportVisibility>,
+) {
+    qb.push(" and (job_type <> 'INVENTORY_EXPORT'");
+    if let Some(visibility) = visibility {
+        qb.push(" or (params_json->>'schema'='2' and params_json->>'actor_user_id'=")
+            .push_bind(visibility.actor.to_string())
+            .push(" and jsonb_typeof(params_json->'warehouse_ids')='array' and params_json->'warehouse_ids' <@ to_jsonb(")
+            .push_bind(visibility.warehouse_ids.clone()).push("::uuid[])");
+        if !visibility.restricted {
+            qb.push(" and params_json->>'restricted_at_admission'='false'");
+        }
+        qb.push(")");
+    }
+    qb.push(")");
 }
 
 fn apply_list_filters<'a>(qb: &mut QueryBuilder<'a, Postgres>, filters: &'a ExportJobListFilters) {

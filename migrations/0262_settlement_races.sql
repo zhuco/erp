@@ -1,0 +1,2 @@
+-- 0262: applying cash locks the open balance and the named settlement before writing.
+-- A second application that no longer fits writes nothing. This comment does not add a table.

@@ -11,6 +11,8 @@ const MAX_OPEN_TABS: usize = 16;
 pub(crate) enum Page {
     Products,
     Orders,
+    TradeSales,
+    Materials,
     Reports,
     WarehouseTree,
     Lab,
@@ -23,6 +25,8 @@ impl Page {
         match self {
             Self::Products => "products",
             Self::Orders => "orders",
+            Self::TradeSales => "trade-sales",
+            Self::Materials => "materials",
             Self::Reports => "reports",
             Self::WarehouseTree => "warehouse-tree",
             Self::Lab => "lab",
@@ -215,7 +219,7 @@ impl Shell {
                             .size(15.0),
                     );
                     ui.separator();
-                    for module in ["货品", "销售", "开发工具"] {
+                    for module in page_registry::modules() {
                         ui.menu_button(module, |ui| {
                             for item in PAGES.iter().filter(|p| p.module == module && p.connected) {
                                 if ui
@@ -317,6 +321,19 @@ impl Shell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn material_ui_registered_production_module_is_actually_painted() {
+        let ctx=egui::Context::default();let mut shell=Shell::default();
+        let mut text_labels=Vec::new();
+        for _ in 0..3 {
+            let mut output=ctx.run_ui(egui::RawInput{screen_rect:Some(egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(1280.0,800.0))),..Default::default()},|root|{shell.show(root,|_|false);});
+            text_labels=output.shapes.iter().filter_map(|shape|if let egui::epaint::Shape::Text(text)=&shape.shape{Some(text.galley.text().to_owned())}else{None}).collect();
+            output.textures_delta.clear();
+        }
+        assert!(text_labels.iter().any(|label|label=="生产"),"painted module labels: {text_labels:?}");
+        let modules=page_registry::modules().collect::<Vec<_>>();
+        assert!(PAGES.iter().filter(|p|p.connected).all(|p|modules.contains(&p.module)));
+    }
     #[test]
     fn registry_is_unique_and_connected() {
         let mut names = PAGES.iter().map(|p| p.name).collect::<Vec<_>>();

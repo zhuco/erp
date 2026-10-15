@@ -846,6 +846,21 @@ pub(crate) async fn delete_warehouse_location(
     if let Err(resp) = ensure_permission(&ctx, "inventory.write") {
         return resp.into_response();
     }
+    let referenced = match sqlx::query_scalar::<_, i64>(
+        "select count(*) from shared_location_refs where tenant_id = $1 and location_id = $2",
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(location_id)
+    .fetch_one(state.db.pool())
+    .await
+    {
+        Ok(count) => count,
+        Err(error) if error.to_string().contains("shared_location_refs") => 0,
+        Err(error) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    };
+    if erp_domain::trade::item_removal_decision(referenced > 0, "DELETE").is_err() {
+        return conflict("referenced location cannot be deleted").into_response();
+    }
 
     let repo = WarehouseLocationsRepo::new(state.db.pool());
     let location = match repo.delete_location(tenant_id, location_id).await {

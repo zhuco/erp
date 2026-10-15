@@ -710,18 +710,6 @@ pub(crate) async fn fetch_stock_count_audit_required(
     Ok(value.as_ref().and_then(parse_bool_setting).unwrap_or(false))
 }
 
-pub(crate) fn parse_numeric_setting(value: &Value) -> Option<i64> {
-    if let Some(result) = value.as_i64() {
-        return Some(result);
-    }
-    if let Some(obj) = value.as_object() {
-        if let Some(result) = obj.get("value").and_then(|item| item.as_i64()) {
-            return Some(result);
-        }
-    }
-    None
-}
-
 pub(crate) fn parse_bool_setting(value: &Value) -> Option<bool> {
     if let Some(result) = value.as_bool() {
         return Some(result);

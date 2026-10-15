@@ -46,6 +46,7 @@ async fn sku_find_rejects_invalid_parent_tenant_permission_and_request_before_da
             warehouse_ids: vec![],
             merchant_ids: vec![],
             organization_ids: vec![],
+        session_id: None,
         };
         let request = erp_repo::product_grid_find::FindRequest {
             query: serde_json::from_value(

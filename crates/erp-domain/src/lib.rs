@@ -6,7 +6,35 @@ use erp_types::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(test)]
+mod contract_tests;
+
+pub mod access;
+pub mod aggregate;
+pub mod accounting;
+pub mod analytics;
+pub mod billing;
+pub mod company;
+pub mod connector;
+pub mod draft;
+pub mod edit_save;
+pub mod exit;
+pub mod file_exchange;
+pub mod grid_query;
+pub mod group;
+pub mod manufacturing;
 pub mod oms;
+pub mod onboarding;
+pub mod platform;
+pub mod quantity;
+pub mod receipt;
+pub mod search;
+pub mod security;
+pub mod service;
+pub mod support;
+pub mod trade;
+pub mod usage;
+pub mod workbench;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderItemProjection {

@@ -65,6 +65,7 @@ pub(crate) fn encode_start(tenant: RowId, body: &StartBody) -> Result<HttpReques
         query: vec![],
         json: Some(json),
         bearer: None,
+        idempotency_key: None,
     })
 }
 
@@ -75,6 +76,7 @@ pub(crate) fn encode_list(tenant: RowId) -> Result<HttpRequest, String> {
         query: vec![],
         json: None,
         bearer: None,
+        idempotency_key: None,
     })
 }
 
@@ -97,6 +99,7 @@ pub(crate) fn encode_retry_review(
         query: vec![],
         json: Some(json),
         bearer: None,
+        idempotency_key: None,
     })
 }
 
@@ -174,6 +177,7 @@ pub(crate) fn encode_request(
         query: vec![],
         json,
         bearer: None,
+        idempotency_key: None,
     })
 }
 
@@ -468,6 +472,7 @@ pub(crate) fn encode_results(
         query,
         json: None,
         bearer: None,
+        idempotency_key: None,
     })
 }
 pub(crate) fn decode_results(

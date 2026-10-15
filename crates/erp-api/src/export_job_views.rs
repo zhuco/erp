@@ -1,5 +1,30 @@
 use super::*;
 
+/// A stored exit manifest applies exit delivery rules to its file. Ordinary
+/// authenticated exports keep their link after their job actually completes.
+pub(crate) async fn visible_output_url(
+    state: &AppState,
+    job: &ExportJobRecord,
+) -> Result<Option<String>, sqlx::Error> {
+    let delivery: Option<bool> = sqlx::query_scalar(
+        "select exists(select 1 from exit_requests r
+            where r.tenant_id=m.tenant_id and r.status='DELIVERED')
+         from exit_manifests m
+         where m.tenant_id=$1 and m.item_kind='EXPORT_FILE' and m.item_no=$2",
+    )
+    .bind(uuid::Uuid::from(job.tenant_id))
+    .bind(job.job_id.to_string())
+    .fetch_optional(state.db.pool())
+    .await?;
+    Ok(match delivery {
+        Some(delivered) => {
+            erp_domain::exit::exit_file_marker(&job.status, delivered, job.output_url.clone())
+        }
+        None if job.status == "DONE" => job.output_url.clone(),
+        None => None,
+    })
+}
+
 pub(crate) fn export_job_response(job: ExportJobRecord) -> ExportJobResponse {
     ExportJobResponse {
         job_id: job.job_id,

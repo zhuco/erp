@@ -40,6 +40,8 @@ pub struct HttpRequest {
     pub query: Vec<(String, String)>,
     pub json: Option<Vec<u8>>,
     pub bearer: Option<String>,
+    /// Shared command identity. Sent as `Idempotency-Key` and must match a body `request_id`.
+    pub idempotency_key: Option<String>,
 }
 #[derive(Clone, Copy)]
 pub(super) enum HttpMethod {
@@ -270,6 +272,9 @@ async fn native_fetch(
     if let Some(token) = request.bearer {
         builder = builder.bearer_auth(token);
     }
+    if let Some(key) = request.idempotency_key.as_deref() {
+        builder = builder.header("Idempotency-Key", key);
+    }
     let response = builder
         .timeout(TIMEOUT)
         .send()
@@ -404,6 +409,7 @@ mod tests {
             query: vec![("brand".into(), "A&B 中文".into())],
             json: None,
             bearer: Some("fixture-token".into()),
+            idempotency_key: None,
         }
     }
     fn wait(task: &mut HttpTask) -> Result<Vec<u8>, HttpError> {
@@ -449,6 +455,7 @@ mod tests {
                     query: vec![("audit".into(), "yes".into())],
                     json: Some(br#"{"expected_version":3}"#.to_vec()),
                     bearer: Some("fixture-token".into()),
+                    idempotency_key: None,
                 },
                 &Default::default(),
             )

@@ -1,0 +1,2 @@
+-- An MRP suggestion cites the saved work-center calendar used for its release date.
+-- A later calendar day does not rewrite that suggestion. This file is not applied here.

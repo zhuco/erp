@@ -1,9 +1,12 @@
 use super::*;
+use sha2::Digest;
 
 #[path = "../export_file_stream.rs"]
 mod export_file_stream;
 
 use export_file_stream::export_file_body;
+#[path = "../inventory_export_access.rs"]
+mod inventory_export_access;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -170,11 +173,17 @@ pub(crate) async fn get_inventory_report(
     if let Err(resp) = ensure_permission(&ctx, "reports.read") {
         return resp.into_response();
     }
+    if let Err(resp) = ensure_permission(&ctx, "inventory.read") {
+        return resp.into_response();
+    }
 
     let (start_at, end_at) = match parse_report_range(query.start_at, query.end_at) {
         Ok(v) => v,
         Err(resp) => return resp.into_response(),
     };
+    if (end_at - start_at).num_milliseconds() < 1 {
+        return bad_request("report interval must be at least one millisecond").into_response();
+    }
     let warehouse_id = match query.warehouse_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
             Ok(v) => Some(v),
@@ -182,7 +191,24 @@ pub(crate) async fn get_inventory_report(
         },
         None => None,
     };
-    let warning_threshold = query.warning_threshold.unwrap_or(5).max(0);
+    if let Some(warehouse_id) = warehouse_id
+        && let Err(resp) = ensure_warehouse_access(&ctx, warehouse_id)
+    {
+        return resp.into_response();
+    }
+    if query.warning_quantity.is_some() && query.warning_threshold.is_some() {
+        return bad_request("provide one warning quantity").into_response();
+    }
+    let warning_threshold_micros = match query.warning_quantity.as_deref() {
+        Some(text) => match erp_domain::quantity::parse_qty(text) {
+            Ok(value) if !value.is_negative() => i128::from(value.as_micros()),
+            _ => return bad_request("bad warning quantity").into_response(),
+        },
+        None => match query.warning_threshold.unwrap_or(5) {
+            value if value >= 0 => i128::from(value) * 1_000_000,
+            _ => return bad_request("bad warning quantity").into_response(),
+        },
+    };
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
     let offset = query.offset.unwrap_or(0).max(0);
 
@@ -194,7 +220,8 @@ pub(crate) async fn get_inventory_report(
                 start_at,
                 end_at,
                 warehouse_id,
-                warning_threshold,
+                warehouse_ids: warehouse_scope_filter(&ctx),
+                warning_threshold_micros,
                 offset,
                 limit,
             },
@@ -202,7 +229,7 @@ pub(crate) async fn get_inventory_report(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_error_response(e).into_response(),
     };
 
     (StatusCode::OK, Json(report)).into_response()
@@ -278,9 +305,7 @@ pub(crate) async fn get_stats_infra_health(
         Json(StatsInfraHealthResponse {
             analytics_backend: health.analytics_backend,
             clickhouse_ready: health.clickhouse_ready,
-            clickhouse_endpoint: health.clickhouse_endpoint,
             sso_ready: health.sso_ready,
-            sso_issuer: health.sso_issuer,
             checked_at: Utc::now(),
         }),
     )
@@ -417,8 +442,12 @@ pub(crate) async fn list_export_jobs(
     let offset = query.offset.unwrap_or(0).max(0);
 
     let repo = ExportJobsRepo::new(state.db.pool());
+    let visibility = match inventory_export_access::visibility(&state, &ctx).await {
+        Ok(visibility) => visibility,
+        Err(response) => return response,
+    };
     let result: ExportJobListResultRepo = match repo
-        .list_jobs(
+        .list_jobs_visible_inventory(
             ctx.tenant_id,
             ExportJobListFiltersRepo {
                 status: query.status.and_then(non_empty),
@@ -426,6 +455,7 @@ pub(crate) async fn list_export_jobs(
                 offset,
                 limit,
             },
+            visibility,
         )
         .await
     {
@@ -461,6 +491,11 @@ pub(crate) async fn create_export_job(
     {
         return resp.into_response();
     }
+    if job_type == "INVENTORY_EXPORT"
+        && let Err(resp) = ensure_permission(&ctx, "inventory.read")
+    {
+        return resp.into_response();
+    }
 
     let product_params = if job_type == "PRODUCT_EXPORT" {
         match normalize_product_export_params(req.params.clone()) {
@@ -477,6 +512,10 @@ pub(crate) async fn create_export_job(
     };
     if read_only {
         return read_only_forbidden().into_response();
+    }
+
+    if job_type == "INVENTORY_EXPORT" {
+        return inventory_export_access::create(&state, &ctx, req.params).await;
     }
 
     let repo = ExportJobsRepo::new(state.db.pool());
@@ -600,7 +639,18 @@ pub(crate) async fn get_export_job(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
-    (StatusCode::OK, Json(export_job_response(job))).into_response()
+    if let Err(response) = inventory_export_access::authorize(&state, &ctx, &job).await {
+        return response;
+    }
+    let output_url = match crate::export_job_views::visible_output_url(&state, &job).await {
+        Ok(url) => url,
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+        }
+    };
+    let mut response = export_job_response(job);
+    response.output_url = output_url;
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 pub(crate) async fn download_export_job(
@@ -624,16 +674,45 @@ pub(crate) async fn download_export_job(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
+    let artifact = match inventory_export_access::authorize(&state, &ctx, &job).await {
+        Ok(artifact) => artifact,
+        Err(response) => return response,
+    };
     if job.status != "DONE" {
         return bad_request("export not ready").into_response();
     }
+    if let Err(response) = exit_manifest_matches_download(&state, ctx.tenant_id, &job).await {
+        return response;
+    }
 
     let file_path = export_job_file_path(job.tenant_id, job.job_id);
-    let (file_body, content_len) = match export_file_body(&file_path).await {
+    if artifact.is_some() && inventory_export_access::check_path(&file_path).await.is_err() {
+        return not_found("inventory export file unavailable").into_response();
+    }
+    let file_result = if let Some(receipt) = artifact.as_ref() {
+        export_file_stream::export_file_body_checked(
+            &file_path,
+            Some((receipt.bytes, receipt.sha256.clone())),
+        ).await
+    } else {
+        export_file_body(&file_path).await
+    };
+    let (file_body, content_len) = match file_result {
         Ok(file) => file,
         Err(_) => return not_found("export file missing").into_response(),
     };
     let mut headers = HeaderMap::new();
+    if let Some(artifact) = artifact {
+        if content_len != artifact.bytes {
+            return conflict("inventory export file length mismatch").into_response();
+        }
+        let digest = match HeaderValue::from_str(&artifact.sha256) {
+            Ok(digest) => digest,
+            Err(_) => return conflict("inventory export receipt invalid").into_response(),
+        };
+        headers.insert("x-export-sha256", digest);
+        headers.insert("x-export-schema", HeaderValue::from_static("2"));
+    }
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/csv"));
     let content_len = match HeaderValue::from_str(&content_len.to_string()) {
         Ok(value) => value,
@@ -663,6 +742,44 @@ pub(crate) async fn download_export_job(
     (StatusCode::OK, headers, file_body).into_response()
 }
 
+async fn exit_manifest_matches_download(
+    state: &AppState,
+    tenant_id: TenantId,
+    job: &erp_repo::export_jobs::ExportJob,
+) -> Result<(), Response> {
+    let item_no = job.job_id.to_string();
+    let listed: Option<(Option<i64>, Option<String>, bool)> = sqlx::query_as(
+        "select m.line_count, m.digest, exists(
+            select 1 from exit_requests r
+            where r.tenant_id = m.tenant_id and r.status = 'DELIVERED'
+         )
+         from exit_manifests m
+         where m.tenant_id = $1 and m.item_kind = 'EXPORT_FILE' and m.item_no = $2",
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(&item_no)
+    .fetch_optional(state.db.pool())
+    .await
+    .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response())?;
+    let Some((expected_lines, expected_digest, delivered)) = listed else {
+        return Ok(());
+    };
+    if !delivered {
+        return Err(conflict("exit file is not delivered").into_response());
+    }
+    let (Some(expected_lines), Some(expected_digest)) = (expected_lines, expected_digest) else {
+        return Err(conflict("delivered file does not match the exit manifest").into_response());
+    };
+    let file_path = export_job_file_path(tenant_id, job.job_id);
+    let bytes = tokio::fs::read(&file_path)
+        .await
+        .map_err(|_| not_found("export file missing").into_response())?;
+    let lines = bytes.iter().filter(|byte| **byte == b'\n').count() as i64;
+    let digest = format!("{:x}", sha2::Sha256::digest(&bytes));
+    erp_domain::exit::exit_file_matches(lines, &digest, expected_lines, &expected_digest)
+        .map_err(|_| conflict("delivered file does not match the exit manifest").into_response())
+}
+
 #[cfg(test)]
 mod export_stream_authorization_tests {
     use super::*;
@@ -682,6 +799,7 @@ mod export_stream_authorization_tests {
             warehouse_ids: Vec::new(),
             merchant_ids: Vec::new(),
             organization_ids: Vec::new(),
+        session_id: None,
         };
 
         let response = download_export_job(
@@ -793,6 +911,7 @@ mod export_stream_authorization_tests {
             warehouse_ids: Vec::new(),
             merchant_ids: Vec::new(),
             organization_ids: Vec::new(),
+        session_id: None,
         };
         let response = create_export_job(
             State(state.clone()),

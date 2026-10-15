@@ -1,0 +1,2 @@
+-- 0258: a disposition locks the held inspection row before reading the remainder.
+-- The existing disposition row is the effect. This comment does not add a table.

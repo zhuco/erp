@@ -479,11 +479,13 @@ pub trait InventoryRepo: Send + Sync {
     async fn reserve_for_order_item(
         &self,
         input: InventoryReservationInput,
+        actor: UserId,
     ) -> anyhow::Result<InventoryBalance>;
 
     async fn release_reservation(
         &self,
         input: InventoryReservationAction,
+        actor: UserId,
     ) -> anyhow::Result<InventoryBalance>;
 }
 
@@ -769,7 +771,13 @@ impl ProductRepo for ProductsRepoDb {
     > {
         if query_order {
             erp_repo::product_selection::page_query_order(
-                self.db.pool(), tenant, actor, token, offset, limit, sorts,
+                self.db.pool(),
+                tenant,
+                actor,
+                token,
+                offset,
+                limit,
+                sorts,
             )
             .await
         } else {
@@ -898,13 +906,7 @@ impl SkuRepo for SkusRepoDb {
         product_id: uuid::Uuid,
         request: &erp_repo::sku_grid::SkuGridRangesRequest,
     ) -> anyhow::Result<erp_repo::sku_grid::SkuGridRangesPage> {
-        erp_repo::sku_grid::query_sku_ranges(
-            self.db.pool(),
-            tenant_id,
-            product_id,
-            request,
-        )
-        .await
+        erp_repo::sku_grid::query_sku_ranges(self.db.pool(), tenant_id, product_id, request).await
     }
 
     async fn list_skus(
@@ -1355,17 +1357,19 @@ impl InventoryRepo for InventoryRepoDb {
     async fn reserve_for_order_item(
         &self,
         input: InventoryReservationInput,
+        actor: UserId,
     ) -> anyhow::Result<InventoryBalance> {
         let repo = InventoryRepoCore::new(self.db.pool());
-        repo.reserve_for_order_item(input).await
+        repo.reserve_for_order_item_with_audit(input, actor).await
     }
 
     async fn release_reservation(
         &self,
         input: InventoryReservationAction,
+        actor: UserId,
     ) -> anyhow::Result<InventoryBalance> {
         let repo = InventoryRepoCore::new(self.db.pool());
-        repo.release_reservation(input).await
+        repo.release_reservation_with_audit(input, actor).await
     }
 }
 

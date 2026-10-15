@@ -1,6 +1,62 @@
 use super::*;
 
 #[test]
+fn pending_editor_paints_only_the_frozen_draft_without_emitting_another_edit() {
+    let ctx = egui::Context::default();
+    let mut state = GridState::default();
+    let mut column = Column::new(ColumnId(1), "Qty", 220.0);
+    column.edit_kind = erp_grid_core::EditKind::Integer;
+    state
+        .restore_edit(
+            Cell { row: 0, column: 0 },
+            RowId(1),
+            ColumnId(1),
+            "12345".into(),
+            "777".into(),
+        )
+        .unwrap();
+    let (_, ticket) = state.prepare_edit_commit(&column).unwrap().unwrap();
+    let mut columns = vec![column];
+    for _ in 0..2 {
+        let mut grid = GridOutput::default();
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(600.0, 300.0))),
+                ..Default::default()
+            },
+            |root| {
+                egui::CentralPanel::default().show(root, |ui| {
+                    grid = DataGrid {
+                        id: Id::new("pending-paint-test"),
+                        columns: &mut columns,
+                        rows: 1,
+                        state: &mut state,
+                        row_id: Some(&|_| RowId(1)),
+                    }
+                    .show(ui, |_, _| "12345".into());
+                });
+            },
+        );
+        output.textures_delta.clear();
+        let texts: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::epaint::Shape::Text(text) => Some(text.galley.text()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts.iter().filter(|text| **text == "12345").count(), 0);
+        assert_eq!(texts.iter().filter(|text| **text == "777").count(), 1);
+        assert!(grid.editor_drawn);
+        assert!(grid.edits.is_empty());
+        assert_eq!(state.edit_draft().unwrap().after, "777");
+        assert!(state.prepare_edit_commit(&columns[0]).unwrap().is_none());
+    }
+    assert!(state.resolve_edit(ticket, Ok(())));
+}
+
+#[test]
 fn external_row_update_blocks_keyboard_and_host_commit_without_losing_draft() {
     let ctx = egui::Context::default();
     let mut state = GridState::default();

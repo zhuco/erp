@@ -1,0 +1,2 @@
+-- 0261: confirming one document locks that row before writing the open balance.
+-- A second confirm finds the first row and writes nothing. This comment does not add a table.

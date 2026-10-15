@@ -18,7 +18,7 @@
 - 新 stable 发布后单独核实、更新版本与 CI 并验证兼容，不自动漂移。遵循官方 Rust Style Guide，固定工具链执行 cargo fmt --all -- --check；局部修改只格式化涉及文件，全仓格式迁移独立实施。
 - Clippy 按受影响包与 native/wasm 目标执行，warnings 视为错误；不混开互斥宿主 features，不全局压制 lint。可恢复错误使用 Result，禁止 panic/unwrap；unsafe 须说明必要性、安全不变量与测试。
 - UI 绘制不得阻塞 I/O、反复创建 runtime、每帧全量重排或无界缓存。后台任务有取消、代次及有界队列。构建必须遵守上级固定缓存、锁和统一入口规则，不绕过或无限新建 target。
-- ERP 构建入口为 scripts/Invoke-ErpBuild.ps1，复用既有 build/cargo 固定缓存；单构建文件锁，缓存准入 80 GiB，缓存卷至少 20 GiB、工具链卷至少 10 GiB 空闲；这些是准入检查而非硬配额，不自动清理。默认 Scope grid 覆盖三个网格/UI 包；Scope backend 覆盖 erp-grid-core、erp-repo、erp-api 及依赖且仅允许 native；Scope api 仅覆盖 erp-api，用于受限的命名集成测试；Scope repo 仅检查 erp-repo 及其依赖，用于仓储局部验证；Scope worker 仅检查 erp-worker 及其依赖，沿用同一缓存和锁。TestFilter 限定库测试；IntegrationTest 仅允许 Action test、Scope api 和入口登记的单一目标，不能与 TestFilter/IncludeIgnored 混用；IncludeIgnored 必须同时指定 TestFilter，用于明确配置的数据库验收。不代表全后端升级已验收。
+- ERP 构建入口为 scripts/Invoke-ErpBuild.ps1，复用既有 G盘 build/cargo 固定target；Cargo依赖缓存固定为 build/cargo-home，编译临时目录固定为 build/tmp（均与target同级，不按会话新建）；单构建文件锁，三处构建存储合计准入 200 GiB，所在卷至少 20 GiB 空闲。复用已安装的固定1.98.1工具链只读执行，不以C盘用户目录空闲作为构建门槛；这些是准入检查而非硬配额，自动清理仅限下方已授权的登记失效working缓存。默认 Scope grid 覆盖三个网格/UI 包；Scope backend 覆盖 erp-grid-core、erp-domain、erp-repo、erp-api 及依赖且仅允许 native；Scope api 仅覆盖 erp-api，用于受限的命名集成测试；Scope repo 仅检查 erp-repo 及其依赖，用于仓储局部验证；Scope worker 仅检查 erp-worker 及其依赖，沿用同一缓存和锁。TestFilter 限定库测试；IntegrationTest 仅允许 Action test、Scope api 和入口登记的单一目标，不能与 TestFilter/IncludeIgnored 混用；IncludeIgnored 必须同时指定 TestFilter，用于明确配置的数据库验收。不代表全后端升级已验收。
 - 工具链配置更新不等于升级验收：Edition 兼容修复、整体格式迁移、编译、Clippy、双端 UI 与新增门禁仍须实际验证。
 
 ## 数据网格：强制规则
@@ -35,6 +35,11 @@
 
 - 统一构建入口支持 `Scope renderer` 仅验证渲染 crate；`Action fmt -WriteFormat` 写入固定 Rust 格式，默认 fmt 只检查。均复用同一缓存、锁及准入，不另建 target。
 - 已登记集成目标内可用 `IntegrationFilter` 定向运行受影响用例；必须与 `IntegrationTest` 同用，不能绕过目标白名单或与库级 `TestFilter` 混用。
+- 命名库测试需要原始诊断输出时可用 `ShowTestOutput`，仅允许 `Action test` 且显式 `TestFilter`，不得与 `IntegrationTest` 同用；仍由统一入口执行并复用同一锁、固定G盘目录与预算。此开关只关闭测试输出捕获，不改变测试范围、忽略策略或构建环境。
+- `Scope adapters` 仅覆盖现有 PDD/JD/Taobao/Douyin 四适配器包，限 native，复用原固定G盘缓存/锁/准入；用于受影响包的格式、编译、严格Clippy及命名库测试，不作为 API/仓储/真实平台验收。`JsonDiagnostics` 仅允许 `Action clippy`，只将原诊断序列化为JSON，不改变 `-D warnings`、包范围、忽略策略或资源检查。
+
+- `Scope domain` 仅验证 `erp-domain` 及其依赖，只允许 native。局部格式使用 `Action fmt -FormatFiles` 指定选中包内的现有 Rust 叶模块；支持绝对路径，拒绝越界、重解析点、模块根及外部子模块声明，仍使用相同缓存准入和构建锁。默认只检查，写入须加 `-WriteFormat`。
+- Release 数据库性能目标仅登记 `free_erp_bom_performance`；实际运行须同时指定 `-Scope api -IntegrationTest free_erp_bom_performance -Release -RunPerformance`。该开关不放宽其他集成目标和数据库准入，不提供新 target 或缓存。源码一致性、独立读回、运行环境和峰值内存仍须留证，忽略用例不算性能通过。
 
 - 文档规范不等于已实现自动门禁。本次约束生效时，AG Grid 移除、组件实现和 CI 门禁均需按路线图另行完成，不得报告为已经完成。
 - 文档修改只做编码、引用和一致性检查，不启动 Rust/前端编译，不改运行数据，不清理构建缓存。
@@ -99,3 +104,11 @@
 
 
 2026-09-11 最新视觉方向：以原网格风格为基础提供深色/浅色两套外观，不再机械照搬旧浅灰截图。主题集中在 `workbench/theme.rs`；菜单、树、详情和 DataGrid 共用语义颜色。默认深色，右上角切换并保存外观偏好，切换不重建页面或清除草稿。主表保持紧凑三段工具栏。刷新成功不显示“示例数据已刷新”等常驻提示；错误及必要保存结果保留。
+
+
+## 2026-10-10 构建预算与自动缓存维护
+
+用户明确批准ERP固定构建存储预算200 GiB及自动清理。仍使用原G盘target/cargo-home/tmp和build.lock，所在卷至少20 GiB空闲；通过统一入口维护登记清单中有编译失败证据、无占用、无重解析点的增量working目录。首次执行已核准两个目录；未来预算超限时可自动登记同类失败目录并核验后清理。有效增量、deps、可执行文件、依赖下载、源码、Git、数据库、发布、备份及QA证据不在自动清理范围；不能恢复准入则拒绝构建，不另建target或终止其他进程。
+
+
+- 2026-10-10 内存治理：统一入口BuildJobs默认1、仅允许1..2，不增建缓存；保护快照按每8表分批，但同一个只读repeatable-read事务覆盖全部企业/表/列，不减小保护范围；不终止其他应用释放内存。

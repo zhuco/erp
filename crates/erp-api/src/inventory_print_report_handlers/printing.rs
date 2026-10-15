@@ -634,6 +634,33 @@ pub(crate) async fn list_print_jobs(
         return resp.into_response();
     }
 
+    if let Some(raw) = query.ref_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        let print_id = match uuid::Uuid::parse_str(raw) {
+            Ok(value) => value,
+            Err(_) => return bad_request("bad ref_id").into_response(),
+        };
+        let offset = query.cursor.as_deref().and_then(|value| value.parse::<i64>().ok()).unwrap_or(0);
+        let limit = query.limit.unwrap_or(20);
+        let page = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+            .read_document_print_page(tenant_id, print_id, offset, limit)
+            .await;
+        let (line_count, total, lines) = match page {
+            Ok(Some(value)) => value,
+            Ok(None) => return not_found("print not found").into_response(),
+            Err(error) => return (StatusCode::BAD_REQUEST, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "print_id": print_id,
+                "line_count": line_count,
+                "total_cent": total,
+                "lines": lines,
+            })),
+        )
+            .into_response();
+    }
+
     let job_id = match query.job_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
             Ok(v) => Some(v),
@@ -826,6 +853,7 @@ pub(crate) async fn attach_waybill_to_payload(
 pub(crate) async fn create_print_job(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<PrintJobCreateRequest>,
@@ -841,6 +869,122 @@ pub(crate) async fn create_print_job(
         return resp.into_response();
     }
 
+    let header_request = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_request = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_request, body_request) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id.as_deref() {
+        let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+        if req.scan_exception.unwrap_or(false) {
+            let Some(code) = req.scan_code.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+                return bad_request("scan exception needs a code").into_response();
+            };
+            let saved = repo.record_scan_exception(tenant_id, request_id, request_id, code).await;
+            let write = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "status": "EXCEPTION",
+                    "submitted": false,
+                    "document_created": false,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
+        if req.scan_repeat.unwrap_or(false) {
+            let Some(code) = req.scan_code.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+                return bad_request("repeat scan needs a code").into_response();
+            };
+            let Some(kind) = req.scan_kind.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+                return bad_request("repeat scan needs a kind").into_response();
+            };
+            let saved = repo.hold_repeat_scan(tenant_id, request_id, request_id, code, kind).await;
+            let write = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "status": "HELD",
+                    "submitted": false,
+                    "document_created": false,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
+        if let (Some(kind), Some(company), Some(lines)) = (
+            req.document_kind.as_deref(),
+            req.company_name.as_deref(),
+            req.print_lines.as_ref(),
+        ) {
+            let document_id = match uuid::Uuid::parse_str(req.ref_id.trim()) {
+                Ok(value) => value,
+                Err(_) => return bad_request("bad document_id").into_response(),
+            };
+            let stored: Vec<(i32, String, i64, i64, i64, i64)> = lines
+                .iter()
+                .map(|line| (line.line_no, line.item_code.clone(), line.qty_micros, line.amount_cent, line.tax_cent, line.discount_cent))
+                .collect();
+            let saved = repo
+                .save_document_print(tenant_id, request_id, request_id, kind, document_id, company, &stored)
+                .await;
+            let (write, print_id, total) = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "print_id": print_id,
+                    "total_cent": total,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
+        if let Some(raw_print_id) = req.print_id.as_deref() {
+            let print_id = match uuid::Uuid::parse_str(raw_print_id) {
+                Ok(value) => value,
+                Err(_) => return bad_request("bad print_id").into_response(),
+            };
+            let saved = repo
+                .reprint_document(tenant_id, request_id, request_id, print_id, req.reason.as_deref().unwrap_or(""))
+                .await;
+            let (write, reprint_id) = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "reprint_id": reprint_id,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
+    }
+
     let enabled =
         match feature_flag_enabled(&state, tenant_id, None, FeatureFlagKey::Printing).await {
             Ok(v) => v,
@@ -852,6 +996,59 @@ pub(crate) async fn create_print_job(
             "feature disabled: printing"
         );
         return feature_flag_forbidden(FeatureFlagKey::Printing).into_response();
+    }
+
+    if let Some(request_id) = request_id {
+        let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+        let actor = ctx.user_id.to_string();
+        if let (Some(code), Some(kind)) = (req.scan_code.as_deref(), req.scan_kind.as_deref()) {
+            let saved = repo.record_scan(tenant_id, &request_id, &request_id, code, kind, &actor).await;
+            let (write, scan_id, status) = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "scan_id": scan_id,
+                    "status": status,
+                    "submitted": false,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
+        if let Some(state_name) = req.print_state.as_deref() {
+            let saved = repo
+                .record_print_event(
+                    tenant_id,
+                    &request_id,
+                    &request_id,
+                    req.ref_id.trim(),
+                    state_name,
+                    req.copies.unwrap_or(1),
+                    req.reason.as_deref().unwrap_or(""),
+                    req.actor_kind.as_deref().unwrap_or("USER"),
+                    &actor,
+                )
+                .await;
+            let (write, event_id, agent) = match saved {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            };
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "event_id": event_id,
+                    "state": state_name,
+                    "agent_is_seat": false,
+                    "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+                })),
+            )
+                .into_response();
+        }
     }
 
     let job_type = req.job_type.trim().to_string();

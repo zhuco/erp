@@ -99,6 +99,7 @@ impl PageLab {
                         .map_err(|e| e.to_string())?,
                     ),
                     bearer: None,
+                    idempotency_key: None,
                 },
                 ctx,
             )

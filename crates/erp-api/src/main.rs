@@ -15,7 +15,7 @@ use erp_repo::db::Db;
 use secrecy::ExposeSecret;
 use serde_json::Value;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
@@ -46,17 +46,47 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new_with_nats(db, jwt, nats);
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods([
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::PATCH,
-            Method::DELETE,
-            Method::OPTIONS,
-        ])
-        .allow_headers(Any);
+    let public_web = std::env::var("ERP_PUBLIC_WEB").ok().as_deref() == Some("1");
+    let allowed_origins = std::env::var("ERP_PUBLIC_ORIGINS").unwrap_or_default();
+    let allowed: Vec<String> = allowed_origins
+        .split(',')
+        .map(str::trim)
+        .filter(|origin| !origin.is_empty())
+        .map(str::to_string)
+        .collect();
+    let cors = if public_web {
+        let listed = allowed.clone();
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::predicate(move |origin, _| {
+                origin
+                    .to_str()
+                    .ok()
+                    .and_then(|value| erp_api::public_cors_allows(value, &listed).ok())
+                    .is_some()
+            }))
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+            ])
+            .allow_headers(Any)
+    } else {
+        tracing::warn!("development CORS allows any origin; this is not a public rule");
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+            ])
+            .allow_headers(Any)
+    };
 
     let app = build_app(state)
         .route("/metrics", get(metrics_handler))

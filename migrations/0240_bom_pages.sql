@@ -1,0 +1,2 @@
+-- A stored explode can be read by parent page.
+-- Yield is checked beside the scrap quantity and does not multiply it again.

@@ -1,0 +1,3 @@
+-- 0276: two saves of the same expected document version lock the row first.
+-- The second writer sees the new version and keeps its input as a conflict.
+-- This comment does not add a table.

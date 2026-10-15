@@ -387,11 +387,11 @@ impl<'a> ProductBarcodesRepo<'a> {
         }
 
         let row: Option<Row> = qb.build_query_as().fetch_optional(self.pool).await?;
-        if let Some(row) = row.as_ref() {
-            if row.is_default {
-                self.clear_default(tenant_id, row.sku_id, row.barcode_id)
-                    .await?;
-            }
+        if let Some(row) = row.as_ref()
+            && row.is_default
+        {
+            self.clear_default(tenant_id, row.sku_id, row.barcode_id)
+                .await?;
         }
 
         Ok(row.map(|row| ProductBarcode {

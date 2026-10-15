@@ -371,17 +371,10 @@ async fn product_copy_batch_postgres_lifecycle_recovery_cancel_scope_and_cas() {
     .await
     .unwrap();
     assert_eq!(review.selection.total, 1);
-    let page = crate::product_selection::page(
-        &pool,
-        tenant,
-        actor,
-        review.selection.token,
-        0,
-        10,
-        &[],
-    )
-    .await
-    .unwrap();
+    let page =
+        crate::product_selection::page(&pool, tenant, actor, review.selection.token, 0, 10, &[])
+            .await
+            .unwrap();
     assert_eq!(page.data.len(), 1);
     assert_eq!(page.data[0]["product_id"], Uuid::from_u128(11).to_string());
     assert_eq!(

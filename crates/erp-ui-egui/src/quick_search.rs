@@ -1,32 +1,58 @@
 use egui::{Id, Rect, Ui};
 use erp_grid_core::{Column, DateTimeParts, FilterDraft, FilterKind};
 
-pub fn show(ui: &mut Ui, rect: Rect, id: Id, column: &Column, draft: &mut FilterDraft) -> bool {
+#[derive(Default)]
+pub struct SearchOutput {
+    pub changed: bool,
+    pub focused: Option<Id>,
+}
+
+fn track_input(response: egui::Response, focused: &mut Option<Id>) -> egui::Response {
+    if response.has_focus() {
+        *focused = Some(response.id);
+    }
+    response
+}
+
+pub fn show(
+    ui: &mut Ui,
+    rect: Rect,
+    id: Id,
+    column: &Column,
+    draft: &mut FilterDraft,
+) -> SearchOutput {
     if matches!(column.filter, FilterKind::None) {
-        return false;
+        return SearchOutput::default();
     }
     let before = draft.clone();
+    let mut focused = None;
     ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
         ui.push_id(id, |ui| match (&mut *draft, &column.filter) {
             (FilterDraft::Text(value), FilterKind::Text) => {
-                ui.put(
-                    rect,
-                    egui::TextEdit::singleline(value)
-                        .id(id)
-                        .hint_text("筛选…")
-                        .char_limit(256),
+                track_input(
+                    ui.put(
+                        rect,
+                        egui::TextEdit::singleline(value)
+                            .id(id)
+                            .hint_text("筛选…")
+                            .char_limit(256),
+                    ),
+                    &mut focused,
                 );
             }
             (FilterDraft::Money { min, max }, FilterKind::Money) => {
                 let center = rect.center();
                 let left = Rect::from_min_max(rect.min, egui::pos2(center.x - 7.0, rect.max.y));
                 let right = Rect::from_min_max(egui::pos2(center.x + 7.0, rect.min.y), rect.max);
-                ui.put(
-                    left,
-                    egui::TextEdit::singleline(min)
-                        .id(id.with("min"))
-                        .hint_text("最小")
-                        .char_limit(24),
+                track_input(
+                    ui.put(
+                        left,
+                        egui::TextEdit::singleline(min)
+                            .id(id.with("min"))
+                            .hint_text("最小")
+                            .char_limit(24),
+                    ),
+                    &mut focused,
                 )
                 .on_hover_text("Minimum amount, inclusive; up to 2 decimals");
                 ui.painter().text(
@@ -36,12 +62,15 @@ pub fn show(ui: &mut Ui, rect: Rect, id: Id, column: &Column, draft: &mut Filter
                     egui::FontId::proportional(14.0),
                     ui.visuals().text_color(),
                 );
-                ui.put(
-                    right,
-                    egui::TextEdit::singleline(max)
-                        .id(id.with("max"))
-                        .hint_text("最大")
-                        .char_limit(24),
+                track_input(
+                    ui.put(
+                        right,
+                        egui::TextEdit::singleline(max)
+                            .id(id.with("max"))
+                            .hint_text("最大")
+                            .char_limit(24),
+                    ),
+                    &mut focused,
                 )
                 .on_hover_text("Maximum amount, inclusive; up to 2 decimals");
             }
@@ -57,9 +86,15 @@ pub fn show(ui: &mut Ui, rect: Rect, id: Id, column: &Column, draft: &mut Filter
                         egui::ScrollArea::vertical()
                             .max_height(420.0)
                             .show(ui, |ui| {
-                                ui.push_id("start", |ui| date_picker(ui, "Start", start));
+                                focused = ui
+                                    .push_id("start", |ui| date_picker(ui, "Start", start))
+                                    .inner
+                                    .or(focused);
                                 ui.separator();
-                                ui.push_id("end", |ui| date_picker(ui, "End", end));
+                                focused = ui
+                                    .push_id("end", |ui| date_picker(ui, "End", end))
+                                    .inner
+                                    .or(focused);
                                 if ui.button("Clear dates").clicked() {
                                     *start = None;
                                     *end = None;
@@ -128,31 +163,41 @@ pub fn show(ui: &mut Ui, rect: Rect, id: Id, column: &Column, draft: &mut Filter
             }
         });
     });
-    *draft != before
+    SearchOutput {
+        changed: *draft != before,
+        focused,
+    }
 }
 
-fn date_picker(ui: &mut Ui, label: &str, value: &mut Option<DateTimeParts>) {
+fn date_picker(ui: &mut Ui, label: &str, value: &mut Option<DateTimeParts>) -> Option<Id> {
     let mut enabled = value.is_some();
     if ui.checkbox(&mut enabled, label).changed() {
         *value = enabled.then(DateTimeParts::default);
     }
     let Some(date) = value else {
-        return;
+        return None;
     };
-    calendar(ui, date, true);
+    calendar(ui, date, true)
 }
 
-pub(crate) fn calendar(ui: &mut Ui, date: &mut DateTimeParts, with_time: bool) {
+pub(crate) fn calendar(ui: &mut Ui, date: &mut DateTimeParts, with_time: bool) -> Option<Id> {
+    let mut focused = None;
     ui.horizontal(|ui| {
-        ui.add(
-            egui::DragValue::new(&mut date.year)
-                .range(1900..=2100)
-                .prefix("Year "),
+        track_input(
+            ui.add(
+                egui::DragValue::new(&mut date.year)
+                    .range(1900..=2100)
+                    .prefix("Year "),
+            ),
+            &mut focused,
         );
-        ui.add(
-            egui::DragValue::new(&mut date.month)
-                .range(1..=12)
-                .prefix("Month "),
+        track_input(
+            ui.add(
+                egui::DragValue::new(&mut date.month)
+                    .range(1..=12)
+                    .prefix("Month "),
+            ),
+            &mut focused,
         );
     });
     date.year = date.year.clamp(1900, 2100);
@@ -188,25 +233,35 @@ pub(crate) fn calendar(ui: &mut Ui, date: &mut DateTimeParts, with_time: bool) {
         });
     }
     if !with_time {
-        return;
+        return focused;
     }
     ui.horizontal(|ui| {
-        ui.add(
-            egui::DragValue::new(&mut date.hour)
-                .range(0..=23)
-                .suffix(" h"),
+        track_input(
+            ui.add(
+                egui::DragValue::new(&mut date.hour)
+                    .range(0..=23)
+                    .suffix(" h"),
+            ),
+            &mut focused,
         );
-        ui.add(
-            egui::DragValue::new(&mut date.minute)
-                .range(0..=59)
-                .suffix(" m"),
+        track_input(
+            ui.add(
+                egui::DragValue::new(&mut date.minute)
+                    .range(0..=59)
+                    .suffix(" m"),
+            ),
+            &mut focused,
         );
-        ui.add(
-            egui::DragValue::new(&mut date.second)
-                .range(0..=59)
-                .suffix(" s"),
+        track_input(
+            ui.add(
+                egui::DragValue::new(&mut date.second)
+                    .range(0..=59)
+                    .suffix(" s"),
+            ),
+            &mut focused,
         );
     });
+    focused
 }
 
 #[cfg(test)]
@@ -370,5 +425,42 @@ mod tests {
         );
         assert!(labels.is_empty());
         assert_eq!(draft, before);
+    }
+
+    #[test]
+    fn module_query_filters_report_only_their_actual_focused_input() {
+        let id = Id::new("query-owner");
+        for (kind, focused, expected) in [
+            (FilterKind::Text, id, Some(id)),
+            (FilterKind::Money, id.with("min"), Some(id.with("min"))),
+            (FilterKind::Money, id.with("max"), Some(id.with("max"))),
+            (FilterKind::Text, Id::new("sibling-input"), None),
+        ] {
+            let ctx = egui::Context::default();
+            let column =
+                Column::new(erp_grid_core::ColumnId(1), "Query", 240.0).with_filter(kind.clone());
+            let mut draft = FilterDraft::for_kind(&kind);
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(800.0, 400.0),
+                    )),
+                    ..Default::default()
+                },
+                |ui| {
+                    ui.memory_mut(|memory| memory.request_focus(focused));
+                    let response = show(
+                        ui,
+                        Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(240.0, 26.0)),
+                        id,
+                        &column,
+                        &mut draft,
+                    );
+                    assert_eq!(response.focused, expected);
+                },
+            );
+            output.textures_delta.clear();
+        }
     }
 }

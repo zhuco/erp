@@ -610,6 +610,7 @@ pub(crate) async fn list_stock_adjustments(
 pub(crate) async fn create_stock_adjustment(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<StockAdjustCreateRequest>,
 ) -> impl IntoResponse {
@@ -628,6 +629,76 @@ pub(crate) async fn create_stock_adjustment(
         Ok(v) => v,
         Err(_) => return bad_request("bad warehouse_id").into_response(),
     };
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Some(request_id) = request_id {
+        let location_id = match req
+            .location_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad location_id").into_response(),
+        };
+        let sku_id = match req
+            .sku_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad sku_id").into_response(),
+        };
+        let batch_code = req
+            .batch_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let cutoff_at = req
+            .cutoff_at
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let (Some(batch_code), Some(cutoff_at), Some(counted_qty)) =
+            (batch_code, cutoff_at, req.counted_qty)
+        else {
+            return bad_request("batch, cutoff, and counted quantity are required").into_response();
+        };
+        let saved = SharedContractRepo::new(state.db.pool())
+            .confirm_count_adjustment(
+                tenant_id,
+                &request_id,
+                &request_id,
+                warehouse_id,
+                location_id,
+                sku_id,
+                batch_code,
+                cutoff_at,
+                counted_qty,
+            )
+            .await;
+        let (write, delta) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        let (receipt, replay) = match write {
+            SharedWrite::Stored(receipt) => (receipt, false),
+            SharedWrite::Replay(receipt) => (receipt, true),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "request_id": receipt.request_id,
+                "status": receipt.status.as_str(),
+                "replay": replay,
+                "adjustment_micros": delta,
+                "counted_qty": counted_qty,
+            })),
+        )
+            .into_response();
+    }
     let mut items = Vec::with_capacity(req.items.len());
     for item in req.items {
         let sku_id = match uuid::Uuid::parse_str(&item.sku_id) {
@@ -1075,6 +1146,7 @@ pub(crate) async fn apply_stock_move(
 pub(crate) async fn inbound_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<InventoryMovementRequest>,
 ) -> impl IntoResponse {
@@ -1095,11 +1167,62 @@ pub(crate) async fn inbound_inventory(
     };
     let batch_id = match req.batch_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
-            Ok(v) => Some(v),
-            Err(_) => return bad_request("bad batch_id").into_response(),
+            Ok(v) if !v.is_nil() => Some(v),
+            _ => return bad_request("bad batch_id").into_response(),
         },
         None => None,
     };
+
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Some(request_id) = request_id {
+        if batch_id.is_some()
+            && (req.location_id.is_some()
+                || req.batch_code.is_some()
+                || req.quality_status.is_some())
+        {
+            return bad_request("batch UUID cannot be combined with location batch code")
+                .into_response();
+        }
+        if req.location_id.is_some() || req.batch_code.is_some() || req.quality_status.is_some() {
+            return shared_stock_ledger_inbound(
+                &state,
+                &ctx,
+                tenant_id,
+                warehouse_id,
+                sku_id,
+                &req,
+                &request_id,
+            )
+            .await;
+        }
+        return execute_inventory_command(
+            &state,
+            &ctx,
+            erp_repo::inventory_movement_commands::InventoryMovementCommandInput {
+                tenant_id,
+                actor_user_id: ctx.user_id,
+                session_id: ctx.session_id,
+                request_id,
+                kind: erp_repo::inventory_movement_commands::InventoryMovementKind::Inbound,
+                warehouse_id,
+                sku_id,
+                batch_id,
+                quantity_delta: req.quantity,
+                reason: req.reason.clone(),
+                reference_id: req.reference_id.clone(),
+                location: None,
+                reservation_source: None,
+            },
+        )
+        .await;
+    }
+
+    if req.location_id.is_some() || req.batch_code.is_some() || req.quality_status.is_some() {
+        return bad_request("structured inbound requires an original request_id").into_response();
+    }
 
     let balance = match apply_inventory_movement(
         &state,
@@ -1126,9 +1249,109 @@ pub(crate) async fn inbound_inventory(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+pub(crate) fn shared_request_id(
+    headers: &HeaderMap,
+    body_request_id: Option<&str>,
+) -> Result<Option<String>, Response> {
+    if headers.get_all("Idempotency-Key").iter().count() > 1 {
+        return Err(bad_request("multiple Idempotency-Key headers").into_response());
+    }
+    let validate = |value: &str| {
+        erp_repo::inventory_movement_commands::normalize_inventory_request_id(value)
+            .map_err(inventory_command_error)
+    };
+    let header = headers
+        .get("Idempotency-Key")
+        .map(|value| {
+            value
+                .to_str()
+                .map_err(|_| bad_request("invalid Idempotency-Key").into_response())
+                .and_then(validate)
+        })
+        .transpose()?;
+    let body = body_request_id.map(validate).transpose()?;
+    match (header, body) {
+        (Some(header), Some(body)) if header != body => {
+            Err(conflict("Idempotency-Key disagrees with request_id").into_response())
+        }
+        (Some(header), _) => Ok(Some(header)),
+        (None, Some(body)) => Ok(Some(body)),
+        (None, None) => Ok(None),
+    }
+}
+
+async fn shared_stock_ledger_inbound(
+    state: &AppState,
+    ctx: &AuthContext,
+    tenant_id: TenantId,
+    warehouse_id: uuid::Uuid,
+    sku_id: uuid::Uuid,
+    req: &InventoryMovementRequest,
+    request_id: &str,
+) -> Response {
+    let location = match inventory_movement_location(req) {
+        Ok(location) => location,
+        Err(response) => return response,
+    };
+    execute_inventory_command(
+        state,
+        ctx,
+        erp_repo::inventory_movement_commands::InventoryMovementCommandInput {
+            tenant_id,
+            actor_user_id: ctx.user_id,
+            session_id: ctx.session_id,
+            request_id: request_id.to_owned(),
+            kind: erp_repo::inventory_movement_commands::InventoryMovementKind::Inbound,
+            warehouse_id,
+            sku_id,
+            batch_id: None,
+            quantity_delta: req.quantity,
+            reason: req.reason.clone(),
+            reference_id: req.reference_id.clone(),
+            location: Some(location),
+            reservation_source: None,
+        },
+    )
+    .await
+}
+
+fn inventory_movement_location(
+    req: &InventoryMovementRequest,
+) -> Result<erp_repo::inventory_movement_commands::InventoryInboundLocation, Response> {
+    let location_id = match req
+        .location_id
+        .as_deref()
+        .and_then(|value| uuid::Uuid::parse_str(value).ok())
+    {
+        Some(value) => value,
+        None => return Err(bad_request("bad location_id").into_response()),
+    };
+    let batch_code = req
+        .batch_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let quality_status = req
+        .quality_status
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let (Some(batch_code), Some(quality_status)) = (batch_code, quality_status) else {
+        return Err(bad_request("batch and quality status are required").into_response());
+    };
+    Ok(
+        erp_repo::inventory_movement_commands::InventoryInboundLocation {
+            location_id,
+            batch_code: batch_code.to_owned(),
+            quality_status: quality_status.to_owned(),
+        },
+    )
+}
+
 pub(crate) async fn outbound_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<InventoryMovementRequest>,
 ) -> impl IntoResponse {
@@ -1149,12 +1372,52 @@ pub(crate) async fn outbound_inventory(
     };
     let batch_id = match req.batch_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
-            Ok(v) => Some(v),
-            Err(_) => return bad_request("bad batch_id").into_response(),
+            Ok(v) if !v.is_nil() => Some(v),
+            _ => return bad_request("bad batch_id").into_response(),
         },
         None => None,
     };
 
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    if let Some(request_id) = request_id {
+        let location = if req.location_id.is_some()
+            || req.batch_code.is_some()
+            || req.quality_status.is_some()
+        {
+            match inventory_movement_location(&req) {
+                Ok(location) => Some(location),
+                Err(response) => return response,
+            }
+        } else {
+            None
+        };
+        return execute_inventory_command(
+            &state,
+            &ctx,
+            erp_repo::inventory_movement_commands::InventoryMovementCommandInput {
+                tenant_id,
+                actor_user_id: ctx.user_id,
+                session_id: ctx.session_id,
+                request_id,
+                kind: erp_repo::inventory_movement_commands::InventoryMovementKind::Outbound,
+                warehouse_id,
+                sku_id,
+                batch_id,
+                quantity_delta: -req.quantity,
+                reason: req.reason.clone(),
+                reference_id: req.reference_id.clone(),
+                location,
+                reservation_source: None,
+            },
+        )
+        .await;
+    }
+    if req.location_id.is_some() || req.batch_code.is_some() || req.quality_status.is_some() {
+        return bad_request("structured outbound requires an original request_id").into_response();
+    }
     let balance = match apply_inventory_movement(
         &state,
         &ctx,
@@ -1183,6 +1446,7 @@ pub(crate) async fn outbound_inventory(
 pub(crate) async fn reserve_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<InventoryReservationRequest>,
 ) -> impl IntoResponse {
@@ -1210,8 +1474,8 @@ pub(crate) async fn reserve_inventory(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    if req.quantity <= 0 {
-        return bad_request("quantity must be positive").into_response();
+    if req.quantity <= 0 || req.quantity.checked_mul(1_000_000).is_none() {
+        return bad_request("quantity must be positive and within exact range").into_response();
     }
 
     let warehouse_id = match uuid::Uuid::parse_str(&req.warehouse_id) {
@@ -1224,76 +1488,71 @@ pub(crate) async fn reserve_inventory(
     };
     let order_id = match req.order_id.as_deref() {
         Some(v) => match uuid::Uuid::parse_str(v) {
-            Ok(id) => Some(id),
-            Err(_) => return bad_request("bad order_id").into_response(),
+            Ok(id) if !id.is_nil() => Some(id),
+            _ => return bad_request("bad order_id").into_response(),
         },
         None => None,
     };
-    let order_item_raw = req.order_item_id.as_deref().or(req.reference_id.as_deref());
-    let order_item_id = match order_item_raw {
-        Some(v) => match uuid::Uuid::parse_str(v) {
-            Ok(id) => id,
-            Err(_) => return bad_request("bad order_item_id").into_response(),
-        },
-        None => return bad_request("missing order_item_id").into_response(),
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Some(request_id) = request_id {
+        return execute_source_inventory_command(
+            &state,
+            &ctx,
+            tenant_id,
+            erp_repo::inventory_movement_commands::InventoryMovementKind::Reserve,
+            request_id,
+            InventorySourceCommandRequest {
+                warehouse_id,
+                sku_id,
+                quantity: req.quantity,
+                order_id,
+                order_item_id: req.order_item_id.as_deref(),
+                reference_id: req.reference_id.as_deref(),
+                location_id: req.location_id.as_deref(),
+                batch_code: req.batch_code.as_deref(),
+                quality_status: req.quality_status.as_deref(),
+            },
+        )
+        .await;
+    }
+    if req.location_id.is_some() || req.batch_code.is_some() || req.quality_status.is_some() {
+        return bad_request("structured reservation requires an original request_id")
+            .into_response();
+    }
+    if let Err(response) =
+        inventory_command_warehouse_access(&state, &ctx, tenant_id, warehouse_id).await
+    {
+        return response;
+    }
+    let order_item_id = match legacy_reservation_source_id(
+        req.order_item_id.as_deref(),
+        req.reference_id.as_deref(),
+    ) {
+        Ok(id) => id,
+        Err(response) => return response,
     };
 
     let balance = match state
         .inventory_repo
-        .reserve_for_order_item(InventoryReservationInput {
-            tenant_id,
-            warehouse_id,
-            sku_id,
-            order_id,
-            order_item_id,
-            qty: req.quantity,
-        })
+        .reserve_for_order_item(
+            InventoryReservationInput {
+                tenant_id,
+                warehouse_id,
+                sku_id,
+                order_id,
+                order_item_id,
+                qty: req.quantity,
+            },
+            ctx.user_id,
+        )
         .await
     {
         Ok(v) => v,
         Err(e) => return inventory_error_response(e).into_response(),
     };
-
-    let log_metadata = serde_json::json!({
-        "warehouse_id": warehouse_id,
-        "sku_id": sku_id,
-        "order_id": order_id,
-        "order_item_id": order_item_id,
-        "qty": req.quantity,
-    });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    if let Err(e) = logs_repo
-        .insert(OperationLogCreate {
-            tenant_id,
-            actor_type: "USER".to_string(),
-            actor_user_id: Some(ctx.user_id),
-            action: OP_ACTION_INVENTORY_RESERVED.to_string(),
-            ref_type: Some("ORDER_ITEM".to_string()),
-            ref_id: Some(order_item_id.to_string()),
-            metadata: Some(log_metadata.clone()),
-        })
-        .await
-    {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
-    }
-
-    let audit_repo = AuditLogsRepo::new(state.db.pool());
-    if let Err(e) = audit_repo
-        .insert(AuditLogCreate {
-            tenant_id,
-            user_id: Some(ctx.user_id),
-            action: "INVENTORY.RESERVE".to_string(),
-            entity_type: "INVENTORY_BALANCE".to_string(),
-            entity_id: Some(sku_id.to_string()),
-            before_json: None,
-            after_json: Some(log_metadata),
-            ip: None,
-            ua: None,
-        })
-        .await
-    {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
-    }
 
     let response = InventoryMutationResponse {
         record: inventory_balance_response(balance),
@@ -1304,6 +1563,7 @@ pub(crate) async fn reserve_inventory(
 pub(crate) async fn release_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<InventoryReleaseRequest>,
 ) -> impl IntoResponse {
@@ -1331,8 +1591,8 @@ pub(crate) async fn release_inventory(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    if req.quantity <= 0 {
-        return bad_request("quantity must be positive").into_response();
+    if req.quantity <= 0 || req.quantity.checked_mul(1_000_000).is_none() {
+        return bad_request("quantity must be positive and within exact range").into_response();
     }
 
     let warehouse_id = match uuid::Uuid::parse_str(&req.warehouse_id) {
@@ -1343,74 +1603,181 @@ pub(crate) async fn release_inventory(
         Ok(v) => v,
         Err(_) => return bad_request("bad sku_id").into_response(),
     };
-    let order_item_raw = req.order_item_id.as_deref().or(req.reference_id.as_deref());
-    let order_item_id = match order_item_raw {
-        Some(v) => match uuid::Uuid::parse_str(v) {
-            Ok(id) => id,
-            Err(_) => return bad_request("bad order_item_id").into_response(),
-        },
-        None => return bad_request("missing order_item_id").into_response(),
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    if let Some(request_id) = request_id {
+        let order_id = match req
+            .order_id
+            .as_deref()
+            .map(uuid::Uuid::parse_str)
+            .transpose()
+        {
+            Ok(value) => value,
+            Err(_) => return bad_request("bad order_id").into_response(),
+        };
+        return execute_source_inventory_command(
+            &state,
+            &ctx,
+            tenant_id,
+            erp_repo::inventory_movement_commands::InventoryMovementKind::Release,
+            request_id,
+            InventorySourceCommandRequest {
+                warehouse_id,
+                sku_id,
+                quantity: req.quantity,
+                order_id,
+                order_item_id: req.order_item_id.as_deref(),
+                reference_id: req.reference_id.as_deref(),
+                location_id: req.location_id.as_deref(),
+                batch_code: req.batch_code.as_deref(),
+                quality_status: req.quality_status.as_deref(),
+            },
+        )
+        .await;
+    }
+    if req.location_id.is_some()
+        || req.batch_code.is_some()
+        || req.quality_status.is_some()
+        || req.order_id.is_some()
+    {
+        return bad_request("structured release requires an original request_id").into_response();
+    }
+    if let Err(response) =
+        inventory_command_warehouse_access(&state, &ctx, tenant_id, warehouse_id).await
+    {
+        return response;
+    }
+    let order_item_id = match legacy_reservation_source_id(
+        req.order_item_id.as_deref(),
+        req.reference_id.as_deref(),
+    ) {
+        Ok(id) => id,
+        Err(response) => return response,
     };
 
     let balance = match state
         .inventory_repo
-        .release_reservation(InventoryReservationAction {
-            tenant_id,
-            warehouse_id,
-            sku_id,
-            order_item_id,
-            qty: req.quantity,
-        })
+        .release_reservation(
+            InventoryReservationAction {
+                tenant_id,
+                warehouse_id,
+                sku_id,
+                order_item_id,
+                qty: req.quantity,
+            },
+            ctx.user_id,
+        )
         .await
     {
         Ok(v) => v,
         Err(e) => return inventory_error_response(e).into_response(),
     };
 
-    let log_metadata = serde_json::json!({
-        "warehouse_id": warehouse_id,
-        "sku_id": sku_id,
-        "order_item_id": order_item_id,
-        "qty": req.quantity,
-    });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    if let Err(e) = logs_repo
-        .insert(OperationLogCreate {
-            tenant_id,
-            actor_type: "USER".to_string(),
-            actor_user_id: Some(ctx.user_id),
-            action: OP_ACTION_INVENTORY_RELEASED.to_string(),
-            ref_type: Some("ORDER_ITEM".to_string()),
-            ref_id: Some(order_item_id.to_string()),
-            metadata: Some(log_metadata.clone()),
-        })
-        .await
-    {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
-    }
-
-    let audit_repo = AuditLogsRepo::new(state.db.pool());
-    if let Err(e) = audit_repo
-        .insert(AuditLogCreate {
-            tenant_id,
-            user_id: Some(ctx.user_id),
-            action: "INVENTORY.RELEASE".to_string(),
-            entity_type: "INVENTORY_BALANCE".to_string(),
-            entity_id: Some(sku_id.to_string()),
-            before_json: None,
-            after_json: Some(log_metadata),
-            ip: None,
-            ua: None,
-        })
-        .await
-    {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
-    }
-
     let response = InventoryMutationResponse {
         record: inventory_balance_response(balance),
     };
     (StatusCode::OK, Json(response)).into_response()
+}
+
+fn legacy_reservation_source_id(
+    order_item: Option<&str>,
+    reference: Option<&str>,
+) -> Result<uuid::Uuid, Response> {
+    let parse = |value: &str| {
+        uuid::Uuid::parse_str(value.trim())
+            .ok()
+            .filter(|id| !id.is_nil())
+            .ok_or_else(|| bad_request("bad reservation source UUID").into_response())
+    };
+    let order_item = order_item.map(parse).transpose()?;
+    let reference = reference.map(parse).transpose()?;
+    match (order_item, reference) {
+        (Some(a), Some(b)) if a != b => {
+            Err(bad_request("source aliases must agree").into_response())
+        }
+        (Some(id), _) | (_, Some(id)) => Ok(id),
+        (None, None) => Err(bad_request("missing order_item_id").into_response()),
+    }
+}
+
+struct InventorySourceCommandRequest<'a> {
+    warehouse_id: uuid::Uuid,
+    sku_id: uuid::Uuid,
+    quantity: i64,
+    order_id: Option<uuid::Uuid>,
+    order_item_id: Option<&'a str>,
+    reference_id: Option<&'a str>,
+    location_id: Option<&'a str>,
+    batch_code: Option<&'a str>,
+    quality_status: Option<&'a str>,
+}
+
+async fn execute_source_inventory_command(
+    state: &AppState,
+    ctx: &AuthContext,
+    tenant_id: TenantId,
+    kind: erp_repo::inventory_movement_commands::InventoryMovementKind,
+    request_id: String,
+    req: InventorySourceCommandRequest<'_>,
+) -> Response {
+    use erp_repo::{
+        inventory_location_reservations::InventoryReservationSource,
+        inventory_movement_commands::{
+            InventoryInboundLocation, InventoryMovementCommandInput, InventoryMovementKind,
+        },
+    };
+    let aliases = (
+        req.order_item_id.map(str::trim),
+        req.reference_id.map(str::trim),
+    );
+    if aliases.0.is_some_and(str::is_empty)
+        || aliases.1.is_some_and(str::is_empty)
+        || matches!(aliases,(Some(a),Some(b)) if a!=b)
+    {
+        return bad_request("source aliases must be nonempty and agree").into_response();
+    }
+    let Some(source_line) = aliases.0.or(aliases.1) else {
+        return bad_request("missing reservation source").into_response();
+    };
+    let Some(location_id) = req.location_id.and_then(|v| uuid::Uuid::parse_str(v).ok()) else {
+        return bad_request("bad location_id").into_response();
+    };
+    let (Some(batch_code), Some(quality_status)) = (req.batch_code, req.quality_status) else {
+        return bad_request("batch and quality status are required").into_response();
+    };
+    execute_inventory_command(
+        state,
+        ctx,
+        InventoryMovementCommandInput {
+            tenant_id,
+            actor_user_id: ctx.user_id,
+            session_id: ctx.session_id,
+            request_id,
+            kind,
+            warehouse_id: req.warehouse_id,
+            sku_id: req.sku_id,
+            batch_id: None,
+            quantity_delta: if kind == InventoryMovementKind::Release {
+                -req.quantity
+            } else {
+                req.quantity
+            },
+            reason: None,
+            reference_id: req.reference_id.map(str::to_owned),
+            location: Some(InventoryInboundLocation {
+                location_id,
+                batch_code: batch_code.to_owned(),
+                quality_status: quality_status.to_owned(),
+            }),
+            reservation_source: Some(InventoryReservationSource {
+                source_line: source_line.to_owned(),
+                order_id: req.order_id,
+            }),
+        },
+    )
+    .await
 }
 
 pub(crate) async fn list_inventory_sync_jobs(

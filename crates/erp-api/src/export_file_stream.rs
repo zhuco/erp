@@ -1,5 +1,6 @@
 use axum::body::{Body, Bytes};
 use futures::stream;
+use sha2::{Digest, Sha256};
 use std::{io, path::Path};
 use tokio::io::{AsyncReadExt, Take};
 
@@ -7,6 +8,13 @@ pub(crate) const MAX_EXPORT_FILE_LEN: u64 = 1024 * 1024 * 1024;
 const EXPORT_CHUNK_LEN: usize = 64 * 1024;
 
 pub(crate) async fn export_file_body(path: &Path) -> io::Result<(Body, u64)> {
+    export_file_body_checked(path, None).await
+}
+
+pub(crate) async fn export_file_body_checked(
+    path: &Path,
+    receipt: Option<(u64, String)>,
+) -> io::Result<(Body, u64)> {
     let file = tokio::fs::File::open(path).await?;
     let metadata = file.metadata().await?;
     if !metadata.is_file() {
@@ -17,6 +25,15 @@ pub(crate) async fn export_file_body(path: &Path) -> io::Result<(Body, u64)> {
     }
 
     let expected_len = metadata.len();
+    if receipt
+        .as_ref()
+        .is_some_and(|(bytes, _)| *bytes != expected_len)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "export receipt length mismatch",
+        ));
+    }
     if expected_len > MAX_EXPORT_FILE_LEN {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -29,6 +46,8 @@ pub(crate) async fn export_file_body(path: &Path) -> io::Result<(Body, u64)> {
         expected_len,
         bytes_read: 0,
         finished: false,
+        hash: receipt.as_ref().map(|_| Sha256::new()),
+        digest: receipt.map(|(_, hash)| hash),
     };
     let body_stream = stream::try_unfold(state, |mut state| async move {
         if state.finished {
@@ -58,6 +77,9 @@ pub(crate) async fn export_file_body(path: &Path) -> io::Result<(Body, u64)> {
             ));
         }
         chunk.truncate(count);
+        if let Some(hash) = state.hash.as_mut() {
+            hash.update(&chunk);
+        }
         state.bytes_read += count as u64;
         if state.bytes_read == state.expected_len {
             let mut extra = [0_u8; 1];
@@ -68,6 +90,14 @@ pub(crate) async fn export_file_body(path: &Path) -> io::Result<(Body, u64)> {
                 ));
             }
             state.finished = true;
+            if let Some(hash) = state.hash.take()
+                && state.digest.as_deref() != Some(hex::encode(hash.finalize()).as_str())
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "export receipt hash mismatch",
+                ));
+            }
         }
         Ok(Some((Bytes::from(chunk), state)))
     });
@@ -80,6 +110,8 @@ struct ExportStreamState {
     expected_len: u64,
     bytes_read: u64,
     finished: bool,
+    hash: Option<Sha256>,
+    digest: Option<String>,
 }
 
 #[cfg(test)]

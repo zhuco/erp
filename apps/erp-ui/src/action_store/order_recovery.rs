@@ -25,6 +25,56 @@ pub(crate) struct OrderRecoveryStore {
 }
 
 impl OrderRecoveryStore {
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) async fn open_trade_test(
+        scope: ActionScope,
+        root: &std::path::Path,
+    ) -> Result<LoadedOrderRecovery, String> {
+        Self::open_test(scope, root, "trade-sales-v1").await
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) async fn open_material_test(
+        scope: ActionScope,
+        root: &std::path::Path,
+    ) -> Result<LoadedOrderRecovery, String> {
+        Self::open_test(scope, root, "material-documents-v1").await
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    async fn open_test(
+        scope: ActionScope,
+        root: &std::path::Path,
+        namespace: &str,
+    ) -> Result<LoadedOrderRecovery, String> {
+        let key = format!("{namespace}:{}", scope.storage_key()?);
+        let path = super::native::prepare(root.to_path_buf())?;
+        let pool = super::native::connect(&path).await?;
+        let (revision, bytes) = super::native::load(&pool, &key).await?;
+        Ok(LoadedOrderRecovery {
+            store: Self {
+                key,
+                busy: Arc::new(AtomicBool::new(false)),
+                pool,
+            },
+            revision,
+            bytes: unpack(bytes)?,
+        })
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) async fn close_test(&self) {
+        self.pool.close().await;
+    }
+    pub(crate) fn open_trade(
+        scope: ActionScope,
+        ctx: &egui::Context,
+    ) -> Result<StorageTask<LoadedOrderRecovery>, String> {
+        Self::open_named(scope, "trade-sales-v1", ctx)
+    }
+    pub(crate) fn open_material(
+        scope: ActionScope,
+        ctx: &egui::Context,
+    ) -> Result<StorageTask<LoadedOrderRecovery>, String> {
+        Self::open_named(scope, "material-documents-v1", ctx)
+    }
     pub(crate) fn open(
         scope: ActionScope,
         ctx: &egui::Context,

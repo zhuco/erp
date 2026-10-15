@@ -592,6 +592,7 @@ mod tests {
             warehouse_ids: Vec::new(),
             merchant_ids: Vec::new(),
             organization_ids: Vec::new(),
+        session_id: None,
         };
         let req_ctx = RequestContext {
             request_id: "req-test".to_string(),

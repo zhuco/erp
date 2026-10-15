@@ -81,15 +81,14 @@ impl<'a> SyncJobsRepo<'a> {
         let shop_ids = filters.shop_ids.clone();
         let job_type = filters.job_type.clone();
         let status = filters.status.clone();
-        if shop_id.is_none() {
-            if let Some(ids) = &shop_ids {
-                if ids.is_empty() {
-                    return Ok(SyncJobListResult {
-                        items: vec![],
-                        total: 0,
-                    });
-                }
-            }
+        if shop_id.is_none()
+            && let Some(ids) = &shop_ids
+            && ids.is_empty()
+        {
+            return Ok(SyncJobListResult {
+                items: vec![],
+                total: 0,
+            });
         }
         let mut total_qb =
             QueryBuilder::<Postgres>::new("select count(*) from sync_jobs where tenant_id = ");

@@ -799,14 +799,13 @@ impl WebhookAdapter for Adapter {
         body: &[u8],
     ) -> Result<Vec<OrderProjection>, AdapterError> {
         // 1) JSON payload that already contains Trade snapshot
-        if let Some(v) = parse_json(body) {
-            if let Some(trade) = v
+        if let Some(v) = parse_json(body)
+            && let Some(trade) = v
                 .get("trade_fullinfo_get_response")
                 .and_then(|x| x.get("trade"))
                 .or_else(|| v.get("trade"))
-            {
-                return Ok(vec![Self::map_trade_to_projection(shop, trade)?]);
-            }
+        {
+            return Ok(vec![Self::map_trade_to_projection(shop, trade)?]);
         }
 
         // 2) Form-urlencoded: may contain tid directly or contain a message with tid.
@@ -817,13 +816,12 @@ impl WebhookAdapter for Adapter {
         }
 
         // TOP message service sometimes puts message JSON in `message`.
-        if let Some(msg) = params.get("message") {
-            if let Ok(v) = serde_json::from_str::<Value>(msg) {
-                if let Some(tid) = v.get("tid").and_then(|x| x.as_str()) {
-                    let o = self.fetch_trade_fullinfo(shop, tid).await?;
-                    return Ok(vec![o]);
-                }
-            }
+        if let Some(msg) = params.get("message")
+            && let Ok(v) = serde_json::from_str::<Value>(msg)
+            && let Some(tid) = v.get("tid").and_then(|x| x.as_str())
+        {
+            let o = self.fetch_trade_fullinfo(shop, tid).await?;
+            return Ok(vec![o]);
         }
 
         Ok(vec![])
@@ -928,14 +926,13 @@ impl Adapter {
             .and_then(|x| x.as_array())
             .cloned()
             .unwrap_or_default();
-        if items.is_empty() {
-            if let Some(trade) = v
+        if items.is_empty()
+            && let Some(trade) = v
                 .get("trade_fullinfo_get_response")
                 .and_then(|x| x.get("trade"))
                 .or_else(|| v.get("trade"))
-            {
-                items.push(trade.clone());
-            }
+        {
+            items.push(trade.clone());
         }
 
         let mut next_cursor = data
@@ -1275,10 +1272,10 @@ impl Adapter {
             };
 
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if Self::is_refund_related_order(&proj) {
                 Self::inject_refund_meta(&mut proj, &raw);
@@ -1404,10 +1401,10 @@ impl PlatformAdapter for Adapter {
         for raw in mock_orders {
             let proj = Self::map_trade_to_projection(shop, &raw)?;
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if latest_time.map(|t| compare_time > t).unwrap_or(true) {
                 latest_time = Some(compare_time);
@@ -1450,10 +1447,10 @@ impl PlatformAdapter for Adapter {
             for raw in mock_refunds {
                 let mut proj = Self::map_trade_to_projection(shop, &raw)?;
                 let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-                if let Some(last_time) = cursor.last_time {
-                    if compare_time <= last_time {
-                        continue;
-                    }
+                if let Some(last_time) = cursor.last_time
+                    && compare_time <= last_time
+                {
+                    continue;
                 }
                 if Self::is_refund_related_order(&proj) {
                     Self::inject_refund_meta(&mut proj, &raw);

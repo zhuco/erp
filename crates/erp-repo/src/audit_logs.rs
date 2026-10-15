@@ -108,6 +108,16 @@ impl<'a> AuditLogsRepo<'a> {
     }
 
     pub async fn insert(&self, input: AuditLogCreate) -> anyhow::Result<AuditLog> {
+        Self::insert_with_tx(self.pool, input).await
+    }
+
+    pub async fn insert_with_tx<'t, T>(
+        executor: T,
+        input: AuditLogCreate,
+    ) -> anyhow::Result<AuditLog>
+    where
+        T: sqlx::Executor<'t, Database = Postgres>,
+    {
         let action = normalize_non_blank("action", &input.action)?;
         let entity_type = normalize_non_blank("entity_type", &input.entity_type)?;
         let entity_id = normalize_optional_non_blank(input.entity_id);
@@ -149,7 +159,7 @@ impl<'a> AuditLogsRepo<'a> {
         .bind(input.after_json)
         .bind(ip)
         .bind(ua)
-        .fetch_one(self.pool)
+        .fetch_one(executor)
         .await?;
 
         Ok(row.into_log())

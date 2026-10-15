@@ -14,6 +14,7 @@ pub struct ErpApp {
     lab: crate::GridLab,
     leave: LeaveGuard,
     allow_close: bool,
+    discard_waiting: bool,
     tab_saving: bool,
     tab_error: Option<String>,
     pending_refresh: Option<Page>,
@@ -28,6 +29,7 @@ impl ErpApp {
             lab: crate::GridLab::new(cc),
             leave: Default::default(),
             allow_close: false,
+            discard_waiting: false,
             tab_saving: false,
             tab_error: None,
             pending_refresh: None,
@@ -48,9 +50,29 @@ impl ErpApp {
         self.tab_error = None;
     }
 
+    fn finish_discard(&mut self, ctx: &egui::Context) -> Result<bool, String> {
+        if !self.remote.material_discard(ctx)? {
+            return Ok(false);
+        }
+        if !self.remote.trade_discard(ctx)? {
+            return Ok(false);
+        }
+        self.remote.discard_for_leave().map_err(str::to_owned)?;
+        self.lab.remote.discard_for_leave().map_err(str::to_owned)?;
+        self.lab.main.discard_draft();
+        self.lab.goods.discard_draft();
+        self.discard_waiting = false;
+        self.leave.resolve(Choice::Discard);
+        self.allow_close = true;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        Ok(true)
+    }
+
     fn refresh_page(&mut self, page: Page) {
         match page {
             Page::Products | Page::Orders => self.remote.refresh_page(page == Page::Orders),
+            Page::TradeSales => self.remote.trade_refresh(),
+            Page::Materials => self.remote.material_refresh(),
             Page::Reports => self.reports = Default::default(),
             Page::WarehouseTree => self.tree = Default::default(),
             // The lab owns its own editing lifecycle and refresh controls.
@@ -62,6 +84,16 @@ impl eframe::App for ErpApp {
     fn ui(&mut self, root: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.remote.background_tick(root.ctx());
         self.lab.remote.background_tick(root.ctx());
+        if self.discard_waiting {
+            match self.finish_discard(root.ctx()) {
+                Ok(_) => {}
+                Err(error) => {
+                    self.discard_waiting = false;
+                    self.leave.save_failed(error);
+                }
+            }
+        }
+
         if let Some(storage) = frame.storage_mut() {
             let scope = self.remote.page_scope();
             self.shell.sync(storage, scope.as_deref());
@@ -74,7 +106,11 @@ impl eframe::App for ErpApp {
         if root.input(|i| i.viewport().close_requested()) && !self.allow_close {
             root.ctx()
                 .send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            if self.leave.request(Destination::Close, dirty).is_some() {
+            if self
+                .leave
+                .request_close(Destination::Close, dirty, false, false)
+                .is_some()
+            {
                 self.allow_close = true;
                 root.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             } else {
@@ -84,11 +120,15 @@ impl eframe::App for ErpApp {
         }
         let products_open = self.shell.is_open(Page::Products);
         let orders_open = self.shell.is_open(Page::Orders);
+        let trade_open = self.shell.is_open(Page::TradeSales);
+        let material_open = self.shell.is_open(Page::Materials);
         let remote = &self.remote;
         let lab_dirty = self.lab.main.dirty() || self.lab.goods.dirty() || self.lab.remote.dirty();
         let event = self.shell.show(root, |page| match page {
             Page::Products => remote.page_dirty(false),
             Page::Orders => remote.page_dirty(true),
+            Page::TradeSales => remote.trade_dirty(),
+            Page::Materials => remote.material_dirty(),
             Page::Lab => lab_dirty,
             _ => false,
         });
@@ -100,6 +140,8 @@ impl eframe::App for ErpApp {
             let dirty = match page {
                 Page::Products => self.remote.page_dirty(false),
                 Page::Orders => self.remote.page_dirty(true),
+                Page::TradeSales => self.remote.trade_dirty(),
+                Page::Materials => self.remote.material_dirty(),
                 Page::Lab => lab_dirty,
                 _ => false,
             };
@@ -115,6 +157,8 @@ impl eframe::App for ErpApp {
             let page_dirty = match page {
                 Page::Products => self.remote.page_dirty(false),
                 Page::Orders => self.remote.page_dirty(true),
+                Page::TradeSales => self.remote.trade_dirty(),
+                Page::Materials => self.remote.material_dirty(),
                 Page::Lab => lab_dirty,
                 _ => false,
             };
@@ -133,7 +177,10 @@ impl eframe::App for ErpApp {
                         if let Some(error) = &self.tab_error {
                             ui.label(error);
                         }
-                        if matches!(page, Page::Products | Page::Orders) {
+                        if matches!(
+                            page,
+                            Page::Products | Page::Orders | Page::TradeSales | Page::Materials
+                        ) {
                             if ui
                                 .add_enabled(
                                     !self.tab_saving,
@@ -145,10 +192,14 @@ impl eframe::App for ErpApp {
                                 )
                                 .clicked()
                             {
-                                match self
-                                    .remote
-                                    .request_save_page(root.ctx(), page == Page::Orders)
-                                {
+                                match if page == Page::Materials {
+                                    self.remote.request_save_material(root.ctx())
+                                } else if page == Page::TradeSales {
+                                    self.remote.request_save_trade(root.ctx())
+                                } else {
+                                    self.remote
+                                        .request_save_page(root.ctx(), page == Page::Orders)
+                                } {
                                     Ok(true) => {
                                         self.finish_page_intent(page);
                                     }
@@ -173,11 +224,31 @@ impl eframe::App for ErpApp {
                                 )
                                 .clicked()
                             {
-                                match self.remote.discard_page(page == Page::Orders) {
-                                    Ok(()) => {
-                                        self.finish_page_intent(page);
+                                if page == Page::Materials {
+                                    match self.remote.material_discard(root.ctx()) {
+                                        Ok(true) => self.finish_page_intent(page),
+                                        Ok(false) => {
+                                            self.tab_saving = true;
+                                            self.tab_error = None;
+                                        }
+                                        Err(error) => self.tab_error = Some(error),
                                     }
-                                    Err(error) => self.tab_error = Some(error.into()),
+                                } else if page == Page::TradeSales {
+                                    match self.remote.trade_discard(root.ctx()) {
+                                        Ok(true) => self.finish_page_intent(page),
+                                        Ok(false) => {
+                                            self.tab_saving = true;
+                                            self.tab_error = None;
+                                        }
+                                        Err(error) => self.tab_error = Some(error),
+                                    }
+                                } else {
+                                    match self.remote.discard_page(page == Page::Orders) {
+                                        Ok(()) => {
+                                            self.finish_page_intent(page);
+                                        }
+                                        Err(error) => self.tab_error = Some(error.into()),
+                                    }
                                 }
                             }
                         }
@@ -197,6 +268,12 @@ impl eframe::App for ErpApp {
         if orders_open && !self.shell.is_open(Page::Orders) {
             self.remote.suspend_closed_page(true);
         }
+        if trade_open && !self.shell.is_open(Page::TradeSales) {
+            self.remote.trade_suspend();
+        }
+        if material_open && !self.shell.is_open(Page::Materials) {
+            self.remote.material_suspend();
+        }
         if let Some(storage) = frame.storage_mut() {
             self.remote.sync_views(storage);
         } else {
@@ -212,6 +289,12 @@ impl eframe::App for ErpApp {
                 }
                 Page::Orders => {
                     egui::CentralPanel::default().show(root, |ui| self.remote.orders_ui(ui));
+                }
+                Page::TradeSales => {
+                    egui::CentralPanel::default().show(root, |ui| self.remote.trade_ui(ui));
+                }
+                Page::Materials => {
+                    egui::CentralPanel::default().show(root, |ui| self.remote.material_ui(ui));
                 }
                 Page::Reports => {
                     egui::CentralPanel::default().show(root, |ui| self.reports.ui(ui));
@@ -247,19 +330,14 @@ impl eframe::App for ErpApp {
             {
                 match choice {
                     Choice::KeepEditing => {
+                        self.discard_waiting = false;
                         self.leave.resolve(choice);
                     }
-                    Choice::Discard => {
-                        if self.remote.discard_for_leave().is_ok()
-                            && self.lab.remote.discard_for_leave().is_ok()
-                        {
-                            self.lab.main.discard_draft();
-                            self.lab.goods.discard_draft();
-                            self.leave.resolve(choice);
-                            self.allow_close = true;
-                            root.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    }
+                    Choice::Discard => match self.finish_discard(root.ctx()) {
+                        Ok(true) => {}
+                        Ok(false) => self.discard_waiting = true,
+                        Err(error) => self.leave.save_failed(error),
+                    },
                     Choice::Save => {
                         let result = self
                             .remote

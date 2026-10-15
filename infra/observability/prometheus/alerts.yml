@@ -1,6 +1,24 @@
 groups:
   - name: erp-core-alerts
     rules:
+      - alert: ErpProcessDown
+        expr: erp_process_alive == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Process is not answering"
+          description: "The process probe has been down for 1 minute. Check the service log for the request id. Do not treat a database outage as the same fault."
+
+      - alert: ErpDatabaseUnreachable
+        expr: erp_database_reachable == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database probe failed"
+          description: "The database probe has failed for 1 minute while process liveness is a separate gauge. Owner restores the database. A live process does not clear this alert."
+
       - alert: ErpWorkerFailureRateHigh
         expr: |
           rate(erp_worker_consume_failed_total[5m])

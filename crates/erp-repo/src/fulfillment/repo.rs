@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use erp_types::{OrderId, TenantId};
 use sqlx::PgPool;
 
+use super::FulfillmentActor;
 use super::models::*;
 use super::store::FulfillmentStore;
 
@@ -15,6 +16,11 @@ impl<'a> FulfillmentRepo<'a> {
         Self {
             store: FulfillmentStore::new(pool),
         }
+    }
+
+    pub fn with_actor(mut self, actor: FulfillmentActor) -> Self {
+        self.store = self.store.with_actor(actor);
+        self
     }
 
     pub async fn list_oms_shipments(

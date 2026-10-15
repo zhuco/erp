@@ -21,7 +21,10 @@ pub(super) struct NextEditor {
 
 impl RemoteProductView {
     pub fn dirty(&self) -> bool {
-        self.product_dirty() || self.orders.dirty()
+        self.product_dirty()
+            || self.orders.dirty()
+            || self.trade_sales.dirty()
+            || self.material_dirty()
     }
 
     fn product_dirty(&self) -> bool {
@@ -46,6 +49,8 @@ impl RemoteProductView {
 
     pub(crate) fn background_tick(&mut self, ctx: &egui::Context) {
         self.tick(ctx);
+        self.tick_trade(ctx);
+        self.tick_material(ctx);
     }
 
     pub(crate) fn discard_page(&mut self, orders: bool) -> Result<(), &'static str> {
@@ -141,11 +146,19 @@ impl RemoteProductView {
         self.state.hold_edit();
         self.details.hold_for_leave();
         self.orders.hold_for_leave();
+        self.trade_sales.hold();
+        self.material_documents.hold();
     }
 
     /// A sent edit remains protected until the durable action runner returns a
     /// terminal receipt. It cannot be converted back into an unsent draft.
     pub(crate) fn leave_blocked(&self) -> Option<&'static str> {
+        if let Some(reason) = self.material_documents.blocked() {
+            return Some(reason);
+        }
+        if let Some(reason) = self.trade_sales.blocked() {
+            return Some(reason);
+        }
         if let Some(reason) = self.orders.leave_blocked() {
             return Some(reason);
         }
@@ -171,6 +184,9 @@ impl RemoteProductView {
     }
 
     pub(crate) fn discard_for_leave(&mut self) -> Result<(), &'static str> {
+        if self.material_dirty() {
+            return Err("材料草稿须先在材料页面保存或确认清除");
+        }
         if let Some(reason) = self.leave_blocked() {
             return Err(reason);
         }
@@ -196,6 +212,12 @@ impl RemoteProductView {
         }
         if !self.dirty() {
             return Ok(true);
+        }
+        if self.material_dirty() {
+            return self.request_save_material(ctx);
+        }
+        if self.trade_sales.dirty() {
+            return self.request_save_trade(ctx);
         }
         if self.orders.dirty() {
             let session = self
@@ -425,7 +447,7 @@ impl RemoteProductView {
                 if ui.add_enabled(editing.loading.is_none(), egui::Button::new("Load latest version")).clicked() {
                     match session.client.start(HttpRequest {
                         path: format!("/v1/tenants/{}/products/{}", session.tenant.to_uuid(), editing.observed.id.to_uuid()),
-                        query: vec![], json: None, bearer: Some(session.token.clone()),
+                        query: vec![], json: None, bearer: Some(session.token.clone()), idempotency_key: None,
                     }, ui.ctx()) {
                         Ok(task) => editing.loading = Some(task),
                         Err(error) => self.state.message = Some(error.to_string()),
@@ -549,5 +571,64 @@ impl RemoteProductView {
                 Some("Next edit row moved outside this page; select it again".into());
         }
         self.resume_editor = None;
+    }
+}
+
+impl RemoteProductView {
+    pub(crate) fn trade_dirty(&self) -> bool {
+        self.trade_sales.dirty()
+    }
+    pub(crate) fn trade_discard(&mut self, ctx: &egui::Context) -> Result<bool, String> {
+        self.trade_sales.discard(ctx)
+    }
+    pub(crate) fn trade_refresh(&mut self) {
+        self.trade_sales.refresh();
+    }
+    pub(crate) fn trade_suspend(&mut self) {
+        self.trade_sales.suspend_reads();
+    }
+    pub(crate) fn request_save_trade(&mut self, ctx: &egui::Context) -> Result<bool, String> {
+        self.tick_trade(ctx);
+        if self
+            .session
+            .as_ref()
+            .is_none_or(|session| web_time::Instant::now() >= session.expires)
+        {
+            return Err("登录后保存销售单".into());
+        }
+        self.trade_sales.save_for_leave()
+    }
+    fn tick_trade(&mut self, ctx: &egui::Context) {
+        if let (Some(session), Some(actor)) = (&self.session, self.actions.actor())
+            && web_time::Instant::now() < session.expires
+        {
+            match crate::remote_actions::ActionScope::new(&session.client, session.tenant, actor) {
+                Ok(scope) => self.trade_sales.tick(ctx, session, scope),
+                Err(error) => self.notice = Some(error),
+            }
+        }
+    }
+    pub(crate) fn trade_ui(&mut self, ui: &mut egui::Ui) {
+        self.tick(ui.ctx());
+        self.tick_trade(ui.ctx());
+        if self
+            .session
+            .as_ref()
+            .is_none_or(|session| web_time::Instant::now() >= session.expires)
+        {
+            self.ui_mode(ui, false);
+            return;
+        }
+        let (Some(session), Some(actor)) = (&self.session, self.actions.actor()) else {
+            ui.spinner();
+            ui.label("读取账号");
+            return;
+        };
+        match crate::remote_actions::ActionScope::new(&session.client, session.tenant, actor) {
+            Ok(scope) => self.trade_sales.ui(ui, session, &scope),
+            Err(error) => {
+                ui.label(error);
+            }
+        }
     }
 }

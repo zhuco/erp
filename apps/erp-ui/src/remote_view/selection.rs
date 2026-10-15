@@ -68,6 +68,7 @@ impl FrozenSelection {
                     query: Vec::new(),
                     json: Some(encoded.body),
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -286,6 +287,7 @@ impl FrozenSelection {
                 query: Vec::new(),
                 json: Some(encoded.body),
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         ) {
@@ -494,6 +496,7 @@ mod tests {
                         query: vec![],
                         json: None,
                         bearer: None,
+                        idempotency_key: None,
                     },
                     &ctx,
                 )

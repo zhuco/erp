@@ -1,0 +1,20 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "channel": "msedge",
+      "headless": true,
+      "args": [
+        "--enable-unsafe-webgpu"
+      ]
+    },
+    "contextOptions": {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 1
+    }
+  },
+  "outputDir": "G:/erp/output/playwright/detail-backup-lifecycle"
+}

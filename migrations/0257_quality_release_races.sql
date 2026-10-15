@@ -1,0 +1,2 @@
+-- 0257: a quality release locks the held receipt before inserting the release row.
+-- The existing release table is the effect. This comment does not add a table.

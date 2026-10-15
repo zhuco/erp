@@ -986,10 +986,10 @@ impl<'a> WmsStore<'a> {
         if docs.is_empty() {
             return Err(anyhow!("no outbound docs available"));
         }
-        if let Some(doc_ids) = &input.outbound_doc_ids {
-            if docs.len() != doc_ids.len() {
-                return Err(anyhow!("some outbound docs not available"));
-            }
+        if let Some(doc_ids) = &input.outbound_doc_ids
+            && docs.len() != doc_ids.len()
+        {
+            return Err(anyhow!("some outbound docs not available"));
         }
 
         let wave_row: WaveRow = sqlx::query_as(

@@ -283,6 +283,7 @@ impl CopyBatches {
                 query: vec![],
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         ) {

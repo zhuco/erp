@@ -17,3 +17,6 @@
 *.woff binary
 *.woff2 binary
 *.ttf binary
+
+# Preserve validated migration checksums across platforms.
+migrations/*.sql -text -eol whitespace=cr-at-eol

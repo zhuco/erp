@@ -81,15 +81,14 @@ pub fn validate(query: &TreeQuery) -> Result<(), Error> {
             ));
         }
     }
-    if let Some(search) = &query.search {
-        if search.contains('\0')
+    if let Some(search) = &query.search
+        && (search.contains('\0')
             || search.chars().count() > MAX_SEARCH_CHARS
-            || search.len() > MAX_SEARCH_BYTES
-        {
-            return Err(Error::Invalid(
-                "search must contain no NUL and be at most 256 characters and 1024 bytes".into(),
-            ));
-        }
+            || search.len() > MAX_SEARCH_BYTES)
+    {
+        return Err(Error::Invalid(
+            "search must contain no NUL and be at most 256 characters and 1024 bytes".into(),
+        ));
     }
     Ok(())
 }

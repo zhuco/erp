@@ -31,6 +31,10 @@ pub enum ToolbarEvent {
 }
 
 impl ToolbarState {
+    pub fn query_input_id(ui: &egui::Ui) -> egui::Id {
+        ui.id().with("workbench-query-input")
+    }
+
     /// Search is intentionally emitted immediately; the host owns IME and
     /// debounce policy. Dirty state disables actions that would replace data.
     pub fn show(
@@ -40,6 +44,8 @@ impl ToolbarState {
         dirty: bool,
     ) -> Vec<ToolbarEvent> {
         let mut events = Vec::new();
+        let mut query_changed = false;
+        let query_input_id = Self::query_input_id(ui);
         let height = ui.spacing().interact_size.y.max(24.0);
         let width = ui.available_width();
         // Fixed edge groups leave the search centered in the remaining space.
@@ -63,9 +69,11 @@ impl ToolbarState {
             |ui| {
                 ui.horizontal(|ui| {
                     if ui.add_enabled(!dirty, egui::Button::new("重置")).clicked() {
+                        query_changed = true;
                         events.push(ToolbarEvent::Reset);
                     }
                     if ui.add_enabled(!dirty, egui::Button::new("刷新")).clicked() {
+                        query_changed = true;
                         events.push(ToolbarEvent::Refresh);
                     }
                 });
@@ -84,6 +92,7 @@ impl ToolbarState {
                         .add_enabled(
                             !dirty,
                             egui::TextEdit::singleline(&mut self.search)
+                                .id(query_input_id)
                                 .desired_width((search_width - 32.0).max(0.0))
                                 .hint_text("手机号 / 姓名 / 快递单号 / 平台单号"),
                         )
@@ -97,6 +106,7 @@ impl ToolbarState {
                         self.search.clear();
                     }
                     if changed || cleared {
+                        query_changed = true;
                         events.push(ToolbarEvent::SearchChanged(self.search.clone()));
                     }
                 });
@@ -107,7 +117,10 @@ impl ToolbarState {
             |ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
-                        .add_enabled(selected_count > 0 && !dirty, egui::Button::new("导出"))
+                        .add_enabled(
+                            selected_count > 0 && !dirty && !query_changed,
+                            egui::Button::new("导出"),
+                        )
                         .on_hover_text("导出勾选记录；未勾选时导出当前行")
                         .clicked()
                     {

@@ -1,0 +1,2 @@
+-- Competing credit holds for one partner share one transaction lock.
+-- The second hold sees the first. A refused hold writes no row.

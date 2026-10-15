@@ -43,6 +43,25 @@ pub(crate) async fn post_inventory_aggregate(
 fn inventory_aggregate_error(error: Error) -> Response {
     match error {
         Error::Invalid(message) => bad_request(&message).into_response(),
+        Error::MissingQuantity(count) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "code": "inventory_quantity_reconciliation_required", "unreconciled_count": count,
+            })),
+        )
+            .into_response(),
+        Error::PrecisionRequired => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "code": "inventory_aggregate_precision_required", "required_schema": 2,
+            })),
+        )
+            .into_response(),
+        Error::ValueOverflow => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(serde_json::json!({ "code": "inventory_read_value_overflow" })),
+        )
+            .into_response(),
         Error::MissingCost(missing_count) => (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(serde_json::json!({
@@ -54,6 +73,14 @@ fn inventory_aggregate_error(error: Error) -> Response {
             .into_response(),
         Error::Storage(error) => {
             tracing::error!(%error, "inventory aggregate storage failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Inventory aggregate storage failed",
+            )
+                .into_response()
+        }
+        Error::Read(error) => {
+            tracing::error!(%error, "inventory aggregate snapshot failed");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Inventory aggregate storage failed",
@@ -85,6 +112,7 @@ mod tests {
             warehouse_ids: vec![uuid::Uuid::from_u128(8)],
             merchant_ids: Vec::new(),
             organization_ids: Vec::new(),
+        session_id: None,
         }
     }
 
@@ -134,7 +162,7 @@ mod tests {
         assert_eq!(no_permission.status(), StatusCode::FORBIDDEN);
 
         let invalid_query: InventoryAggregateQuery = serde_json::from_value(serde_json::json!({
-            "schema": 2, "warehouse_id": null, "search": null,
+            "schema": 3, "warehouse_id": null, "search": null,
             "by_category": false, "measure": "quantity"
         }))
         .expect("shape is deserializable");

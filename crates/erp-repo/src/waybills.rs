@@ -124,10 +124,10 @@ impl<'a> WaybillsRepo<'a> {
         .await?;
 
         if let Some(row) = existing {
-            if let Some(preferred) = preferred_waybill_no {
-                if row.waybill_no != preferred {
-                    return Err(anyhow!("shipment already reserved with another waybill"));
-                }
+            if let Some(preferred) = preferred_waybill_no
+                && row.waybill_no != preferred
+            {
+                return Err(anyhow!("shipment already reserved with another waybill"));
             }
             tx.commit().await?;
             return Ok(row.into_waybill(tenant_id));

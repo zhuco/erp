@@ -1,0 +1,2 @@
+-- 0256: a board refresh is one leased task. A stored snapshot is not recomputed on read.
+-- The existing snapshot table is the effect. This comment does not add a table.

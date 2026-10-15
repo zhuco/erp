@@ -1,0 +1,2 @@
+-- 0269: a second export of the same frozen snapshot is refused after the first job is stored.
+-- The snapshot rows are locked. This comment does not add a table.

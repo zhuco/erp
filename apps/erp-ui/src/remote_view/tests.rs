@@ -235,6 +235,37 @@ fn copy_button_uses_checked_source_refreshes_results_and_reopens_durable_receipt
     view.state.row_selection.active = Some(RowId(99));
     view.state.row_selection.toggle(RowId(10));
     let output = frame(&ctx, &mut view, vec![]);
+    let more = output
+        .shapes
+        .iter()
+        .find_map(|shape| {
+            if let egui::epaint::Shape::Text(text) = &shape.shape
+                && text.galley.text() == "更多操作"
+            {
+                Some(text.pos + text.galley.size() / 2.0)
+            } else {
+                None
+            }
+        })
+        .expect("more actions control is rendered");
+    frame(&ctx, &mut view, vec![egui::Event::PointerMoved(more)]);
+    for pressed in [true, false] {
+        frame(
+            &ctx,
+            &mut view,
+            vec![egui::Event::PointerButton {
+                pos: more,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            }],
+        );
+    }
+    assert!(
+        view.advanced_tools,
+        "actual pointer click expands advanced actions"
+    );
+    let output = frame(&ctx, &mut view, vec![]);
     let point = output
         .shapes
         .iter()

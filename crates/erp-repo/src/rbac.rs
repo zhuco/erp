@@ -263,6 +263,79 @@ impl<'a> RbacRepo<'a> {
         Ok(row.into_user())
     }
 
+    pub async fn create_user_in_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        input: UserCreate,
+    ) -> anyhow::Result<User> {
+        let email = normalize_non_blank("email", &input.email)?;
+        let status = normalize_non_blank("status", &input.status)?;
+        let row: UserRow = sqlx::query_as(
+            r#"
+            insert into users(tenant_id, email, password_hash, status)
+            values ($1, $2, $3, $4)
+            returning user_id, tenant_id, email, status, created_at
+            "#,
+        )
+        .bind(uuid::Uuid::from(input.tenant_id))
+        .bind(&email)
+        .bind(&input.password_hash)
+        .bind(&status)
+        .fetch_one(&mut **tx)
+        .await?;
+        Ok(row.into_user())
+    }
+
+    pub async fn update_user_in_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: TenantId,
+        user_id: UserId,
+        input: UserUpdate,
+    ) -> anyhow::Result<Option<User>> {
+        let existing: Option<UserRow> = sqlx::query_as(
+            r#"
+            select user_id, tenant_id, email, status, created_at
+            from users
+            where tenant_id = $1 and user_id = $2
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(uuid::Uuid::from(user_id))
+        .fetch_optional(&mut **tx)
+        .await?;
+        let Some(existing) = existing else {
+            return Ok(None);
+        };
+        let email = match input.email.as_deref() {
+            Some(email) => normalize_non_blank("email", email)?,
+            None => existing.email,
+        };
+        let status = match input.status.as_deref() {
+            Some(status) => normalize_non_blank("status", status)?,
+            None => existing.status,
+        };
+        let row: UserRow = sqlx::query_as(
+            r#"
+            update users
+            set email = $3,
+                password_hash = coalesce($4, password_hash),
+                status = $5,
+                updated_at = now()
+            where tenant_id = $1 and user_id = $2
+            returning user_id, tenant_id, email, status, created_at
+            "#,
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(uuid::Uuid::from(user_id))
+        .bind(email)
+        .bind(input.password_hash)
+        .bind(status)
+        .fetch_one(&mut **tx)
+        .await?;
+        Ok(Some(row.into_user()))
+    }
+
     pub async fn update_user(
         &self,
         tenant_id: TenantId,

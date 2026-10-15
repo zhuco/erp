@@ -202,18 +202,18 @@ async fn setup_schema(pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
 fn build_token(jwt: &JwtService, tenant_id: &str) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: vec![
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        vec![
             "orders.write".to_string(),
             "shipping.write".to_string(),
             "shipping.read".to_string(),
         ],
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

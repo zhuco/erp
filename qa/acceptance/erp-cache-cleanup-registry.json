@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "fixed_target": "G:/erp/build/cargo",
+  "automatic_failed_working_only": true,
+  "authorization": "Direct user messages: 批准，并允许200G构建; 批准自动清理",
+  "authorized_on": "2026-10-10",
+  "items": [
+    {
+      "path": "G:\\erp\\build\\cargo\\debug\\incremental\\erp_api-06ucutls4de6u\\s-hn2fc6rzao-1nl8r39-working",
+      "state": "DELETED",
+      "expected_bytes": 379738744,
+      "evidence": "G:/erp/qa/acceptance/free-erp-operation-report-oct10-check.log",
+      "registered_utc": "2026-10-10T01:15:46.8270476Z",
+      "deleted_bytes": 379738744,
+      "deleted_utc": "2026-10-10T03:42:14.716896Z"
+    },
+    {
+      "path": "G:\\erp\\build\\cargo\\debug\\incremental\\erp_repo-38jdzcbdm0rdw\\s-hn2fbl5b08-0gm3b4w-working",
+      "state": "DELETED",
+      "expected_bytes": 367555036,
+      "evidence": "G:/erp/qa/acceptance/free-erp-operation-report-oct10-check.log",
+      "registered_utc": "2026-10-10T01:15:07.9536295Z",
+      "deleted_bytes": 367555036,
+      "deleted_utc": "2026-10-10T03:42:14.7430569Z"
+    }
+  ]
+}

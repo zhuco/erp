@@ -1,0 +1,2 @@
+-- 0267: a second operating report of the same cutoff and filters is refused.
+-- The scope row is locked. This comment does not add a table.

@@ -1,0 +1,2 @@
+-- 0253: two receipts of one subcontract share the locked supplier balance.
+-- The loser stores no movement. This comment does not apply a new table.

@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::collections::BTreeSet;
 
-const SCHEMA: u32 = 1;
 const MAX_BUCKETS: usize = 4096;
 const MAX_KEY_BYTES: usize = 4096;
 const MAX_KIND_BYTES: usize = 64;
@@ -44,6 +43,10 @@ pub struct Bucket {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InventoryAggregateReport {
+    pub schema: u32,
+    pub amount_scale: u8,
+    pub measure: Measure,
+    pub valuation_source: Option<String>,
     pub buckets: Vec<Bucket>,
     pub total: Summary,
     pub as_of: DateTime<Utc>,
@@ -53,14 +56,22 @@ pub struct InventoryAggregateReport {
 pub enum Error {
     #[error("{0}")]
     Invalid(String),
-    #[error("{0} inventory rows have no authoritative cost")]
+    #[error("{0} inventory rows have no usable SKU master cost estimate")]
     MissingCost(u64),
+    #[error("{0} inventory keys require quantity reconciliation")]
+    MissingQuantity(i64),
+    #[error("schema 2 is required to preserve fractional inventory or cost")]
+    PrecisionRequired,
+    #[error("inventory aggregate value exceeds the supported numeric range")]
+    ValueOverflow,
+    #[error(transparent)]
+    Read(#[from] anyhow::Error),
     #[error(transparent)]
     Storage(#[from] sqlx::Error),
 }
 
 pub fn validate(query: &InventoryAggregateQuery) -> Result<(), Error> {
-    if query.schema != SCHEMA {
+    if !matches!(query.schema, 1 | 2) {
         return Err(Error::Invalid(
             "unsupported inventory aggregate schema".into(),
         ));
@@ -68,12 +79,12 @@ pub fn validate(query: &InventoryAggregateQuery) -> Result<(), Error> {
     if query.warehouse_id.is_some_and(|id| id.is_nil()) {
         return Err(Error::Invalid("warehouse_id must not be nil".into()));
     }
-    if let Some(search) = &query.search {
-        if search.contains('\0') || search.chars().count() > 256 || search.len() > 1024 {
-            return Err(Error::Invalid(
-                "search must be at most 256 characters and 1024 bytes and contain no NUL".into(),
-            ));
-        }
+    if let Some(search) = &query.search
+        && (search.contains('\0') || search.chars().count() > 256 || search.len() > 1024)
+    {
+        return Err(Error::Invalid(
+            "search must be at most 256 characters and 1024 bytes and contain no NUL".into(),
+        ));
     }
     Ok(())
 }
@@ -89,7 +100,6 @@ struct AggregateRow {
     amount_max: Option<String>,
     missing_cost_count: i64,
     is_total: bool,
-    as_of: DateTime<Utc>,
 }
 
 pub async fn aggregate(
@@ -100,16 +110,14 @@ pub async fn aggregate(
 ) -> Result<InventoryAggregateReport, Error> {
     validate(query)?;
 
-    let cost = crate::sku_grid::cost_expression();
+    let cost = crate::inventory_reads::estimated_unit_cost_sql();
     let amount = match query.measure {
-        Measure::Quantity => "b.on_hand::numeric".to_string(),
-        Measure::Cost => format!("b.on_hand::numeric * ({cost})::numeric"),
+        Measure::Quantity => "b.on_hand_micros::numeric".to_string(),
+        Measure::Cost => format!("b.on_hand_micros::numeric * ({cost})::numeric"),
     };
     let missing_cost = match query.measure {
         Measure::Quantity => "false".to_string(),
-        Measure::Cost => format!(
-            "s.sku_id is null or ({cost}) is null or (s.sku_kind = 'KIT' and exists (select 1 from sku_boms mb left join skus mc on mc.tenant_id = mb.tenant_id and mc.sku_id = mb.component_sku_id where mb.tenant_id = s.tenant_id and mb.bundle_sku_id = s.sku_id and (mc.sku_id is null or mc.cost_cent is null)))"
-        ),
+        Measure::Cost => format!("s.sku_id is null or ({cost}) is null"),
     };
 
     let mut qb = QueryBuilder::<Postgres>::new(
@@ -143,13 +151,35 @@ pub async fn aggregate(
             .push(" escape '!')");
     }
     qb.push(
-        ") select warehouse_code, category, kind, count(*)::bigint as row_count, coalesce(sum(amount), 0)::text as amount_sum, min(amount)::text as amount_min, max(amount)::text as amount_max, count(*) filter (where missing_cost)::bigint as missing_cost_count, grouping(warehouse_code, category, kind) <> 0 as is_total, statement_timestamp() as as_of from source group by grouping sets ((warehouse_code, category, kind), ()) order by is_total desc, warehouse_code, category nulls first, kind limit 4098",
+        ") select warehouse_code, category, kind, count(*)::bigint as row_count, coalesce(sum(amount), 0)::text as amount_sum, min(amount)::text as amount_min, max(amount)::text as amount_max, count(*) filter (where missing_cost)::bigint as missing_cost_count, grouping(warehouse_code, category, kind) <> 0 as is_total from source group by grouping sets ((warehouse_code, category, kind), ()) order by is_total desc, warehouse_code, category nulls first, kind limit 4098",
     );
 
-    let mut tx = pool.begin().await?;
-    sqlx::query("set local statement_timeout = '10s'")
-        .execute(&mut *tx)
+    let mut tx = crate::inventory_reads::begin_read(pool).await?;
+    // This first SELECT establishes the repeatable-read snapshot. A later
+    // aggregate statement timestamp must not imply that later commits are included.
+    let as_of: DateTime<Utc> = sqlx::query_scalar("select statement_timestamp()")
+        .fetch_one(&mut *tx)
         .await?;
+    let scope = crate::inventory_reads::ReadScope {
+        warehouse: query.warehouse_id,
+        warehouses: warehouse_ids,
+        sku: None,
+        code: None,
+        barcode: None,
+        tag: None,
+        search: query.search.as_deref(),
+    };
+    if let Err(error) =
+        crate::inventory_reads::require_reconciled(&mut tx, erp_types::TenantId(tenant_id), &scope)
+            .await
+    {
+        if let Some(crate::inventory_reads::InventoryReadError::ReconciliationRequired(count)) =
+            error.downcast_ref()
+        {
+            return Err(Error::MissingQuantity(*count));
+        }
+        return Err(Error::Read(error));
+    }
     let rows: Vec<AggregateRow> = qb.build_query_as().fetch_all(&mut *tx).await?;
     tx.commit().await?;
     let missing = rows
@@ -165,11 +195,9 @@ pub async fn aggregate(
 
     let mut buckets = Vec::new();
     let mut total = None;
-    let mut as_of = None;
     let mut text_bytes = 0usize;
     for row in rows {
-        as_of.get_or_insert(row.as_of);
-        let summary = row_summary(&row)?;
+        let summary = row_summary(&row, query.schema)?;
         if row.is_total {
             total = Some(summary);
         } else {
@@ -217,9 +245,18 @@ pub async fn aggregate(
         ));
     }
     let report = InventoryAggregateReport {
+        schema: query.schema,
+        amount_scale: match (query.schema, query.measure) {
+            (1, Measure::Quantity) => 0,
+            (1, Measure::Cost) => 2,
+            (_, Measure::Quantity) => 6,
+            (_, Measure::Cost) => 8,
+        },
+        measure: query.measure,
+        valuation_source: (query.measure == Measure::Cost).then(|| "sku_master_estimate".into()),
         buckets,
         total: total.ok_or_else(|| Error::Invalid("aggregate total is missing".into()))?,
-        as_of: as_of.unwrap_or_else(Utc::now),
+        as_of,
     };
     let encoded = serde_json::to_vec(&report)
         .map_err(|_| Error::Invalid("inventory aggregate response cannot be encoded".into()))?;
@@ -238,21 +275,33 @@ fn validate_output_text(value: &str, max: usize, label: &str) -> Result<(), Erro
     Ok(())
 }
 
-fn row_summary(row: &AggregateRow) -> Result<Summary, Error> {
+fn row_summary(row: &AggregateRow, schema: u32) -> Result<Summary, Error> {
     Ok(Summary {
         count: u64::try_from(row.row_count)
             .map_err(|_| Error::Invalid("negative aggregate count".into()))?,
-        sum: integer(&row.amount_sum)?,
-        min: row.amount_min.as_deref().map(integer).transpose()?,
-        max: row.amount_max.as_deref().map(integer).transpose()?,
+        sum: integer(&row.amount_sum, schema)?,
+        min: row
+            .amount_min
+            .as_deref()
+            .map(|value| integer(value, schema))
+            .transpose()?,
+        max: row
+            .amount_max
+            .as_deref()
+            .map(|value| integer(value, schema))
+            .transpose()?,
     })
 }
 
-fn integer(value: &str) -> Result<String, Error> {
-    value
-        .parse::<i128>()
-        .map(|value| value.to_string())
-        .map_err(|_| Error::Invalid("aggregate value exceeds signed 128-bit integer".into()))
+fn integer(value: &str, schema: u32) -> Result<String, Error> {
+    let value = value.parse::<i128>().map_err(|_| Error::ValueOverflow)?;
+    if schema == 1 {
+        if value % 1_000_000 != 0 {
+            return Err(Error::PrecisionRequired);
+        }
+        return Ok((value / 1_000_000).to_string());
+    }
+    Ok(value.to_string())
 }
 
 fn literal_contains(value: &str) -> String {
@@ -281,7 +330,7 @@ mod tests {
     fn validation_bounds_search_and_schema() {
         assert!(validate(&query()).is_ok());
         let mut bad = query();
-        bad.schema = 2;
+        bad.schema = 3;
         assert!(matches!(validate(&bad), Err(Error::Invalid(_))));
         bad.schema = 1;
         bad.warehouse_id = Some(uuid::Uuid::nil());
@@ -299,6 +348,11 @@ mod tests {
     async fn pg_aggregate_enforces_scope_totals_costs_and_null_category() {
         let url =
             std::env::var("ERP_GRID_TEST_DATABASE_URL").expect("explicit test database required");
+        let options: sqlx::postgres::PgConnectOptions = url.parse().expect("valid database URL");
+        assert_eq!(options.get_host(), "127.0.0.1");
+        assert_eq!(options.get_port(), 15438);
+        assert_eq!(options.get_database(), Some("erp_shared_contract_test"));
+        assert_eq!(options.get_username(), "erp_grid_test");
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
             .connect(&url)
@@ -307,9 +361,12 @@ mod tests {
         for ddl in [
             "create temporary table warehouses (warehouse_id uuid primary key, tenant_id uuid not null, code text not null)",
             "create temporary table products (product_id uuid primary key, tenant_id uuid not null, name text, category text)",
-            "create temporary table skus (sku_id uuid primary key, tenant_id uuid not null, product_id uuid, sku_code text, sku_kind text not null, cost_cent bigint)",
+            "create temporary table skus (sku_id uuid primary key, tenant_id uuid not null, product_id uuid, sku_code text, sku_kind text not null, cost_cent bigint, barcode text, tags text[] not null default '{}')",
             "create temporary table sku_boms (tenant_id uuid not null, bundle_sku_id uuid not null, component_sku_id uuid not null, qty bigint not null)",
-            "create temporary table inventory_balances (tenant_id uuid not null, warehouse_id uuid not null, sku_id uuid not null, on_hand bigint not null, reserved bigint not null default 0)",
+            "create temporary table inventory_balances (tenant_id uuid not null, warehouse_id uuid not null, sku_id uuid not null, on_hand bigint not null, reserved bigint not null default 0, on_hand_micros bigint generated always as (on_hand * 1000000) stored, reserved_micros bigint generated always as (reserved * 1000000) stored, frozen_micros bigint not null default 0, in_transit_micros bigint not null default 0)",
+            "create temporary table inventory_ledgers (tenant_id uuid, warehouse_id uuid, sku_id uuid)",
+            "create temporary table mfg_qty_ledgers (tenant_id uuid, warehouse_id uuid, sku_id uuid)",
+            "create temporary table shared_stock_ledgers (tenant_id uuid, warehouse_id uuid, sku_id uuid)",
         ] {
             sqlx::query(ddl).execute(&pool).await.unwrap();
         }
@@ -340,7 +397,7 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("insert into skus values ($1,$5,$6,'N','NORMAL',7),($2,$5,$6,'C','NORMAL',3),($3,$5,$7,'K','KIT',999),($4,$5,$7,'M','NORMAL',null)")
+        sqlx::query("insert into skus(sku_id,tenant_id,product_id,sku_code,sku_kind,cost_cent) values ($1,$5,$6,'N','NORMAL',7),($2,$5,$6,'C','NORMAL',3),($3,$5,$7,'K','KIT',999),($4,$5,$7,'M','NORMAL',null)")
             .bind(normal).bind(component).bind(kit).bind(missing).bind(tenant).bind(p1).bind(p2)
             .execute(&pool).await.unwrap();
         sqlx::query("insert into sku_boms values ($1,$2,$3,2)")
@@ -350,7 +407,7 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("insert into inventory_balances values ($1,$2,$3,10,0),($1,$2,$4,4,0),($1,$5,$3,2,0),($1,$5,$6,1,0),($1,$5,$9,3,0),($7,$8,$3,999,0)")
+        sqlx::query("insert into inventory_balances(tenant_id,warehouse_id,sku_id,on_hand,reserved) values ($1,$2,$3,10,0),($1,$2,$4,4,0),($1,$5,$3,2,0),($1,$5,$6,1,0),($1,$5,$9,3,0),($7,$8,$3,999,0)")
             .bind(tenant).bind(w1).bind(normal).bind(kit).bind(w2).bind(missing)
             .bind(other).bind(uuid::Uuid::from_u128(13)).bind(deleted_sku)
             .execute(&pool).await.unwrap();
@@ -363,23 +420,21 @@ mod tests {
             (2, "14")
         );
         assert_eq!(quantity.buckets.len(), 2);
-        let all = aggregate(&pool, tenant, &query(), None).await.unwrap();
-        assert_eq!((all.total.count, all.total.sum.as_str()), (5, "20"));
-        assert!(
-            all.buckets
-                .iter()
-                .any(|bucket| bucket.kind == "MISSING_SKU")
-        );
-        assert!(all.buckets.iter().any(|bucket| bucket.category.is_none()));
-        let empty = aggregate(&pool, tenant, &query(), Some(&[])).await.unwrap();
-        assert_eq!((empty.total.count, empty.total.sum.as_str()), (0, "0"));
-        assert!(empty.buckets.is_empty());
-
+        assert!(matches!(
+            aggregate(&pool, tenant, &query(), None).await,
+            Err(Error::MissingQuantity(1))
+        ));
         sqlx::query("delete from inventory_balances where sku_id = $1")
             .bind(deleted_sku)
             .execute(&pool)
             .await
             .unwrap();
+        let all = aggregate(&pool, tenant, &query(), None).await.unwrap();
+        assert_eq!((all.total.count, all.total.sum.as_str()), (4, "17"));
+        assert!(all.buckets.iter().any(|bucket| bucket.category.is_none()));
+        let empty = aggregate(&pool, tenant, &query(), Some(&[])).await.unwrap();
+        assert_eq!((empty.total.count, empty.total.sum.as_str()), (0, "0"));
+        assert!(empty.buckets.is_empty());
 
         let mut cost_query = query();
         cost_query.measure = Measure::Cost;
@@ -400,14 +455,14 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("insert into skus values ($1,$2,$3,'P','NORMAL',9007199254740993)")
+        sqlx::query("insert into skus(sku_id,tenant_id,product_id,sku_code,sku_kind,cost_cent) values ($1,$2,$3,'P','NORMAL',9007199254740993)")
             .bind(precise_sku)
             .bind(tenant)
             .bind(literal_product)
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("insert into inventory_balances values ($1,$2,$3,2,0)")
+        sqlx::query("insert into inventory_balances(tenant_id,warehouse_id,sku_id,on_hand,reserved) values ($1,$2,$3,2,0)")
             .bind(tenant)
             .bind(w1)
             .bind(precise_sku)

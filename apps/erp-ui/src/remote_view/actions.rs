@@ -48,6 +48,7 @@ impl ProductActions {
                 query: vec![],
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         ) {
@@ -317,6 +318,14 @@ impl ProductActions {
         ));
         self.notice = None;
         Ok(operation)
+    }
+    pub(super) fn needs_attention(&self) -> bool {
+        self.storage_failed
+            || self.notice.is_some()
+            || self
+                .runner
+                .as_ref()
+                .is_some_and(|runner| !runner.finished())
     }
     pub(super) fn available(&self) -> bool {
         self.authorized

@@ -1,0 +1,2 @@
+-- 0271: a second save of the same owner, scope, and name is refused after the first view is stored.
+-- The name is locked. This comment does not add a table.

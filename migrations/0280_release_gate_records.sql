@@ -1,0 +1,2 @@
+-- 0280: a passed release gate also records the migration list, minimum client, and gray switch.
+-- The columns are added by the isolated test setup. This comment does not alter production.

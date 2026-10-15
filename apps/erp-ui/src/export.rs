@@ -287,7 +287,10 @@ fn validate_sheet(
 }
 
 fn safe_numeric(value: &str, kind: ValueKind) -> bool {
-    if !matches!(kind, ValueKind::Integer | ValueKind::Money)
+    if !matches!(
+        kind,
+        ValueKind::Integer | ValueKind::Money | ValueKind::Decimal { .. }
+    )
         || value.is_empty()
         || value
             .chars()
@@ -311,6 +314,9 @@ fn safe_numeric(value: &str, kind: ValueKind) -> bool {
     match kind {
         ValueKind::Integer => decimal_parts.len() == 1 && value.parse::<i64>().is_ok(),
         ValueKind::Money => money_minor(value).is_ok_and(|minor| minor.is_some()),
+        ValueKind::Decimal { scale } => {
+            erp_grid_core::decimal_scaled(value, scale).is_ok_and(|value| value.is_some())
+        }
         _ => false,
     }
 }

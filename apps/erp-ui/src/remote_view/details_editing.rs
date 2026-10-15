@@ -252,6 +252,7 @@ impl Details {
                             query: vec![],
                             json: None,
                             bearer: Some(session.token.clone()),
+                            idempotency_key: None,
                         },
                         ui.ctx(),
                     ) {

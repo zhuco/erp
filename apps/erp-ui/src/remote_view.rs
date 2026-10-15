@@ -18,6 +18,16 @@ mod find;
 mod inventory_report;
 mod options;
 mod orders;
+mod trade_sales;
+mod material_documents;
+mod material_documents_ui;
+mod material_batches_ui;
+mod material_model;
+mod material_host;
+#[cfg(test)]
+mod material_tests;
+#[path = "remote_view/trade_sales/model.rs"]
+mod trade_sales_model;
 mod paste;
 mod preferences;
 mod product_inspector;
@@ -64,6 +74,8 @@ pub struct RemoteProductView {
     inventory_report: inventory_report::InventoryReport,
     warehouse_tree: warehouse_tree::WarehouseTree,
     orders: orders::Orders,
+    trade_sales: trade_sales::TradeSales,
+    material_documents: material_documents::MaterialDocuments,
     views: views::Views,
     views_storage_ready: bool,
     editing: Option<editing::Editing>,
@@ -155,6 +167,8 @@ impl Default for RemoteProductView {
             inventory_report: Default::default(),
             warehouse_tree: Default::default(),
             orders: Default::default(),
+            trade_sales: Default::default(),
+            material_documents: Default::default(),
             views: Default::default(),
             views_storage_ready: false,
             editing: None,
@@ -353,6 +367,7 @@ impl RemoteProductView {
                     query: vec![],
                     json: Some(json),
                     bearer: None,
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -507,6 +522,8 @@ impl RemoteProductView {
                 access_token: String,
                 token_type: String,
                 expires_in: u64,
+                #[serde(default)]
+                session_id: Option<String>,
             }
             let token = result.map_err(|e| e.to_string()).and_then(|bytes| {
                 serde_json::from_slice::<Token>(&bytes).map_err(|_| "Invalid login response".into())
@@ -516,7 +533,10 @@ impl RemoteProductView {
                     if token.token_type.eq_ignore_ascii_case("bearer")
                         && !token.access_token.is_empty()
                         && token.access_token.len() <= 16_384
-                        && (1..=86_400).contains(&token.expires_in) =>
+                        && (1..=86_400).contains(&token.expires_in)
+                        && token.session_id.as_deref().is_none_or(|id| {
+                            uuid::Uuid::parse_str(id).is_ok_and(|id| !id.is_nil())
+                        }) =>
                 {
                     let reauth = self.session.is_some();
                     self.clear_frozen();
@@ -709,6 +729,7 @@ impl RemoteProductView {
                             query: vec![],
                             json: Some(query.body),
                             bearer: Some(session.token.clone()),
+                            idempotency_key: None,
                         },
                         ctx,
                     )
@@ -1140,7 +1161,8 @@ impl RemoteProductView {
                             !matches!(column.edit_kind, erp_grid_core::EditKind::ReadOnly)
                         })
             });
-        if self.actions.available() {
+        let draft_actions_ready = self.actions.available() && !self.drafts.busy();
+        if self.actions.actor().is_some() {
             ui.horizontal(|ui| {
                 if ui
                     .add_enabled(cross_fill_ready, egui::Button::new("跨页填充"))
@@ -1150,7 +1172,7 @@ impl RemoteProductView {
                     self.cross_page_fill_range.open();
                 }
                 if ui
-                    .add_enabled(!self.drafts.busy(), egui::Button::new("商品草稿"))
+                    .add_enabled(draft_actions_ready, egui::Button::new("商品草稿"))
                     .clicked()
                     && let Some(store) = &self.actions.store
                 {
@@ -1158,7 +1180,7 @@ impl RemoteProductView {
                 }
                 if ui
                     .add_enabled(
-                        !self.drafts.busy() && self.details.draft_parent().is_some(),
+                        draft_actions_ready && self.details.draft_parent().is_some(),
                         egui::Button::new("SKU草稿"),
                     )
                     .clicked()
@@ -1289,7 +1311,7 @@ impl RemoteProductView {
             && !self.composing
             && !(self.frozen.pending() && !self.frozen.is_active());
         let mut action_intent = actions::Intent::default();
-        if self.advanced_tools || self.state.is_editing() || self.editing.is_some() {
+        if self.advanced_tools {
             if self.views_storage_ready
                 && let Some(current) = self.view_preferences()
             {
@@ -1506,6 +1528,10 @@ impl RemoteProductView {
                     return;
                 }
             }
+        }
+        // Recovery replaces the normal edit row while keeping its layout slot.
+        let actions_need_attention = self.actions.needs_attention();
+        if self.advanced_tools || actions_need_attention {
             action_intent = self
                 .session
                 .as_ref()
@@ -1529,15 +1555,19 @@ impl RemoteProductView {
                 ui.ctx().request_repaint();
                 return;
             }
-            if !self.frozen.is_active() && !self.frozen.pending() {
-                self.edit_tools(ui);
-            }
         }
-        if self.actions.available() && !self.frozen.is_active() && !self.frozen.pending() {
+        if !self.frozen.is_active() && !self.frozen.pending() {
+            self.edit_tools(ui);
+        }
+        if self.actions.actor().is_some()
+            && (self.advanced_tools || !actions_need_attention)
+            && !self.frozen.is_active()
+            && !self.frozen.pending()
+        {
             ui.horizontal(|ui| {
                 if ui
                     .add_enabled(
-                        self.state.row_selection.active.is_some() && !self.dirty(),
+                        self.actions.available() && self.state.row_selection.active.is_some() && !self.dirty(),
                         egui::Button::new("编辑商品"),
                     )
                     .clicked()

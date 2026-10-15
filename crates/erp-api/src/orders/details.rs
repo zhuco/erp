@@ -247,29 +247,22 @@ pub(super) async fn list_orders(
         },
         None => None,
     };
-    let total_amount_min_cent = match query
-        .total_amount_min_cent
-        .as_deref()
-        .and_then(non_empty)
-    {
+    let total_amount_min_cent = match query.total_amount_min_cent.as_deref().and_then(non_empty) {
         Some(raw) => match parse_i64(raw.as_str(), "total_amount_min_cent") {
             Ok(value) => Some(value),
             Err(resp) => return resp.into_response(),
         },
         None => None,
     };
-    let total_amount_max_cent = match query
-        .total_amount_max_cent
-        .as_deref()
-        .and_then(non_empty)
-    {
+    let total_amount_max_cent = match query.total_amount_max_cent.as_deref().and_then(non_empty) {
         Some(raw) => match parse_i64(raw.as_str(), "total_amount_max_cent") {
             Ok(value) => Some(value),
             Err(resp) => return resp.into_response(),
         },
         None => None,
     };
-    if let Err(message) = validate_total_amount_range(total_amount_min_cent, total_amount_max_cent) {
+    if let Err(message) = validate_total_amount_range(total_amount_min_cent, total_amount_max_cent)
+    {
         return bad_request(message).into_response();
     }
     let goods_qty = match query.goods_qty.as_deref().and_then(non_empty) {
@@ -825,11 +818,13 @@ pub(super) async fn edit_order(
     let log_item_edits_json = item_edits.as_ref().map(|edits| {
         edits
             .iter()
-            .map(|edit| serde_json::json!({
-                "line_id": edit.line_id,
-                "qty": edit.qty,
-                "price_cent": edit.price_cent,
-            }))
+            .map(|edit| {
+                serde_json::json!({
+                    "line_id": edit.line_id,
+                    "qty": edit.qty,
+                    "price_cent": edit.price_cent,
+                })
+            })
             .collect::<Vec<_>>()
     });
     let log_items_json = log_items.as_ref().map(|items| {

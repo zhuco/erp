@@ -1,5 +1,95 @@
 use super::*;
 
+fn shared_partner_request_id(headers: &HeaderMap, body: Option<&str>) -> Result<Option<String>, Response> {
+    let header_key = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_key = body.map(str::trim).filter(|value| !value.is_empty());
+    match (header_key, body_key) {
+        (Some(header), Some(body)) if header != body => {
+            Err(conflict("Idempotency-Key disagrees with request_id").into_response())
+        }
+        (Some(header), _) => Ok(Some(header.to_string())),
+        (None, Some(body)) => Ok(Some(body.to_string())),
+        (None, None) => Ok(None),
+    }
+}
+
+async fn link_shared_partner(
+    state: &AppState,
+    headers: &HeaderMap,
+    tenant_id: TenantId,
+    body_request_id: Option<&str>,
+    name: &str,
+    customer: bool,
+    supplier: bool,
+    customer_no: &str,
+    supplier_no: &str,
+    term_days: i32,
+    tax_no: &str,
+    address: &str,
+    contact: &str,
+) -> Result<Option<serde_json::Value>, Response> {
+    let Some(request_id) = shared_partner_request_id(headers, body_request_id)? else {
+        return Ok(None);
+    };
+    let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+    let saved = repo
+        .save_shared_partner(erp_repo::shared_contract::SharedPartnerInput { tenant_id, request_id: &request_id, payload_hash: &request_id, name, customer, supplier, customer_no, supplier_no, term_days, tax_no })
+        .await;
+    let (write, partner_id) = match saved {
+        Ok(Ok((write, partner_id))) => (write, partner_id),
+        Ok(Err(_)) => return Err(conflict("payload conflict").into_response()),
+        Err(error) => return Err((StatusCode::CONFLICT, format!("{error}")).into_response()),
+    };
+    let (receipt, replay) = match write {
+        erp_repo::shared_contract::SharedWrite::Stored(receipt) => (receipt, false),
+        erp_repo::shared_contract::SharedWrite::Replay(receipt) => (receipt, true),
+    };
+    if partner_id.to_string() == customer_no || partner_id.to_string() == supplier_no {
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, "partner id reused a role number").into_response());
+    }
+    Ok(Some(serde_json::json!({
+        "request_id": receipt.request_id,
+        "status": receipt.status.as_str(),
+        "replay": replay,
+        "partner_id": partner_id,
+        "customer": customer,
+        "supplier": supplier,
+        "customer_no": customer_no,
+        "supplier_no": supplier_no,
+        "term_days": term_days,
+        "tax_no": tax_no,
+        "address": address,
+        "contact": contact,
+    })))
+}
+
+async fn refuse_referenced_partner(
+    state: &AppState,
+    tenant_id: TenantId,
+    partner_id: uuid::Uuid,
+) -> Result<(), Response> {
+    let referenced = match sqlx::query_scalar::<_, i64>(
+        "select count(*) from shared_partner_refs where tenant_id = $1 and partner_id = $2",
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(partner_id)
+    .fetch_one(state.db.pool())
+    .await
+    {
+        Ok(count) => count,
+        Err(error) if error.to_string().contains("shared_partner_refs") => 0,
+        Err(error) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()),
+    };
+    if referenced > 0 {
+        return Err(conflict("referenced partner cannot be deleted").into_response());
+    }
+    Ok(())
+}
+
 pub(crate) async fn list_suppliers(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
@@ -50,6 +140,7 @@ pub(crate) async fn list_suppliers(
 pub(crate) async fn create_supplier(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<SupplierCreateRequest>,
 ) -> impl IntoResponse {
@@ -102,7 +193,29 @@ pub(crate) async fn create_supplier(
         warn!(error = %err, "failed to write supplier audit log");
     }
 
-    (StatusCode::OK, Json(supplier)).into_response()
+    let supplier_no = req.supplier_no.unwrap_or_else(|| supplier.supplier_id.to_string());
+    let customer_no = req.customer_no.unwrap_or_default();
+    match link_shared_partner(
+        &state,
+        &headers,
+        tenant_id,
+        req.request_id.as_deref(),
+        &supplier.name,
+        !customer_no.trim().is_empty(),
+        true,
+        &customer_no,
+        &supplier_no,
+        req.term_days.unwrap_or(0),
+        req.tax_no.as_deref().unwrap_or(""),
+        "",
+        supplier.contact.as_deref().unwrap_or(""),
+    )
+    .await
+    {
+        Ok(Some(link)) => (StatusCode::OK, Json(link)).into_response(),
+        Ok(None) => (StatusCode::OK, Json(supplier)).into_response(),
+        Err(resp) => resp,
+    }
 }
 
 pub(crate) async fn update_supplier(
@@ -204,6 +317,9 @@ pub(crate) async fn delete_supplier(
     }
     if let Err(resp) = ensure_permission(&ctx, "settings.read") {
         return resp.into_response();
+    }
+    if let Err(resp) = refuse_referenced_partner(&state, tenant_id, supplier_id).await {
+        return resp;
     }
 
     let supplier = match state
@@ -1070,6 +1186,7 @@ pub(crate) async fn get_customer_detail(
 pub(crate) async fn create_customer(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<CustomerCreateRequest>,
 ) -> impl IntoResponse {
@@ -1159,7 +1276,29 @@ pub(crate) async fn create_customer(
         warn!(error = %err, "failed to write customer audit log");
     }
 
-    (StatusCode::OK, Json(customer)).into_response()
+    let customer_no = req.customer_no.unwrap_or_else(|| customer.customer_id.to_string());
+    let supplier_no = req.supplier_no.unwrap_or_default();
+    match link_shared_partner(
+        &state,
+        &headers,
+        tenant_id,
+        req.request_id.as_deref(),
+        &customer.name,
+        true,
+        !supplier_no.trim().is_empty(),
+        &customer_no,
+        &supplier_no,
+        req.term_days.unwrap_or(0),
+        req.tax_no.as_deref().unwrap_or(""),
+        &customer.address.clone().unwrap_or_default(),
+        &customer.phone.clone().unwrap_or_default(),
+    )
+    .await
+    {
+        Ok(Some(link)) => (StatusCode::OK, Json(link)).into_response(),
+        Ok(None) => (StatusCode::OK, Json(customer)).into_response(),
+        Err(resp) => resp,
+    }
 }
 
 pub(crate) async fn update_customer(
@@ -1289,6 +1428,9 @@ pub(crate) async fn delete_customer(
     }
     if let Err(resp) = ensure_permission(&ctx, "customers.write") {
         return resp.into_response();
+    }
+    if let Err(resp) = refuse_referenced_partner(&state, tenant_id, customer_id).await {
+        return resp;
     }
 
     let repo = CustomersRepo::new(state.db.pool());

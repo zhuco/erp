@@ -353,6 +353,7 @@ mod tests {
             query: vec![],
             json: None,
             bearer: None,
+            idempotency_key: None,
         }
     }
     #[test]
@@ -363,6 +364,7 @@ mod tests {
             query: vec![],
             json: None,
             bearer: None,
+            idempotency_key: None,
         };
         assert!(
             client

@@ -1,0 +1,2 @@
+-- Two reports on one operation share the predecessor ceiling. The lock is the work-order row.
+-- This file is not applied here.

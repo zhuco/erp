@@ -1,0 +1,2 @@
+-- Two publishes of one BOM series share one transaction lock.
+-- The second publish sees the first range. A refused publish writes no version.

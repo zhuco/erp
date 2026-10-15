@@ -1,6 +1,7 @@
 {
   "name": "erp-workspace",
   "private": true,
+  "license": "Proprietary",
   "x-entrypoint-note": "根级 package.json scripts 是官方入口；Makefile 与 scripts/accept_*.sh 仅作兼容包装层。",
   "packageManager": "pnpm@9.1.0",
   "scripts": {
@@ -31,7 +32,8 @@
     "release:gate:full": "pnpm run release:gate",
     "accept:p0": "pnpm run release:gate",
     "repo:verify:openapi": "pnpm run openapi:bundle && node scripts/verify_openapi_gate_v2.mjs",
-    "repo:verify": "node scripts/verify_repo_baseline.mjs && pnpm run repo:verify:grid-policy && pnpm run repo:verify:openapi",
+    "repo:verify": "node scripts/verify_repo_baseline.mjs && pnpm run repo:verify:grid-policy && pnpm run repo:verify:openapi && pnpm run repo:verify:licenses",
+    "repo:verify:licenses": "node scripts/verify_dependency_licenses.mjs",
     "assess:industrial-progress": "node scripts/assess_industrial_progress.mjs",
     "build:web": "pwsh -NoProfile -File scripts/Build-ErpWeb.ps1",
     "dev:web": "node qa/acceptance/serve-web.mjs",

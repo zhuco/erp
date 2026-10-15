@@ -29,6 +29,22 @@ pub(crate) const PAGES: &[PageSpec] = &[
         connected: true,
     },
     PageSpec {
+        page: Page::TradeSales,
+        module: "销售",
+        group: "贸易",
+        name: "销售录单",
+        permission: "orders.write",
+        connected: true,
+    },
+    PageSpec {
+        page: Page::Materials,
+        module: "生产",
+        group: "材料",
+        name: "材料录单",
+        permission: "manufacturing.read",
+        connected: true,
+    },
+    PageSpec {
         page: Page::Reports,
         module: "开发工具",
         group: "预览",
@@ -59,4 +75,13 @@ pub(crate) fn spec(page: Page) -> &'static PageSpec {
         .iter()
         .find(|item| item.page == page)
         .unwrap_or(&PAGES[0])
+}
+pub(crate) fn modules() -> impl Iterator<Item = &'static str> {
+    PAGES.iter().enumerate().filter_map(|(index, page)| {
+        (page.connected
+            && !PAGES[..index]
+                .iter()
+                .any(|prior| prior.connected && prior.module == page.module))
+        .then_some(page.module)
+    })
 }

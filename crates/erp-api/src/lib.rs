@@ -31,6 +31,7 @@ use erp_domain::{
     },
 };
 use erp_repo::{
+    access_plan::{AccessPlanRepo, SeatAdmission},
     after_sale_cases::AfterSaleCaseRepo,
     after_sales::{
         AfterSalesCreateInput, AfterSalesItemCreate, AfterSalesListFilters, AfterSalesRepo,
@@ -190,13 +191,13 @@ use erp_repo::{
     operation_logs::{
         OP_ACTION_AP_DOC_CLOSED, OP_ACTION_AP_DOC_PAID, OP_ACTION_INVENTORY_ADJUSTED,
         OP_ACTION_INVENTORY_FREEZE, OP_ACTION_INVENTORY_INBOUND, OP_ACTION_INVENTORY_OUTBOUND,
-        OP_ACTION_INVENTORY_RELEASED, OP_ACTION_INVENTORY_RESERVED, OP_ACTION_INVENTORY_SYNC_RETRY,
-        OP_ACTION_INVENTORY_SYNC_RUN, OP_ACTION_INVENTORY_UNFREEZE, OP_ACTION_KIT_BOM_SAVED,
-        OP_ACTION_OMS_ALLOCATED, OP_ACTION_OMS_EXCEPTION_REJECT, OP_ACTION_OMS_EXCEPTION_RESOLVE,
-        OP_ACTION_OMS_EXCEPTION_REVOKE, OP_ACTION_OMS_ORDER_CANCEL, OP_ACTION_OMS_RESEND_CREATED,
-        OP_ACTION_OMS_RESERVATION_RELEASED, OP_ACTION_OMS_REVIEW_FLAG, OP_ACTION_OMS_REVIEW_PASS,
+        OP_ACTION_INVENTORY_SYNC_RETRY, OP_ACTION_INVENTORY_SYNC_RUN, OP_ACTION_INVENTORY_UNFREEZE,
+        OP_ACTION_KIT_BOM_SAVED,
+        OP_ACTION_OMS_EXCEPTION_REJECT, OP_ACTION_OMS_EXCEPTION_RESOLVE,
+        OP_ACTION_OMS_EXCEPTION_REVOKE, OP_ACTION_OMS_ORDER_CANCEL,
+        OP_ACTION_OMS_REVIEW_FLAG, OP_ACTION_OMS_REVIEW_PASS,
         OP_ACTION_OMS_REVIEW_REJECT, OP_ACTION_OMS_SHIPMENT_CANCEL_REQUESTED,
-        OP_ACTION_OMS_SHIPMENT_CREATED, OP_ACTION_OMS_SHIPMENT_SHIPPED, OP_ACTION_PRODUCT_CREATED,
+        OP_ACTION_PRODUCT_CREATED,
         OP_ACTION_PRODUCT_DELETED, OP_ACTION_PRODUCT_UPDATED, OP_ACTION_SHIPMENT_CALLBACK,
         OP_ACTION_SHIPMENT_CONFIRMED, OP_ACTION_SHIPMENT_REQUESTED,
         OP_ACTION_SHOP_PRODUCT_AUTO_MATCH, OP_ACTION_SHOP_PRODUCT_MANUAL_MATCH,
@@ -329,6 +330,7 @@ use erp_repo::{
         SenderAddressesRepo,
     },
     settings::{SettingListFilters, SettingUpsert, SettingsRepo},
+    shared_contract::{SharedContractRepo, SharedWrite},
     shipment_preprocess_hits::{
         ShipmentPreprocessHit, ShipmentPreprocessHitCreate, ShipmentPreprocessHitListFilters,
         ShipmentPreprocessHitsRepo,
@@ -491,9 +493,13 @@ mod finance_handlers;
 mod finance_management;
 #[path = "middleware/idempotency.rs"]
 mod idempotency;
+#[path = "middleware/web_security.rs"]
+mod web_security;
 mod inventory_print_report_handlers;
 mod inventory_views;
 mod logistics_handlers;
+mod manufacturing;
+mod onboarding;
 mod mapping_handlers;
 mod marketing;
 mod order_sku_mapping_helpers;
@@ -569,6 +575,7 @@ pub(crate) use rbac_role_handlers::*;
 pub(crate) use rbac_user_handlers::*;
 pub use repo_ports::*;
 pub use router::build_app;
+pub use web_security::public_cors_allows;
 pub(crate) use sales_config_helpers::*;
 pub(crate) use sales_order_helpers::*;
 pub(crate) use settings_payloads::*;
@@ -1465,6 +1472,11 @@ struct SkuCostAdjustRequest {
     new_cost_cent: i64,
     ref_type: Option<String>,
     ref_id: Option<String>,
+    request_id: Option<String>,
+    item_code: Option<String>,
+    qty_micros: Option<i64>,
+    period_code: Option<String>,
+    kind: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1472,6 +1484,9 @@ struct SkuImportPrecheckRequest {
     file_name: Option<String>,
     file_type: Option<String>,
     content_base64: String,
+    request_id: Option<String>,
+    file_digest: Option<String>,
+    column_map: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1966,6 +1981,8 @@ struct SkuBatchCreateRequest {
     batch_no: String,
     production_date: Option<String>,
     expire_at: Option<String>,
+    request_id: Option<String>,
+    serialized: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1996,6 +2013,22 @@ struct SkuBatchStrategyCreateRequest {
     enabled: Option<bool>,
     expire_threshold_days: Option<i32>,
     fifo_enabled: Option<bool>,
+    request_id: Option<String>,
+    rule_code: Option<String>,
+    request_ref: Option<String>,
+    requested_qty: Option<i64>,
+    lots: Option<Vec<AllocationLotRequest>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AllocationLotRequest {
+    batch_code: String,
+    location_code: String,
+    available: i64,
+    sort_date: String,
+    stock_version: i64,
+    frozen: bool,
+    expired: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3031,6 +3064,11 @@ struct SupplierCreateRequest {
     contact: Option<String>,
     settlement_terms: Option<String>,
     status: Option<String>,
+    request_id: Option<String>,
+    customer_no: Option<String>,
+    supplier_no: Option<String>,
+    term_days: Option<i32>,
+    tax_no: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3066,6 +3104,43 @@ struct PurchaseOrderCreateRequest {
     expected_at: Option<String>,
     remark: Option<String>,
     items: Vec<PurchaseOrderItemRequest>,
+    /// Shared command identity. A trade purchase with this field does not read a BOM.
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    partner_code: Option<String>,
+    #[serde(default)]
+    currency_code: Option<String>,
+    #[serde(default)]
+    document_date: Option<String>,
+    #[serde(default)]
+    revision_action: Option<String>,
+    #[serde(default)]
+    po_id: Option<String>,
+    #[serde(default)]
+    line_no: Option<i32>,
+    #[serde(default)]
+    due_date: Option<String>,
+    #[serde(default)]
+    tax_cent: Option<i64>,
+    #[serde(default)]
+    receive_qty: Option<i64>,
+    #[serde(default)]
+    arrival_qty: Option<i64>,
+    #[serde(default)]
+    release_qty: Option<i64>,
+    #[serde(default)]
+    return_qty: Option<i64>,
+    #[serde(default)]
+    issue_qty: Option<i64>,
+    #[serde(default)]
+    quality_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    unit_cost_cent: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3671,6 +3746,8 @@ struct InventoryListQuery {
     tag: Option<String>,
     on_hand_negative: Option<bool>,
     available_below_safety: Option<bool>,
+    available_min: Option<String>,
+    available_max: Option<String>,
     cursor: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
@@ -3685,6 +3762,8 @@ struct InventorySummaryListQuery {
     tag: Option<String>,
     on_hand_negative: Option<bool>,
     available_below_safety: Option<bool>,
+    available_min: Option<String>,
+    available_max: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -3698,6 +3777,8 @@ struct InventoryCostListQuery {
     tag: Option<String>,
     on_hand_negative: Option<bool>,
     available_below_safety: Option<bool>,
+    available_min: Option<String>,
+    available_max: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -3717,7 +3798,7 @@ struct InventoryLedgerListQuery {
 struct InventoryAtpQuery {
     warehouse_id: String,
     sku_id: String,
-    request_qty: Option<i64>,
+    request_qty: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3740,6 +3821,7 @@ struct InventoryReconciliationCheckRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct InventoryAdjustmentRequest {
     warehouse_id: String,
     sku_id: String,
@@ -3747,9 +3829,12 @@ struct InventoryAdjustmentRequest {
     quantity_delta: i64,
     reason: Option<String>,
     reference_id: Option<String>,
+    #[serde(default)]
+    request_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct InventoryMovementRequest {
     warehouse_id: String,
     sku_id: String,
@@ -3757,9 +3842,20 @@ struct InventoryMovementRequest {
     quantity: i64,
     reason: Option<String>,
     reference_id: Option<String>,
+    /// Original identity for an atomic movement and its immutable result.
+    /// Legacy callers that omit it cannot recover an unknown outcome by identity.
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    quality_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct InventoryReservationRequest {
     warehouse_id: String,
     sku_id: String,
@@ -3767,15 +3863,34 @@ struct InventoryReservationRequest {
     order_id: Option<String>,
     order_item_id: Option<String>,
     reference_id: Option<String>,
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    quality_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct InventoryReleaseRequest {
     warehouse_id: String,
     sku_id: String,
     quantity: i64,
     order_item_id: Option<String>,
     reference_id: Option<String>,
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    quality_status: Option<String>,
+    #[serde(default)]
+    order_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5520,6 +5635,35 @@ struct PrintJobCreateRequest {
     template_id: Option<String>,
     device_fingerprint: Option<String>,
     payload: Option<Value>,
+    request_id: Option<String>,
+    scan_code: Option<String>,
+    scan_kind: Option<String>,
+    #[serde(default)]
+    scan_exception: Option<bool>,
+    #[serde(default)]
+    scan_repeat: Option<bool>,
+    print_state: Option<String>,
+    copies: Option<i64>,
+    reason: Option<String>,
+    actor_kind: Option<String>,
+    #[serde(default)]
+    document_kind: Option<String>,
+    #[serde(default)]
+    company_name: Option<String>,
+    #[serde(default)]
+    print_id: Option<String>,
+    #[serde(default)]
+    print_lines: Option<Vec<PrintLineRequest>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PrintLineRequest {
+    line_no: i32,
+    item_code: String,
+    qty_micros: i64,
+    amount_cent: i64,
+    tax_cent: i64,
+    discount_cent: i64,
 }
 
 #[allow(dead_code)]
@@ -5594,6 +5738,7 @@ struct InventoryReportQuery {
     end_at: Option<String>,
     warehouse_id: Option<String>,
     warning_threshold: Option<i64>,
+    warning_quantity: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -5655,6 +5800,8 @@ struct InventoryRecordResponse {
     in_transit: i64,
     available: i64,
     updated_at: DateTime<Utc>,
+    quantities: Option<erp_repo::inventory_reads::InventoryReadQuantities>,
+    quantity_state: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -5668,6 +5815,7 @@ struct InventorySummaryResponse {
     in_transit: i64,
     available: i64,
     updated_at: DateTime<Utc>,
+    quantities: erp_repo::inventory_reads::InventoryReadQuantities,
 }
 
 #[derive(Debug, Serialize)]
@@ -5686,9 +5834,12 @@ struct InventoryCostResponse {
     frozen: i64,
     in_transit: i64,
     available: i64,
-    unit_cost_cent: i64,
-    total_cost_cent: i64,
+    unit_cost_cent: Option<i64>,
+    total_cost_cent: Option<i64>,
+    estimated_value: Option<String>,
+    valuation_source: &'static str,
     updated_at: DateTime<Utc>,
+    quantities: erp_repo::inventory_reads::InventoryReadQuantities,
 }
 
 #[derive(Debug, Serialize)]
@@ -5716,6 +5867,7 @@ struct InventoryLedgerResponse {
     ref_type: Option<String>,
     ref_id: Option<String>,
     occurred_at: DateTime<Utc>,
+    quantities: erp_repo::inventory_reads::InventoryReadDelta,
 }
 
 #[derive(Debug, Serialize)]
@@ -5730,6 +5882,7 @@ struct InventoryAtpAllocationResponse {
     batch_no: String,
     expire_at: Option<DateTime<Utc>>,
     allocated_qty: i64,
+    quantity: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -5743,6 +5896,7 @@ struct InventoryAtpResponse {
     request_qty: i64,
     atp_qty: i64,
     shortage_qty: i64,
+    quantities: erp_repo::atp_inventory::AtpQuantities,
     allocations: Vec<InventoryAtpAllocationResponse>,
 }
 
@@ -6045,6 +6199,18 @@ struct StockAdjustCreateRequest {
     reason: String,
     #[serde(default)]
     items: Vec<StockAdjustItemRequest>,
+    #[serde(default)]
+    request_id: Option<String>,
+    #[serde(default)]
+    location_id: Option<String>,
+    #[serde(default)]
+    sku_id: Option<String>,
+    #[serde(default)]
+    batch_code: Option<String>,
+    #[serde(default)]
+    cutoff_at: Option<String>,
+    #[serde(default)]
+    counted_qty: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -7327,6 +7493,11 @@ struct CustomerCreateRequest {
     status: Option<String>,
     category_id: Option<String>,
     member_level_id: Option<String>,
+    request_id: Option<String>,
+    customer_no: Option<String>,
+    supplier_no: Option<String>,
+    term_days: Option<i32>,
+    tax_no: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -7580,9 +7751,7 @@ struct StatsReportResponse {
 struct StatsInfraHealthResponse {
     analytics_backend: String,
     clickhouse_ready: bool,
-    clickhouse_endpoint: Option<String>,
     sso_ready: bool,
-    sso_issuer: Option<String>,
     checked_at: DateTime<Utc>,
 }
 
@@ -8916,6 +9085,7 @@ mod tests {
             warehouse_ids: Vec::new(),
             merchant_ids: Vec::new(),
             organization_ids: Vec::new(),
+        session_id: None,
         };
         let req_ctx = RequestContext {
             request_id: "req-wms-verify".to_string(),

@@ -1,0 +1,2 @@
+-- Opening operation WIP equals reported good. A completion flag does not clear it.
+-- This file is not applied here.

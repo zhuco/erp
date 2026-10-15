@@ -122,6 +122,33 @@ impl<'a> DataScopesRepo<'a> {
         warehouse_ids: &[uuid::Uuid],
     ) -> anyhow::Result<()> {
         let mut tx = self.pool.begin().await?;
+        // Serializes empty and nonempty scope replacement with OMS admission.
+        let actor: Option<uuid::Uuid> = sqlx::query_scalar(
+            "select user_id from users where tenant_id=$1 and user_id=$2 for update",
+        )
+        .bind(uuid::Uuid::from(tenant_id))
+        .bind(uuid::Uuid::from(user_id))
+        .fetch_optional(&mut *tx)
+        .await?;
+        if actor.is_none() {
+            return Err(anyhow::anyhow!("warehouse scope actor not found"));
+        }
+        if !warehouse_ids.is_empty() {
+            let owned: i64 = sqlx::query_scalar(
+                r#"
+                select count(*)::bigint
+                from warehouses
+                where tenant_id = $1 and warehouse_id = any($2)
+                "#,
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(warehouse_ids)
+            .fetch_one(&mut *tx)
+            .await?;
+            if owned != warehouse_ids.len() as i64 {
+                return Err(anyhow::anyhow!("warehouse is outside this tenant"));
+            }
+        }
         sqlx::query(
             r#"
             delete from user_warehouse_access

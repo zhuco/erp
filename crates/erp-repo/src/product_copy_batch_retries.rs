@@ -58,13 +58,11 @@ pub async fn prepare_retry(
         .await?;
     // Share the selection issuer's quota lock. Text parameters ensure this
     // hashes the UUID text rather than relying on an implicit binary cast.
-    sqlx::query(
-        "select pg_advisory_xact_lock(hashtextextended($1::text || ':' || $2::text,0))",
-    )
-    .bind(tenant_id.to_string())
-    .bind(actor_id.to_string())
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("select pg_advisory_xact_lock(hashtextextended($1::text || ':' || $2::text,0))")
+        .bind(tenant_id.to_string())
+        .bind(actor_id.to_string())
+        .execute(&mut *tx)
+        .await?;
 
     let previous: Option<(Uuid, Uuid, String, i64, i64)> = sqlx::query_as(
         "select original_batch_id,selection_token,query_fingerprint,total,floor(extract(epoch from expires_at))::bigint from grid_product_copy_batch_retry_requests where tenant_id=$1 and actor_user_id=$2 and request_id=$3",
@@ -78,7 +76,14 @@ pub async fn prepare_retry(
         if stored_batch != original_batch {
             return Err(RetryError::IdentityConflict);
         }
-        let review = review(original_batch, request_id, token, fingerprint, total, expires_at)?;
+        let review = review(
+            original_batch,
+            request_id,
+            token,
+            fingerprint,
+            total,
+            expires_at,
+        )?;
         tx.commit().await?;
         return Ok(review);
     }
@@ -130,7 +135,10 @@ pub async fn prepare_retry(
     .await?;
     let frozen_rows = u64::try_from(frozen_rows)
         .map_err(|_| RetryError::Invalid("invalid stored selection count".into()))?;
-    if frozen_rows.checked_add(total).is_none_or(|rows| rows > MAX_SNAPSHOT_ROWS) {
+    if frozen_rows
+        .checked_add(total)
+        .is_none_or(|rows| rows > MAX_SNAPSHOT_ROWS)
+    {
         return Err(RetryError::Capacity);
     }
 
@@ -206,7 +214,14 @@ pub async fn prepare_retry(
     .bind(rejected)
     .execute(&mut *tx)
     .await?;
-    let result = review(original_batch, request_id, token, fingerprint, rejected, expires_at)?;
+    let result = review(
+        original_batch,
+        request_id,
+        token,
+        fingerprint,
+        rejected,
+        expires_at,
+    )?;
     tx.commit().await?;
     Ok(result)
 }

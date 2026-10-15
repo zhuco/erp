@@ -35,14 +35,14 @@ async fn connect_test_db(case_name: &str) -> Option<Db> {
 
 fn build_token(jwt: &JwtService, tenant_id: &str, perms: Vec<&str>) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|value| value.to_string()).collect(),
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|value| value.to_string()).collect(),
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

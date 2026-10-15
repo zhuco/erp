@@ -26,14 +26,14 @@ fn build_state_with_db(db: Db) -> (axum::Router, JwtService) {
 
 fn build_token(jwt: &JwtService, tenant_id: &str, perms: Vec<&str>) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|p| p.to_string()).collect(),
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|p| p.to_string()).collect(),
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 
@@ -43,14 +43,14 @@ fn tenant_id() -> String {
 
 fn build_admin_token(jwt: &JwtService, tenant_id: &str, perms: Vec<&str>) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|p| p.to_string()).collect(),
-        is_admin: true,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|p| p.to_string()).collect(),
+        true,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

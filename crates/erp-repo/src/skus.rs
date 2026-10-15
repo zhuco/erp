@@ -712,10 +712,11 @@ impl<'a> SkusRepo<'a> {
         .fetch_optional(self.pool)
         .await?;
 
-        if let Some(kind) = sku_kind {
-            if kind.eq_ignore_ascii_case("KIT") {
-                let count: i64 = sqlx::query_scalar(
-                    r#"
+        if let Some(kind) = sku_kind
+            && kind.eq_ignore_ascii_case("KIT")
+        {
+            let count: i64 = sqlx::query_scalar(
+                r#"
                     select count(*)
                     from order_items oi
                     join orders o
@@ -726,15 +727,14 @@ impl<'a> SkusRepo<'a> {
                       and oi.sku_id = $2
                       and o.status not in ('COMPLETED', 'CANCELLED')
                     "#,
-                )
-                .bind(uuid::Uuid::from(tenant_id))
-                .bind(sku_id.to_string())
-                .fetch_one(self.pool)
-                .await?;
+            )
+            .bind(uuid::Uuid::from(tenant_id))
+            .bind(sku_id.to_string())
+            .fetch_one(self.pool)
+            .await?;
 
-                if count > 0 {
-                    return Err(anyhow!("kit has active orders"));
-                }
+            if count > 0 {
+                return Err(anyhow!("kit has active orders"));
             }
         }
 

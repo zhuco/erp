@@ -282,7 +282,7 @@ impl eframe::App for GridLab {
             }
             if let Some(destination) = self
                 .leave_guard
-                .request(leave_guard::Destination::Close, dirty)
+                .request_close(leave_guard::Destination::Close, dirty, false, false)
             {
                 self.apply_destination(destination, root.ctx());
             }

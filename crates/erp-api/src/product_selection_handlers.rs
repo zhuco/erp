@@ -205,6 +205,7 @@ mod tests {
             warehouse_ids: vec![],
             merchant_ids: vec![],
             organization_ids: vec![],
+        session_id: None,
         };
         assert!(ensure_tenant_access(&ctx, tenant).is_ok());
         assert_eq!(
@@ -286,6 +287,7 @@ mod frozen_find_tests {
                 warehouse_ids: vec![],
                 merchant_ids: vec![],
                 organization_ids: vec![],
+            session_id: None,
             };
             let request=serde_json::from_value(serde_json::json!({"query":{"schema":1,"offset":0,"limit":100,"filters":{},"sorts":[]},"text":"a","columns":[0]})).unwrap();
             let response = find_product_selection_cell(

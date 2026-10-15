@@ -472,12 +472,12 @@ impl<'a> ShipmentsRepo<'a> {
             qb.push(" and shop_id = ");
             qb.push_bind(shop_id);
         }
-        if let Some(shop_ids) = filters.shop_ids {
-            if !shop_ids.is_empty() {
-                qb.push(" and shop_id = any(");
-                qb.push_bind(shop_ids);
-                qb.push(")");
-            }
+        if let Some(shop_ids) = filters.shop_ids
+            && !shop_ids.is_empty()
+        {
+            qb.push(" and shop_id = any(");
+            qb.push_bind(shop_ids);
+            qb.push(")");
         }
         if let Some(status) = filters.status {
             qb.push(" and status = ");

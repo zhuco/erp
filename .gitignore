@@ -45,3 +45,20 @@ apps/erp-web/dist-*/
 apps/erp-web/test-results/
 
 .vercel
+
+# Local ERP acceptance state and generated evidence
+apps/erp-ui/qa/
+crates/erp-api/exports/
+qa/acceptance/browser-profiles/
+qa/acceptance/__pycache__/
+qa/acceptance/*.jsonl
+qa/acceptance/*.json
+!qa/acceptance/erp-cache-cleanup-registry.json
+!qa/acceptance/*-browser-cli*.json
+qa/acceptance/free-erp-ui-migration-inputs/
+qa/acceptance/*-source-before/
+qa/acceptance/install-restore-v323/
+qa/acceptance/upgrade-v323/
+qa/acceptance/free-erp-install-migration-apply.sql
+qa/acceptance/free-erp-ui-migration-apply.sql
+qa/acceptance/*.rs

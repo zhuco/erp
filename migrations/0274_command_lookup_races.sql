@@ -1,0 +1,2 @@
+-- 0274: a second finish of the same accepted command is refused after the first ledger row is stored.
+-- The command receipt is locked. This comment does not add a table.

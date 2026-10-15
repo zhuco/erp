@@ -238,14 +238,14 @@ fn build_token(
     perms: Vec<&str>,
 ) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: user_id.to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|p| p.to_string()).collect(),
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        user_id.to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|p| p.to_string()).collect(),
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

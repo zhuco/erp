@@ -1,0 +1,2 @@
+-- 0270: a second retry or effect of the same open exception is refused after the first write is stored.
+-- The exception row is locked. This comment does not add a table.

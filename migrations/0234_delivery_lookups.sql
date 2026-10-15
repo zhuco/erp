@@ -1,0 +1,2 @@
+-- A lost delivery response is looked up by the original request.
+-- The lookup reuses lost_response_lookups and does not deduct stock again.

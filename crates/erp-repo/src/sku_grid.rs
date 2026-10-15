@@ -561,10 +561,7 @@ mod tests {
         assert_eq!(validate_ranges(&request), Err("Invalid SKU range limit"));
         request.ranges[0].limit = 1;
         request.ranges[0].offset = i64::MAX as u64;
-        assert_eq!(
-            validate_ranges(&request),
-            Err("Invalid SKU range offset")
-        );
+        assert_eq!(validate_ranges(&request), Err("Invalid SKU range offset"));
         request.ranges[0].offset = 0;
         request.query.sorts = vec![SortRule {
             column: ColumnId(99),

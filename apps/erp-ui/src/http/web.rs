@@ -45,6 +45,9 @@ pub(super) async fn fetch(
             .set("Authorization", &format!("Bearer {token}"))
             .map_err(failure)?;
     }
+    if let Some(key) = request.idempotency_key.as_deref() {
+        headers.set("Idempotency-Key", key).map_err(failure)?;
+    }
     options.set_method(match method {
         HttpMethod::Get => "GET",
         HttpMethod::Post => "POST",

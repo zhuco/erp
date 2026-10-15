@@ -1,0 +1,2 @@
+-- 0266: two standard snapshots of one work order take successive versions.
+-- A second variance of the same standard is refused. This comment does not add a table.

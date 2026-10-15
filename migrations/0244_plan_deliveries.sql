@@ -1,0 +1,2 @@
+-- A partial sales delivery reduces the open plan and keeps executed quantity.
+-- The delivery must already be reviewed. This file is not applied here.

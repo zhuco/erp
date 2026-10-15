@@ -65,7 +65,13 @@ pub(crate) async fn auth_middleware(
     next: middleware::Next,
 ) -> impl IntoResponse {
     let path = req.uri().path().to_string();
-    if path == "/healthz" || path == "/auth/login" || path.starts_with("/v1/print-agent") {
+    if path == "/healthz"
+        || path == "/auth/login"
+        || path == "/auth/password/recover"
+        || path == "/auth/sessions/renew"
+        || path.starts_with("/v1/onboarding/")
+        || path.starts_with("/v1/print-agent")
+    {
         return next.run(req).await;
     }
 
@@ -97,8 +103,49 @@ pub(crate) async fn auth_middleware(
             };
             if !claims.is_admin {
                 if let Some(path_tenant_id) = tenant_id_from_path(&path) {
-                    if path_tenant_id != tenant_id {
+                    // OMS shipment writes recheck the authenticated tenant inside the
+                    // stock transaction. Blocking the mismatch here would leave that
+                    // business check unproven. Other paths still refuse here.
+                    let shipment_write =
+                        path.contains("/oms/shipments/") && path.ends_with("/ship");
+                    if path_tenant_id != tenant_id && !shipment_write {
                         return forbidden("tenant mismatch").into_response();
+                    }
+                }
+            }
+            if !claims.is_admin {
+                if let (Some(sid), Some(_cep)) = (claims.sid.as_deref(), claims.cep) {
+                    let session_id = match uuid::Uuid::parse_str(sid) {
+                        Ok(id) if !id.is_nil() => id,
+                        _ => {
+                            return (StatusCode::UNAUTHORIZED, "bad session").into_response();
+                        }
+                    };
+                    match AccessPlanRepo::new(state.db.pool())
+                        .active_session(tenant_id, user_id, session_id)
+                        .await
+                    {
+                        Ok(Some(session)) => {
+                            if erp_domain::access::session_command_allowed(
+                                true,
+                                true,
+                                session.credentials_epoch,
+                                session.current_epoch,
+                            )
+                            .is_err()
+                            {
+                                return (StatusCode::UNAUTHORIZED, "credentials changed")
+                                    .into_response();
+                            }
+                        }
+                        Ok(None) => {
+                            return (StatusCode::UNAUTHORIZED, "session revoked").into_response();
+                        }
+                        Err(err) => {
+                            warn!(error = %err, "session lookup failed");
+                            return (StatusCode::SERVICE_UNAVAILABLE, "session check unavailable")
+                                .into_response();
+                        }
                     }
                 }
             }
@@ -117,9 +164,13 @@ pub(crate) async fn auth_middleware(
                                     warn!(
                                         tenant_id=%tenant_id,
                                         error=%err,
-                                        "failed to load multi-entity flags; disabling scopes"
+                                        "tenant scope policy lookup failed"
                                     );
-                                    (false, false)
+                                    return (
+                                        StatusCode::SERVICE_UNAVAILABLE,
+                                        "tenant scope policy unavailable",
+                                    )
+                                        .into_response();
                                 }
                             };
                         let merchant_ids = if multi_merchant_enabled {
@@ -141,10 +192,20 @@ pub(crate) async fn auth_middleware(
                     }
                     Err(err) => {
                         warn!(tenant_id=%tenant_id, user_id=%user_id, error=%err, "failed to load data scopes");
-                        (Vec::new(), Vec::new(), Vec::new(), Vec::new())
+                        return (
+                            StatusCode::SERVICE_UNAVAILABLE,
+                            "data scope check unavailable",
+                        )
+                            .into_response();
                     }
                 }
             };
+            let session_id = claims
+                .sid
+                .as_deref()
+                .and_then(|sid| uuid::Uuid::parse_str(sid).ok().filter(|id| !id.is_nil()));
+            req.extensions_mut()
+                .insert(VerifiedCredentialEpoch(claims.cep));
             req.extensions_mut().insert(AuthContext {
                 tenant_id,
                 user_id,
@@ -154,6 +215,7 @@ pub(crate) async fn auth_middleware(
                 warehouse_ids,
                 merchant_ids,
                 organization_ids,
+                session_id,
             });
             next.run(req).await
         }
@@ -252,6 +314,9 @@ pub(crate) async fn read_only_middleware(
     let path = req.uri().path();
     if path == "/healthz"
         || path == "/auth/login"
+        || path == "/auth/password/recover"
+        || path == "/auth/sessions/renew"
+        || path.starts_with("/v1/onboarding/")
         || is_product_grid_read(req.method(), path)
         || is_inventory_aggregate_read(req.method(), path)
         || is_warehouse_tree_read(req.method(), path)
@@ -291,15 +356,20 @@ pub(crate) async fn read_only_middleware(
 }
 
 pub(crate) async fn healthz(State(state): State<AppState>) -> impl IntoResponse {
-    // 深度健康检查：数据库 ping
-    let ok = sqlx::query_scalar::<_, i64>("select 1::bigint")
+    let database_reachable = sqlx::query_scalar::<_, i64>("select 1::bigint")
         .fetch_one(state.db.pool())
         .await
         .is_ok();
-
-    if ok {
-        (StatusCode::OK, "ok")
+    let body = erp_domain::receipt::deep_health_body(true, database_reachable);
+    metrics().set_probe(true, database_reachable);
+    tracing::info!(
+        process = "ok",
+        database = if database_reachable { "ok" } else { "down" },
+        "healthz"
+    );
+    if database_reachable {
+        (StatusCode::OK, body)
     } else {
-        (StatusCode::SERVICE_UNAVAILABLE, "db not ready")
+        (StatusCode::SERVICE_UNAVAILABLE, body)
     }
 }

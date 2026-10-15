@@ -1798,6 +1798,7 @@ dependencies = [
  "erp-grid-core",
  "erp-repo",
  "erp-types",
+ "erp-worker",
  "futures",
  "hex",
  "http 1.4.0",
@@ -1891,6 +1892,7 @@ dependencies = [
  "erp-types",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
  "uuid",
 ]
 
@@ -1951,6 +1953,7 @@ dependencies = [
  "erp-types",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror 1.0.69",
  "tokio",

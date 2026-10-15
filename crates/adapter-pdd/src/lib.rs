@@ -441,11 +441,11 @@ impl Adapter {
         if matches!(refund_status, Some(2 | 3)) {
             return OrderStatus::Refunding;
         }
-        if let Some(as_code) = after_sales_status {
-            if let Some(ov) = Self::after_sales_override_status(as_code) {
-                // Avoid overriding refund_status==1 (no after-sale) with None.
-                return ov;
-            }
+        if let Some(as_code) = after_sales_status
+            && let Some(ov) = Self::after_sales_override_status(as_code)
+        {
+            // Avoid overriding refund_status==1 (no after-sale) with None.
+            return ov;
         }
         if risk_control_status == Some(1) {
             return OrderStatus::OnHold;
@@ -1020,10 +1020,10 @@ impl WebhookAdapter for Adapter {
         body: &[u8],
     ) -> Result<Vec<OrderProjection>, AdapterError> {
         // 1) direct JSON snapshot
-        if let Some(v) = parse_json(body) {
-            if let Some(order_obj) = Self::find_first_order_object(&v, 12) {
-                return Ok(vec![Self::map_order_to_projection(shop, order_obj)?]);
-            }
+        if let Some(v) = parse_json(body)
+            && let Some(order_obj) = Self::find_first_order_object(&v, 12)
+        {
+            return Ok(vec![Self::map_order_to_projection(shop, order_obj)?]);
         }
 
         // 2) form-urlencoded - typically contains order_sn only
@@ -1144,10 +1144,10 @@ impl Adapter {
             .and_then(|x| x.as_array())
             .cloned()
             .unwrap_or_default();
-        if items.is_empty() {
-            if let Some(arr) = data.get("order_sn_list").and_then(|x| x.as_array()) {
-                items.extend(arr.iter().map(|x| serde_json::json!({ "order_sn": x })));
-            }
+        if items.is_empty()
+            && let Some(arr) = data.get("order_sn_list").and_then(|x| x.as_array())
+        {
+            items.extend(arr.iter().map(|x| serde_json::json!({ "order_sn": x })));
         }
 
         let mut next_cursor = data
@@ -1459,10 +1459,10 @@ impl Adapter {
             };
 
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if Self::is_refund_related_order(&proj) {
                 Self::inject_refund_meta(&mut proj, &raw);
@@ -1635,10 +1635,10 @@ impl PlatformAdapter for Adapter {
         for raw in mock_orders {
             let proj = Self::map_order_to_projection(shop, &raw)?;
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if latest_time.map(|t| compare_time > t).unwrap_or(true) {
                 latest_time = Some(compare_time);
@@ -1681,10 +1681,10 @@ impl PlatformAdapter for Adapter {
             for raw in mock_refunds {
                 let mut proj = Self::map_order_to_projection(shop, &raw)?;
                 let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-                if let Some(last_time) = cursor.last_time {
-                    if compare_time <= last_time {
-                        continue;
-                    }
+                if let Some(last_time) = cursor.last_time
+                    && compare_time <= last_time
+                {
+                    continue;
                 }
                 if Self::is_refund_related_order(&proj) {
                     Self::inject_refund_meta(&mut proj, &raw);

@@ -51,7 +51,8 @@ pub struct InventoryReportFilters {
     pub start_at: DateTime<Utc>,
     pub end_at: DateTime<Utc>,
     pub warehouse_id: Option<uuid::Uuid>,
-    pub warning_threshold: i64,
+    pub warehouse_ids: Option<Vec<uuid::Uuid>>,
+    pub warning_threshold_micros: i128,
     pub offset: i64,
     pub limit: i64,
 }
@@ -63,8 +64,13 @@ pub struct InventoryTurnoverItem {
     pub warehouse_id: uuid::Uuid,
     pub on_hand: i64,
     pub reserved: i64,
+    pub frozen: i64,
+    pub in_transit: i64,
     pub available: i64,
-    pub sold_qty: i64,
+    pub quantities: crate::inventory_reads::InventoryReadQuantities,
+    pub sold_qty: Option<i64>,
+    pub sold_quantity: Option<String>,
+    pub sales_state: String,
     pub turnover_days: Option<f64>,
     pub warning: bool,
     pub out_of_stock: bool,
@@ -75,6 +81,10 @@ pub struct InventoryReport {
     pub items: Vec<InventoryTurnoverItem>,
     pub total: i64,
     pub range_days: i64,
+    pub schema: u8,
+    pub snapshot_at: DateTime<Utc>,
+    pub sales_basis: String,
+    pub turnover_basis: String,
 }
 
 #[derive(Debug, Clone)]
@@ -218,100 +228,7 @@ impl<'a> ReportsRepo<'a> {
         tenant_id: TenantId,
         filters: InventoryReportFilters,
     ) -> anyhow::Result<InventoryReport> {
-        let mut count_qb = QueryBuilder::<Postgres>::new(
-            "select count(*) from inventory_balances where tenant_id = ",
-        );
-        count_qb.push_bind(uuid::Uuid::from(tenant_id));
-        if let Some(warehouse_id) = filters.warehouse_id {
-            count_qb.push(" and warehouse_id = ");
-            count_qb.push_bind(warehouse_id);
-        }
-        let total: i64 = count_qb.build_query_scalar().fetch_one(self.pool).await?;
-
-        #[derive(sqlx::FromRow)]
-        struct Row {
-            sku_id: uuid::Uuid,
-            sku_code: Option<String>,
-            warehouse_id: uuid::Uuid,
-            on_hand: i64,
-            reserved: i64,
-            sold_qty: i64,
-        }
-
-        let rows: Vec<Row> = sqlx::query_as(
-            r#"
-            with sales as (
-                select oi.sku_id, sum(oi.qty)::bigint as sold_qty
-                from order_items oi
-                join orders o
-                  on o.tenant_id = oi.tenant_id
-                 and o.order_id = oi.order_id
-                 and o.order_month = oi.order_month
-                where o.tenant_id = $1
-                  and o.order_created_at >= $2
-                  and o.order_created_at <= $3
-                group by oi.sku_id
-            )
-            select
-                b.sku_id,
-                s.sku_code,
-                b.warehouse_id,
-                b.on_hand,
-                b.reserved,
-                coalesce(sales.sold_qty, 0) as sold_qty
-            from inventory_balances b
-            join skus s
-              on s.tenant_id = b.tenant_id
-             and s.sku_id = b.sku_id
-            left join sales on sales.sku_id = b.sku_id::text
-            where b.tenant_id = $1
-              and ($4::uuid is null or b.warehouse_id = $4)
-            order by s.sku_code nulls last, b.sku_id
-            limit $5 offset $6
-            "#,
-        )
-        .bind(uuid::Uuid::from(tenant_id))
-        .bind(filters.start_at)
-        .bind(filters.end_at)
-        .bind(filters.warehouse_id)
-        .bind(filters.limit)
-        .bind(filters.offset)
-        .fetch_all(self.pool)
-        .await?;
-
-        let range_days = (filters.end_at - filters.start_at).num_days().max(1);
-
-        let items = rows
-            .into_iter()
-            .map(|row| {
-                let available = row.on_hand - row.reserved;
-                let turnover_days = if row.sold_qty > 0 {
-                    Some(range_days as f64 * row.on_hand as f64 / row.sold_qty as f64)
-                } else {
-                    None
-                };
-                let warning = available <= filters.warning_threshold;
-                let out_of_stock = available <= 0;
-                InventoryTurnoverItem {
-                    sku_id: row.sku_id,
-                    sku_code: row.sku_code,
-                    warehouse_id: row.warehouse_id,
-                    on_hand: row.on_hand,
-                    reserved: row.reserved,
-                    available,
-                    sold_qty: row.sold_qty,
-                    turnover_days,
-                    warning,
-                    out_of_stock,
-                }
-            })
-            .collect();
-
-        Ok(InventoryReport {
-            items,
-            total,
-            range_days,
-        })
+        crate::inventory_turnover::read_report(self.pool, tenant_id, filters).await
     }
 
     pub async fn finance_report(

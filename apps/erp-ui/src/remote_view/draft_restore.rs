@@ -178,6 +178,7 @@ impl Restore {
                 query: vec![],
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             };
             let task = match session.client.start(request, ctx) {
                 Ok(task) => task,

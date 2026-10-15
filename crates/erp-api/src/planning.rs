@@ -87,6 +87,13 @@ struct PurchasePlanListResponse {
 #[derive(Debug, Deserialize)]
 pub(crate) struct PurchasePlanGenerateRequest {
     trigger: Option<String>,
+    request_id: Option<String>,
+    rule_code: Option<String>,
+    object_code: Option<String>,
+    cutoff_at: Option<String>,
+    reason: Option<String>,
+    observed: Option<i64>,
+    threshold: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -358,6 +365,7 @@ pub(super) async fn list_purchase_plans(
 pub(super) async fn generate_purchase_plans(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<PurchasePlanGenerateRequest>,
 ) -> impl IntoResponse {
@@ -370,6 +378,54 @@ pub(super) async fn generate_purchase_plans(
     }
     if let Err(resp) = ensure_planning_write_permission(&ctx) {
         return resp.into_response();
+    }
+
+    let header_request = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_request = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_request, body_request) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        let (Some(rule), Some(object_code), Some(cutoff), Some(reason), Some(observed), Some(threshold)) = (
+            req.rule_code.as_deref(),
+            req.object_code.as_deref(),
+            req.cutoff_at.as_deref(),
+            req.reason.as_deref(),
+            req.observed,
+            req.threshold,
+        ) else {
+            return bad_request("alert rule, object, cutoff, reason, and quantities are required").into_response();
+        };
+        let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+            .raise_inventory_alert(
+                tenant_id, &request_id, &request_id, rule, object_code, cutoff, reason, observed, threshold,
+            )
+            .await;
+        let (write, alert_id, notified) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "alert_id": alert_id,
+                "notified": notified,
+                "purchase_created": false,
+                "work_order_created": false,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
     }
 
     let repo = PlanningRepo::new(state.db.pool());

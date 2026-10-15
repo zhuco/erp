@@ -1,0 +1,3 @@
+-- 0279: two advances of one release lock the release row first.
+-- The second writer sees the new phase and cannot skip or repeat it.
+-- This comment does not add a table.

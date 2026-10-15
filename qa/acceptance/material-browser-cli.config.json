@@ -1,0 +1,22 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "channel": "msedge",
+      "headless": true,
+      "args": [
+        "--enable-unsafe-webgpu",
+        "--use-angle=swiftshader",
+        "--use-gl=angle"
+      ]
+    },
+    "contextOptions": {
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "deviceScaleFactor": 1
+    }
+  },
+  "outputDir": "G:/erp/output/playwright/material-documents"
+}

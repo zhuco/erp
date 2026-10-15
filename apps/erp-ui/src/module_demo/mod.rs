@@ -1,7 +1,8 @@
 //! A local fixture host for composing the workbench modules. No business API access.
 mod table;
+mod detail_save;
 use crate::workbench::{
-    detail::{DetailEvent, DetailField, DetailPanel},
+    detail::{DetailEvent, DetailField, DetailPanel, DetailSaveOutcome, DetailSaveRequest},
     layout::{Region, WorkspaceLayout},
     navigation::{Navigation, NavigationEvent, PageEntry},
     subtable::SubtableTabs,
@@ -31,6 +32,10 @@ struct ExamplePage {
     goods: Table,
     logs: Table,
     detail: DetailPanel,
+    persistence: crate::workbench::detail_persistence::DetailPersistence,
+    record_versions: BTreeMap<RowId, u64>,
+    save_job: Option<(DetailSaveRequest, f64)>,
+    last_save_result: Option<(DetailSaveRequest, DetailSaveOutcome)>,
     subtabs: SubtableTabs,
     saved_logs: BTreeMap<RowId, Vec<Row>>,
     selected: Option<RowId>,
@@ -162,7 +167,11 @@ impl ExamplePage {
                 ],
                 Vec::new(),
             ),
-            detail: Default::default(),
+            detail: DetailPanel::new(if stock { "local-stock-module" } else { "local-order-module" }.into()),
+            persistence: crate::workbench::detail_persistence::DetailPersistence::new(if stock {"local-stock-module"} else {"local-order-module"}.into()),
+            record_versions: BTreeMap::new(),
+            save_job: None,
+            last_save_result: None,
             subtabs: Default::default(),
             saved_logs: BTreeMap::new(),
             selected: None,
@@ -222,57 +231,10 @@ impl ExamplePage {
                 .unwrap_or_default(),
         );
     }
-    fn fields(&self) -> Vec<DetailField> {
-        self.selected
-            .and_then(|id| self.main.rows.iter().find(|r| r.id == id))
-            .map(|row| {
-                self.main
-                    .columns
-                    .iter()
-                    .map(|c| DetailField {
-                        id: c.id.0.to_string(),
-                        label: c.title.clone(),
-                        value: row.text(c.id),
-                        editable: matches!(c.id, NAME | NOTE),
-                        required: c.id == NAME,
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-    fn save(&mut self, changes: Vec<(String, String)>) {
-        let Some(row) = self
-            .selected
-            .and_then(|id| self.main.rows.iter_mut().find(|r| r.id == id))
-        else {
-            self.detail.resolve_save(Err("当前记录不存在".into()));
-            return;
-        };
-        for (field, value) in changes {
-            if let Ok(id) = field.parse::<u64>()
-                && matches!(ColumnId(id), NAME | NOTE)
-            {
-                row.cells.insert(ColumnId(id), value);
-            }
-        }
-        let row_id = row.id;
-        self.detail.resolve_save(Ok(()));
-        self.main.invalidate();
-        self.notice = Some("已保存到示例数据".into());
-        self.logs.rows.push(Row {
-            id: RowId(row_id.0 * 100 + self.logs.rows.len() as u128 + 1),
-            cells: [
-                (NUMBER, (self.logs.rows.len() + 1).to_string()),
-                (NAME, "修改详情".into()),
-                (NOTE, "已保存本地字段".into()),
-            ]
-            .into_iter()
-            .collect(),
-        });
-        self.logs.invalidate();
-        self.saved_logs.insert(row_id, self.logs.rows.clone());
-    }
     fn toolbar(&mut self, ui: &mut egui::Ui) {
+        let filter = self.filter();
+        self.main.external_query_input = Some(ToolbarState::query_input_id(ui));
+        self.main.prepare_query(ui.ctx(), &self.toolbar.search, filter);
         let dirty = self.detail.is_dirty();
         let count = if self.delivery.is_some() {
             0
@@ -281,7 +243,9 @@ impl ExamplePage {
         };
         for event in self.toolbar.show(ui, count, dirty) {
             match event {
-                ToolbarEvent::SearchChanged(_) => {}
+                ToolbarEvent::SearchChanged(value) => {
+                    self.main.input_changed(ui.input(|input| input.time), value.is_empty());
+                }
                 ToolbarEvent::Reset => {
                     self.toolbar.search.clear();
                     self.tree.selected = Some("all".into());
@@ -293,6 +257,9 @@ impl ExamplePage {
                 }
                 ToolbarEvent::Export => {
                     let ids = self.main.targets();
+                    if ids.is_empty() {
+                        continue;
+                    }
                     let rows = self
                         .main
                         .rows
@@ -360,7 +327,7 @@ impl ExamplePage {
                     if self.detail.is_dirty() {
                         self.main.state.row_selection.active = self.selected;
                         self.main.state.selection = previous_selection;
-                        self.notice = Some("请先保存或取消右侧修改".into());
+                        self.notice = Some((if self.detail.has_unresolved_save(){"原保存结果未确认，请先回查"}else{"请先保存或取消右侧修改"}).into());
                         ui.ctx().request_repaint();
                     } else {
                         self.selected = next;
@@ -381,11 +348,27 @@ impl ExamplePage {
                 }
             }
             Region::Right => {
+                if let Some(error)=&self.persistence.error {
+                    ui.colored_label(egui::Color32::RED,error);
+                    if ui.button("重新打开恢复存储").clicked(){self.persistence.reopen();}
+                }
+                if let Some(request)=self.persistence.show_backup(ui,&mut self.detail) {
+                    let outcome=self.last_save_result.as_ref().filter(|(original,_)|original==&request).map(|(_,result)|result.clone())
+                        .unwrap_or_else(||DetailSaveOutcome::Unknown("副本原结果尚未核实，副本保留".into()));
+                    if let Err(error)=self.persistence.resolve_backup(&request,outcome){self.notice=Some(error);}
+                }
+                if let Some(request)=self.persistence.show_conflict(ui,&self.detail) {
+                    let outcome=self.last_save_result.as_ref().filter(|(original,_)|original==&request).map(|(_,result)|result.clone())
+                        .unwrap_or_else(||DetailSaveOutcome::Unknown("存储原结果尚未核实，当前草稿保留".into()));
+                    if let Err(error)=self.persistence.resolve_conflict(&request,outcome){self.notice=Some(error);}
+                }
                 let fields = self.fields();
                 if let Some(id) = self.selected {
-                    for event in self.detail.show(ui, &id.0.to_string(), &fields) {
+                    let version=self.version(id);
+                    for event in self.detail.show(ui, &id.0.to_string(), &version, &fields) {
                         match event {
-                            DetailEvent::Save(changes) => self.save(changes),
+                            DetailEvent::Save(_) => { ui.ctx().request_repaint(); }
+                            DetailEvent::Lookup(request) => self.lookup_save(request),
                             DetailEvent::Discard => self.notice = None,
                             DetailEvent::Blocked { .. } => {
                                 self.notice = Some("请先保存或取消详情修改".into())
@@ -468,7 +451,13 @@ impl ModuleDemo {
 }
 impl eframe::App for ModuleDemo {
     fn ui(&mut self, root: &mut egui::Ui, frame: &mut eframe::Frame) {
-        let dirty = self.pages.values().any(|p| p.detail.is_dirty());
+        let now=root.input(|input|input.time);
+        for page in self.pages.values_mut() { page.poll_durable(root.ctx(),now); page.poll_save(now); }
+        if self.pages.values().any(|page|page.save_job.is_some() || (page.persistence.error.is_none() && page.persistence.pending())) {root.ctx().request_repaint_after(std::time::Duration::from_millis(33));}
+        let dirty = self.pages.values().any(|p| p.detail.is_dirty() || p.persistence.pending());
+        if self.closing_window && !dirty {
+            self.allow_close=true;self.closing_window=false;root.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         self.leave.sync_before_unload(dirty);
         if root.input(|i| i.viewport().close_requested()) && !self.allow_close {
             if dirty {
@@ -528,7 +517,7 @@ impl eframe::App for ModuleDemo {
             });
         }
         while let Some(id) = self.close_queue.front() {
-            if self.pages.get(id).is_some_and(|p| p.detail.is_dirty()) {
+            if self.pages.get(id).is_some_and(|p| p.detail.is_dirty() || p.persistence.pending()) {
                 break;
             }
             self.navigation.commit_close(id);
@@ -536,21 +525,22 @@ impl eframe::App for ModuleDemo {
         }
         if self.closing_window || !self.close_queue.is_empty() {
             egui::Modal::new(root.id().with("unsaved-close")).show(root.ctx(), |ui| {
-                ui.label("未保存修改");
+                let unresolved=self.pages.values().any(|page|page.detail.has_unresolved_save() || page.persistence.pending());
+                ui.label(if unresolved {"保存结果未确认"} else {"未保存修改"});
                 ui.horizontal(|ui| {
                     if ui.button("保留编辑").clicked() {
                         self.close_queue.clear();
                         self.closing_window = false;
                     }
-                    if ui.button("放弃并关闭").clicked() {
+                    let discard_allowed=detail_save::can_discard_close(
+                        &self.pages,self.close_queue.front().map(String::as_str),self.closing_window);
+                    if ui.add_enabled(discard_allowed,egui::Button::new("放弃并关闭")).clicked() {
                         if self.closing_window {
                             self.allow_close = true;
                             root.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                        } else if let Some(id) = self.close_queue.pop_front() {
-                            if let Some(page) = self.pages.get_mut(&id) {
-                                page.detail.reset();
-                            }
-                            self.navigation.commit_close(&id);
+                        } else if let Some(id) = self.close_queue.front().cloned() {
+                            let discarded=self.pages.get_mut(&id).is_none_or(|page|page.detail.reset().is_ok());
+                            if discarded {self.close_queue.pop_front();self.navigation.commit_close(&id);}
                         }
                         self.closing_window = false;
                     }
@@ -579,7 +569,12 @@ mod tests {
         let second = ExamplePage::new(true);
         first.selected = Some(RowId(1));
         first.sync_children();
-        first.save(vec![(NAME.0.to_string(), "修改后的客户".into())]);
+        let fields=first.fields();
+        first.detail.bind("1","0",&fields);
+        first.detail.edit_value(&NAME.0.to_string(),"修改后的客户".into()).expect("editable local name");
+        let request=first.detail.begin_save().expect("local save intent");
+        crate::workbench::detail_storage::authorize_fixture(&mut first.detail,&request).expect("actual persisted fixture");
+        first.save(request);
         first.selected = Some(RowId(2));
         first.sync_children();
         first.selected = Some(RowId(1));

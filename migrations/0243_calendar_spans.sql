@@ -1,0 +1,3 @@
+-- A manual load that crosses a rest day is stored as dated slices.
+-- The rest day stores zero minutes. A later calendar does not rewrite a saved load.
+-- This file is not applied here.

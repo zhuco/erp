@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-pub(super) fn default_root() -> Result<PathBuf, String> {
+pub(crate) fn default_root() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     let root = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
@@ -44,7 +44,7 @@ fn ordinary(path: &Path) -> Result<(), String> {
         Err(_) => Err("Cannot inspect recovery storage path".into()),
     }
 }
-pub(super) fn prepare(root: PathBuf) -> Result<PathBuf, String> {
+pub(crate) fn prepare(root: PathBuf) -> Result<PathBuf, String> {
     if !root.is_absolute()
         || root
             .components()
@@ -72,7 +72,7 @@ pub(super) fn prepare(root: PathBuf) -> Result<PathBuf, String> {
     }
     Ok(root.join("actions-v1.sqlite3"))
 }
-pub(super) async fn connect(path: &Path) -> Result<sqlx::SqlitePool, String> {
+pub(crate) async fn connect(path: &Path) -> Result<sqlx::SqlitePool, String> {
     let options = SqliteConnectOptions::new()
         .filename(path)
         .create_if_missing(true)

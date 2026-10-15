@@ -220,6 +220,7 @@ impl Exports {
                 query,
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         ) {
@@ -242,6 +243,7 @@ impl Exports {
                 query: Vec::new(),
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             &filename,
             ctx,
@@ -523,6 +525,7 @@ mod tests {
                             query: vec![],
                             json: None,
                             bearer: None,
+                            idempotency_key: None,
                         },
                         &ctx,
                     )

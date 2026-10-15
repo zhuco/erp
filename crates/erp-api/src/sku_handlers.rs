@@ -683,6 +683,7 @@ pub(crate) async fn search_skus(
 pub(crate) async fn precheck_sku_import(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<SkuImportPrecheckRequest>,
 ) -> impl IntoResponse {
@@ -1065,6 +1066,51 @@ pub(crate) async fn precheck_sku_import(
         errors,
         preview,
     };
+    let header_key = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_key = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_key, body_key) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        let digest = req.file_digest.as_deref().map(str::trim).filter(|value| !value.is_empty());
+        let column_map = req.column_map.as_deref().map(str::trim).filter(|value| !value.is_empty());
+        let (Some(digest), Some(column_map)) = (digest, column_map) else {
+            return bad_request("file digest and column map are required").into_response();
+        };
+        let shared_rows: Vec<(i32, String, String, String)> = rows
+            .iter()
+            .map(|row| {
+                (
+                    i32::try_from(row.row).unwrap_or(0),
+                    row.sku_code.clone(),
+                    row.name.clone().unwrap_or_default(),
+                    row.unit.clone().unwrap_or_default(),
+                )
+            })
+            .collect();
+        let borrowed: Vec<(i32, &str, &str, &str)> = shared_rows
+            .iter()
+            .map(|row| (row.0, row.1.as_str(), row.2.as_str(), row.3.as_str()))
+            .collect();
+        let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+        match repo
+            .precheck_shared_import(tenant_id, &request_id, &request_id, digest, column_map, &borrowed)
+            .await
+        {
+            Ok(Ok(_)) => {}
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        }
+    }
     (StatusCode::OK, Json(response)).into_response()
 }
 
@@ -1320,7 +1366,7 @@ pub(crate) async fn get_sku_import_job(
 }
 
 pub(crate) async fn list_sku_import_failures(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path((tenant_id, job_id)): Path<(String, String)>,
     Query(query): Query<SkuImportFailureListQuery>,
     Extension(ctx): Extension<AuthContext>,
@@ -1339,6 +1385,9 @@ pub(crate) async fn list_sku_import_failures(
         Ok(v) => v,
         Err(_) => return bad_request("bad job_id").into_response(),
     };
+    if let Err(resp) = owned_sku_import_job(&state, tenant_id, job_id).await {
+        return resp.into_response();
+    }
 
     let file_path = sku_import_failure_file_path(tenant_id, job_id);
     if !file_path.exists() {
@@ -1399,6 +1448,7 @@ pub(crate) async fn list_sku_import_failures(
 }
 
 pub(crate) async fn download_sku_import_failures(
+    State(state): State<AppState>,
     Path((tenant_id, job_id)): Path<(String, String)>,
     Extension(ctx): Extension<AuthContext>,
 ) -> impl IntoResponse {
@@ -1416,6 +1466,9 @@ pub(crate) async fn download_sku_import_failures(
         Ok(v) => v,
         Err(_) => return bad_request("bad job_id").into_response(),
     };
+    if let Err(resp) = owned_sku_import_job(&state, tenant_id, job_id).await {
+        return resp.into_response();
+    }
 
     let file_path = sku_import_failure_file_path(tenant_id, job_id);
     let file_bytes = match tokio::fs::read(&file_path).await {
@@ -1432,6 +1485,20 @@ pub(crate) async fn download_sku_import_failures(
     );
 
     (StatusCode::OK, headers, file_bytes).into_response()
+}
+
+async fn owned_sku_import_job(
+    state: &AppState,
+    tenant_id: TenantId,
+    job_id: uuid::Uuid,
+) -> Result<(), Response> {
+    let repo = ExportJobsRepo::new(state.db.pool());
+    match repo.get_job(tenant_id, job_id).await {
+        Ok(Some(job)) if job.job_type == "SKU_IMPORT" => Ok(()),
+        Ok(Some(_)) => Err(bad_request("invalid import job type").into_response()),
+        Ok(None) => Err(not_found("import job not found").into_response()),
+        Err(error) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response()),
+    }
 }
 
 pub(crate) async fn list_sku_cost_ledgers(
@@ -1515,6 +1582,7 @@ pub(crate) async fn list_sku_cost_ledgers(
 pub(crate) async fn adjust_sku_cost(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<SkuCostAdjustRequest>,
@@ -1537,6 +1605,55 @@ pub(crate) async fn adjust_sku_cost(
         };
     if !cost_enabled {
         return feature_flag_forbidden(FeatureFlagKey::CostManagement).into_response();
+    }
+
+    let header_request = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_request = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_request, body_request) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        let item_code = req.item_code.as_deref().map(str::trim).filter(|value| !value.is_empty());
+        let period_code = req.period_code.as_deref().map(str::trim).filter(|value| !value.is_empty());
+        let (Some(item_code), Some(period_code)) = (item_code, period_code) else {
+            return bad_request("item and period are required").into_response();
+        };
+        let kind = req.kind.as_deref().unwrap_or("ADJUST");
+        let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+        let saved = match kind {
+            "RECEIPT" => {
+                repo.post_cost_receipt(erp_repo::shared_contract::CostReceiptInput { tenant_id, request_id: &request_id, payload_hash: &request_id, item_code, qty_micros: req.qty_micros.unwrap_or(0), amount_cent: req.new_cost_cent, period_code: period_code })
+                .await
+            }
+            "ISSUE" => repo.post_cost_issue(erp_repo::shared_contract::CostIssueInput { tenant_id, request_id: &request_id, payload_hash: &request_id, item_code, qty_micros: req.qty_micros.unwrap_or(0), period_code: period_code }).await,
+            "ADJUST" => repo.post_cost_adjustment(erp_repo::shared_contract::CostAdjustmentInput { tenant_id, request_id: &request_id, payload_hash: &request_id, item_code, amount_cent: req.new_cost_cent, period_code: period_code }).await,
+            _ => return bad_request("cost kind must be receipt, issue, or adjustment").into_response(),
+        };
+        let (write, amount, estimated) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        let replay = matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_));
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "request_id": request_id,
+                "amount_cent": amount,
+                "estimated": estimated,
+                "replay": replay,
+            })),
+        )
+            .into_response();
     }
 
     let sku_id = match uuid::Uuid::parse_str(req.sku_id.trim()) {
@@ -1885,6 +2002,7 @@ pub(crate) async fn list_sku_batch_strategies(
 pub(crate) async fn create_sku_batch_strategy(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<SkuBatchStrategyCreateRequest>,
@@ -1898,6 +2016,59 @@ pub(crate) async fn create_sku_batch_strategy(
     }
     if let Err(resp) = ensure_permission(&ctx, "skus.write") {
         return resp.into_response();
+    }
+    let header_request = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_request = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_request, body_request) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        let (Some(rule), Some(request_ref), Some(requested), Some(lots)) = (
+            req.rule_code.as_deref(),
+            req.request_ref.as_deref(),
+            req.requested_qty,
+            req.lots.as_deref(),
+        ) else {
+            return bad_request("allocation rule, request, quantity, and lots are required").into_response();
+        };
+        let lots: Vec<erp_domain::trade::AllocationLot> = lots
+            .iter()
+            .map(|lot| erp_domain::trade::AllocationLot {
+                batch_code: lot.batch_code.clone(),
+                location_code: lot.location_code.clone(),
+                available: lot.available,
+                sort_date: lot.sort_date.clone(),
+                stock_version: lot.stock_version,
+                frozen: lot.frozen,
+                expired: lot.expired,
+            })
+            .collect();
+        let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+            .save_allocation_suggestion(tenant_id, &request_id, &request_id, rule, request_ref, requested, &lots)
+            .await;
+        let (write, ids) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "suggestion_ids": ids,
+                "issued": false,
+                "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
     }
     if req.name.trim().is_empty() {
         return bad_request("name required").into_response();
@@ -2094,6 +2265,7 @@ pub(crate) async fn get_sku_batch(
 pub(crate) async fn create_sku_batch(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(req): Json<SkuBatchCreateRequest>,
@@ -2110,6 +2282,54 @@ pub(crate) async fn create_sku_batch(
     }
     if req.batch_no.trim().is_empty() {
         return bad_request("batch_no required").into_response();
+    }
+    let header_request = headers
+        .get("Idempotency-Key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let body_request = req.request_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let request_id = match (header_request, body_request) {
+        (Some(header), Some(body)) if header != body => {
+            return conflict("Idempotency-Key disagrees with request_id").into_response();
+        }
+        (Some(header), _) => Some(header.to_string()),
+        (None, Some(body)) => Some(body.to_string()),
+        (None, None) => None,
+    };
+    if let Some(request_id) = request_id {
+        let produced_on = req.production_date.as_deref().unwrap_or("").trim();
+        let expires_on = req.expire_at.as_deref().unwrap_or("").trim();
+        let produced_on = produced_on.get(..10).unwrap_or(produced_on);
+        let expires_on = expires_on.get(..10).unwrap_or(expires_on);
+        let saved = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool())
+            .save_shared_batch(
+                tenant_id,
+                &request_id,
+                &request_id,
+                req.sku_id.trim(),
+                req.batch_no.trim(),
+                produced_on,
+                expires_on,
+                req.serialized.unwrap_or(false),
+                "GOOD",
+            )
+            .await;
+        let (write, batch_id) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        let replay = matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_));
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "batch_id": batch_id,
+                "batch_no": req.batch_no.trim(),
+                "replay": replay,
+            })),
+        )
+            .into_response();
     }
 
     let sku_id = match uuid::Uuid::parse_str(&req.sku_id) {

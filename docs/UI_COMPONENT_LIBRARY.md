@@ -1,12 +1,16 @@
 # 自研 ERP 高频组件库开发规范
 
 > 决策日期：2026-09-07  
-> 文档版本：0.70（2026-09-10 组件审计修复）  
+> 文档版本：0.81（2026-10-03 正式订单来源和履约结果）
 > 状态：Rust 桌面/Web 组件持续集成；完整清单、真实账号及发布验收尚未完成。  
 > 适用：Rust 原生桌面与 Rust/WASM Web，以及全部业务数据表格。  
 > 项目实施进度的唯一入口：[ROADMAP.md](ROADMAP.md)。本文负责技术契约，不另维护项目进度。
 
 后续页面开发先读 [DataGrid 接入说明](GRID_INTEGRATION.md)，复用公开入口并隔离页面/子表实例状态。
+
+下方 `apps/erp-web` 路径保留旧组件审计的历史线索，当前工作区对应文件不存在，使用路径文本记录；新实现位置以Rust章节及实际声明为准。
+
+2026-10-01 产品方向更新：官方托管的易格同时支持制造与贸易，基础免费单账号，后续提供收费功能。范围与验收见 [免费 ERP 清单](FREE_ERP_CHECKLIST.md)，执行顺序仍在 [路线图](ROADMAP.md)。下文旧阶段的自用、SaaS 后置及业务范围冻结不再定义新产品目标；本规范的 Rust 双端、自研组件、交互和资源约束继续有效。新业务复用公共组件，制造状态机与服务端逻辑不进入网格或本地示例。
 
 2026-09-11 最新实施边界：先打磨顶部菜单、多标签、工具栏、左侧树形、主表、底部子表及右侧详情模块，以本地夹具拼接独立示例页。复用现有 DataGrid，暂不推进真实业务页面和接口。工具栏仅在主表上方，宽度跟随主表；左右模块和底部子表独立隐藏/恢复，保留状态与尺寸。此顺序优先于下文历史阶段；接入说明见 [工作台模块](UI_WORKBENCH_MODULES.md)，实施记录仍只在路线图维护。
 
@@ -55,17 +59,17 @@
 
 | 现状 | 代码依据 | 对设计的影响 |
 | --- | --- | --- |
-| 三个 AG 包锁定在 35.2.1 | [前端依赖](../apps/erp-web/package.json)、[锁文件](../pnpm-lock.yaml) | 最终须移除直接、传递和构建产物依赖 |
-| 多层旧封装并存 | [ErpDataGrid](../apps/erp-web/src/components/ErpDataGrid.tsx)、[ErpDataGridNext](../apps/erp-web/src/components/ErpDataGridNext.tsx)、[IndustrialWorkbenchGrid](../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx) | 新库只建立一个公共网格入口；旧名称仅在迁移期作转换适配 |
-| 订单入口按 variant 分流到不同底层 | [订单主表入口](../apps/erp-web/src/pages/orders/shared/OrderWorkbenchMainGridEntry.tsx) | 改入口名称不代表三个分支完成迁移 |
-| 通用组件反向引用订单选择逻辑 | [IndustrialWorkbenchGrid](../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx) | 提取通用状态机；订单动作留在业务适配层 |
-| 类型声明大于真实实现 | [ErpDataGrid](../apps/erp-web/src/components/ErpDataGrid.tsx) 的 `serverSideConfig`、`pivotConfig`、`batchEditConfig` 等 | 区分已用、已声明未接入及新需求，禁止整体复制宽泛 props |
-| 集合筛选、列菜单、侧栏、状态栏、区域选择模块已有引用 | [模块注册](../apps/erp-web/src/components/agGridEnterpriseModules.ts) 及订单/目录列定义 | 替换前核对每个页面实际启用的行为；模块注册本身不算功能已用 |
-| 列偏好按租户和用户存储 | [列状态](../apps/erp-web/src/components/agGridColumnState.ts) | 保留已有设置并引入可版本化转换 |
-| 底部滚动壳依赖 `.ag-*` 和 `.ant-table-*` | [底部表格壳](../apps/erp-web/src/components/ui-modules/UiModule04BottomTable.tsx) | 提供显式 viewport 接口，不再查询引擎内部 DOM |
-| Ant Design 表格路径仍存在 | [ServerTable](../apps/erp-web/src/components/ServerTable.tsx)、[IndustrialTable](../apps/erp-web/src/components/industrial/IndustrialTable.tsx) | 同属统一网格迁移范围 |
-| 已有选择、视图、详情、编辑等辅助能力 | [工作台组件目录](../apps/erp-web/src/components/page-templates/workbench) | 审计后复用纯逻辑，避免叠加第二套状态控制器 |
-| 入口安装了许可证日志过滤器 | [main.tsx](../apps/erp-web/src/main.tsx)、[过滤器](../apps/erp-web/src/utils/suppressAgGridLicenseLogs.ts) | 完成迁移时移除调用、实现及旧测试 |
+| 三个 AG 包锁定在 35.2.1 | 前端依赖（历史路径：`../apps/erp-web/package.json`）、[锁文件](../pnpm-lock.yaml) | 最终须移除直接、传递和构建产物依赖 |
+| 多层旧封装并存 | ErpDataGrid（历史路径：`../apps/erp-web/src/components/ErpDataGrid.tsx`）、ErpDataGridNext（历史路径：`../apps/erp-web/src/components/ErpDataGridNext.tsx`）、IndustrialWorkbenchGrid（历史路径：`../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx`） | 新库只建立一个公共网格入口；旧名称仅在迁移期作转换适配 |
+| 订单入口按 variant 分流到不同底层 | 订单主表入口（历史路径：`../apps/erp-web/src/pages/orders/shared/OrderWorkbenchMainGridEntry.tsx`） | 改入口名称不代表三个分支完成迁移 |
+| 通用组件反向引用订单选择逻辑 | IndustrialWorkbenchGrid（历史路径：`../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx`） | 提取通用状态机；订单动作留在业务适配层 |
+| 类型声明大于真实实现 | ErpDataGrid（历史路径：`../apps/erp-web/src/components/ErpDataGrid.tsx`） 的 `serverSideConfig`、`pivotConfig`、`batchEditConfig` 等 | 区分已用、已声明未接入及新需求，禁止整体复制宽泛 props |
+| 集合筛选、列菜单、侧栏、状态栏、区域选择模块已有引用 | 模块注册（历史路径：`../apps/erp-web/src/components/agGridEnterpriseModules.ts`） 及订单/目录列定义 | 替换前核对每个页面实际启用的行为；模块注册本身不算功能已用 |
+| 列偏好按租户和用户存储 | 列状态（历史路径：`../apps/erp-web/src/components/agGridColumnState.ts`） | 保留已有设置并引入可版本化转换 |
+| 底部滚动壳依赖 `.ag-*` 和 `.ant-table-*` | 底部表格壳（历史路径：`../apps/erp-web/src/components/ui-modules/UiModule04BottomTable.tsx`） | 提供显式 viewport 接口，不再查询引擎内部 DOM |
+| Ant Design 表格路径仍存在 | ServerTable（历史路径：`../apps/erp-web/src/components/ServerTable.tsx`）、IndustrialTable（历史路径：`../apps/erp-web/src/components/industrial/IndustrialTable.tsx`） | 同属统一网格迁移范围 |
+| 已有选择、视图、详情、编辑等辅助能力 | 工作台组件目录（历史路径：`../apps/erp-web/src/components/page-templates/workbench`） | 审计后复用纯逻辑，避免叠加第二套状态控制器 |
+| 入口安装了许可证日志过滤器 | main.tsx（历史路径：`../apps/erp-web/src/main.tsx`）、过滤器（历史路径：`../apps/erp-web/src/utils/suppressAgGridLicenseLogs.ts`） | 完成迁移时移除调用、实现及旧测试 |
 
 页面目录中直接渲染 `ErpDataGridNext`、`ErpDataGrid`、`IndustrialWorkbenchGrid` 或 `AgGridReact` 的 TSX 文件扫描数为 36；包含演示及共享入口，不能解释为 36 个独立页面，也不覆盖经工作台模板间接接入的全部表格。迁移前必须追加路由、主/子表和其他引擎清单，不能只依赖这个数字。
 
@@ -458,10 +462,10 @@ AG Grid 禁止规则覆盖直接/间接包、alias、CDN、类型/CSS 和其他�
 
 | 交互 | 旧项目证据 | 当前 Rust 差距 / 建议顺序 |
 | --- | --- | --- |
-| 底部子表、主从联动 | [订单审核底部面板](../apps/erp-web/src/pages/orders/review-native/OrderReviewBottomPanel.tsx) 按 activeOrderId 联动，包含货品、平台订单、发货单、订单费用和日志；货品有独立选择及右键新增/修改/删除入口 | 本轮完成本地活动行 → 底部货品/日志独立 DataGrid；独立选择/分页/查询及未保存草稿切行保护已实现。真实订单 API 与远端请求隔离待业务接入 |
-| 行内展开详情 | [旧网格](../apps/erp-web/src/components/ErpDataGrid.tsx) 的 detailCellRenderer、masterDetail、keepDetailRows 有接线 | 用户已确认；现支持序号旁箭头、稳定 RowId、多行展开、按需创建子表和有界缓存；详情区固定 260 px，自适应高度与远程请求待补 |
+| 底部子表、主从联动 | 订单审核底部面板（历史路径：`../apps/erp-web/src/pages/orders/review-native/OrderReviewBottomPanel.tsx`） 按 activeOrderId 联动，包含货品、平台订单、发货单、订单费用和日志；货品有独立选择及右键新增/修改/删除入口 | 本轮完成本地活动行 → 底部货品/日志独立 DataGrid；独立选择/分页/查询及未保存草稿切行保护已实现。真实订单 API 与远端请求隔离待业务接入 |
+| 行内展开详情 | 旧网格（历史路径：`../apps/erp-web/src/components/ErpDataGrid.tsx`） 的 detailCellRenderer、masterDetail、keepDetailRows 有接线 | 用户已确认；现支持序号旁箭头、稳定 RowId、多行展开、按需创建子表和有界缓存；详情区固定 260 px，自适应高度与远程请求待补 |
 | 数据升降序、多列排序 | 旧网格 sortStates、onSortChanged 和 IndustrialWorkbenchGrid 比较函数有接线 | 本轮完成类型化单/多列稳定排序，空值两方向均置后；分帧归并排序位于过滤和分页之间 |
-| 列偏好与保存视图 | [旧工作台网格](../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx) 调用 localStorage 列状态读写 | 本轮完成版本与 scope 校验、缺失列兼容和损坏配置回退，接入 eframe native/Web 存储；真实多账号及命名视图管理仍待接入 |
+| 列偏好与保存视图 | 旧工作台网格（历史路径：`../apps/erp-web/src/components/IndustrialWorkbenchGrid.tsx`） 调用 localStorage 列状态读写 | 本轮完成版本与 scope 校验、缺失列兼容和损坏配置回退，接入 eframe native/Web 存储；真实多账号及命名视图管理仍待接入 |
 | 业务行右键、双击 | 旧工作台有 onRowDoubleClicked、onCellContextMenu 回调；审核子表有货品操作菜单 | 本轮新增数据区复制/编辑和 Ready/Hold 业务动作，勾选优先、否则活动行，变更预览后应用；真实服务端权限和操作提交仍待接入 |
 | 分页、远端查询 | 旧网格有远端接口类型；类型声明不能证明服务器查询已工作 | 本轮本地分页完成；服务端分页/排序/过滤、请求取消与乱序保护、总数及失败重试仍待接 API |
 | 全选/反选、完整键盘 | 规范 DG-06/07/22；旧接口有选择和键盘配置 | 现有点击、Ctrl/Shift 勾选、Space、方向键和复制；页内全选/反选、Ctrl+A、Home/End、PageUp/Down 和本地跨页 ID 勾选已有；服务端全部匹配与完整无障碍仍未完成 |
@@ -470,7 +474,7 @@ AG Grid 禁止规则覆盖直接/间接包、alias、CDN、类型/CSS 和其他�
 | 高级单元格、表头组、右固定 | 规范 DG-02/12 | 当前文本为主、只支持左固定；图片、标签、链接、行内按钮、表头分组待补 |
 | 行分组、树形、透视/图表、行拖动/合并、填充柄 | 规范 DG-15/18—21；旧类型有部分声明 | 未实现，不当作旧系统全部可用能力。按商品/库存真实场景逐项开发，避免阻塞首个可用闭环 |
 
-[订单查询页面](../apps/erp-web/src/pages/orders/OrderQueryPage.tsx) 的底部 Tab 中，货品、日志、包裹有内容引用，另有多个“待接入”占位；不能把这些占位算作已完成功能，新 UI 不照搬空占位。
+订单查询页面（历史路径：`../apps/erp-web/src/pages/orders/OrderQueryPage.tsx`） 的底部 Tab 中，货品、日志、包裹有内容引用，另有多个“待接入”占位；不能把这些占位算作已完成功能，新 UI 不照搬空占位。
 
 子表建议：主表普通点击的 active RowId 驱动详情，勾选只控制批量对象；父表和每个子表分别持有 GridState、列配置、Pagination 和实例 ID。切父行时取消旧请求，以父 RowId + 请求代次拒绝迟到结果；先处理未保存草稿，再切换。子表勾选、搜索、翻页绝不能改变主表勾选。首期底部可调整高度的主从面板保持固定行高网格，行内展开现已获用户确认并进入实现。
 
@@ -900,9 +904,9 @@ SKU子表与商品主表复用查找控件，以不同实例ID、请求路径及
 ### 0.48 真实库存聚合契约
 
 - 接入 `POST /v1/tenants/{tenant_id}/reports/inventory/aggregate`，由最小商品宿主打开库存报表；继续复用 DataGrid、汇总及图表能力，不创建第二套表格。库存余额按仓库编码分组，可增加商品分类，以真实 SKU 类型作透视列。分类空值与字面“未分类”保持不同身份。
-- 查询字段为 `schema:1`、可选仓库、SKU/商品文本搜索、是否按分类以及数量/成本度量。服务端在完整授权范围聚合后返回最多4096个桶，不以已加载商品页计算；超过上限明确拒绝，用户缩小条件。条件修改自动查询，取消旧任务，处理中及错误时不可使用旧报表结果。
-- 读取要求 `reports.read`；路径租户、显式仓库及隐式仓库权限范围都必须验证。成本金额是当前库存数量乘当前成本的估算值，使用整数分与精确求和；未知成本明确报错，不按零吞掉。库存记录不能因关联SKU被删除而静默丢失。此快照不冒充历史月份库存或销售报表。
-- 返回每桶及完整范围的count/sum/min/max；count是库存余额记录数，不是去重SKU数量。整数金额以十进制字符串传输，避免浏览器数字精度丢失；客户端校验汇总一致性、容量和溢出后一次性发布。查询快照时间随结果返回。
+- 查询字段为 `schema:2`、可选仓库、SKU/商品文本搜索、是否按分类以及数量/成本度量；旧schema1保持原量纲且不能精确表示小数时409要求升级。服务端在完整授权范围聚合后返回最多4096个桶，不以已加载商品页计算；超过上限明确拒绝，用户缩小条件。条件修改自动查询，取消旧任务，处理中及错误时不可使用旧报表结果。
+- 读取要求 `reports.read`；路径租户、显式仓库及隐式仓库权限范围都必须验证。参考价值为精确当前数量乘SKU主数据/套装组件成本，响应注明 `sku_master_estimate`，最多8位元小数；不是已过账账面价值。未知库存或关联SKU缺失409，成本不明422，不按零吞掉。此快照不冒充历史月份库存或销售报表。
+- 返回每桶及完整范围的count/sum/min/max；count是库存余额记录数，不是去重SKU数量。原始i128定点整数以十进制字符串传输，schema2数量 `amount_scale:6`、参考价值 `amount_scale:8`；客户端核对measure/scale/来源及汇总一致性、容量和溢出后一次性发布。as_of取只读Repeatable Read快照建立时的数据库时钟，界面标为“快照”。
 - 本批仓储2项、API2项、UI3项定向测试通过，包括隔离PG实际查询；桌面/WASM Clippy及OpenAPI门禁通过。隔离集群已停止，不涉及业务库迁移。共享层级汇总、DataGrid和图表得到实际接入；图表沿用256点/标签256字节上限，超出明确提示，表格仍保留完整聚合结果。
 - 报表宿主目前使用仓库UUID输入筛选，未接仓库对象选择器；真实报表导出/打印接线、远端树形懒加载、真实账号桌面/Web闭环及输入/无障碍验收仍保留在统一交付目标中。已有夹具导出不等于本真实报表已导出，编译/测试不代替实际账号交互验收。
 
@@ -1022,6 +1026,98 @@ GridState::restore_edit是宿主恢复入口：稳定RowId/ColumnId、受限文�
 
 - 2026-09-10 紧凑交互修正：快捷搜索保持展开，移除开关；表头结构列使用无文案三态复选框，点击当页全选/取消全选，右键反选当页，帮助仅悬停显示。序号标题默认“序”，默认宽44逻辑像素，容纳四位数字。底部子表高度由宿主保留，拖动释放不恢复默认值。
 
+### 0.62 库存报表精确小数列
+
+- `crates/erp-grid-core/src/query.rs` 增加 `ValueKind::Decimal { scale }`、`decimal_scaled`、`decimal_text`。本批范围为读取、比较/本地排序、复制、报表导出与框选汇总；最多8位小数，i128中间值，纯十进制文本，空值保持空，非法/超精度/溢出明确失败。金额分、原整数列的语义保持原契约。
+- 数量报表列scale6、SKU参考价值列scale8。`apps/erp-ui/src/selection_summary.rs` 按列类型精确求和，并把列身份及精度纳入缓存键；改变度量不复用旧合计，超过i128范围显示错误，不回绕。框选与勾选集合仍独立，框选不得替代业务金额账本。
+- `apps/erp-ui/src/export.rs` 和核心 `spreadsheet_value` 识别有效小数；CSV保持合法负数，文本公式前缀仍转安全文本。Excel在15位数字的安全范围内写数值，超过边界写文本保留全部原值；禁止先转f64。报表 `.133 + .014 = .147` 及超长数量/价值导出后可独立复读。
+- `crates/erp-ui-egui/src/report_chart.rs` 支持scale8；业务合计与悬停文本保持定点。只有坐标和绘制几何允许浮点。图表256点等既有预算继续生效，不能以图表截取范围代替服务端完整汇总。
+- schema2实际库存报表宿主、客户端定向测试及native/Web严格Clippy已接通；保护库HTTP与独立读回详见 [实现规格ERP-IMPL-09](FREE_ERP_DEVELOPMENT_SPEC.md#库存读取与聚合的实际接线)。通用小数编辑/粘贴校验、公式语言精度、服务端排序字段及正式库存页仍须各自接线，不能仅新增ValueKind就报告完成。真实双端操作、文件保存、规模/内存性能另行验收。
+
+### 0.72 库存后台 CSV 与宿主文件交付
+
+- 库存后台导出使用现有 `/exports/jobs` 四条任务操作，参数和实际接线以 [实现规格ERP-IMPL-38](FREE_ERP_DEVELOPMENT_SPEC.md#库存后台-csv-的实际接线) 为准。请求只传原request_id及受支持query，操作者和仓库成员由服务端固定；任务的权限、快照和原回执不能由网格选择/可见行伪造。
+- schema2 CSV数量为六位精度的基本单位十进制文本；available=on_hand-reserved-frozen，在途另列。与库存GET使用同一精确源，不读旧整数列代替；前六个列名保留，追加frozen、in_transit、quantity_scale、snapshot_at。客户端须按协议版本解析，不能按旧整数量纲读新文件。
+- 宿主保留原request_id、未决任务及下载状态，切标签不重复建任务。生成进度、DONE、响应头到达、下载完成和本地保存分开；服务端DONE只表示已发布有摘要的文件，客户端须完整读完并核对X-Export-Sha256，再将临时文件提交到用户目的地。流错误/摘要不符保留原任务回查，不提示成功、不覆盖原文件。
+- 真实桌面和浏览器分别验收授权下载、跨FETCH/64KiB分块、断网、取消、同长度损坏、本地文件保存和复读；帮助仅对应控件悬停，必要进度/校验错误为操作信息。后台权限和1002行功能夹具不代表这些双端验收或ERP-P16负载通过。
+
+### 0.73 单键余额 写回执和库存覆盖报表
+
+- 正式库存宿主统一读取 `quantities` 六位小数文本；原整数字段是兼容投影。实存1.9、预占0.9、冻结0.9的可用量为0.1，不能用三个已投影整数算出1，也不能因兼容available=0显示缺货。比较、排序、框选和导出沿0.62精度契约。
+- 原库存调整回执提供事务内精确量及 `quantity_state=precise`。原预占释放/消费重放提供当前余额，与保存的原动作响应分开处理；有相同终态但仓库/SKU/数量不同的请求仍是身份冲突。未决写入继续沿动作回查契约，不能用余额变化猜测操作成功。
+- `GET /reports/inventory` 的schema2宿主须同时解析快照、`sales_basis`、`turnover_basis`、`sold_quantity`及`sales_state`。当前来源是已过账毛发货，`turnover_days`表示当前库存覆盖天数；列名由宿主使用“覆盖天数”，具体口径放控件悬停。净销量和平均库存周转须有独立接口/来源证据后再展示。
+- `source_classification_required` 的销量和覆盖量为null；显示未知状态，排序/合计保留未知，不填0或纳入确定销量图表。日期仅筛发货效果，库存是当前快照；不能把选择的end_at标成库存历史时点。未知库存409仍按对账错误处理，不转空成功表。
+- 原报表默认50、最大200，与四库存GET的500/2000能力分开。宿主按接口能力限制分页选项；授权范围由服务端决定，COUNT、页面和指标不得由当前加载行代替。阈值使用至多六位非负小数字符串，校验失败保留输入与旧草稿，禁用依赖旧结果的动作。
+- 实际函数、字段、权限和回归证据见 [ERP-IMPL-09接续](FREE_ERP_DEVELOPMENT_SPEC.md#单键余额-写回执和库存覆盖报表的实际接线)。本节是客户端实现契约，尚未接成正式页面；真实桌面/Web查询、重登、未知状态、文件保存及ERP-P性能分别验收。
+
+### 0.74 库存移动日志和未决结果
+
+- 原调整/入库/出库helper将库存、流水和两个必需日志在同一事务提交，操作/审计保存事务内精确quantities。客户端以成功回执更新库存快照，继续按scope、查询代次及精度列契约处理；不根据本地先加减的整数确认成功。
+- 存储日志失败的三个原API路径已以真实数据库拒绝验证回滚。客户端仍沿动作执行器保留原身份、输入和未决检查点；原无命令身份路径尚缺持久化回查，连接中断或commit结果不明不能推断没有写入。单独GET余额也不能确认某个原动作，自动重发须有正式命令协议与原回执。
+- 宿主验收包含同scope重登、切标签、失败草稿保留、重复点击和未知结果恢复。实际函数、6种日志失败及3种成功结果见 [ERP-IMPL-10接续](FREE_ERP_DEVELOPMENT_SPEC.md#库存移动和日志的事务接线)。本节不证明正式页面、真实席位/会话、带批次/映射渠道或ERP-P性能已完成。
+
+### 0.81 正式订单来源和履约结果
+
+原OMS分配、发货和释放接线见 [正式履约规格](FREE_ERP_DEVELOPMENT_SPEC.md#正式订单来源分配与履约)。宿主按当前查询与正式回执显示订单原量、各子SKU实际来源、源仓库、已释放/已消费和发货单；父量与组件量分别显示，删除当前BOM不重新推导已执行明细。内部组件来源和历史套装版本不冒称制造BOM。
+
+- 分配SHORTAGE只展示真实缺量及订单状态；没有完整发货单不得绘成已分配。冲突保留用户草稿及选择，不能用刷新后余额猜测写入结果。
+- 发货成功必须绑定实际shipment_id。同单已提交重放不新增效果；来源CONSUMED不能证明另一新发货单成功。旧release响应released是本次来源行数，不能作释放数量或原命令回执。
+- 库存、订单、物流、成本状态分别来自对应事实。待核对来源、未知成本、未决写入和未检验批次保留真实状态，不能补0或绿色成功；必要帮助仅放控件悬停。
+- 原生/Web正式宿主分别验查询、提交、冲突、切标签、重登和丢响应回查。API专项和内存示例不替代双端；请求身份、当前仓库授权、完整原结果与性能另验。
+
+原OMS当前403 fulfillment_access_denied保留草稿和未决身份，按实际拒绝结果更新按钮/选择状态；换端或重新登录不能自动另造补发。仓库范围在正式写事务内再次核对，因此较早读取的列表和按钮可用不保证提交成功。422 fulfillment_scope_limit保留输入，不截断仓库范围。原发货回执的shipped_at/updated_at取实际落库时间，重放显示同一事实；状态版本冲突不能绘成已发货。API已接授权/必需记录不表示本节的正式DataGrid宿主、当前来源查询、真实登录多端或原命令GET已完成。
+
+原OMS成本/批次错误沿 [真实成本与精确批次扣减](FREE_ERP_DEVELOPMENT_SPEC.md#真实成本与精确批次扣减)：409 fulfillment_cost_unavailable/fulfillment_cost_invalid/fulfillment_cost_conflict保留原发货单、草稿与当前意图，按错误修正真实资料后重试；不能把未知成本显示为已知0，也不能为避错另造补发。422 fulfillment_cost_overflow/inventory_batch_limit保留输入，不截断金额或批次来源；库存精度/归属待核对沿409 inventory_reconciliation_required，过期/不足沿inventory_insufficient。错误是必要操作信息，附到实际动作/字段，详情悬停查看，不增常驻说明行。原已提交的成本和批次结果重放不能用当前目录再计算。API的216用例通过不等于此正式宿主、真实登录多端、草稿保存和失败恢复已完成。
+
+### 0.80 组合根请求与当前来源呈现
+
+旧UUID预占/整量释放保存首次父SKU/请求原量、可选订单及实际子SKU/数量/版本/来源清单；后续BOM删除/替换或SKU重分类不改变原来源。字段、函数、索引、历史拒绝及1/10/100/1000组件目标见 [组合根实施规格](FREE_ERP_DEVELOPMENT_SPEC.md#组合根请求和冻结组件)。首次请求原量与真实父订单权威量仍须分别验证，组件版本不冒称制造BOM版本。
+
+规来源宿主沿用DataGrid：主表显示根及父请求原量，子表显示实际SKU、单位、原量、状态及不可变来源；不同SKU/单位不直接求和成父库存。旧响应仍是最后实际子SKU的当前record，不展示为父SKU余额或原命令回执；旧终态qty是原量，当前余量/部分释放只按已接入的正式来源接口展示。变更BOM不能清掉已有来源或未决草稿。
+
+409 `reservation_source_reconciliation_required`保留旧请求及待核对状态，不能自动重建根或沿新BOM补占；422 `reservation_components_limit`保留输入并标记组件上限，不能截掉末行后静默提交。当前来源/原事件查询及正式来源页待接线；历史核对须真实证据和当前复核审计，不能补造原actor。帮助只在控件悬停，不加常驻说明或空业务页。
+
+本批API/私有QA及公开仓储消费不替代真实登录、单席位多端、正式消费者、桌面/Web草稿恢复和Release；阶段资格及未完成项仅由路线图记录。
+
+### 0.79 旧来源接口的余额和恢复边界
+
+旧无request_id的UUID来源reserve/release复用原HTTP接口，来源、精确库存、两个日志及必要Outbox在同一commit；重试复核当前权限且不重复写日志，原订单上下文改变409。具体字段、actor接线、实际函数、锁顺序和性能负载见 [旧来源库存与日志](FREE_ERP_DEVELOPMENT_SPEC.md#旧uuid来源预占与日志共同提交)。
+
+宿主严格区分两种服务语义：旧响应只有当前record，没有原请求/效果/日志身份；旧来源的终态qty仍是原量，不当成可释放余量。组合旧响应返回最后实际子SKU，不能把它绘制成父SKU库存。新增正式写入口继续保存完整原命令协议及原GET检查点；旧无ID提交断线仍保持未决，不按当前余额猜测完成。根请求/组件接续以0.80为准，当前来源查询、真实账号与双端恢复继续另验。
+
+本节不新增业务页面或常驻说明，DataGrid沿精确quantity文本排序/求和/导出，帮助只放控件悬停；组件和桌面/Web验收不由API私有QA替代。
+
+### 0.78 来源预占和部分释放
+
+原命令API与字段/性能接线见 [来源预占与部分释放](FREE_ERP_DEVELOPMENT_SPEC.md#来源预占与部分释放)。原reserve/release请求复用当前企业/仓库授权，头/体单一ID，来源别名相同且完整绑定库位/批次/GOOD状态。正式来源量与原命令快照分别保存；后续释放不得让旧原结果显示当前来源余量。请求/回执的金额及数量仍依赖定点量，当前HTTP只接受正整数基础单位，微单位兼容字段不能参与界面录入换算。
+
+规来源页复用DataGrid和工作台，主表显示来源ID/类型、原预占、当前余量/累计释放/状态，底部显示该来源不可变命令事件；主表/子表独立查询、分页与选择。原请求在发送前保存完整身份/来源/维度；断线保留待确认，按原GET回查。当前撤权、错误来源及不足余量保留草稿，明确真实错误；禁用库位不能新占，但允许释放已有匹配来源。不能把本接口的引用字符串显示成已验证销售/工单关系，正式业务消费和当前来源查询仍须另接并验。
+
+本批是API/私有QA接线，来源页、真实账户与双端闭环均未完成；详细数据库/HTTP证据和性能目标分别列在实施规格。不新增常驻说明副标题、不增加空业务页，必要帮助继续在控件悬停显示。
+
+### 0.77 库位出库与本库位准入
+
+- 通用库位出库提交正整数基本单位quantity、完整库位/批次码/GOOD及稳定原身份；quantity_delta和兼容qty_micros为负，数量计算使用精确文本。来源预占消费、质量放行、完整小数录单与UUID批次按对应服务接续。
+- 本库位可用量包含预占/冻结/不可用扣减，其他库位有货不代表本库位可以提交。409不足的available_micros/requested_micros为精确文本；非GOOD409、部分字段或无身份400。错误和未决原意图保留，不能静默换库位/批次再沿用同原ID。
+- 原仓库/库位结果、时间及所有效果/日志身份一起绑定原动作；合法原库位0保留。后续库存5.9时原出库3.9只完成原命令，当前查询单独刷新。禁用库位拒绝新写，已提交原动作仍可在当前仓库授权下恢复；仓库撤权的原POST和GET均403。
+- 两个日志真实故障、20路重试/争用及独立读回只证明当前API局部行为。正式桌面/Web、密码/单席位/多端和提交断线仍单独验收，字段/状态/负载见 [库位出库实施](FREE_ERP_DEVELOPMENT_SPEC.md#库位出库与本库位可用量)。
+
+### 0.76 库位原命令与原双结果
+
+以下为库位入库阶段契约；通用GOOD库位出库按0.77接续，来源消费和质量转换继续另验。
+
+- 结构化入库宿主选择真实仓库内有效库位，并完整提交location_id/batch_code/quality_status及原身份；质量选择GOOD/PENDING/FAILED/HOLD，批次码最多128个UTF-8字节。界面不能把非GOOD数量展示成新增可用，也不能仅显示共享流水即宣布入库成功。
+- 成功/重放/原GET返回原仓库record和原location/location_record，主effect_id与共享ledger_id分别保留。原结果只完成该原动作，当前两层库存另外查询；兼容qty_micros不参与精度计算，使用record.quantities和location_record.on_hand文本。
+- 库位/批次/质量变化属于新意图，保留旧未决命令；当前仓库授权撤销返回403，当前库位禁用拒绝新写。质量释放、UUID型batch_id、小数录单和库位出库尚未接该分支，宿主不得生成表面可用而服务器忽略的动作。
+- 数据与事务实测不代表正式双端已接通。代码位置、真实回滚/并发、原结果及负载见 [库位原命令实施](FREE_ERP_DEVELOPMENT_SPEC.md#库位入库与权威库存的共同提交)。
+
+### 0.75 原库存命令与原结果回查
+
+- 新三种无批次/库位维度库存动作，宿主在发起前保存原request_id、账号/企业、规范化意图和提交检查点；请求体及Idempotency-Key使用同一身份。重试只变传输状态，不改原ID或数量。无ID兼容请求继续不具备该恢复协议。
+- 成功/重放/GET `/inventory/commands/{request_id}` 的record是原提交时快照；保留原effect/log/audit ID和updated_at。宿主按原动作完成状态结算，当前余额另发查询；不能把晚到的原结果覆盖一个已经更新的当前库存查询快照。
+- 超时、断线、提交结果未知时保留检查点和草稿，先查原命令。404只表示此时未见或不可见，不能生成新ID重新发动作；403要求重新核对当前授权，409对账状态禁止猜测完成。回执未返回且提交仍在进行时，同原ID传输由服务端串行准入；不根据GET余额变化推断原动作成功。
+- 关标签、刷新、切企业及重启不得丢掉未决写；必须分别验桌面/Web真实登录、响应断开、账号/仓库权限撤销和恢复后的唯一台账。服务器原命令局部验收不算正式客户端已接通。字段/文件/接口/拒绝和性能任务见 [原命令实施接线](FREE_ERP_DEVELOPMENT_SPEC.md#原库存命令原结果快照与回查接线)。
+
 ## 2026-09-10 正式 UI 启动（最新授权）
 
 用户已同意开始正式 ERP 应用外壳与首个商品页面，优先于此前暂停业务 UI 的阶段约束。正式入口独立于 GridLab；复用 DataGrid、真实商品/SKU API 与版本保存契约。首期左侧可折叠菜单、顶部多标签、商品主表、底部 SKU 子表、按需打开的右侧编辑。切标签保留查询、分页、选择和草稿；关闭脏页面保护草稿。现有库存/报表夹具仅作明确标注的预览，不能报告为正式业务。不得据此扩建 SaaS 或重写网格。
@@ -1032,3 +1128,77 @@ GridState::restore_edit是宿主恢复入口：稳定RowId/ColumnId、受限文�
 - 菜单、搜索及标签名称读取统一页面注册表；只显示已接入入口，实验台及夹具归开发工具。不把全部旧业务菜单列为本轮建设任务。
 - 面板尺寸与显示偏好按服务、商户、账号、页面隔离。切标签保留草稿；刷新及批量关闭逐页确认，未决保存不得丢弃。关闭页取消只读请求，写入继续等待回执。
 - 本轮复用货品/SKU及订单宿主，不重写网格、不新增SaaS或空业务页。参照 docs/ERP_UI_STRUCTURE_REVIEW.md。
+
+
+### 2026-10-10 工作台查询准入与输入法焦点
+
+通用`workbench::query::QueryAdmission`保存等待期限与组合状态。宿主在读取批量目标、绘制动作之前观察新条件/焦点；输入变化立即封住旧目标并重启250ms防抖，组合期间不应用查询，提交/取消按最终文本重新计时。重置和清空取消旧等待、立即应用当前条件。实际远端任务取消、授权查询身份与代次仍由各宿主负责，本地示例不冒称远端取消。
+
+DataGrid的`GridState::query_input_focus`是上次绘制中真实查询输入Response的临时Id，覆盖文本、金额两端、日期时间数字控件；不持久化、不替代RowId/ColumnId。宿主必须与当前键盘焦点比较，并合并本页面工具栏搜索Id，再路由IME。单看全局ImeEvent会冻结其他主/子表或详情，禁止按所有表共享组合布尔值处理。单元格编辑仍走既有编辑状态，不由查询焦点元数据替代。
+
+模块示例在工具栏前处理查询状态，并对同帧条件变化/重置/刷新禁用导出；待查询/组合/非法条件/数据修订未应用时targets为空。替换数据先清旧索引防止等待期间越界；非法金额输入保留并阻止旧动作。408组件用例（含10新契约）及native/WASM严格通过，真实WASM本地120夹具验证合成IME350ms保留旧画面但禁主表动作、子表不冻结、提交后1条/旧勾选清空，真实Excel独立解析8字段。清空176ms截屏恢复120/勾选0，单次功能时序不当作P95或Release。物理系统IME、原生/Ubuntu实机、真实业务服务端及ERP完整操作继续另验，见[交付](../qa/acceptance/free-erp-module-query-oct10-delivery.json)。
+
+
+### 2026-10-10 通用详情原保存身份、版本采用与未决关闭
+
+DetailPanel以服务/企业/用户/页面实例的可信作用域初始化，绑定稳定记录ID、观察版本和字段schema。DetailSaveRequest冻结原UUID、Scope、记录、版本及修改字段前后值。宿主先实际持久化并读回检查点，再发外部写入；验证认证范围、原身份/指纹与实际存储效果后才调用resolve_save。客户端请求相等不能替代存储效果证明。成功需含全部提交字段的原权威值及有效版本，采用规范化值；部分结果/异常版本继续Unknown。
+
+Awaiting/Unknown/Reading保留原输入并禁重入、编辑、reset和放弃关闭。Unknown只Lookup原身份，404/403/断线不能映射为确定未写；不自动POST。迟到其他操作不清当前草稿，同UUID异载荷/范围保持未决。确定拒绝保留输入，VERSION_CONFLICT或新版本观测需显式采用最新字段/版本，后续新UUID保存。所有必填字段均检查，已移除或权限收回的修改字段保留并禁止提交。详情输入法状态只跟本面板真实输入焦点。
+
+schema1检查点最多8MiB/256字段，仅保存已改草稿前后值及原命令，不存未改只读整行、令牌或可信旧权限。恢复验证Scope/ID/版本/草稿一致，未知未来schema拒绝；未决统一Unknown，先回查原结果，重新绑定当前授权字段后才可新写。提交值仍4096字节，非法多字节草稿最多16KiB/字段可恢复但不能发送。格式支持不等于SQLite/IndexedDB/fs实际持久化，也不等于强退/重启恢复完成。
+
+本地示例每页单任务、750ms示范延迟、记录版本及单份原结果缓存；隐藏页继续等待，未决放弃被阻断，回执完成后关闭。23保存相关契约及428组件、native/WASM严格通过。真实WASM在262.1ms捕获未决保护、158.5ms点击禁用放弃仍保持页面；完成重开主表/详情一致，两次保存仅两条新增日志。仅内存本地夹具；真实服务端、物理IME、平台存储与双端ERP另验。见[交付](../qa/acceptance/free-erp-detail-save-oct10-delivery.json)。
+
+
+### 2026-10-10 详情检查点实际存储与写前门槛
+
+DetailStore使用独立SQLite表和IndexedDB数据库，8MiB/32作用域、无TTL；事务确认后独立读回同scope/bytes/revision才生成不可从外部构造的DetailPersistReceipt。保存先Checkpointing，原请求与回执完全匹配才authorize_send进入Awaiting；存储加载未完成/冲突/提交或读回不确定禁止新派发，原检查点保留，恢复请求统一Unknown，不自动发送。真实服务的认证作用域和实际业务效果仍由宿主证明。
+
+CAS拒绝旧窗口，未决原请求不能被无终态证明的新请求或清除替换；终态清除保留revision标记防ABA。DetailPersistence每页一个存储任务，隐藏页继续处理，终态存储确认前不可放弃关闭。尚Unknown回查不推进revision，不新增写；未完清理主动请求下一帧，错误不连续重试。
+
+433组件及native/WASM严格通过；4实际SQLite用例含独立连接/关闭重开、身份回执发送门槛、旧revision/未决清理拒绝、终态标记和异scope。真实IndexedDB在约251ms写前刷新后保留同UUID/版本/字段，原GET尚未核实仍Unknown，不重发；独立页CAS旧写被拒。正常另一页revision3无需额外点击完成revision4 null，原页未决记录不变。仅平台检查点与本地内存夹具，不冒称业务数据/回执持久化、真实网络或双端ERP完成。见[交付](../qa/acceptance/free-erp-detail-durable-oct10-delivery.json)。
+
+
+### 2026-10-10 恢复协调器Scope与脏面板保全
+
+DetailPersistence先核对panelScope，错误Scope不打开/安装/派发。读取结果与当前脏面板按完整检查点比较，禁止直接覆盖本地新草稿。不同原ID/载荷/作用域或损坏数据保留双方并阻断发送；相同prepared原意图核实后仍为Unknown，不换UUID、不自动POST；相同已在Reading的请求不被重新打开取消。干净同scope面板才可安装存储原状态。协调器已有错误时，迟到存储确认也不得释放发送。
+
+八项新契约及441组件（87+281+73）/native/WASM严格通过。此为协调器状态边界验证，未相加上一轮433，也未冒称本轮重新打包/浏览器或真实网络验收。不同意图仍保守阻断，显式冲突协调界面与平台完整流程须继续实施。见[交付](../qa/acceptance/free-erp-detail-reconcile-oct10-delivery.json)。
+
+
+### 2026-10-10 保存冲突显式对照与原终态确认
+
+恢复意图不同后，协调器保留当前面板与原存储快照；用户主动打开DataGrid只读对照，显示Host字段名、双方记录/版本/操作ID及提交值。原结果回查指向存储原请求，不覆盖当前面板，不产生POST。Unknown无覆盖/清除入口，外来回执不能改变原请求。
+
+宿主验证权威原终态后，用户显式确认且当前没有另一项未决时，才以原完整身份/expectedrevision CAS清理存储原项。失败保留双方；成功不丢当前草稿，同记录还须读取并采用最新版本，再用新操作身份保存。当前有未决或原结果未知仍拒绝取舍，不以客户端相等或本地字段猜测业务提交。
+
+6专项、447组件及native/WASM严格通过；实际SQLite验证终态确认CAS/保当前值及最新版本门槛。隔离浏览器真实WASM显示当前新草稿/存储未决值，两个原ID不同，回查仍Unknown后完整存储/revision/原UUID不变，未提供未知清理动作。未验真实服务器终态或双端业务；比对缓存为有界内存，不声明未持久新草稿强退恢复。见[交付](../qa/acceptance/free-erp-detail-conflict-oct10-delivery.json)。
+
+
+### 2026-10-10 冲突新草稿独立副本与只读恢复
+
+DetailBackup由用户明确保存/查看才加载，使用独立固定用途键、保留原主项键与认证payloadScope；副本receipt不能authorize_send。EXTRA/strict事务与独立读回确认、CAS、32键/8MiB沿用原限制；已有不同副本拒绝覆盖，原未决和新草稿分别保留。打开失败结束等待；空副本显示错误。副本窗口使用只读DataGrid，显示记录/版本、字段及原本地操作身份，不自动采用或发送。
+
+2实际SQLite副本专项、449组件（87+289+73）0失败/忽略、native/WASM严格及打包通过。隔离真实浏览器制造CAS冲突后显式保存新副本，刷新主项仍Unknown；副本窗口显示新值/独立原ID。再尝试保存不同副本被拒，独立读回两个完整检查点和revision均不变。初次全测2失败及编译增量目录拒绝访问提示留证；修显式加载并串行复测，未压制lint或削弱原HTTP断言。
+
+仅通用模块与本地示例，不扩业务API；副本采用/替换流程、真实认证与业务效果、原生/Ubuntu窗口、完整双端、Worker、323安装升级恢复、后端严格、Release和免费托管继续待验。G盘固定三存储/锁/200GiB保持，自动清理范围未扩大，整体PARTIAL。见[源码SHA及交付](../qa/acceptance/free-erp-detail-backup-oct10-delivery.json)、[实际浏览器读回](../qa/acceptance/free-erp-detail-backup-oct10-browser.json)。
+
+
+### 2026-10-10 草稿副本原结果回查与显式结束复用
+
+副本原请求单独回查，不进入当前主面板或存储冲突的回执路径；完整身份及载荷校验。Unknown/外来身份/同ID不同载荷不能结束。确定提交或拒绝后仍保留副本，用户在只读窗口明确确认才CAS写null并独立读回；保revision防ABA，旧窗口不能重建旧内容。无原请求的纯草稿只允许用户明确结束。存储确认前不显示结束成功，失败保留副本和终态证明；原主项及当前编辑值不变，确认后可保存下一份草稿。
+
+6实际SQLite生命周期专项及455组件（87+295+73）0失败/忽略，native/WASM严格与打包通过。真实浏览器复用原隔离profile回查旧Unknown，主项/副本两个UUID与完整数据/revision不变且无结束按钮；另一示例页纯草稿1→明确结束2 null→下一份3，主项始终0，刷新只读副本可见新值，旧Unknown完整保留。首次浏览器脚本在查询未完成时编辑导致未建立夹具，独立读回发现后按稳定界面重选，纠正留证。已确认业务终态的实际浏览器/真实服务器流程未验，不以本地SQLite/model代替。
+
+仅3份通用模块/本地示例源码；副本自动采用/实际业务发送没有接入。真实认证、完整双端、原生/Ubuntu窗口、Worker、323安装升级恢复、后端严格、Release与免费公网仍未完成。G盘三固定存储/锁/200GiB保持，自动清理范围不变，整体PARTIAL。见[交付/SHA](../qa/acceptance/free-erp-detail-backup-lifecycle-oct10-delivery.json)、[独立浏览器读回](../qa/acceptance/free-erp-detail-backup-lifecycle-oct10-browser.json)。
+
+
+### 2026-10-10 副本字段值显式采用与当前版本新身份保存
+
+副本只读DataGrid增加当前字段值，并列显示副本/当前记录及版本；用户明确采用才复制字段值。当前必须是同scope/record、无脏草稿或未决、已重新绑定宿主元数据、存储就绪、无输入法组合或版本冲突。采用保留当前base/版本/字段权限，不复制旧UUID；候选整体验证可写/可用字段、必填及容量后一次替换draft，失败不部分写入、不丢双方。副本Unknown不可采用；确定拒绝后可明确按当前元数据重新编辑。值已生效时拒绝制造重复修改。
+
+采用只改内存草稿，副本存储不自动清理；另点保存生成新UUID，仍须主检查点CAS+独立读回opaque receipt放行。11专项及466组件（87+306+73）0失败/忽略，native/WASM严格与打包通过。实际SQLite验证旧副本保留、当前v8新请求与主回执；模型验证旧v0副本只采用值、当前v7 before/权限保留、未知/跨scope/record/权限变化/重绑/IME/存储/无效值原子拒绝。首10专项后强化多字段夹具的真实codec往返并补已生效拒绝，最终基线绑定本批SHA。
+
+真实浏览器：未知副本无采用入口，错记录按钮禁用；正确纯草稿采用前后完整存储相同，无POST。另存捕获新6c7d..请求，实际主项1→终态2 null，旧副本3/另一页两个原UUID与完整数据不变。主表更新后下载XLSX，独立解析货品SP202609000001/复用副本第二份及原其他字段；再用旧v0副本对当前v1相同值，明确拒绝且无存储变化。初次组合导航未离开旧窗口，经截图确认后分帧执行，修正留证；未把脚本意图当UI通过。
+
+仅通用模块与本地示例，真实认证源/业务持久效果、权威拒绝源的真实服务器GUI、物理IME/原生/Ubuntu、完整业务双端、Worker、323安装升级恢复、后端严格、Release和免费公网仍待验。G盘三固定存储/锁/200GiB与自动清理边界保持，整体PARTIAL。见[交付/SHA](../qa/acceptance/free-erp-detail-adoption-oct10-delivery.json)、[实际浏览器读回](../qa/acceptance/free-erp-detail-adoption-oct10-browser.json)、[实际导出解析](../qa/acceptance/free-erp-detail-adoption-oct10-export.json)。

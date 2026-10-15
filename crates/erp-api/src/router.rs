@@ -2,13 +2,22 @@ use super::*;
 
 pub fn build_app(state: AppState) -> Router {
     Router::new()
+        .merge(manufacturing::router())
         .route("/healthz", get(healthz))
         .route("/auth/login", post(login))
+        .route("/auth/sessions/renew", post(renew_own_session))
+        .route("/auth/password/recover", post(recover_own_password))
+        .merge(onboarding::router())
         .route(
             "/me",
             get(get_current_user).put(update_current_user_profile),
         )
         .route("/me/password", put(update_current_user_password))
+        .route("/me/sessions", get(list_own_sessions))
+        .route(
+            "/me/sessions/:session_id",
+            axum::routing::delete(revoke_own_session),
+        )
         .route("/reports/dashboard", get(get_dashboard_report))
         .route("/reports/fulfillment", get(get_fulfillment_report))
         .route("/reports/inventory", get(get_inventory_report))
@@ -1055,6 +1064,14 @@ pub fn build_app(state: AppState) -> Router {
             put(orders::update_sku_tag_definition).delete(orders::delete_sku_tag_definition),
         )
         .route(
+            "/v1/tenants/:tenant_id/marketing/quotes",
+            post(marketing::create_trade_quote),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/trade/special-fulfillment",
+            post(marketing::create_special_fulfillment),
+        )
+        .route(
             "/v1/tenants/:tenant_id/marketing/price-lists",
             get(marketing::list_price_lists).post(marketing::create_price_list),
         )
@@ -1342,6 +1359,10 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/v1/tenants/:tenant_id/inventory/adjustments",
             post(adjust_inventory),
+        )
+        .route(
+            "/v1/tenants/:tenant_id/inventory/commands/:request_id",
+            get(get_inventory_command),
         )
         .route(
             "/v1/tenants/:tenant_id/inventory/inbounds",

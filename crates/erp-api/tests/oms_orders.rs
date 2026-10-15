@@ -23,14 +23,14 @@ fn build_state() -> (axum::Router, JwtService) {
 
 fn build_token(jwt: &JwtService, tenant_id: &str, perms: Vec<&str>) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: perms.into_iter().map(|p| p.to_string()).collect(),
-        is_admin: false,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        uuid::Uuid::new_v4().to_string(),
+        tenant_id.to_string(),
+        perms.into_iter().map(|p| p.to_string()).collect(),
+        false,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 
@@ -793,14 +793,14 @@ async fn review_order_writes_audit_log_inner() -> Result<()> {
     let (app, jwt) = build_state();
     let reviewer_id = uuid::Uuid::new_v4();
     let now_ts = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: reviewer_id.to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: vec!["orders.review".to_string()],
-        is_admin: false,
-        iat: now_ts,
-        exp: now_ts + 3600,
-    };
+    let claims = Claims::bearer(
+        reviewer_id.to_string(),
+        tenant_id.to_string(),
+        vec!["orders.review".to_string()],
+        false,
+        now_ts,
+        now_ts + 3600,
+    );
     let token = jwt.encode(&claims)?;
     let body = serde_json::json!({
         "action": "PASS",
@@ -3141,19 +3141,27 @@ async fn order_item_partial_edits_preserve_platform_facts_and_are_atomic() -> Re
     let ratio_rollback: (i32,i32,i64,i64) = sqlx::query_as("select o.version,oi.qty,oi.amount_cent,c.component_qty from orders o join order_items oi on oi.tenant_id=o.tenant_id and oi.order_month=o.order_month and oi.order_id=o.order_id join order_item_components c on c.tenant_id=o.tenant_id and c.order_id=o.order_id where o.tenant_id=$1 and o.order_id=$2 and oi.line_id='line-a'")
         .bind(tenant_id).bind(order_id).fetch_one(db.pool()).await?;
     assert_eq!(ratio_rollback, (4, 3, 300, 5));
-    let overflow = app.clone().oneshot(put(serde_json::json!({
-        "expected_version":4,
-        "item_edits":[{"line_id":"line-b","qty":2,"price_cent":9223372036854775807_i64}]
-    }))).await.unwrap();
+    let overflow = app
+        .clone()
+        .oneshot(put(serde_json::json!({
+            "expected_version":4,
+            "item_edits":[{"line_id":"line-b","qty":2,"price_cent":9223372036854775807_i64}]
+        })))
+        .await
+        .unwrap();
     assert_eq!(overflow.status(), StatusCode::BAD_REQUEST);
 
     let oversized_components = i64::MAX - i64::MAX % 3;
     sqlx::query("update order_item_components set component_qty=$4 where tenant_id=$1 and order_id=$2 and order_item_id=$3")
         .bind(tenant_id).bind(order_id).bind(item_id).bind(oversized_components)
         .execute(db.pool()).await?;
-    let component_overflow = app.clone().oneshot(put(serde_json::json!({
-        "expected_version":4,"item_edits":[{"line_id":"line-a","qty":4}]
-    }))).await.unwrap();
+    let component_overflow = app
+        .clone()
+        .oneshot(put(serde_json::json!({
+            "expected_version":4,"item_edits":[{"line_id":"line-a","qty":4}]
+        })))
+        .await
+        .unwrap();
     assert_eq!(component_overflow.status(), StatusCode::BAD_REQUEST);
     let component_after: i64 = sqlx::query_scalar("select component_qty from order_item_components where tenant_id=$1 and order_id=$2 and order_item_id=$3")
         .bind(tenant_id).bind(order_id).bind(item_id).fetch_one(db.pool()).await?;
@@ -3167,9 +3175,13 @@ async fn order_item_partial_edits_preserve_platform_facts_and_are_atomic() -> Re
         serde_json::json!([{"line_id":"line-b"}]),
         serde_json::json!([{"line_id":" line-b ","qty":4}]),
     ] {
-        let invalid = app.clone().oneshot(put(serde_json::json!({
-            "expected_version":4,"item_edits":edits
-        }))).await.unwrap();
+        let invalid = app
+            .clone()
+            .oneshot(put(serde_json::json!({
+                "expected_version":4,"item_edits":edits
+            })))
+            .await
+            .unwrap();
         assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
     }
 

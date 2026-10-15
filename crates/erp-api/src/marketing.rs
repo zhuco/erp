@@ -41,9 +41,286 @@ use erp_repo::{
 use erp_types::{PermissionCode, TenantId};
 
 use crate::{
-    AppState, AuthContext, RequestContext, bad_request, ensure_permission, ensure_tenant_access,
+    AppState, AuthContext, RequestContext, bad_request, conflict, ensure_permission, ensure_tenant_access,
     not_found,
 };
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct TradeQuoteRequest {
+    request_id: String,
+    #[serde(default)]
+    quote_id: Option<String>,
+    partner_code: String,
+    currency: String,
+    item_code: String,
+    qty_micros: i64,
+    price_cent: i64,
+    start_date: String,
+    #[serde(default)]
+    end_date: String,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    expected_version: Option<i32>,
+    #[serde(default)]
+    today: Option<String>,
+    #[serde(default)]
+    limit_cent: Option<i64>,
+}
+
+pub(super) async fn create_trade_quote(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<TradeQuoteRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+    let quote_id = req.quote_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok());
+    let saved = match req.action.as_deref() {
+        Some("CONVERT") => {
+            let Some(quote_id) = quote_id else {
+                return bad_request("bad quote_id").into_response();
+            };
+            match repo
+                .convert_quote(erp_repo::shared_contract::TradeQuoteConversionInput { tenant_id, request_id: &req.request_id, payload_hash: &req.request_id, quote_id, expected_version: req.expected_version.unwrap_or(0), today: req.today.as_deref().unwrap_or(""), qty_micros: req.qty_micros })
+                .await
+            {
+                Ok(Ok((write, id, price))) => {
+                    return (
+                        StatusCode::OK,
+                        Json(serde_json::json!({"conversion_id": id, "price_cent": price, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                    )
+                        .into_response();
+                }
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        Some("HOLD") => {
+            match repo
+                .hold_credit(tenant_id, &req.request_id, &req.request_id, &req.partner_code, req.limit_cent.unwrap_or(0), req.price_cent)
+                .await
+            {
+                Ok(Ok((write, id, left))) => {
+                    return (
+                        StatusCode::OK,
+                        Json(serde_json::json!({"hold_id": id, "left_cent": left, "paid": false, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                    )
+                        .into_response();
+                }
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        Some("SUGGEST") => {
+            match repo
+                .save_purchase_suggestion(tenant_id, &req.request_id, &req.request_id, &req.item_code, req.qty_micros)
+                .await
+            {
+                Ok(Ok((write, id))) => {
+                    return (
+                        StatusCode::OK,
+                        Json(serde_json::json!({"suggestion_id": id, "paid": false, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                    )
+                        .into_response();
+                }
+                Ok(Err(_)) => return conflict("payload conflict").into_response(),
+                Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        _ => {
+            repo.save_quote_revision(erp_repo::shared_contract::TradeQuoteRevisionInput { tenant_id, request_id: &req.request_id, payload_hash: &req.request_id, quote_id, partner_code: &req.partner_code, currency: &req.currency, item_code: &req.item_code, qty_micros: req.qty_micros, price_cent: req.price_cent, start_date: &req.start_date, end_date: &req.end_date })
+            .await
+        }
+    };
+    let (write, revision_id, version) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "revision_id": revision_id,
+            "version_no": version,
+            "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_)),
+        })),
+    )
+        .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct SpecialFulfillmentRequest {
+    request_id: String,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    supplier_code: String,
+    #[serde(default)]
+    customer_code: String,
+    #[serde(default)]
+    location_code: String,
+    #[serde(default)]
+    item_code: String,
+    #[serde(default)]
+    qty_micros: i64,
+    #[serde(default)]
+    carrier_ref: String,
+    #[serde(default)]
+    owner_code: String,
+    #[serde(default)]
+    stock_id: Option<String>,
+    #[serde(default)]
+    settlement_id: Option<String>,
+    #[serde(default)]
+    fee_cent: i64,
+    #[serde(default)]
+    kit_code: String,
+    #[serde(default)]
+    kit_id: Option<String>,
+    #[serde(default)]
+    parts: Vec<KitPartInput>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct KitPartInput {
+    item_code: String,
+    qty_per_micros: i64,
+}
+
+pub(super) async fn create_special_fulfillment(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<String>,
+    Extension(ctx): Extension<AuthContext>,
+    Json(req): Json<SpecialFulfillmentRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match TenantId::from_str(&tenant_id) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad tenant_id").into_response(),
+    };
+    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
+        return resp.into_response();
+    }
+    let repo = erp_repo::shared_contract::SharedContractRepo::new(state.db.pool());
+    match req.action.as_deref() {
+        Some("CONSIGN") => match repo
+            .receive_consignment(
+                tenant_id,
+                &req.request_id,
+                &req.request_id,
+                &req.owner_code,
+                &req.location_code,
+                &req.item_code,
+                req.qty_micros,
+            )
+            .await
+        {
+            Ok(Ok((write, id))) => (
+                StatusCode::OK,
+                Json(serde_json::json!({"stock_id": id, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+            )
+                .into_response(),
+            Ok(Err(_)) => conflict("payload conflict").into_response(),
+            Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        },
+        Some("SETTLE") => {
+            let Some(stock_id) = req.stock_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) else {
+                return bad_request("bad stock_id").into_response();
+            };
+            match repo
+                .settle_consignment(tenant_id, &req.request_id, &req.request_id, stock_id, req.qty_micros, req.fee_cent)
+                .await
+            {
+                Ok(Ok((write, id, fee))) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"settlement_id": id, "fee_cent": fee, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                )
+                    .into_response(),
+                Ok(Err(_)) => conflict("payload conflict").into_response(),
+                Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        Some("RETURN") => {
+            let Some(settlement_id) = req.settlement_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) else {
+                return bad_request("bad settlement_id").into_response();
+            };
+            match repo
+                .return_consignment(tenant_id, &req.request_id, &req.request_id, settlement_id, req.qty_micros)
+                .await
+            {
+                Ok(Ok((write, id, fee))) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"return_id": id, "fee_cent": fee, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                )
+                    .into_response(),
+                Ok(Err(_)) => conflict("payload conflict").into_response(),
+                Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        Some("KIT") => {
+            let parts: Vec<erp_domain::trade::KitPart> = req
+                .parts
+                .iter()
+                .map(|part| erp_domain::trade::KitPart {
+                    item_code: part.item_code.clone(),
+                    qty_per_micros: part.qty_per_micros,
+                })
+                .collect();
+            match repo.save_trade_kit(tenant_id, &req.request_id, &req.request_id, &req.kit_code, &parts).await {
+                Ok(Ok((write, id))) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"kit_id": id, "production": false, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                )
+                    .into_response(),
+                Ok(Err(_)) => conflict("payload conflict").into_response(),
+                Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        Some("EXPAND") => {
+            let Some(kit_id) = req.kit_id.as_deref().and_then(|value| uuid::Uuid::parse_str(value).ok()) else {
+                return bad_request("bad kit_id").into_response();
+            };
+            match repo.expand_trade_kit(tenant_id, &req.request_id, &req.request_id, kit_id, req.qty_micros).await {
+                Ok(Ok((write, id, rows))) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"expand_id": id, "rows": rows, "production": false, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+                )
+                    .into_response(),
+                Ok(Err(_)) => conflict("payload conflict").into_response(),
+                Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+            }
+        }
+        _ => match repo
+            .record_dropship(
+                tenant_id,
+                &req.request_id,
+                &req.request_id,
+                &req.supplier_code,
+                &req.customer_code,
+                &req.location_code,
+                &req.item_code,
+                req.qty_micros,
+                &req.carrier_ref,
+            )
+            .await
+        {
+            Ok(Ok((write, id))) => (
+                StatusCode::OK,
+                Json(serde_json::json!({"dropship_id": id, "our_inbound": false, "replay": matches!(write, erp_repo::shared_contract::SharedWrite::Replay(_))})),
+            )
+                .into_response(),
+            Ok(Err(_)) => conflict("payload conflict").into_response(),
+            Err(error) => (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        },
+    }
+}
 
 #[derive(Deserialize)]
 pub(crate) struct PriceListListQuery {

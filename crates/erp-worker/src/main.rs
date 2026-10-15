@@ -246,7 +246,13 @@ async fn main() -> anyhow::Result<()> {
         warn!("worker metrics disabled via WORKER_METRICS_PORT=0");
     } else {
         let metrics_addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-        let metrics_app = Router::new().route("/metrics", get(metrics_handler));
+        let health_db = db.clone();
+        let metrics_app = Router::new()
+            .route("/metrics", get(metrics_handler))
+            .route(
+                "/healthz",
+                get(move || healthz_with_db(health_db.clone())),
+            );
         match tokio::net::TcpListener::bind(metrics_addr).await {
             Ok(metrics_listener) => {
                 tokio::spawn(async move {

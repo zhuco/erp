@@ -136,8 +136,8 @@ fn validate(points: &[(String, i128)], scale: u32) -> Result<(), String> {
     if points.len() > MAX_POINTS {
         return Err(format!("chart supports at most {MAX_POINTS} points"));
     }
-    if scale > 6 {
-        return Err("chart scale must be at most 6".into());
+    if scale > 8 {
+        return Err("chart scale must be at most 8".into());
     }
     if let Some((index, (_label, _))) = points
         .iter()

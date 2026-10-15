@@ -119,7 +119,9 @@ pub(crate) async fn get_purchase_order(
 pub(crate) async fn create_purchase_order(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
+    Extension(epoch): Extension<VerifiedCredentialEpoch>,
     Json(req): Json<PurchaseOrderCreateRequest>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -129,8 +131,12 @@ pub(crate) async fn create_purchase_order(
     if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
         return resp.into_response();
     }
-    if let Err(resp) = ensure_permission(&ctx, "purchase_orders.write") {
-        return resp.into_response();
+    // Receipt actions use the locked current database grant; a signed old
+    // permission list cannot authorize a revocation or suppress a new grant.
+    if req.release_qty.is_none() && req.return_qty.is_none() && req.issue_qty.is_none() {
+        if let Err(resp) = ensure_permission(&ctx, "purchase_orders.write") {
+            return resp.into_response();
+        }
     }
 
     let supplier_id = match uuid::Uuid::parse_str(req.supplier_id.trim()) {
@@ -149,6 +155,34 @@ pub(crate) async fn create_purchase_order(
         None => None,
     };
     let remark = req.remark.clone().map(|value| value.trim().to_string());
+
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(resp) => return resp,
+    };
+    if let Some(request_id) = request_id {
+        if req.revision_action.is_some()
+            || req.receive_qty.is_some()
+            || req.arrival_qty.is_some()
+            || req.release_qty.is_some()
+            || req.return_qty.is_some()
+            || req.issue_qty.is_some()
+        {
+            return save_purchase_revision_request(
+                &state,
+                &ctx,
+                epoch.0,
+                tenant_id,
+                &req,
+                &request_id,
+            )
+            .await;
+        }
+        if req.items.len() != 1 {
+            return bad_request("shared trade purchase accepts one line").into_response();
+        }
+        return save_trade_purchase(&state, &ctx, tenant_id, &req, &request_id).await;
+    }
 
     let mut items = Vec::with_capacity(req.items.len());
     for item in req.items {
@@ -198,6 +232,416 @@ pub(crate) async fn create_purchase_order(
     }
 
     (StatusCode::OK, Json(purchase_order_detail_response(detail))).into_response()
+}
+
+fn receipt_value_error(error: anyhow::Error, issue: bool) -> Response {
+    use erp_repo::shared_contract::ReceiptValueAuthorizationError;
+    if let Some(authority) = error.downcast_ref::<ReceiptValueAuthorizationError>() {
+        return match authority {
+            ReceiptValueAuthorizationError::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                "current business session required",
+            )
+                .into_response(),
+            ReceiptValueAuthorizationError::Forbidden => {
+                forbidden("current purchase write authority required").into_response()
+            }
+            ReceiptValueAuthorizationError::Unavailable => {
+                not_found("receipt unavailable in requested warehouse").into_response()
+            }
+        };
+    }
+    if error.downcast_ref::<sqlx::Error>().is_some() {
+        warn!(error=%error,"receipt value storage failed");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "receipt storage unavailable",
+        )
+            .into_response();
+    }
+    if issue && error.to_string().contains("CONFLICT:") {
+        return conflict("held stock cannot be sold").into_response();
+    }
+    (
+        if issue {
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            StatusCode::CONFLICT
+        },
+        format!("{error}"),
+    )
+        .into_response()
+}
+
+async fn save_purchase_revision_request(
+    state: &AppState,
+    ctx: &AuthContext,
+    epoch: Option<i32>,
+    tenant_id: TenantId,
+    req: &PurchaseOrderCreateRequest,
+    request_id: &str,
+) -> Response {
+    let action_count = [
+        req.arrival_qty,
+        req.issue_qty,
+        req.release_qty,
+        req.return_qty,
+        req.receive_qty,
+    ]
+    .iter()
+    .filter(|value| value.is_some())
+    .count()
+        + usize::from(req.revision_action.is_some());
+    if action_count != 1 {
+        return bad_request("one purchase action is required").into_response();
+    }
+    let repo = SharedContractRepo::new(state.db.pool());
+    let value_actor =
+        if req.issue_qty.is_some() || req.release_qty.is_some() || req.return_qty.is_some() {
+            let (Some(session_id), Some(credential_epoch)) = (ctx.session_id, epoch) else {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "current business session required",
+                )
+                    .into_response();
+            };
+            let warehouse_id = match uuid::Uuid::parse_str(req.warehouse_id.trim()) {
+                Ok(id) => id,
+                Err(_) => return bad_request("bad warehouse_id").into_response(),
+            };
+            Some(erp_repo::shared_contract::ReceiptValueActor {
+                authentication_tenant: ctx.tenant_id,
+                user_id: ctx.user_id,
+                session_id,
+                credential_epoch,
+                warehouse_id,
+            })
+        } else {
+            None
+        };
+    if let Some(qty) = req.arrival_qty {
+        let unit_cost = match req.unit_cost_cent {
+            Some(value) if value >= 0 => value,
+            _ => {
+                return (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "arrival unit cost is required; supply an explicit nonnegative value",
+                )
+                    .into_response();
+            }
+        };
+        let po_id = match req
+            .po_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad po_id").into_response(),
+        };
+        let warehouse_id = match uuid::Uuid::parse_str(req.warehouse_id.trim()) {
+            Ok(value) => value,
+            Err(_) => return bad_request("bad warehouse_id").into_response(),
+        };
+        let location_id = match req
+            .location_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad location_id").into_response(),
+        };
+        let sku_id = match req
+            .items
+            .first()
+            .and_then(|item| uuid::Uuid::parse_str(item.sku_id.trim()).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad sku_id").into_response(),
+        };
+        let batch = req.batch_code.as_deref().unwrap_or("").trim();
+        let saved = repo
+            .arrive_purchase_receipt(
+                tenant_id,
+                request_id,
+                request_id,
+                po_id,
+                req.line_no.unwrap_or(1),
+                warehouse_id,
+                location_id,
+                sku_id,
+                batch,
+                qty,
+                unit_cost,
+            )
+            .await;
+        let (write, quality_id) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error)
+                if error
+                    .downcast_ref::<erp_repo::shared_contract::PurchaseArrivalError>()
+                    .is_some() =>
+            {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({
+                        "code":"purchase_arrival_reconcile_required",
+                        "message":error.to_string(),
+                        "reconciliation_required":true,
+                    })),
+                )
+                    .into_response();
+            }
+            Err(error) if error.downcast_ref::<sqlx::Error>().is_some() => {
+                warn!(error=%error,"purchase arrival storage failed");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "receipt storage unavailable",
+                )
+                    .into_response();
+            }
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "quality_id": quality_id,
+                "replay": matches!(write, SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    if let Some(qty) = req.issue_qty {
+        let Some(actor) = value_actor else {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "current business session required",
+            )
+                .into_response();
+        };
+        let quality_id = match req
+            .quality_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad quality_id").into_response(),
+        };
+        let saved = repo
+            .issue_released_receipt(tenant_id, request_id, request_id, quality_id, qty, actor)
+            .await;
+        let (write, left) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return receipt_value_error(error, true),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "quality_id": quality_id,
+                "left": left,
+                "replay": matches!(write, SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    if req.release_qty.is_some() || req.return_qty.is_some() {
+        let Some(actor) = value_actor else {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "current business session required",
+            )
+                .into_response();
+        };
+        let quality_id = match req
+            .quality_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad quality_id").into_response(),
+        };
+        let saved = if let Some(qty) = req.release_qty {
+            repo.release_purchase_receipt(tenant_id, request_id, request_id, quality_id, qty, actor)
+                .await
+        } else {
+            repo.return_purchase_receipt(
+                tenant_id,
+                request_id,
+                request_id,
+                quality_id,
+                req.return_qty.unwrap_or(0),
+                actor,
+            )
+            .await
+        };
+        let (write, amount) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return receipt_value_error(error, false),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "quality_id": quality_id,
+                "amount": amount,
+                "replay": matches!(write, SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    if let Some(qty) = req.receive_qty {
+        let po_id = match req
+            .po_id
+            .as_deref()
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+        {
+            Some(value) => value,
+            None => return bad_request("bad po_id").into_response(),
+        };
+        let saved = repo
+            .receive_purchase_line(
+                tenant_id,
+                request_id,
+                request_id,
+                po_id,
+                req.line_no.unwrap_or(1),
+                qty,
+            )
+            .await;
+        let (write, remaining) = match saved {
+            Ok(Ok(value)) => value,
+            Ok(Err(_)) => return conflict("payload conflict").into_response(),
+            Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+        };
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "po_id": po_id,
+                "remaining_qty": remaining,
+                "replay": matches!(write, SharedWrite::Replay(_)),
+            })),
+        )
+            .into_response();
+    }
+    let action = req.revision_action.as_deref().unwrap_or("OPEN");
+    let po_id = req
+        .po_id
+        .as_deref()
+        .and_then(|value| uuid::Uuid::parse_str(value).ok());
+    let item = match req.items.first() {
+        Some(item) => item,
+        None => return bad_request("purchase line required").into_response(),
+    };
+    let line = erp_domain::trade::PurchaseLine {
+        line_no: req.line_no.unwrap_or(1),
+        item_code: item.sku_id.clone(),
+        qty_micros: item.qty,
+        price_cent: item.price_cent,
+        tax_cent: req.tax_cent.unwrap_or(0),
+        due_date: req.due_date.clone().unwrap_or_default(),
+    };
+    let saved = repo
+        .save_purchase_revision(erp_repo::shared_contract::TradePurchaseRevisionInput { tenant_id, request_id, payload_hash: request_id, po_id, supplier_code: req.supplier_id.trim(), warehouse_code: req.warehouse_id.trim(), action, lines: &[line] })
+        .await;
+    let (write, revision_id, version) = match saved {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => return (StatusCode::CONFLICT, format!("{error}")).into_response(),
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "revision_id": revision_id,
+            "version_no": version,
+            "replay": matches!(write, SharedWrite::Replay(_)),
+        })),
+    )
+        .into_response()
+}
+
+async fn save_trade_purchase(
+    state: &AppState,
+    ctx: &AuthContext,
+    tenant_id: TenantId,
+    req: &PurchaseOrderCreateRequest,
+    request_id: &str,
+) -> Response {
+    let supplier_id = match uuid::Uuid::parse_str(req.supplier_id.trim()) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad supplier_id").into_response(),
+    };
+    let warehouse_id = match uuid::Uuid::parse_str(req.warehouse_id.trim()) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad warehouse_id").into_response(),
+    };
+    let item = &req.items[0];
+    let sku_id = match uuid::Uuid::parse_str(item.sku_id.trim()) {
+        Ok(value) => value,
+        Err(_) => return bad_request("bad sku_id").into_response(),
+    };
+    if item.qty <= 0 || item.price_cent < 0 {
+        return bad_request("bad trade quantity").into_response();
+    }
+    let payload = format!(
+        "{}:{}:{}:{}:{}",
+        supplier_id, warehouse_id, sku_id, item.qty, item.price_cent
+    );
+    let saved = match SharedContractRepo::new(state.db.pool())
+        .save_trade_purchase(erp_repo::shared_contract::TradePurchaseInput { tenant_id, request_id, payload_hash: &payload, supplier_id, warehouse_id, sku_id, qty: item.qty, price_cent: item.price_cent, partner_code: req.partner_code.as_deref().unwrap_or(""), currency: req.currency_code.as_deref().unwrap_or("CNY"), document_date: req.document_date.as_deref().unwrap_or("") })
+        .await
+    {
+        Ok(Ok(saved)) => saved,
+        Ok(Err(_)) => return conflict("payload conflict").into_response(),
+        Err(error) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+        }
+    };
+    let ((write, total), replay) = match saved {
+        (SharedWrite::Stored(receipt), total) => ((receipt, total), false),
+        (SharedWrite::Replay(receipt), total) => ((receipt, total), true),
+    };
+    let _ = ctx;
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "request_id": write.request_id,
+            "status": write.status.as_str(),
+            "replay": replay,
+            "po_id": write.effect_id,
+            "qty": item.qty,
+            "qty_micros": erp_domain::trade::document_qty_micros(&item.qty.to_string()).unwrap_or(0),
+            "price_cent": item.price_cent,
+            "total_cent": total,
+            "bom_required": false,
+        })),
+    )
+        .into_response()
+}
+
+async fn confirm_trade_purchase_http(
+    state: &AppState,
+    tenant_id: TenantId,
+    po_id: uuid::Uuid,
+    request_id: &str,
+) -> Response {
+    match SharedContractRepo::new(state.db.pool())
+        .confirm_trade_purchase(tenant_id, request_id, request_id, po_id)
+        .await
+    {
+        Ok(Ok(write)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "request_id": request_id,
+                "status": "SUCCEEDED",
+                "replay": matches!(write, SharedWrite::Replay(_)),
+                "po_id": po_id,
+            })),
+        )
+            .into_response(),
+        Ok(Err(_)) => conflict("payload conflict").into_response(),
+        Err(error) => (StatusCode::UNPROCESSABLE_ENTITY, format!("{error}")).into_response(),
+    }
 }
 
 pub(crate) async fn update_purchase_order(
@@ -403,6 +847,7 @@ pub(crate) async fn send_purchase_order(
 pub(crate) async fn confirm_purchase_order(
     State(state): State<AppState>,
     Path((tenant_id, po_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
 ) -> impl IntoResponse {
     let tenant_id = match TenantId::from_str(&tenant_id) {
@@ -418,6 +863,9 @@ pub(crate) async fn confirm_purchase_order(
     }
     if let Err(resp) = ensure_permission(&ctx, "purchase_orders.write") {
         return resp.into_response();
+    }
+    if let Ok(Some(request_id)) = shared_request_id(&headers, None) {
+        return confirm_trade_purchase_http(&state, tenant_id, po_id, &request_id).await;
     }
 
     let repo = PurchaseOrdersRepo::new(state.db.pool());

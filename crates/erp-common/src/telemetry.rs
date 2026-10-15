@@ -50,6 +50,8 @@ pub struct Metrics {
     frontend_route_timeout_total: AtomicU64,
     frontend_route_error_total: AtomicU64,
     frontend_route_prefetch_ready_total: AtomicU64,
+    process_alive: AtomicU64,
+    database_reachable: AtomicU64,
 }
 
 impl Metrics {
@@ -241,6 +243,33 @@ impl Metrics {
     pub fn inc_frontend_route_prefetch_ready(&self) {
         self.frontend_route_prefetch_ready_total
             .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Process and database stay separate gauges. Request ids are not labels.
+    pub fn render_probe(&self, process_alive: bool, database_reachable: bool) -> String {
+        self.set_probe(process_alive, database_reachable);
+        let mut out = String::new();
+        append_gauge(
+            &mut out,
+            "erp_process_alive",
+            "1 when this process can answer a probe",
+            self.process_alive.load(Ordering::Relaxed),
+        );
+        append_gauge(
+            &mut out,
+            "erp_database_reachable",
+            "1 when the database probe succeeds",
+            self.database_reachable.load(Ordering::Relaxed),
+        );
+        out
+    }
+
+    /// Process and database stay separate gauges. Request ids are not labels.
+    pub fn set_probe(&self, process_alive: bool, database_reachable: bool) {
+        self.process_alive
+            .store(u64::from(process_alive), Ordering::Relaxed);
+        self.database_reachable
+            .store(u64::from(database_reachable), Ordering::Relaxed);
     }
 
     pub fn render(&self) -> String {
@@ -505,6 +534,18 @@ impl Metrics {
             self.frontend_route_prefetch_ready_total
                 .load(Ordering::Relaxed),
         );
+        append_gauge(
+            &mut out,
+            "erp_process_alive",
+            "1 when this process can answer a probe",
+            self.process_alive.load(Ordering::Relaxed),
+        );
+        append_gauge(
+            &mut out,
+            "erp_database_reachable",
+            "1 when the database probe succeeds",
+            self.database_reachable.load(Ordering::Relaxed),
+        );
         out
     }
 }
@@ -529,6 +570,21 @@ fn append_gauge(out: &mut String, name: &str, help: &str, value: u64) {
     let _ = writeln!(out, "# HELP {name} {help}");
     let _ = writeln!(out, "# TYPE {name} gauge");
     let _ = writeln!(out, "{name} {value}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probe_gauges_do_not_carry_a_request_label() {
+        let metrics = Metrics::default();
+        metrics.set_probe(true, false);
+        let rendered = metrics.render_probe(true, false);
+        assert!(rendered.contains("erp_process_alive 1\n"));
+        assert!(rendered.contains("erp_database_reachable 0\n"));
+        assert!(!rendered.contains("request_id"));
+    }
 }
 
 pub fn init_tracing(service_name: &str) {

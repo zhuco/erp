@@ -966,41 +966,41 @@ impl<'a> InboundsRepo<'a> {
                 .execute(&mut *tx)
                 .await?;
 
-                if let (Some(ref_type), Some(ref_id)) = (&doc.ref_type, &doc.ref_id) {
-                    if ref_type == "AFTER_SALES" {
-                        let after_sales_id = uuid::Uuid::parse_str(ref_id)
-                            .map_err(|_| anyhow!("bad after_sales ref_id"))?;
-                        let now = Utc::now();
-                        sqlx::query(
-                            r#"
+                if let (Some(ref_type), Some(ref_id)) = (&doc.ref_type, &doc.ref_id)
+                    && ref_type == "AFTER_SALES"
+                {
+                    let after_sales_id = uuid::Uuid::parse_str(ref_id)
+                        .map_err(|_| anyhow!("bad after_sales ref_id"))?;
+                    let now = Utc::now();
+                    sqlx::query(
+                        r#"
                             update return_receipts
                             set status = $4,
                                 putaway_at = $5,
                                 updated_at = now()
                             where tenant_id = $1 and after_sales_id = $2
                             "#,
-                        )
-                        .bind(uuid::Uuid::from(input.tenant_id))
-                        .bind(after_sales_id)
-                        .bind("PUTAWAY_DONE")
-                        .bind(now)
-                        .execute(&mut *tx)
-                        .await?;
+                    )
+                    .bind(uuid::Uuid::from(input.tenant_id))
+                    .bind(after_sales_id)
+                    .bind("PUTAWAY_DONE")
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await?;
 
-                        sqlx::query(
-                            r#"
+                    sqlx::query(
+                        r#"
                             update after_sales
                             set status = $3,
                                 updated_at = now()
                             where tenant_id = $1 and id = $2
                             "#,
-                        )
-                        .bind(uuid::Uuid::from(input.tenant_id))
-                        .bind(after_sales_id)
-                        .bind("RECEIVED")
-                        .execute(&mut *tx)
-                        .await?;
-                    }
+                    )
+                    .bind(uuid::Uuid::from(input.tenant_id))
+                    .bind(after_sales_id)
+                    .bind("RECEIVED")
+                    .execute(&mut *tx)
+                    .await?;
                 }
             }
         }

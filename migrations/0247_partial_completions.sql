@@ -1,0 +1,2 @@
+-- A partial completion is stored beside the frozen release. It does not close the order.
+-- This file is not applied here.

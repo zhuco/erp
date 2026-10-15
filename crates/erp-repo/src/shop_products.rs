@@ -561,13 +561,13 @@ fn apply_sku_filters<'a>(
         qb.push(" and s.platform = ");
         qb.push_bind(platform.to_string());
     }
-    if let Some(shop_ids) = filters.shop_ids.as_ref() {
-        if !shop_ids.is_empty() {
-            let ids: Vec<uuid::Uuid> = shop_ids.iter().copied().map(uuid::Uuid::from).collect();
-            qb.push(" and s.shop_id = any(");
-            qb.push_bind(ids);
-            qb.push(")");
-        }
+    if let Some(shop_ids) = filters.shop_ids.as_ref()
+        && !shop_ids.is_empty()
+    {
+        let ids: Vec<uuid::Uuid> = shop_ids.iter().copied().map(uuid::Uuid::from).collect();
+        qb.push(" and s.shop_id = any(");
+        qb.push_bind(ids);
+        qb.push(")");
     }
     if let Some(status) = filters.status.as_deref() {
         qb.push(" and s.status = ");

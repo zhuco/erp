@@ -27,8 +27,25 @@ pub(crate) enum Choice {
 }
 
 impl LeaveGuard {
-    pub(crate) fn request(&mut self, destination: Destination, dirty: bool) -> Option<Destination> {
-        if dirty {
+    pub(crate) fn request(
+        &mut self,
+        destination: Destination,
+        dirty: bool,
+    ) -> Option<Destination> {
+        self.request_close(destination, dirty, false, false)
+    }
+
+    /// A window close with an unknown command is held until the original receipt is read.
+    /// The close itself does not allocate a new command identity.
+    pub(crate) fn request_close(
+        &mut self,
+        destination: Destination,
+        dirty: bool,
+        command_known: bool,
+        client_unknown: bool,
+    ) -> Option<Destination> {
+        let hold = client_unknown || (command_known && dirty) || dirty;
+        if hold {
             if self.pending.is_none() {
                 self.error = None;
             }

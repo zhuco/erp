@@ -173,6 +173,7 @@ impl CrossPageFill {
                     query: Vec::new(),
                     json: Some(encoded.body),
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -275,6 +276,7 @@ impl CrossPageFill {
                     query: Vec::new(),
                     json: Some(encoded.body),
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             ) {

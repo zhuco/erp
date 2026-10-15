@@ -45,14 +45,14 @@ async fn load_db() -> anyhow::Result<Option<Db>> {
 
 fn build_token(jwt: &JwtService, tenant_id: uuid::Uuid, user_id: uuid::Uuid) -> String {
     let now = Utc::now().timestamp() as usize;
-    let claims = Claims {
-        sub: user_id.to_string(),
-        tenant_id: tenant_id.to_string(),
-        perms: Vec::new(),
-        is_admin: true,
-        iat: now,
-        exp: now + 3600,
-    };
+    let claims = Claims::bearer(
+        user_id.to_string(),
+        tenant_id.to_string(),
+        Vec::new(),
+        true,
+        now,
+        now + 3600,
+    );
     jwt.encode(&claims).expect("token should encode")
 }
 

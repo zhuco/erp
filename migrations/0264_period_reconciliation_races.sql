@@ -1,0 +1,2 @@
+-- 0264: a second reconciliation of the same period is refused after the first row is stored.
+-- The period row is locked. This comment does not add a table.

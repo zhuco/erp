@@ -936,13 +936,14 @@ pub(super) async fn rollback_order_to_review(
     let mut next_flags = state_row.exception_flags.clone();
     next_flags.retain(|flag| flag != "REVIEW_REJECTED" && flag != "REVIEW_FLAGGED");
 
-    let fulfillment_repo = FulfillmentRepo::new(state.db.pool());
+    let fulfillment_repo =
+        FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(&req_ctx));
     let release_result = match fulfillment_repo
         .release_order_reservations_keep_order(tenant_id, order_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let wms_repo = WmsRepo::new(state.db.pool());

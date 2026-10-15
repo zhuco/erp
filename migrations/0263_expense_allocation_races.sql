@@ -1,0 +1,2 @@
+-- 0263: allocating freight locks the confirmed purchase and refuses a second source row.
+-- The unique source key lives in the shared-contract test DDL. This comment does not add a table.

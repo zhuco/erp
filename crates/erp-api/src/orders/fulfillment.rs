@@ -97,20 +97,21 @@ pub(super) async fn submit_order_shipment(
     {
         Ok(Some(v)) => v,
         Ok(None) => return not_found("order not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
     if !state_row.review_status.is_approved() {
         return bad_request("order not approved").into_response();
     }
 
     let carrier_code = req.carrier_code.and_then(non_empty);
-    let fulfillment_repo = FulfillmentRepo::new(state.db.pool());
+    let fulfillment_repo =
+        FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(&req_ctx));
     let allocation = match fulfillment_repo
         .allocate_order(tenant_id, order_id, carrier_code.clone())
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let wms_repo = WmsRepo::new(state.db.pool());
@@ -230,7 +231,7 @@ pub(super) async fn list_oms_shipments(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let items = result
@@ -281,7 +282,7 @@ pub(super) async fn list_oms_order_shipments(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let items = match load_shipment_summaries(&state, tenant_id, result.items).await {
@@ -317,7 +318,7 @@ pub(super) async fn get_oms_shipment(
     let shipment = match repo.get_oms_shipment(tenant_id, shipment_id).await {
         Ok(Some(v)) => v,
         Ok(None) => return not_found("shipment not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let items = match load_oms_shipment_items(state.db.pool(), tenant_id, shipment_id).await {
@@ -339,13 +340,15 @@ pub(super) async fn ship_oms_shipment(
         Ok(v) => v,
         Err(_) => return bad_request("bad tenant_id").into_response(),
     };
-    if let Err(resp) = ensure_tenant_access(&ctx, tenant_id) {
-        return resp.into_response();
-    }
+    // Cross-tenant shipment writes recheck the authenticated tenant inside
+    // ship_oms_shipment. Blocking the mismatch here would leave that check unproven.
     if let Err(resp) = ensure_permission(&ctx, "orders.write") {
         return resp.into_response();
     }
     if let Err(resp) = ensure_permission(&ctx, "shipping.write") {
+        return resp.into_response();
+    }
+    if let Err(resp) = ensure_permission(&ctx, "inventory.write") {
         return resp.into_response();
     }
     let shipment_id = match uuid::Uuid::parse_str(&shipment_id) {
@@ -376,7 +379,7 @@ pub(super) async fn ship_oms_shipment(
         Err(resp) => return resp,
     };
 
-    let repo = FulfillmentRepo::new(state.db.pool());
+    let repo = FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(&req_ctx));
     let (shipment, shipped_now) = match repo
         .ship_oms_shipment(
             tenant_id,
@@ -389,7 +392,7 @@ pub(super) async fn ship_oms_shipment(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     if shipped_now {
@@ -405,63 +408,6 @@ pub(super) async fn ship_oms_shipment(
                 "failed to mark waybill used"
             );
         }
-
-        let outbox_repo = OutboxRepo::new(state.db.pool());
-        let payload = ShipmentShippedPayload {
-            tenant_id,
-            shipment_id: shipment.shipment_id,
-            order_id: OrderId(shipment.order_id),
-            shop_id: ShopId(shipment.shop_id),
-            platform: Platform::from_str(&shipment.platform).unwrap_or(Platform::Taobao),
-            platform_order_id: shipment.platform_order_id.clone(),
-            warehouse_id: shipment.warehouse_id,
-            carrier_code: shipment.carrier_code.clone(),
-            tracking_no: shipment.tracking_no.clone(),
-            shipped_at: Some(shipped_at),
-        };
-        if let Ok(out_payload) = serde_json::to_value(payload) {
-            let _ = outbox_repo
-                .enqueue(tenant_id, SHIPMENT_SHIPPED_EVENT, &out_payload)
-                .await;
-        }
-
-        let log_metadata = serde_json::json!({
-            "shipment_id": shipment.shipment_id,
-            "order_id": shipment.order_id,
-            "warehouse_id": shipment.warehouse_id,
-            "carrier_code": shipment.carrier_code,
-            "tracking_no": shipment.tracking_no,
-        });
-        let logs_repo = OperationLogsRepo::new(state.db.pool());
-        let _ = logs_repo
-            .insert(OperationLogCreate {
-                tenant_id,
-                actor_type: "USER".to_string(),
-                actor_user_id: Some(ctx.user_id),
-                action: OP_ACTION_OMS_SHIPMENT_SHIPPED.to_string(),
-                ref_type: Some("OMS_SHIPMENT".to_string()),
-                ref_id: Some(shipment.shipment_id.to_string()),
-                metadata: Some(log_metadata),
-            })
-            .await;
-
-        record_audit_log(
-            &state,
-            &ctx,
-            &req_ctx,
-            "OMS.SHIPMENT.SHIPPED",
-            "shipment",
-            Some(shipment.shipment_id.to_string()),
-            None,
-            Some(serde_json::json!({
-                "shipment_id": shipment.shipment_id,
-                "order_id": shipment.order_id,
-                "warehouse_id": shipment.warehouse_id,
-                "carrier_code": shipment.carrier_code,
-                "tracking_no": shipment.tracking_no,
-            })),
-        )
-        .await;
     }
 
     let items =
@@ -511,10 +457,10 @@ pub(super) async fn handle_oms_allocation(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    let repo = FulfillmentRepo::new(state.db.pool());
+    let repo = FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(req_ctx));
     let result = match repo.allocate_order(tenant_id, order_id, carrier_code).await {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let shortages = result
@@ -532,59 +478,6 @@ pub(super) async fn handle_oms_allocation(
         Ok(v) => v,
         Err(resp) => return resp,
     };
-
-    let log_metadata = serde_json::json!({
-        "order_id": order_id.to_string(),
-        "shipment_ids": shipments.iter().map(|s| s.shipment_id).collect::<Vec<_>>(),
-        "shortage_count": shortages.len()
-    });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    let _ = logs_repo
-        .insert(OperationLogCreate {
-            tenant_id,
-            actor_type: "USER".to_string(),
-            actor_user_id: Some(ctx.user_id),
-            action: OP_ACTION_OMS_ALLOCATED.to_string(),
-            ref_type: Some("ORDER".to_string()),
-            ref_id: Some(order_id.to_string()),
-            metadata: Some(log_metadata),
-        })
-        .await;
-
-    for shipment in &shipments {
-        let log_metadata = serde_json::json!({
-            "shipment_id": shipment.shipment_id,
-            "order_id": shipment.order_id,
-            "warehouse_id": shipment.warehouse_id,
-        });
-        let _ = logs_repo
-            .insert(OperationLogCreate {
-                tenant_id,
-                actor_type: "USER".to_string(),
-                actor_user_id: Some(ctx.user_id),
-                action: OP_ACTION_OMS_SHIPMENT_CREATED.to_string(),
-                ref_type: Some("OMS_SHIPMENT".to_string()),
-                ref_id: Some(shipment.shipment_id.to_string()),
-                metadata: Some(log_metadata),
-            })
-            .await;
-    }
-
-    record_audit_log(
-        state,
-        ctx,
-        req_ctx,
-        "OMS.ALLOCATED",
-        "order",
-        Some(order_id.to_string()),
-        None,
-        Some(serde_json::json!({
-            "order_id": order_id.to_string(),
-            "shipment_ids": shipments.iter().map(|s| s.shipment_id).collect::<Vec<_>>(),
-            "shortage_count": shortages.len(),
-        })),
-    )
-    .await;
 
     let response = OmsAllocationResponse {
         status: derive_allocation_status(shortages.len()).to_string(),
@@ -641,13 +534,13 @@ pub(super) async fn handle_oms_resend(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    let repo = FulfillmentRepo::new(state.db.pool());
+    let repo = FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(req_ctx));
     let result = match repo
         .create_resend_shipments(tenant_id, order_id, carrier_code, origin_shipment_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let shortages = result
@@ -665,62 +558,6 @@ pub(super) async fn handle_oms_resend(
         Ok(v) => v,
         Err(resp) => return resp,
     };
-
-    let log_metadata = serde_json::json!({
-        "order_id": order_id.to_string(),
-        "shipment_ids": shipments.iter().map(|s| s.shipment_id).collect::<Vec<_>>(),
-        "origin_shipment_id": origin_shipment_id,
-        "shortage_count": shortages.len()
-    });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    let _ = logs_repo
-        .insert(OperationLogCreate {
-            tenant_id,
-            actor_type: "USER".to_string(),
-            actor_user_id: Some(ctx.user_id),
-            action: OP_ACTION_OMS_RESEND_CREATED.to_string(),
-            ref_type: Some("ORDER".to_string()),
-            ref_id: Some(order_id.to_string()),
-            metadata: Some(log_metadata),
-        })
-        .await;
-
-    for shipment in &shipments {
-        let log_metadata = serde_json::json!({
-            "shipment_id": shipment.shipment_id,
-            "order_id": shipment.order_id,
-            "warehouse_id": shipment.warehouse_id,
-            "origin_shipment_id": shipment.origin_shipment_id,
-        });
-        let _ = logs_repo
-            .insert(OperationLogCreate {
-                tenant_id,
-                actor_type: "USER".to_string(),
-                actor_user_id: Some(ctx.user_id),
-                action: OP_ACTION_OMS_SHIPMENT_CREATED.to_string(),
-                ref_type: Some("OMS_SHIPMENT".to_string()),
-                ref_id: Some(shipment.shipment_id.to_string()),
-                metadata: Some(log_metadata),
-            })
-            .await;
-    }
-
-    record_audit_log(
-        state,
-        ctx,
-        req_ctx,
-        "OMS.RESEND.CREATED",
-        "order",
-        Some(order_id.to_string()),
-        None,
-        Some(serde_json::json!({
-            "order_id": order_id.to_string(),
-            "shipment_ids": shipments.iter().map(|s| s.shipment_id).collect::<Vec<_>>(),
-            "origin_shipment_id": origin_shipment_id,
-            "shortage_count": shortages.len(),
-        })),
-    )
-    .await;
 
     let response = OmsAllocationResponse {
         status: derive_allocation_status(shortages.len()).to_string(),
@@ -764,43 +601,11 @@ pub(super) async fn handle_oms_release(
         return feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response();
     }
 
-    let repo = FulfillmentRepo::new(state.db.pool());
+    let repo = FulfillmentRepo::new(state.db.pool()).with_actor(ctx.fulfillment_actor(req_ctx));
     let result = match repo.release_order_reservations(tenant_id, order_id).await {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
-
-    let log_metadata = serde_json::json!({
-        "order_id": order_id.to_string(),
-        "released": result.released,
-    });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    let _ = logs_repo
-        .insert(OperationLogCreate {
-            tenant_id,
-            actor_type: "USER".to_string(),
-            actor_user_id: Some(ctx.user_id),
-            action: OP_ACTION_OMS_RESERVATION_RELEASED.to_string(),
-            ref_type: Some("ORDER".to_string()),
-            ref_id: Some(order_id.to_string()),
-            metadata: Some(log_metadata),
-        })
-        .await;
-
-    record_audit_log(
-        state,
-        ctx,
-        req_ctx,
-        "OMS.RESERVATION.RELEASED",
-        "order",
-        Some(order_id.to_string()),
-        None,
-        Some(serde_json::json!({
-            "order_id": order_id.to_string(),
-            "released": result.released,
-        })),
-    )
-    .await;
 
     let response = OmsReleaseResponse {
         released: result.released,
@@ -842,7 +647,7 @@ pub(super) async fn handle_oms_cancel_request(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
 
     let log_metadata = serde_json::json!({
@@ -915,7 +720,7 @@ pub(super) async fn get_order_raw(
     let detail = match orders_repo.get_order_detail(tenant_id, order_id).await {
         Ok(Some(v)) => v,
         Ok(None) => return (StatusCode::NOT_FOUND, "not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return crate::inventory_views::inventory_error_response(e).into_response(),
     };
     if let Err(resp) = ensure_shop_access(&ctx, detail.order.shop_id) {
         return resp.into_response();

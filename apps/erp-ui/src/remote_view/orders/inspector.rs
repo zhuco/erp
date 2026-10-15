@@ -594,6 +594,7 @@ impl OrderInspector {
             query: Vec::new(),
             json: Some(prepared.body.clone()),
             bearer: Some(session.token.clone()),
+            idempotency_key: None,
         };
         let task = if prepared.method == "PUT" {
             session.client.put(request, ctx)
@@ -1042,6 +1043,7 @@ fn request(
         query,
         json,
         bearer: Some(session.token.clone()),
+        idempotency_key: None,
     };
     session.client.start(request, ctx)
 }

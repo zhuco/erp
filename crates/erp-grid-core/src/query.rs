@@ -7,6 +7,10 @@ pub enum ValueKind {
     Text,
     Integer,
     Money,
+    /// Exact decimal text; bounded to eight fractional digits and i128 intermediates.
+    Decimal {
+        scale: u8,
+    },
     DateTime,
 }
 
@@ -15,6 +19,9 @@ pub fn spreadsheet_value(value: &str, kind: ValueKind) -> std::borrow::Cow<'_, s
     let numeric = match kind {
         ValueKind::Integer => value.parse::<i64>().is_ok(),
         ValueKind::Money => money_minor(value).is_ok_and(|value| value.is_some()),
+        ValueKind::Decimal { scale } => {
+            decimal_scaled(value, scale).is_ok_and(|value| value.is_some())
+        }
         _ => false,
     };
     if !numeric && value.trim_start().starts_with(['=', '+', '-', '@']) {
@@ -37,10 +44,72 @@ pub fn compare_values(left: &str, right: &str, kind: ValueKind, descending: bool
     let order = match kind {
         ValueKind::Integer => left.parse::<i64>().ok().cmp(&right.parse::<i64>().ok()),
         ValueKind::Money => money_minor(left).ok().cmp(&money_minor(right).ok()),
+        ValueKind::Decimal { scale } => decimal_scaled(left, scale)
+            .ok()
+            .cmp(&decimal_scaled(right, scale).ok()),
         ValueKind::DateTime => left.cmp(right), // Canonical ISO civil time in a declared timezone.
         ValueKind::Text => left.to_lowercase().cmp(&right.to_lowercase()),
     };
     if descending { order.reverse() } else { order }
+}
+
+/// Parse plain decimal text without a floating-point or i64 narrowing step.
+pub fn decimal_scaled(text: &str, scale: u8) -> Result<Option<i128>, &'static str> {
+    if scale > 8 {
+        return Err("Decimal scale exceeds eight digits");
+    }
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(None);
+    }
+    if text.len() > 50 {
+        return Err("Decimal is outside the supported range");
+    }
+    let negative = text.starts_with('-');
+    let unsigned = text.strip_prefix(['-', '+']).unwrap_or(text);
+    let (whole, fraction) = unsigned.split_once('.').unwrap_or((unsigned, ""));
+    if whole.is_empty()
+        || (unsigned.contains('.') && fraction.is_empty())
+        || !whole.bytes().all(|c| c.is_ascii_digit())
+        || !fraction.bytes().all(|c| c.is_ascii_digit())
+        || fraction.len() > usize::from(scale)
+    {
+        return Err("Invalid plain decimal");
+    }
+    let digits = format!(
+        "{whole}{fraction}{}",
+        "0".repeat(usize::from(scale) - fraction.len())
+    );
+    let absolute = digits.parse::<u128>().map_err(|_| "Decimal overflow")?;
+    let value = if negative && absolute == i128::MAX as u128 + 1 {
+        i128::MIN
+    } else {
+        let value = i128::try_from(absolute).map_err(|_| "Decimal overflow")?;
+        if negative { -value } else { value }
+    };
+    Ok(Some(value))
+}
+
+/// Format a scaled integer without a power-of-ten overflow or float conversion.
+pub fn decimal_text(value: i128, scale: u8) -> String {
+    let mut digits = value.unsigned_abs().to_string();
+    let scale = usize::from(scale);
+    if scale != 0 {
+        if digits.len() <= scale {
+            digits.insert_str(0, &"0".repeat(scale + 1 - digits.len()));
+        }
+        digits.insert(digits.len() - scale, '.');
+        while digits.ends_with('0') {
+            digits.pop();
+        }
+        if digits.ends_with('.') {
+            digits.pop();
+        }
+    }
+    if value < 0 {
+        digits.insert(0, '-');
+    }
+    digits
 }
 
 /// Stable bottom-up merge sort. Each advance emits at most `budget` indices.
@@ -116,6 +185,36 @@ impl SortJob {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decimal_values_sort_and_export_without_losing_precision() {
+        let kind = ValueKind::Decimal { scale: 6 };
+        assert_eq!(
+            compare_values("10.01", "2.999999", kind, false),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_values("-0.000002", "-0.000001", kind, false),
+            Ordering::Less
+        );
+        assert_eq!(spreadsheet_value("-0.000001", kind), "-0.000001");
+        assert_eq!(spreadsheet_value("=1+2", kind), "'=1+2");
+        assert_eq!(
+            decimal_scaled("18446744073709.551614", 6),
+            Ok(Some(18_446_744_073_709_551_614))
+        );
+        assert_eq!(
+            decimal_text(18_446_744_073_709_551_614, 6),
+            "18446744073709.551614"
+        );
+        assert_eq!(
+            decimal_scaled(&decimal_text(i128::MIN, 8), 8),
+            Ok(Some(i128::MIN))
+        );
+        for invalid in ["1e2", "0.0000001", "NaN", "1.", ".1", "--1"] {
+            assert!(decimal_scaled(invalid, 6).is_err(), "{invalid}");
+        }
+    }
     #[test]
     fn cooperative_sort_is_stable_and_numeric_and_keeps_empty_last() {
         let values = ["10", "2", "2", "", "-1"];

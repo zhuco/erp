@@ -1,0 +1,2 @@
+-- Document history already stores draft, submit, revise, void, and reverse.
+-- A later reverse does not delete the original action. History does not post stock or payable.

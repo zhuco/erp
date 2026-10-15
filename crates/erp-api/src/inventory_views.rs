@@ -14,6 +14,8 @@ pub(crate) fn inventory_record_response(record: InventoryRecord) -> InventoryRec
         in_transit: record.in_transit,
         available,
         updated_at: record.updated_at,
+        quantities: Some(record.quantities),
+        quantity_state: "precise",
     }
 }
 
@@ -31,6 +33,7 @@ pub(crate) fn inventory_summary_response(
         in_transit: record.in_transit,
         available,
         updated_at: record.updated_at,
+        quantities: record.quantities,
     }
 }
 
@@ -47,7 +50,10 @@ pub(crate) fn inventory_cost_response(record: InventoryCostRecord) -> InventoryC
         available,
         unit_cost_cent: record.unit_cost_cent,
         total_cost_cent: record.total_cost_cent,
+        estimated_value: record.estimated_value,
+        valuation_source: "sku_master_estimate",
         updated_at: record.updated_at,
+        quantities: record.quantities,
     }
 }
 
@@ -65,6 +71,7 @@ pub(crate) fn inventory_ledger_response(record: InventoryLedgerRecord) -> Invent
         ref_type: record.ref_type,
         ref_id: record.ref_id,
         occurred_at: record.occurred_at,
+        quantities: record.quantities,
     }
 }
 
@@ -81,6 +88,8 @@ pub(crate) fn inventory_balance_response(balance: InventoryBalance) -> Inventory
         in_transit: balance.in_transit,
         available: balance.available(),
         updated_at: balance.updated_at,
+        quantities: Some(balance.quantities),
+        quantity_state: "precise",
     }
 }
 
@@ -92,6 +101,7 @@ pub(crate) fn inventory_atp_allocation_response(
         batch_no: allocation.batch_no,
         expire_at: allocation.expire_at,
         allocated_qty: allocation.allocated_qty,
+        quantity: allocation.quantity,
     }
 }
 
@@ -106,6 +116,7 @@ pub(crate) fn inventory_atp_response(quote: AtpQuote) -> InventoryAtpResponse {
         request_qty: quote.request_qty,
         atp_qty: quote.atp_qty,
         shortage_qty: quote.shortage_qty,
+        quantities: quote.quantities,
         allocations: quote
             .allocations
             .into_iter()
@@ -497,6 +508,155 @@ pub(crate) fn stock_sync_job_response(job: StockSyncJob) -> StockSyncJobResponse
 }
 
 pub(crate) fn inventory_error_response(err: anyhow::Error) -> (StatusCode, Json<ErrorResponse>) {
+    if let Some(batch) =
+        err.downcast_ref::<erp_repo::inventory_batch_effects::InventoryBatchError>()
+    {
+        use erp_repo::inventory_batch_effects::InventoryBatchError;
+        return match batch {
+            InventoryBatchError::NotFound => error_response(
+                StatusCode::NOT_FOUND,
+                "inventory_batch_not_found",
+                "batch not found",
+            ),
+            InventoryBatchError::IdentityRequired => error_response(
+                StatusCode::CONFLICT,
+                "inventory_batch_identity_required",
+                "an incoming batch-managed SKU requires a batch UUID",
+            ),
+            InventoryBatchError::Unavailable => error_response(
+                StatusCode::CONFLICT,
+                "inventory_batch_unavailable",
+                "batch is expired or has insufficient free exact stock",
+            ),
+        };
+    }
+    if let Some(cost) = err.downcast_ref::<erp_repo::fulfillment::FulfillmentCostError>() {
+        use erp_repo::fulfillment::FulfillmentCostError;
+        return match cost {
+            FulfillmentCostError::Unavailable => error_response(
+                StatusCode::CONFLICT,
+                "fulfillment_cost_unavailable",
+                "shipment SKU cost must be known before shipping",
+            ),
+            FulfillmentCostError::Invalid => error_response(
+                StatusCode::CONFLICT,
+                "fulfillment_cost_invalid",
+                "shipment SKU cost must not be negative",
+            ),
+            FulfillmentCostError::Overflow => error_response(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "fulfillment_cost_overflow",
+                "shipment total cost exceeds the supported range",
+            ),
+            FulfillmentCostError::Conflict => error_response(
+                StatusCode::CONFLICT,
+                "fulfillment_cost_conflict",
+                "shipment already has incompatible cost facts",
+            ),
+        };
+    }
+    if err
+        .downcast_ref::<erp_repo::inventory::InventoryBatchLimit>()
+        .is_some()
+    {
+        return error_response(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "inventory_batch_limit",
+            "interactive batch consumption supports at most 1000 batches per warehouse and SKU",
+        );
+    }
+    if let Some(access) = err.downcast_ref::<erp_repo::fulfillment::FulfillmentAccessError>() {
+        return match access {
+            erp_repo::fulfillment::FulfillmentAccessError::Forbidden => error_response(
+                StatusCode::FORBIDDEN,
+                "fulfillment_access_denied",
+                "current OMS actor or warehouse access denied",
+            ),
+            erp_repo::fulfillment::FulfillmentAccessError::ScopeLimit => error_response(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "fulfillment_scope_limit",
+                "OMS warehouse scope exceeds 10000 grants",
+            ),
+            erp_repo::fulfillment::FulfillmentAccessError::RolePermissionDenied => error_response(
+                StatusCode::FORBIDDEN,
+                "fulfillment_role_denied",
+                "current role does not hold OMS order, shipping, and inventory write",
+            ),
+            erp_repo::fulfillment::FulfillmentAccessError::SessionInactive => error_response(
+                StatusCode::UNAUTHORIZED,
+                "fulfillment_session_inactive",
+                "session is not active for this OMS command",
+            ),
+            erp_repo::fulfillment::FulfillmentAccessError::CredentialsStale => error_response(
+                StatusCode::UNAUTHORIZED,
+                "fulfillment_credentials_stale",
+                "session credentials are stale for this OMS command",
+            ),
+        };
+    }
+    if let Some(read) = err.downcast_ref::<erp_repo::inventory_reads::InventoryReadError>() {
+        return match read {
+            erp_repo::inventory_reads::InventoryReadError::ReconciliationRequired(_) => {
+                error_response(
+                    StatusCode::CONFLICT,
+                    "inventory_quantity_reconciliation_required",
+                    "inventory history requires reconciliation",
+                )
+            }
+            erp_repo::inventory_reads::InventoryReadError::ValueOverflow => error_response(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "inventory_read_value_overflow",
+                "inventory read exceeds the supported range",
+            ),
+        };
+    }
+    if err
+        .downcast_ref::<erp_repo::atp_inventory::AtpQuoteError>()
+        .is_some()
+    {
+        return error_response(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "inventory_atp_batch_limit",
+            "interactive ATP supports at most 1000 batches per warehouse and SKU",
+        );
+    }
+    if let Some(precise) =
+        err.downcast_ref::<erp_repo::inventory_precision::InventoryPrecisionError>()
+    {
+        use erp_repo::inventory_precision::InventoryPrecisionError;
+        return match precise {
+            InventoryPrecisionError::InsufficientAvailable { .. } => error_response(
+                StatusCode::CONFLICT,
+                "inventory_insufficient",
+                "insufficient exact available inventory",
+            ),
+            InventoryPrecisionError::InvalidChange(_) => error_response(
+                StatusCode::CONFLICT,
+                "inventory_quantity_conflict",
+                "inventory change exceeds the current quantity",
+            ),
+            InventoryPrecisionError::ReconciliationRequired(_) => error_response(
+                StatusCode::CONFLICT,
+                "inventory_reconciliation_required",
+                "inventory history requires reconciliation",
+            ),
+            InventoryPrecisionError::OutsideEnterprise => error_response(
+                StatusCode::FORBIDDEN,
+                "inventory_scope_denied",
+                "inventory warehouse or SKU is outside the enterprise",
+            ),
+        };
+    }
+    if err
+        .downcast_ref::<erp_domain::quantity::QuantityError>()
+        .is_some()
+    {
+        return error_response(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "inventory_quantity_invalid",
+            "inventory quantity is outside the supported precision or range",
+        );
+    }
     if let Some(inv) = err.downcast_ref::<InventoryError>() {
         return match inv {
             InventoryError::InsufficientAvailable { .. } => error_response(
@@ -520,9 +680,19 @@ pub(crate) fn inventory_error_response(err: anyhow::Error) -> (StatusCode, Json<
                 "reservation not active",
             ),
             InventoryError::ReservationMismatch => error_response(
-                StatusCode::BAD_REQUEST,
+                StatusCode::CONFLICT,
                 "reservation_mismatch",
                 "reservation mismatch",
+            ),
+            InventoryError::ReservationSourceUnverified => error_response(
+                StatusCode::CONFLICT,
+                "reservation_source_reconciliation_required",
+                "reservation has no verified original root/component snapshot",
+            ),
+            InventoryError::ReservationComponentsLimit => error_response(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "reservation_components_limit",
+                "reservation must have 1 to 1000 valid components",
             ),
         };
     }

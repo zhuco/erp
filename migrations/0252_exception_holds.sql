@@ -1,0 +1,2 @@
+-- 0252: an exception hold stays open until it is lifted.
+-- Close refuses a hold that is still open. This comment does not apply the table.

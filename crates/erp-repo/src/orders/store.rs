@@ -2896,24 +2896,24 @@ fn apply_order_filters(
         qb.push(" and o.shop_id = ");
         qb.push_bind(uuid::Uuid::from(shop_id));
     }
-    if let Some(shop_ids_filter) = &filters.shop_ids_filter {
-        if !shop_ids_filter.is_empty() {
-            let ids: Vec<uuid::Uuid> = shop_ids_filter
-                .iter()
-                .map(|id| uuid::Uuid::from(*id))
-                .collect();
-            qb.push(" and o.shop_id = any(");
-            qb.push_bind(ids);
-            qb.push(")");
-        }
+    if let Some(shop_ids_filter) = &filters.shop_ids_filter
+        && !shop_ids_filter.is_empty()
+    {
+        let ids: Vec<uuid::Uuid> = shop_ids_filter
+            .iter()
+            .map(|id| uuid::Uuid::from(*id))
+            .collect();
+        qb.push(" and o.shop_id = any(");
+        qb.push_bind(ids);
+        qb.push(")");
     }
-    if let Some(shop_ids) = &filters.shop_ids {
-        if !shop_ids.is_empty() {
-            let ids: Vec<uuid::Uuid> = shop_ids.iter().map(|id| uuid::Uuid::from(*id)).collect();
-            qb.push(" and o.shop_id = any(");
-            qb.push_bind(ids);
-            qb.push(")");
-        }
+    if let Some(shop_ids) = &filters.shop_ids
+        && !shop_ids.is_empty()
+    {
+        let ids: Vec<uuid::Uuid> = shop_ids.iter().map(|id| uuid::Uuid::from(*id)).collect();
+        qb.push(" and o.shop_id = any(");
+        qb.push_bind(ids);
+        qb.push(")");
     }
     if let Some(oms_statuses) = &filters.oms_statuses {
         if !oms_statuses.is_empty() {
@@ -3138,26 +3138,6 @@ fn apply_order_filters(
     }
 }
 
-#[cfg(test)]
-mod order_filter_tests {
-    use super::*;
-
-    #[test]
-    fn total_amount_range_uses_inclusive_sql_predicates() {
-        let filters = OmsOrderListFilters {
-            total_amount_min_cent: Some(500),
-            total_amount_max_cent: Some(1_500),
-            ..Default::default()
-        };
-        let mut query = QueryBuilder::<Postgres>::new("select o.order_id from orders o");
-        apply_order_filters(&mut query, TenantId(uuid::Uuid::from_u128(1)), &filters);
-        let sql = query.sql();
-        assert!(sql.contains("o.total_amount_cent >="));
-        assert!(sql.contains("o.total_amount_cent <="));
-        assert!(sql.find("o.total_amount_cent >=").unwrap() < sql.find("o.total_amount_cent <=").unwrap());
-    }
-}
-
 fn non_empty_trimmed(value: Option<&str>) -> Option<String> {
     value
         .map(str::trim)
@@ -3255,4 +3235,27 @@ async fn resolve_customer_id(
 fn order_item_uuid(order_id: uuid::Uuid, line_id: &str) -> uuid::Uuid {
     uuid::Uuid::parse_str(line_id)
         .unwrap_or_else(|_| uuid::Uuid::new_v5(&order_id, line_id.as_bytes()))
+}
+
+#[cfg(test)]
+mod order_filter_tests {
+    use super::*;
+
+    #[test]
+    fn total_amount_range_uses_inclusive_sql_predicates() {
+        let filters = OmsOrderListFilters {
+            total_amount_min_cent: Some(500),
+            total_amount_max_cent: Some(1_500),
+            ..Default::default()
+        };
+        let mut query = QueryBuilder::<Postgres>::new("select o.order_id from orders o");
+        apply_order_filters(&mut query, TenantId(uuid::Uuid::from_u128(1)), &filters);
+        let sql = query.sql();
+        assert!(sql.contains("o.total_amount_cent >="));
+        assert!(sql.contains("o.total_amount_cent <="));
+        assert!(
+            sql.find("o.total_amount_cent >=").unwrap()
+                < sql.find("o.total_amount_cent <=").unwrap()
+        );
+    }
 }

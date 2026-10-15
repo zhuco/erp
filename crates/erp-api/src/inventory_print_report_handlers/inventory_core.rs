@@ -1,5 +1,69 @@
 use super::*;
 
+fn parse_inventory_safety_setting(value: Option<&Value>) -> Result<i128, &'static str> {
+    let Some(value) = value else {
+        return Ok(0);
+    };
+    let value = value
+        .as_object()
+        .and_then(|object| object.get("value"))
+        .unwrap_or(value);
+    let invalid = "Invalid inventory.safety_stock quantity";
+    let quantity = if let Some(text) = value.as_str() {
+        erp_grid_core::decimal_scaled(text, 6)
+            .map_err(|_| invalid)?
+            .ok_or(invalid)?
+    } else if let Some(whole) = value.as_i64() {
+        i128::from(whole).checked_mul(1_000_000).ok_or(invalid)?
+    } else if let Some(whole) = value.as_u64() {
+        i128::from(whole).checked_mul(1_000_000).ok_or(invalid)?
+    } else {
+        return Err(invalid);
+    };
+    if quantity < 0 {
+        return Err(invalid);
+    }
+    Ok(quantity)
+}
+
+fn parse_inventory_available_range(
+    min: Option<&str>,
+    max: Option<&str>,
+) -> Result<(Option<i128>, Option<i128>), &'static str> {
+    let parse = |value: Option<&str>| {
+        value
+            .filter(|v| !v.trim().is_empty())
+            .map(|value| {
+                erp_grid_core::decimal_scaled(value, 6).map_err(|_| "bad available quantity range")
+            })
+            .transpose()
+            .map(Option::flatten)
+    };
+    let min = parse(min)?;
+    let max = parse(max)?;
+    if min.zip(max).is_some_and(|(min, max)| min > max) {
+        return Err("available minimum exceeds maximum");
+    }
+    Ok((min, max))
+}
+
+fn inventory_read_error(error: anyhow::Error) -> Response {
+    use erp_repo::inventory_reads::InventoryReadError;
+    match error.downcast_ref::<InventoryReadError>() {
+        Some(InventoryReadError::ReconciliationRequired(count)) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "code": "inventory_quantity_reconciliation_required", "unreconciled_count": count })),
+        ).into_response(),
+        Some(InventoryReadError::ValueOverflow) => (
+            StatusCode::UNPROCESSABLE_ENTITY, Json(serde_json::json!({ "code": "inventory_read_value_overflow" })),
+        ).into_response(),
+        None => {
+            tracing::error!(%error, "inventory read storage failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Inventory read storage failed").into_response()
+        }
+    }
+}
+
 pub(crate) async fn list_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
@@ -31,22 +95,28 @@ pub(crate) async fn list_inventory(
         },
         None => None,
     };
+    let (available_min, available_max) = match parse_inventory_available_range(
+        query.available_min.as_deref(),
+        query.available_max.as_deref(),
+    ) {
+        Ok(range) => range,
+        Err(message) => return bad_request(message).into_response(),
+    };
     let tag = query.tag.and_then(non_empty);
     let on_hand_negative = query.on_hand_negative.unwrap_or(false);
     let available_below = if query.available_below_safety.unwrap_or(false) {
         match fetch_tenant_setting_value(state.db.pool(), tenant_id, "inventory.safety_stock").await
         {
-            Ok(value) => value.as_ref().and_then(parse_numeric_setting).or(Some(0)),
+            Ok(value) => match parse_inventory_safety_setting(value.as_ref()) {
+                Ok(quantity) => Some(quantity),
+                Err(message) => return (StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(serde_json::json!({"code":"inventory_safety_stock_invalid","message":message}))).into_response(),
+            },
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
         }
     } else {
         None
     };
-    if let Some(warehouse_id) = warehouse_id {
-        if let Err(resp) = ensure_warehouse_access(&ctx, warehouse_id) {
-            return resp.into_response();
-        }
-    }
     if let Some(warehouse_id) = warehouse_id {
         if let Err(resp) = ensure_warehouse_access(&ctx, warehouse_id) {
             return resp.into_response();
@@ -60,7 +130,10 @@ pub(crate) async fn list_inventory(
         None => None,
     };
     let offset = query.offset.unwrap_or(0).max(0);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let limit = query
+        .limit
+        .unwrap_or(50)
+        .clamp(1, erp_repo::inventory_reads::MAX_READ_PAGE);
 
     let result = match state
         .inventory_repo
@@ -74,7 +147,9 @@ pub(crate) async fn list_inventory(
                 barcode: query.barcode,
                 tag,
                 on_hand_negative,
-                available_below,
+                available_below_micros: available_below,
+                available_min,
+                available_max,
                 cursor,
                 offset: Some(offset),
                 limit,
@@ -83,7 +158,7 @@ pub(crate) async fn list_inventory(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_read_error(e),
     };
 
     let response = ListResponse {
@@ -126,14 +201,22 @@ pub(crate) async fn get_inventory_atp(
         Err(_) => return bad_request("bad sku_id").into_response(),
     };
 
-    let request_qty = query.request_qty.unwrap_or(0).max(0);
+    let request_qty = match erp_domain::quantity::parse_qty(
+        query.request_qty.as_deref().unwrap_or("0"),
+    ) {
+        Ok(quantity) if !quantity.is_negative() => quantity,
+        _ => return bad_request(
+            "request_qty must be a nonnegative decimal quantity with at most six fractional digits",
+        )
+        .into_response(),
+    };
     let repo = AtpInventoryRepo::new(state.db.pool());
     let quote = match repo
-        .quote_fefo(tenant_id, warehouse_id, sku_id, request_qty)
+        .quote_fefo_exact(tenant_id, warehouse_id, sku_id, request_qty)
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_error_response(e).into_response(),
     };
 
     (StatusCode::OK, Json(inventory_atp_response(quote))).into_response()
@@ -227,12 +310,23 @@ pub(crate) async fn list_inventory_summary(
         }
     }
 
+    let (available_min, available_max) = match parse_inventory_available_range(
+        query.available_min.as_deref(),
+        query.available_max.as_deref(),
+    ) {
+        Ok(range) => range,
+        Err(message) => return bad_request(message).into_response(),
+    };
     let tag = query.tag.and_then(non_empty);
     let on_hand_negative = query.on_hand_negative.unwrap_or(false);
     let available_below = if query.available_below_safety.unwrap_or(false) {
         match fetch_tenant_setting_value(state.db.pool(), tenant_id, "inventory.safety_stock").await
         {
-            Ok(value) => value.as_ref().and_then(parse_numeric_setting).or(Some(0)),
+            Ok(value) => match parse_inventory_safety_setting(value.as_ref()) {
+                Ok(quantity) => Some(quantity),
+                Err(message) => return (StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(serde_json::json!({"code":"inventory_safety_stock_invalid","message":message}))).into_response(),
+            },
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
         }
     } else {
@@ -240,7 +334,10 @@ pub(crate) async fn list_inventory_summary(
     };
 
     let offset = query.offset.unwrap_or(0).max(0);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let limit = query
+        .limit
+        .unwrap_or(50)
+        .clamp(1, erp_repo::inventory_reads::MAX_READ_PAGE);
 
     let repo = InventoryRepoCore::new(state.db.pool());
     let result = match repo
@@ -254,7 +351,9 @@ pub(crate) async fn list_inventory_summary(
                 barcode: query.barcode.and_then(non_empty),
                 tag,
                 on_hand_negative,
-                available_below,
+                available_below_micros: available_below,
+                available_min,
+                available_max,
                 offset,
                 limit,
             },
@@ -262,7 +361,7 @@ pub(crate) async fn list_inventory_summary(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_read_error(e),
     };
 
     let response = InventorySummaryListResponse {
@@ -322,12 +421,23 @@ pub(crate) async fn list_inventory_costs(
         }
     }
 
+    let (available_min, available_max) = match parse_inventory_available_range(
+        query.available_min.as_deref(),
+        query.available_max.as_deref(),
+    ) {
+        Ok(range) => range,
+        Err(message) => return bad_request(message).into_response(),
+    };
     let tag = query.tag.and_then(non_empty);
     let on_hand_negative = query.on_hand_negative.unwrap_or(false);
     let available_below = if query.available_below_safety.unwrap_or(false) {
         match fetch_tenant_setting_value(state.db.pool(), tenant_id, "inventory.safety_stock").await
         {
-            Ok(value) => value.as_ref().and_then(parse_numeric_setting).or(Some(0)),
+            Ok(value) => match parse_inventory_safety_setting(value.as_ref()) {
+                Ok(quantity) => Some(quantity),
+                Err(message) => return (StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(serde_json::json!({"code":"inventory_safety_stock_invalid","message":message}))).into_response(),
+            },
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
         }
     } else {
@@ -335,7 +445,10 @@ pub(crate) async fn list_inventory_costs(
     };
 
     let offset = query.offset.unwrap_or(0).max(0);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let limit = query
+        .limit
+        .unwrap_or(50)
+        .clamp(1, erp_repo::inventory_reads::MAX_READ_PAGE);
 
     let repo = InventoryRepoCore::new(state.db.pool());
     let result = match repo
@@ -349,7 +462,9 @@ pub(crate) async fn list_inventory_costs(
                 barcode: query.barcode.and_then(non_empty),
                 tag,
                 on_hand_negative,
-                available_below,
+                available_below_micros: available_below,
+                available_min,
+                available_max,
                 offset,
                 limit,
             },
@@ -357,7 +472,7 @@ pub(crate) async fn list_inventory_costs(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_read_error(e),
     };
 
     let response = InventoryCostListResponse {
@@ -402,6 +517,11 @@ pub(crate) async fn list_inventory_ledgers(
         },
         None => None,
     };
+    if let Some(warehouse_id) = warehouse_id
+        && let Err(response) = ensure_warehouse_access(&ctx, warehouse_id)
+    {
+        return response.into_response();
+    }
     let occurred_from = match query.occurred_from.as_deref() {
         Some(raw) => match DateTime::parse_from_rfc3339(raw) {
             Ok(v) => Some(v.with_timezone(&Utc)),
@@ -417,7 +537,10 @@ pub(crate) async fn list_inventory_ledgers(
         None => None,
     };
     let offset = query.offset.unwrap_or(0).max(0);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
+    let limit = query
+        .limit
+        .unwrap_or(50)
+        .clamp(1, erp_repo::inventory_reads::MAX_READ_PAGE);
 
     let repo = InventoryRepoCore::new(state.db.pool());
     let result = match repo
@@ -437,7 +560,7 @@ pub(crate) async fn list_inventory_ledgers(
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => return inventory_read_error(e),
     };
 
     let response = InventoryLedgerListResponse {
@@ -623,8 +746,15 @@ pub(crate) async fn apply_inventory_movement(
         return Err(feature_flag_forbidden(FeatureFlagKey::InventoryWrite).into_response());
     }
 
+    // Commit the movement and its required operation/audit facts together.
+    // Returning an error before commit drops and rolls back this transaction.
+    let mut tx = match state.db.pool().begin().await {
+        Ok(tx) => tx,
+        Err(error) => return Err(inventory_error_response(error.into()).into_response()),
+    };
     let balance = match InventoryRepoCore::new(state.db.pool())
-        .apply_adjustment(
+        .apply_adjustment_with_tx(
+            &mut tx,
             InventoryAdjustment {
                 tenant_id,
                 warehouse_id,
@@ -645,14 +775,16 @@ pub(crate) async fn apply_inventory_movement(
     let log_metadata = serde_json::json!({
         "warehouse_id": warehouse_id,
         "sku_id": sku_id,
+        "batch_id": batch_id,
         "qty_delta": qty_delta,
         "reason": reason,
         "reference_id": reference_id,
         "reason_type": reason_type,
+        "quantities": &balance.quantities,
     });
-    let logs_repo = OperationLogsRepo::new(state.db.pool());
-    if let Err(e) = logs_repo
-        .insert(OperationLogCreate {
+    if let Err(e) = OperationLogsRepo::insert_with_tx(
+        &mut *tx,
+        OperationLogCreate {
             tenant_id,
             actor_type: "USER".to_string(),
             actor_user_id: Some(ctx.user_id),
@@ -660,15 +792,16 @@ pub(crate) async fn apply_inventory_movement(
             ref_type: Some("INVENTORY".to_string()),
             ref_id: Some(sku_id.to_string()),
             metadata: Some(log_metadata.clone()),
-        })
-        .await
+        },
+    )
+    .await
     {
         return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
     }
 
-    let audit_repo = AuditLogsRepo::new(state.db.pool());
-    if let Err(e) = audit_repo
-        .insert(AuditLogCreate {
+    if let Err(e) = AuditLogsRepo::insert_with_tx(
+        &mut *tx,
+        AuditLogCreate {
             tenant_id,
             user_id: Some(ctx.user_id),
             action: format!("INVENTORY.{reason_type}"),
@@ -678,18 +811,23 @@ pub(crate) async fn apply_inventory_movement(
             after_json: Some(log_metadata),
             ip: None,
             ua: None,
-        })
-        .await
+        },
+    )
+    .await
     {
         return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response());
     }
 
+    if let Err(error) = tx.commit().await {
+        return Err(inventory_error_response(error.into()).into_response());
+    }
     Ok(balance)
 }
 
 pub(crate) async fn adjust_inventory(
     State(state): State<AppState>,
     Path(tenant_id): Path<String>,
+    headers: HeaderMap,
     Extension(ctx): Extension<AuthContext>,
     Json(req): Json<InventoryAdjustmentRequest>,
 ) -> impl IntoResponse {
@@ -707,11 +845,37 @@ pub(crate) async fn adjust_inventory(
     };
     let batch_id = match req.batch_id.as_deref() {
         Some(raw) => match uuid::Uuid::parse_str(raw) {
-            Ok(v) => Some(v),
-            Err(_) => return bad_request("bad batch_id").into_response(),
+            Ok(v) if !v.is_nil() => Some(v),
+            _ => return bad_request("bad batch_id").into_response(),
         },
         None => None,
     };
+    let request_id = match shared_request_id(&headers, req.request_id.as_deref()) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    if let Some(request_id) = request_id {
+        return execute_inventory_command(
+            &state,
+            &ctx,
+            erp_repo::inventory_movement_commands::InventoryMovementCommandInput {
+                tenant_id,
+                actor_user_id: ctx.user_id,
+                session_id: ctx.session_id,
+                request_id,
+                kind: erp_repo::inventory_movement_commands::InventoryMovementKind::Adjustment,
+                warehouse_id,
+                sku_id,
+                batch_id,
+                quantity_delta: req.quantity_delta,
+                reason: req.reason.clone(),
+                reference_id: req.reference_id.clone(),
+                location: None,
+                reservation_source: None,
+            },
+        )
+        .await;
+    }
     let balance = match apply_inventory_movement(
         &state,
         &ctx,

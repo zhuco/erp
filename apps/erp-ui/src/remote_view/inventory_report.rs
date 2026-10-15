@@ -12,12 +12,18 @@ use erp_ui_egui::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Measure {
     #[default]
     Quantity,
     Cost,
+}
+
+impl Measure {
+    fn scale(self) -> u8 {
+        if self == Self::Cost { 8 } else { 6 }
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -31,6 +37,10 @@ struct Request<'a> {
 
 #[derive(serde::Deserialize)]
 struct WireResponse {
+    schema: u32,
+    amount_scale: u8,
+    measure: Measure,
+    valuation_source: Option<String>,
     buckets: Vec<WireBucket>,
     total: WireSummary,
     as_of: String,
@@ -64,6 +74,30 @@ struct Job {
     task: HttpTask,
 }
 
+struct ReceiptRow {
+    request_id: String,
+    warehouse_id: String,
+    sku_id: String,
+    qty: String,
+    on_hand: String,
+    replay: bool,
+    effect_id: String,
+}
+
+struct InboundDraft {
+    warehouse_id: String,
+    sku_id: String,
+    qty: String,
+    reason: String,
+    request_id: String,
+    task: Option<HttpTask>,
+    pending_row: Option<ReceiptRow>,
+    rows: Vec<ReceiptRow>,
+    ids: BTreeMap<String, RowId>,
+    columns: Vec<Column>,
+    state: GridState,
+}
+
 pub(super) struct InventoryReport {
     open: bool,
     warehouse: String,
@@ -89,6 +123,7 @@ pub(super) struct InventoryReport {
     error: Option<String>,
     delivery: Option<crate::export::Delivery>,
     delivery_feedback: Option<String>,
+    inbound: InboundDraft,
 }
 
 impl Default for InventoryReport {
@@ -123,6 +158,7 @@ impl Default for InventoryReport {
             error: None,
             delivery: None,
             delivery_feedback: None,
+            inbound: InboundDraft::default(),
         }
     }
 }
@@ -185,6 +221,7 @@ impl InventoryReport {
             }
         });
         self.poll();
+        self.poll_inbound(session);
         let now = ctx.input(|input| input.time);
         if self.deadline.is_some_and(|deadline| deadline <= now) && !self.composing {
             self.deadline = None;
@@ -200,7 +237,7 @@ impl InventoryReport {
             .id(egui::Id::new("remote-inventory-report"))
             .open(&mut open)
             .default_size(egui::vec2(820.0, 620.0))
-            .show(ctx, |ui| self.contents(ui));
+            .show(ctx, |ui| self.contents(ui, session));
         self.open = open;
         if !open {
             self.job = None;
@@ -208,7 +245,7 @@ impl InventoryReport {
         }
     }
 
-    fn contents(&mut self, ui: &mut egui::Ui) {
+    fn contents(&mut self, ui: &mut egui::Ui, session: &Session) {
         let before = (
             self.warehouse.clone(),
             self.search.clone(),
@@ -296,13 +333,14 @@ impl InventoryReport {
         {
             self.delivery_feedback = Some(error);
         }
+        self.inbound_editor(ui, session);
         let Some(report) = &self.report else { return };
         if let Err(error) = report_chart::show(
             ui,
             ui.id().with("inventory-report-chart"),
             self.chart,
             &self.chart_points,
-            if self.measure == Measure::Cost { 2 } else { 0 },
+            u32::from(self.measure.scale()),
         ) {
             ui.label(error);
         }
@@ -313,7 +351,7 @@ impl InventoryReport {
                 format_amount(report.total.sum, self.measure)
             ));
             if let Some(as_of) = &self.as_of {
-                ui.label(format!("截至 {as_of}"));
+                ui.label(format!("快照 {as_of}"));
             }
         });
         let output = DataGrid {
@@ -361,7 +399,7 @@ impl InventoryReport {
         };
         let search = self.search.trim();
         let body = serde_json::to_vec(&Request {
-            schema: 1,
+            schema: 2,
             warehouse_id: warehouse,
             search: (!search.is_empty()).then_some(search),
             by_category: self.by_category,
@@ -379,6 +417,7 @@ impl InventoryReport {
                     query: vec![],
                     json: Some(body),
                     bearer: Some(session.token.clone()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -399,7 +438,7 @@ impl InventoryReport {
             return;
         }
         match result {
-            Ok(bytes) => match decode(&bytes, self.by_category) {
+            Ok(bytes) => match decode(&bytes, self.by_category, self.measure) {
                 Ok(decoded) => {
                     self.labels = decoded.labels;
                     self.as_of = Some(decoded.as_of);
@@ -432,7 +471,7 @@ impl InventoryReport {
             Err(HttpError::Status(401)) => self.error = Some("登录已失效，请重新登录".into()),
             Err(HttpError::Status(403)) => self.error = Some("没有库存报表查看权限".into()),
             Err(HttpError::Status(422)) if self.measure == Measure::Cost => {
-                self.error = Some("库存成本缺失，无法生成成本报表".into())
+                self.error = Some("参考价值缺失，无法生成成本报表".into())
             }
             Err(error) => self.error = Some(error.to_string()),
         }
@@ -461,7 +500,7 @@ impl InventoryReport {
             let sheet = crate::export::WorkbookSheet {
                 name: match self.measure {
                     Measure::Quantity => "库存数量",
-                    Measure::Cost => "库存成本(元)",
+                    Measure::Cost => "参考价值(元)",
                 }
                 .into(),
                 columns,
@@ -492,13 +531,13 @@ impl InventoryReport {
             .collect();
         let amount_name = match self.measure {
             Measure::Quantity => "库存数量",
-            Measure::Cost => "库存成本(元)",
+            Measure::Cost => "参考价值(元)",
         };
         for column in &mut columns {
             column.title = match column.id.0 {
                 0 => self.as_of.as_ref().map_or_else(
                     || column.title.clone(),
-                    |as_of| format!("{}（截至 {as_of}）", column.title),
+                    |as_of| format!("{}（快照 {as_of}）", column.title),
                 ),
                 2 => format!("{amount_name}合计"),
                 3 => format!("{amount_name}最小"),
@@ -647,10 +686,8 @@ impl InventoryReport {
 
     fn rebuild_columns(&mut self) {
         self.columns = columns();
-        let amount_kind = if self.measure == Measure::Cost {
-            ValueKind::Money
-        } else {
-            ValueKind::Integer
+        let amount_kind = ValueKind::Decimal {
+            scale: self.measure.scale(),
         };
         for column in self.columns.iter_mut().filter(|column| column.id.0 >= 2) {
             column.value_kind = amount_kind;
@@ -658,15 +695,310 @@ impl InventoryReport {
         if let Some(report) = &self.report {
             for (index, pivot) in report.pivot_keys.iter().enumerate() {
                 let mut column = Column::new(ColumnId(100 + index as u64), pivot, 115.0);
-                column.value_kind = if self.measure == Measure::Cost {
-                    ValueKind::Money
-                } else {
-                    ValueKind::Integer
-                };
+                column.value_kind = amount_kind;
                 self.columns.push(column);
             }
         }
     }
+}
+
+impl Default for InboundDraft {
+    fn default() -> Self {
+        Self {
+            warehouse_id: String::new(),
+            sku_id: String::new(),
+            qty: String::new(),
+            reason: String::new(),
+            request_id: String::new(),
+            task: None,
+            pending_row: None,
+            rows: Vec::new(),
+            ids: BTreeMap::new(),
+            columns: inbound_columns(),
+            state: GridState::default(),
+        }
+    }
+}
+
+impl InventoryReport {
+    fn inbound_editor(&mut self, ui: &mut egui::Ui, session: &Session) {
+        ui.separator();
+        ui.horizontal_wrapped(|ui| {
+            ui.label("仓库");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.inbound.warehouse_id)
+                    .desired_width(220.0)
+                    .char_limit(36),
+            );
+            ui.label("货品");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.inbound.sku_id)
+                    .desired_width(220.0)
+                    .char_limit(36),
+            );
+            ui.label("数量");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.inbound.qty)
+                    .desired_width(72.0)
+                    .char_limit(12),
+            )
+            .on_hover_text("整基础单位。1 仍表示一件，不是 0.001");
+            ui.label("原因");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.inbound.reason)
+                    .desired_width(120.0)
+                    .char_limit(80),
+            );
+        });
+        let busy = self.inbound.task.is_some();
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(!busy, egui::Button::new("入库").small())
+                .on_hover_text("同一命令身份重试不会再次增加库存")
+                .clicked()
+                && let Err(error) = self.start_inbound(session, ui.ctx(), false)
+            {
+                self.error = Some(error);
+            }
+            if ui
+                .add_enabled(
+                    !busy && !self.inbound.request_id.is_empty(),
+                    egui::Button::new("重试原命令").small(),
+                )
+                .on_hover_text("沿用上次命令身份再次提交")
+                .clicked()
+                && let Err(error) = self.start_inbound(session, ui.ctx(), true)
+            {
+                self.error = Some(error);
+            }
+            if busy {
+                ui.spinner();
+            }
+        });
+        if self.inbound.rows.is_empty() {
+            return;
+        }
+        let cells: Vec<(RowId, String, String, String, String)> = self
+            .inbound
+            .rows
+            .iter()
+            .map(|row| {
+                (
+                    self.inbound.ids[&row.request_id],
+                    row.request_id.clone(),
+                    row.on_hand.clone(),
+                    if row.replay {
+                        "原结果".to_owned()
+                    } else {
+                        "已入账".to_owned()
+                    },
+                    row.effect_id.clone(),
+                )
+            })
+            .collect();
+        let output = DataGrid {
+            id: ui.id().with("inventory-inbound-grid"),
+            columns: &mut self.inbound.columns,
+            rows: cells.len(),
+            state: &mut self.inbound.state,
+            row_id: Some(&|index| cells[index].0),
+        }
+        .show(ui, |index, column| match column.0 {
+            0 => cells[index].1.clone(),
+            1 => cells[index].2.clone(),
+            2 => cells[index].3.clone(),
+            _ => cells[index].4.clone(),
+        });
+        let _ = output;
+    }
+
+    fn start_inbound(
+        &mut self,
+        session: &Session,
+        ctx: &egui::Context,
+        reuse: bool,
+    ) -> Result<(), String> {
+        let warehouse_id = self.inbound.warehouse_id.trim();
+        let sku_id = self.inbound.sku_id.trim();
+        uuid::Uuid::parse_str(warehouse_id).map_err(|_| "仓库 UUID 无效".to_owned())?;
+        uuid::Uuid::parse_str(sku_id).map_err(|_| "货品 UUID 无效".to_owned())?;
+        let qty = self.inbound.qty.trim();
+        let parsed: i64 = qty.parse().map_err(|_| "数量必须是正整数".to_owned())?;
+        if parsed <= 0 {
+            return Err("数量必须是正整数".into());
+        }
+        if !reuse || self.inbound.request_id.trim().is_empty() {
+            self.inbound.request_id = uuid::Uuid::new_v4().to_string();
+        }
+        let warehouse_id = warehouse_id.to_owned();
+        let sku_id = sku_id.to_owned();
+        let qty_text = parsed.to_string();
+        let body = serde_json::json!({
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "quantity": parsed,
+            "reason": self.inbound.reason.trim(),
+            "request_id": self.inbound.request_id.trim(),
+        });
+        self.inbound.pending_row = Some(ReceiptRow {
+            request_id: self.inbound.request_id.trim().to_owned(),
+            warehouse_id,
+            sku_id,
+            qty: qty_text,
+            on_hand: String::new(),
+            replay: false,
+            effect_id: String::new(),
+        });
+        let bytes = serde_json::to_vec(&body).map_err(|_| "无法编码入库请求".to_owned())?;
+        let task = session
+            .client
+            .start(
+                HttpRequest {
+                    path: format!(
+                        "/v1/tenants/{}/inventory/inbounds",
+                        session.tenant.to_uuid()
+                    ),
+                    query: vec![],
+                    json: Some(bytes),
+                    bearer: Some(session.token.clone()),
+                    idempotency_key: Some(self.inbound.request_id.trim().to_owned()),
+                },
+                ctx,
+            )
+            .map_err(|error| error.to_string())?;
+        self.inbound.task = Some(task);
+        self.error = None;
+        Ok(())
+    }
+
+    fn poll_inbound(&mut self, session: &Session) {
+        let result = self.inbound.task.as_mut().and_then(HttpTask::poll);
+        let Some(result) = result else { return };
+        self.inbound.task = None;
+        match result {
+            Ok(bytes) => match decode_inbound(&bytes, self.inbound.pending_row.take()) {
+                Ok(row) => {
+                    let request_id = row.request_id.clone();
+                    if let Some(existing) = self
+                        .inbound
+                        .rows
+                        .iter_mut()
+                        .find(|item| item.request_id == request_id)
+                    {
+                        *existing = row;
+                    } else {
+                        self.inbound
+                            .ids
+                            .insert(request_id.clone(), RowId(uuid::Uuid::new_v4().as_u128()));
+                        self.inbound.rows.push(row);
+                    }
+                    self.error = None;
+                }
+                Err(error) => self.error = Some(error),
+            },
+            Err(HttpError::Status(401)) => self.error = Some("登录已失效，请重新登录".into()),
+            Err(HttpError::Status(403)) => self.error = Some("没有库存写入权限".into()),
+            Err(HttpError::Status(409)) => self.error = Some("同一命令身份的内容不一致".into()),
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        let _ = session;
+    }
+}
+
+#[cfg(test)]
+mod inbound_contract_tests {
+    use super::*;
+
+    #[test]
+    fn inbound_receipt_keeps_request_and_marks_replay() {
+        let pending = ReceiptRow {
+            request_id: "cmd-1".into(),
+            warehouse_id: "wh".into(),
+            sku_id: "sku".into(),
+            qty: "1".into(),
+            on_hand: String::new(),
+            replay: false,
+            effect_id: String::new(),
+        };
+        let bytes = br#"{"request_id":"cmd-1","status":"SUCCEEDED","replay":true,"effect_id":"ledger-1","record":{"warehouse_id":"wh","sku_id":"sku","on_hand":1,"reserved":0,"frozen":0,"in_transit":0,"available":1,"updated_at":"2026-10-01T00:00:00Z"}}"#;
+        let row = decode_inbound(bytes, Some(pending)).expect("receipt");
+        assert_eq!(row.request_id, "cmd-1");
+        assert!(row.replay);
+        assert_eq!(row.on_hand, "1");
+        assert_eq!(row.effect_id, "ledger-1");
+    }
+
+    #[test]
+    fn inbound_request_carries_the_same_command_identity() {
+        let request_id = "cmd-1";
+        let body = serde_json::json!({
+            "warehouse_id": "11111111-1111-1111-1111-111111111111",
+            "sku_id": "22222222-2222-2222-2222-222222222222",
+            "quantity": 1,
+            "reason": "sample",
+            "request_id": request_id,
+        });
+        let request = crate::http::HttpRequest {
+            path: "/v1/tenants/tenant/inventory/inbounds".into(),
+            query: vec![],
+            json: Some(serde_json::to_vec(&body).unwrap()),
+            bearer: Some("token".into()),
+            idempotency_key: Some(request_id.into()),
+        };
+        let parsed: serde_json::Value =
+            serde_json::from_slice(request.json.as_ref().unwrap()).unwrap();
+        assert_eq!(parsed["request_id"], request_id);
+        assert_eq!(request.idempotency_key.as_deref(), Some(request_id));
+        assert_eq!(parsed["quantity"], 1);
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct InboundWire {
+    request_id: String,
+    replay: bool,
+    effect_id: String,
+    record: InboundRecordWire,
+}
+
+#[derive(serde::Deserialize)]
+struct InboundRecordWire {
+    on_hand: i64,
+}
+
+fn decode_inbound(bytes: &[u8], pending: Option<ReceiptRow>) -> Result<ReceiptRow, String> {
+    let wire: InboundWire =
+        serde_json::from_slice(bytes).map_err(|_| "入库回执无法读取".to_owned())?;
+    let pending = pending.unwrap_or(ReceiptRow {
+        request_id: wire.request_id.clone(),
+        warehouse_id: String::new(),
+        sku_id: String::new(),
+        qty: String::new(),
+        on_hand: String::new(),
+        replay: false,
+        effect_id: String::new(),
+    });
+    Ok(ReceiptRow {
+        request_id: wire.request_id,
+        warehouse_id: pending.warehouse_id,
+        sku_id: pending.sku_id,
+        qty: pending.qty,
+        on_hand: wire.record.on_hand.to_string(),
+        replay: wire.replay,
+        effect_id: wire.effect_id,
+    })
+}
+
+fn inbound_columns() -> Vec<Column> {
+    [
+        (0, "命令", 220.0),
+        (1, "在手", 90.0),
+        (2, "回执", 90.0),
+        (3, "流水", 220.0),
+    ]
+    .into_iter()
+    .map(|(id, title, width)| Column::new(ColumnId(id), title, width))
+    .collect()
 }
 
 fn columns() -> Vec<Column> {
@@ -710,11 +1042,20 @@ fn parse_summary(wire: WireSummary) -> Result<Summary, String> {
     })
 }
 
-fn decode(bytes: &[u8], by_category: bool) -> Result<Decoded, String> {
+fn decode(bytes: &[u8], by_category: bool, measure: Measure) -> Result<Decoded, String> {
     if bytes.len() > MAX_TEXT_BUDGET_BYTES {
         return Err("库存报表响应超过 8 MiB".into());
     }
     let wire: WireResponse = serde_json::from_slice(bytes).map_err(|_| "库存报表响应无效")?;
+    if wire.schema != 2
+        || wire.measure != measure
+        || wire.amount_scale != measure.scale()
+        || (measure == Measure::Cost
+            && wire.valuation_source.as_deref() != Some("sku_master_estimate"))
+        || (measure == Measure::Quantity && wire.valuation_source.is_some())
+    {
+        return Err("库存报表精度或计价来源与查询不一致".into());
+    }
     if wire.buckets.len() > MAX_GROUPS || wire.as_of.is_empty() || wire.as_of.len() > 128 {
         return Err("库存报表响应范围无效".into());
     }
@@ -849,17 +1190,16 @@ fn group_cell(
 }
 
 fn format_amount(value: i128, measure: Measure) -> String {
+    let mut text = erp_grid_core::decimal_text(value, measure.scale());
     if measure == Measure::Quantity {
-        return value.to_string();
+        return text;
     }
-    let negative = value.is_negative();
-    let absolute = value.unsigned_abs();
-    format!(
-        "{}{}.{:02}",
-        if negative { "-" } else { "" },
-        absolute / 100,
-        absolute % 100
-    )
+    match text.split_once('.').map(|(_, fraction)| fraction.len()) {
+        None => text.push_str(".00"),
+        Some(1) => text.push('0'),
+        _ => {}
+    }
+    text
 }
 
 #[cfg(test)]
@@ -867,30 +1207,101 @@ mod tests {
     use super::*;
 
     #[test]
+    fn fractional_report_scale_and_cost_source_cannot_be_silently_changed() {
+        let mut wire = serde_json::json!({
+            "schema":2,"amount_scale":8,"measure":"cost","valuation_source":"sku_master_estimate",
+            "buckets":[{"warehouse_code":"WH","category":null,"kind":"NORMAL",
+                "summary":{"count":1,"sum":"13300000","min":"13300000","max":"13300000"}}],
+            "total":{"count":1,"sum":"13300000","min":"13300000","max":"13300000"},
+            "as_of":"2026-10-03T00:00:00Z"
+        });
+        let decode_wire = |wire: &serde_json::Value, measure| {
+            decode(&serde_json::to_vec(wire).unwrap(), true, measure)
+        };
+        let report = decode_wire(&wire, Measure::Cost).unwrap();
+        assert_eq!(
+            format_amount(report.report.total.sum, Measure::Cost),
+            "0.133"
+        );
+        assert!(decode_wire(&wire, Measure::Quantity).is_err());
+        wire["amount_scale"] = serde_json::json!(2);
+        assert!(decode_wire(&wire, Measure::Cost).is_err());
+        wire["amount_scale"] = serde_json::json!(8);
+        wire["valuation_source"] = serde_json::Value::Null;
+        assert!(decode_wire(&wire, Measure::Cost).is_err());
+        wire["valuation_source"] = serde_json::json!("sku_master_estimate");
+        wire["schema"] = serde_json::json!(1);
+        assert!(decode_wire(&wire, Measure::Cost).is_err());
+        assert_eq!(
+            format_amount(18_446_744_073_709_551_614, Measure::Quantity),
+            "18446744073709.551614"
+        );
+    }
+
+    #[test]
+    fn fractional_cost_exports_preserve_sub_cent_values_and_total() {
+        use calamine::{Data, Reader};
+        let wire = serde_json::json!({
+            "schema":2,"amount_scale":8,"measure":"cost","valuation_source":"sku_master_estimate",
+            "buckets":[
+                {"warehouse_code":"A","category":null,"kind":"NORMAL","summary":{"count":1,"sum":"13300000","min":"13300000","max":"13300000"}},
+                {"warehouse_code":"B","category":null,"kind":"NORMAL","summary":{"count":1,"sum":"1400000","min":"1400000","max":"1400000"}}
+            ],"total":{"count":2,"sum":"14700000","min":"1400000","max":"13300000"},"as_of":"2026-10-03T00:00:00Z"
+        });
+        let decoded = decode(&serde_json::to_vec(&wire).unwrap(), false, Measure::Cost).unwrap();
+        let mut view = InventoryReport {
+            measure: Measure::Cost,
+            labels: decoded.labels,
+            report: Some(decoded.report.clone()),
+            ..Default::default()
+        };
+        view.rebuild_columns();
+        let (columns, rows) = view.export_data(&decoded.report).unwrap();
+        assert!(
+            columns
+                .iter()
+                .filter(|c| c.id.0 >= 2)
+                .all(|c| c.value_kind == ValueKind::Decimal { scale: 8 })
+        );
+        assert_eq!(rows[0][2], "0.133");
+        assert_eq!(rows[1][2], "0.014");
+        assert_eq!(rows.last().unwrap()[2], "0.147");
+        let csv = crate::export::encode(&columns, &rows, crate::export::Format::Csv).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+        assert!(csv.contains(",\"0.133\","));
+        assert!(csv.contains(",\"0.147\","));
+        let bytes = crate::export::encode(&columns, &rows, crate::export::Format::Xlsx).unwrap();
+        let mut workbook = calamine::Xlsx::new(std::io::Cursor::new(bytes)).unwrap();
+        let cells = workbook.worksheet_range("Data").unwrap();
+        assert_eq!(cells.get_value((1, 2)), Some(&Data::Float(0.133)));
+        assert_eq!(cells.get_value((3, 2)), Some(&Data::Float(0.147)));
+    }
+
+    #[test]
     fn decoder_preserves_null_category_and_exact_cost() {
-        let text = r#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"-5","min":"-5","max":"-5"}},{"warehouse_code":"WH","category":"未分类","kind":"normal","summary":{"count":1,"sum":"105","min":"105","max":"105"}}],"total":{"count":2,"sum":"100","min":"-5","max":"105"},"as_of":"2026-09-10T00:00:00Z"}"#;
-        let decoded = decode(text.as_bytes(), true).unwrap();
+        let text = r#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"-5000000","min":"-5000000","max":"-5000000"}},{"warehouse_code":"WH","category":"未分类","kind":"normal","summary":{"count":1,"sum":"105000000","min":"105000000","max":"105000000"}}],"total":{"count":2,"sum":"100000000","min":"-5000000","max":"105000000"},"as_of":"2026-09-10T00:00:00Z","schema":2,"amount_scale":8,"measure":"cost","valuation_source":"sku_master_estimate"}"#;
+        let decoded = decode(text.as_bytes(), true, Measure::Cost).unwrap();
         assert_eq!(decoded.report.groups.len(), 2);
         assert_ne!(decoded.report.groups[0].key, decoded.report.groups[1].key);
         assert_eq!(
             format_amount(decoded.report.total.sum, Measure::Cost),
             "1.00"
         );
-        assert_eq!(format_amount(-5, Measure::Cost), "-0.05");
-        assert!(decode(text.as_bytes(), false).is_err());
+        assert_eq!(format_amount(-5_000_000, Measure::Cost), "-0.05");
+        assert!(decode(text.as_bytes(), false, Measure::Cost).is_err());
         assert_eq!(
-            format_amount(9007199254740993, Measure::Cost),
+            format_amount(9_007_199_254_740_993_000_000, Measure::Cost),
             "90071992547409.93"
         );
     }
 
     #[test]
     fn decoder_rejects_inconsistent_total_and_invalid_empty_summary() {
-        let inconsistent = br#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"5","min":"5","max":"5"}}],"total":{"count":2,"sum":"5","min":"5","max":"5"},"as_of":"x"}"#;
-        assert!(decode(inconsistent, false).is_err());
+        let inconsistent = br#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"5000000","min":"5000000","max":"5000000"}}],"total":{"count":2,"sum":"5000000","min":"5000000","max":"5000000"},"as_of":"x","schema":2,"amount_scale":6,"measure":"quantity","valuation_source":null}"#;
+        assert!(decode(inconsistent, false, Measure::Quantity).is_err());
         let invalid =
-            br#"{"buckets":[],"total":{"count":0,"sum":"1","min":null,"max":null},"as_of":"x"}"#;
-        assert!(decode(invalid, false).is_err());
+            br#"{"buckets":[],"total":{"count":0,"sum":"1000000","min":null,"max":null},"as_of":"x","schema":2,"amount_scale":6,"measure":"quantity","valuation_source":null}"#;
+        assert!(decode(invalid, false, Measure::Quantity).is_err());
     }
 
     #[test]
@@ -912,8 +1323,9 @@ mod tests {
     #[test]
     fn export_uses_all_leaf_groups_when_tree_is_collapsed_and_one_total() {
         let decoded = decode(
-            br#"{"buckets":[{"warehouse_code":"WH","category":"A","kind":"normal","summary":{"count":1,"sum":"2","min":"2","max":"2"}},{"warehouse_code":"WH","category":"B","kind":"normal","summary":{"count":1,"sum":"3","min":"3","max":"3"}}],"total":{"count":2,"sum":"5","min":"2","max":"3"},"as_of":"2026-09-10T00:00:00Z"}"#,
+            br#"{"buckets":[{"warehouse_code":"WH","category":"A","kind":"normal","summary":{"count":1,"sum":"2000000","min":"2000000","max":"2000000"}},{"warehouse_code":"WH","category":"B","kind":"normal","summary":{"count":1,"sum":"3000000","min":"3000000","max":"3000000"}}],"total":{"count":2,"sum":"5000000","min":"2000000","max":"3000000"},"as_of":"2026-09-10T00:00:00Z","schema":2,"amount_scale":6,"measure":"quantity","valuation_source":null}"#,
             true,
+            Measure::Quantity,
         )
         .unwrap();
         let mut view = InventoryReport {
@@ -936,14 +1348,15 @@ mod tests {
         use calamine::{Data, Reader};
 
         let decoded = decode(
-            br#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"9007199254740993","min":"9007199254740993","max":"9007199254740993"}},{"warehouse_code":"WH","category":null,"kind":"reserved","summary":{"count":1,"sum":"7","min":"7","max":"7"}}],"total":{"count":2,"sum":"9007199254741000","min":"7","max":"9007199254740993"},"as_of":"2026-09-10T00:00:00Z"}"#,
+            br#"{"buckets":[{"warehouse_code":"WH","category":null,"kind":"normal","summary":{"count":1,"sum":"9007199254740993000000","min":"9007199254740993000000","max":"9007199254740993000000"}},{"warehouse_code":"WH","category":null,"kind":"reserved","summary":{"count":1,"sum":"7000000","min":"7000000","max":"7000000"}}],"total":{"count":2,"sum":"9007199254741000000000","min":"7000000","max":"9007199254740993000000"},"as_of":"2026-09-10T00:00:00Z","schema":2,"amount_scale":8,"measure":"cost","valuation_source":"sku_master_estimate"}"#,
             false,
+            Measure::Cost,
         )
         .unwrap();
         let mut normal = Column::new(ColumnId(100), "normal", 115.0);
-        normal.value_kind = ValueKind::Money;
+        normal.value_kind = ValueKind::Decimal { scale: 8 };
         let mut total = Column::new(ColumnId(2), "合计", 140.0);
-        total.value_kind = ValueKind::Money;
+        total.value_kind = ValueKind::Decimal { scale: 8 };
         let view = InventoryReport {
             measure: Measure::Cost,
             labels: decoded.labels,
@@ -956,7 +1369,7 @@ mod tests {
                 .iter()
                 .map(|column| column.title.as_str())
                 .collect::<Vec<_>>(),
-            ["normal 库存成本(元)", "分组", "库存成本(元)合计"]
+            ["normal 参考价值(元)", "分组", "参考价值(元)合计"]
         );
         assert_eq!(rows[0][0], "90071992547409.93");
         assert_eq!(rows.last().unwrap()[0], "90071992547409.93");

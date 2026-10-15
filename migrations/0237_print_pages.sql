@@ -1,0 +1,2 @@
+-- A frozen print can be read by page. The page does not recompute the saved total.
+-- Reprint still does not change the document status.

@@ -26,8 +26,9 @@ pub(super) struct Table {
     pub revision: u64,
     bound_revision: u64,
     query_key: String,
-    deadline: Option<f64>,
-    composing: bool,
+    query: crate::workbench::query::QueryAdmission,
+    reset_query: bool,
+    pub external_query_input: Option<egui::Id>,
     pub error: Option<String>,
     pub locked: bool,
     summary: crate::components::SelectionSummary,
@@ -49,8 +50,9 @@ impl Table {
             revision: 0,
             bound_revision: 0,
             query_key: String::new(),
-            deadline: None,
-            composing: false,
+            query: Default::default(),
+            reset_query: false,
+            external_query_input: None,
             error: None,
             locked: false,
             summary: Default::default(),
@@ -64,12 +66,14 @@ impl Table {
     }
     pub fn replace(&mut self, rows: Vec<Row>) {
         self.rows = rows;
+        self.indices.clear();
         self.invalidate();
     }
     pub fn ready(&self) -> bool {
-        self.deadline.is_none() && self.error.is_none()
+        self.query.ready() && self.bound_revision == self.revision && self.error.is_none()
     }
     pub fn reset(&mut self) {
+        self.reset_query = true;
         self.state.quick_search.clear();
         self.state.sorts.clear();
         self.page = 0;
@@ -105,6 +109,7 @@ impl Table {
             Err(e) => {
                 self.error = Some(e.into());
                 self.indices.clear();
+                self.bound_revision = self.revision;
                 return;
             }
         };
@@ -174,14 +179,37 @@ impl Table {
                 previous_active.filter(|id| self.indices.iter().any(|i| self.rows[*i].id == *id));
         }
     }
-    pub fn show(&mut self, ui: &mut egui::Ui, search: &str, tree: Option<(ColumnId, &str)>) {
-        self.state.theme = Some(crate::workbench::theme::grid(ui.visuals()));
-        ui.input(|input| {
+    pub fn input_changed(&mut self, now: f64, cleared: bool) {
+        self.page = 0;
+        if cleared {
+            self.reset_query = true;
+            self.query.reset(now);
+        } else {
+            self.query.changed(now);
+        }
+    }
+
+    pub fn prepare_query(
+        &mut self,
+        ctx: &egui::Context,
+        search: &str,
+        tree: Option<(ColumnId, &str)>,
+    ) {
+        let now = ctx.input(|input| input.time);
+        let focused = ctx.memory(|memory| memory.focused());
+        let owns_ime = focused.is_some()
+            && (focused == self.external_query_input || focused == self.state.query_input_focus);
+        if !owns_ime {
+            self.query.composition(false, now);
+        }
+        ctx.input(|input| {
             for event in &input.events {
-                if let egui::Event::Ime(event) = event {
+                if owns_ime && let egui::Event::Ime(event) = event {
                     match event {
-                        egui::ImeEvent::Preedit { text, .. } => self.composing = !text.is_empty(),
-                        egui::ImeEvent::Commit(_) => self.composing = false,
+                        egui::ImeEvent::Preedit { text, .. } => {
+                            self.query.composition(!text.is_empty(), now)
+                        }
+                        egui::ImeEvent::Commit(_) => self.query.composition(false, now),
                         _ => {}
                     }
                 }
@@ -190,20 +218,30 @@ impl Table {
         let key = format!("{search}|{tree:?}");
         if self.query_key != key {
             self.query_key = key;
-            self.deadline = Some(ui.input(|i| i.time) + 0.25);
+            self.query.changed(now);
             self.page = 0;
         }
-        if self.deadline.is_some() {
+        if self.reset_query {
+            self.reset_query = false;
+            self.query.reset(now);
+        }
+    }
+
+    fn apply_query(&mut self, search: &str, tree: Option<(ColumnId, &str)>, now: f64) {
+        if self.query.due(now) || (self.query.ready() && self.bound_revision != self.revision) {
+            self.query.applied();
+            self.rebuild(search, tree);
+        }
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, search: &str, tree: Option<(ColumnId, &str)>) {
+        self.state.theme = Some(crate::workbench::theme::grid(ui.visuals()));
+        self.prepare_query(ui.ctx(), search, tree);
+        if self.query.pending() {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(40));
         }
-        if !self.composing && self.deadline.is_some_and(|t| ui.input(|i| i.time) >= t) {
-            self.deadline = None;
-            self.rebuild(search, tree);
-        }
-        if self.bound_revision != self.revision && !self.composing {
-            self.rebuild(search, tree);
-        }
+        self.apply_query(search, tree, ui.input(|input| input.time));
         if let Some(error) = &self.error {
             ui.colored_label(egui::Color32::RED, error);
         }
@@ -228,11 +266,14 @@ impl Table {
             })
             .inner;
         if output.quick_search_changed {
-            self.deadline = Some(ui.input(|i| i.time) + 0.25);
+            self.query.changed(ui.input(|i| i.time));
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(40));
             self.page = 0;
         }
-        if output.sorts_changed {
-            self.rebuild(search, tree);
+        if output.sorts_changed && !self.query.pending() {
+            self.query.immediate(ui.input(|i| i.time));
+            ui.ctx().request_repaint();
         }
         let start = (self.page * self.page_size).min(self.indices.len());
         let end = (start + self.page_size).min(self.indices.len());
@@ -325,5 +366,222 @@ mod tests {
         assert_eq!(table.selected(), Some(RowId(105)));
         table.rebuild("other", None);
         assert_eq!(table.selected(), None);
+    }
+
+    fn query_table() -> Table {
+        let mut table = Table::new(
+            vec![Column::new(ColumnId(1), "Name", 100.0)],
+            vec![
+                Row {
+                    id: RowId(1),
+                    cells: [(ColumnId(1), "one".into())].into_iter().collect(),
+                },
+                Row {
+                    id: RowId(2),
+                    cells: [(ColumnId(1), "two".into())].into_iter().collect(),
+                },
+            ],
+        );
+        table.external_query_input = Some(egui::Id::new("query-test"));
+        table.query_key = format!("|{:?}", None::<(ColumnId, &str)>);
+        table.rebuild("", None);
+        table.state.row_selection.active = Some(RowId(1));
+        table
+    }
+
+    fn query_frame(
+        table: &mut Table,
+        ctx: &egui::Context,
+        now: f64,
+        events: Vec<egui::Event>,
+        search: &str,
+    ) {
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                time: Some(now),
+                events,
+                ..Default::default()
+            },
+            |root| {
+                if let Some(id) = table.external_query_input {
+                    root.ctx().memory_mut(|memory| memory.request_focus(id));
+                }
+                table.prepare_query(root.ctx(), search, None);
+                table.apply_query(search, None, now);
+            },
+        );
+        output.textures_delta.clear();
+    }
+
+    #[test]
+    fn module_query_search_change_immediately_blocks_previous_targets() {
+        let mut table = query_table();
+        let ctx = egui::Context::default();
+        assert_eq!(table.targets(), [RowId(1)]);
+        table.input_changed(1.0, false);
+        assert!(table.targets().is_empty());
+        query_frame(&mut table, &ctx, 1.0, vec![], "two");
+        query_frame(&mut table, &ctx, 1.249, vec![], "two");
+        assert_eq!(table.indices.len(), 2);
+        assert!(table.targets().is_empty());
+        query_frame(&mut table, &ctx, 1.25, vec![], "two");
+        assert!(table.ready());
+        assert_eq!(table.indices, [1]);
+        assert_eq!(table.selected(), None);
+    }
+
+    #[test]
+    fn module_query_real_ime_events_block_actions_until_final_text() {
+        let mut table = query_table();
+        let ctx = egui::Context::default();
+        query_frame(
+            &mut table,
+            &ctx,
+            1.0,
+            vec![egui::Event::Ime(egui::ImeEvent::Preedit {
+                text: "t".into(),
+                active_range_chars: None,
+            })],
+            "t",
+        );
+        query_frame(&mut table, &ctx, 2.0, vec![], "t");
+        assert!(table.targets().is_empty());
+        assert_eq!(table.indices.len(), 2);
+        query_frame(
+            &mut table,
+            &ctx,
+            2.0,
+            vec![egui::Event::Ime(egui::ImeEvent::Commit("two".into()))],
+            "two",
+        );
+        query_frame(&mut table, &ctx, 2.249, vec![], "two");
+        assert!(!table.ready());
+        query_frame(&mut table, &ctx, 2.25, vec![], "two");
+        assert_eq!(table.indices, [1]);
+        assert!(table.ready());
+    }
+
+    #[test]
+    fn module_query_clear_and_reset_apply_without_previous_delay() {
+        let mut table = query_table();
+        let ctx = egui::Context::default();
+        query_frame(&mut table, &ctx, 1.0, vec![], "two");
+        table.input_changed(1.01, true);
+        query_frame(&mut table, &ctx, 1.01, vec![], "");
+        assert_eq!(table.indices.len(), 2);
+        assert!(table.ready());
+        query_frame(&mut table, &ctx, 2.0, vec![], "two");
+        table.reset();
+        query_frame(&mut table, &ctx, 2.01, vec![], "");
+        assert!(table.ready());
+        assert_eq!(table.indices.len(), 2);
+    }
+
+    #[test]
+    fn module_query_replaced_rows_never_use_stale_indices_while_waiting() {
+        let mut table = query_table();
+        let ctx = egui::Context::default();
+        query_frame(&mut table, &ctx, 1.0, vec![], "two");
+        table.replace(Vec::new());
+        assert!(table.indices.is_empty());
+        assert!(table.targets().is_empty());
+        query_frame(&mut table, &ctx, 1.1, vec![], "two");
+        assert!(!table.ready());
+        query_frame(&mut table, &ctx, 1.25, vec![], "two");
+        assert!(table.ready());
+        assert!(table.indices.is_empty());
+    }
+
+    #[test]
+    fn module_query_invalid_money_keeps_draft_and_blocks_actions() {
+        let mut table = query_table();
+        table.columns[0].filter = erp_grid_core::FilterKind::Money;
+        table.state.quick_search.insert(
+            ColumnId(1),
+            erp_grid_core::FilterDraft::Money {
+                min: "9".into(),
+                max: "1".into(),
+            },
+        );
+        table.invalidate();
+        let ctx = egui::Context::default();
+        query_frame(&mut table, &ctx, 1.0, vec![], "");
+        assert!(table.error.is_some());
+        assert!(table.targets().is_empty());
+        assert_eq!(table.bound_revision, table.revision);
+        assert_eq!(
+            table.state.quick_search.get(&ColumnId(1)),
+            Some(&erp_grid_core::FilterDraft::Money {
+                min: "9".into(),
+                max: "1".into()
+            })
+        );
+    }
+
+    #[test]
+    fn module_query_parent_composition_does_not_freeze_child_query() {
+        let mut parent = query_table();
+        let mut child = query_table();
+        let parent_input = egui::Id::new("parent-query");
+        let child_input = egui::Id::new("child-query");
+        parent.external_query_input = Some(parent_input);
+        child.external_query_input = None;
+        child.state.query_input_focus = Some(child_input);
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                time: Some(1.0),
+                events: vec![egui::Event::Ime(egui::ImeEvent::Preedit {
+                    text: "t".into(),
+                    active_range_chars: None,
+                })],
+                ..Default::default()
+            },
+            |root| {
+                root.ctx()
+                    .memory_mut(|memory| memory.request_focus(parent_input));
+                parent.prepare_query(root.ctx(), "t", None);
+                child.prepare_query(root.ctx(), "", None);
+            },
+        );
+        output.textures_delta.clear();
+        assert!(!parent.ready());
+        assert!(child.ready());
+        assert_eq!(child.targets(), [RowId(1)]);
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                time: Some(2.0),
+                events: vec![egui::Event::Ime(egui::ImeEvent::Preedit {
+                    text: "o".into(),
+                    active_range_chars: None,
+                })],
+                ..Default::default()
+            },
+            |root| {
+                root.ctx()
+                    .memory_mut(|memory| memory.request_focus(child_input));
+                parent.prepare_query(root.ctx(), "t", None);
+                child.prepare_query(root.ctx(), "", None);
+                parent.apply_query("t", None, 2.0);
+            },
+        );
+        output.textures_delta.clear();
+        assert!(!child.ready());
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                time: Some(2.3),
+                ..Default::default()
+            },
+            |root| {
+                root.ctx()
+                    .memory_mut(|memory| memory.request_focus(child_input));
+                parent.prepare_query(root.ctx(), "t", None);
+                parent.apply_query("t", None, 2.3);
+                child.prepare_query(root.ctx(), "", None);
+            },
+        );
+        output.textures_delta.clear();
+        assert!(parent.ready());
+        assert!(!child.ready());
     }
 }

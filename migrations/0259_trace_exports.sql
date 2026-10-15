@@ -1,0 +1,2 @@
+-- 0259: a finished trace freezes its stored edges into the existing export scope.
+-- An unfinished page is refused. This comment does not add a table.

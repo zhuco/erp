@@ -317,19 +317,18 @@ impl Adapter {
     }
 
     fn extract_api_error(v: &Value) -> Option<(i64, String)> {
-        if let Some(code) = v.get("code").and_then(|x| x.as_i64()) {
-            if code != 0 {
-                return Some((code, Self::api_message(v)));
-            }
+        if let Some(code) = v.get("code").and_then(|x| x.as_i64())
+            && code != 0
+        {
+            return Some((code, Self::api_message(v)));
         }
         if let Some(code) = v
             .get("err_no")
             .or_else(|| v.get("err_code"))
             .and_then(|x| x.as_i64())
+            && code != 0
         {
-            if code != 0 {
-                return Some((code, Self::api_message(v)));
-            }
+            return Some((code, Self::api_message(v)));
         }
         None
     }
@@ -546,17 +545,17 @@ impl Adapter {
                 .unwrap_or(false)
         }
 
-        if let Some(tag) = order.get("sku_order_tag_ui") {
-            if tag_is_risk(tag) {
-                return true;
-            }
+        if let Some(tag) = order.get("sku_order_tag_ui")
+            && tag_is_risk(tag)
+        {
+            return true;
         }
         if let Some(arr) = order.get("sku_order_list").and_then(|v| v.as_array()) {
             for sku in arr {
-                if let Some(tag) = sku.get("sku_order_tag_ui") {
-                    if tag_is_risk(tag) {
-                        return true;
-                    }
+                if let Some(tag) = sku.get("sku_order_tag_ui")
+                    && tag_is_risk(tag)
+                {
+                    return true;
                 }
             }
         }
@@ -1344,10 +1343,10 @@ impl Adapter {
                 };
 
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if Self::is_refund_related_order(&proj) {
                 Self::inject_refund_meta(&mut proj, &raw);
@@ -1411,12 +1410,10 @@ impl Adapter {
             .get("size")
             .or_else(|| data.get("page_size"))
             .and_then(|v| v.as_i64());
-        if !has_more {
-            if let (Some(total), Some(page), Some(size)) = (total, page, size) {
-                has_more = page * size < total;
-                if has_more && next_cursor.is_none() {
-                    next_cursor = Some((page + 1).to_string());
-                }
+        if !has_more && let (Some(total), Some(page), Some(size)) = (total, page, size) {
+            has_more = page * size < total;
+            if has_more && next_cursor.is_none() {
+                next_cursor = Some((page + 1).to_string());
             }
         }
 
@@ -1878,10 +1875,10 @@ impl PlatformAdapter for Adapter {
                 };
 
             let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-            if let Some(last_time) = cursor.last_time {
-                if compare_time <= last_time {
-                    continue;
-                }
+            if let Some(last_time) = cursor.last_time
+                && compare_time <= last_time
+            {
+                continue;
             }
             if latest_time.map(|t| compare_time > t).unwrap_or(true) {
                 latest_time = Some(compare_time);
@@ -1933,10 +1930,10 @@ impl PlatformAdapter for Adapter {
             for raw in mock_refunds {
                 let mut proj = Self::map_order_to_projection(shop, &raw)?;
                 let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-                if let Some(last_time) = cursor.last_time {
-                    if compare_time <= last_time {
-                        continue;
-                    }
+                if let Some(last_time) = cursor.last_time
+                    && compare_time <= last_time
+                {
+                    continue;
                 }
                 if Self::is_refund_related_order(&proj) {
                     Self::inject_refund_meta(&mut proj, &raw);
@@ -1973,10 +1970,10 @@ impl PlatformAdapter for Adapter {
             for raw in mock_orders {
                 let mut proj = Self::map_order_to_projection(shop, &raw)?;
                 let compare_time = proj.platform_updated_at.unwrap_or(proj.order_created_at);
-                if let Some(last_time) = cursor.last_time {
-                    if compare_time <= last_time {
-                        continue;
-                    }
+                if let Some(last_time) = cursor.last_time
+                    && compare_time <= last_time
+                {
+                    continue;
                 }
                 if Self::is_refund_related_order(&proj) {
                     Self::inject_refund_meta(&mut proj, &raw);

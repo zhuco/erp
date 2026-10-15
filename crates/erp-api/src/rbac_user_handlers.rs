@@ -69,19 +69,63 @@ pub(crate) async fn create_user(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "hash failed").into_response(),
     };
 
+    let status = req.status.unwrap_or_else(|| "ACTIVE".to_string());
     let repo = RbacRepo::new(state.db.pool());
+    let mut tx = match state.db.pool().begin().await {
+        Ok(tx) => tx,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    };
+    if let Err(error) = sqlx::query("select pg_advisory_xact_lock(hashtext($1::text), hashtext('free-seat'))")
+        .bind(tenant_id.to_string())
+        .execute(&mut *tx)
+        .await
+    {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+    }
+    if status == "ACTIVE" {
+        match AccessPlanRepo::new(state.db.pool())
+            .admit_new_login_seat(&mut tx, tenant_id)
+            .await
+        {
+            Ok(SeatAdmission::Admitted) => {}
+            Ok(SeatAdmission::Rejected(_)) => {
+                let _ = tx.rollback().await;
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({
+                        "code": "seat_limit",
+                        "message": "login seat limit reached"
+                    })),
+                )
+                    .into_response();
+            }
+            Err(e) => {
+                let _ = tx.rollback().await;
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+            }
+        }
+    }
     let user = match repo
-        .create_user(UserCreate {
-            tenant_id,
-            email: req.email.trim().to_string(),
-            password_hash: hash,
-            status: req.status.unwrap_or_else(|| "ACTIVE".to_string()),
-        })
+        .create_user_in_tx(
+            &mut tx,
+            UserCreate {
+                tenant_id,
+                email: req.email.trim().to_string(),
+                password_hash: hash,
+                status,
+            },
+        )
         .await
     {
         Ok(v) => v,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Err(e) => {
+            let _ = tx.rollback().await;
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+        }
     };
+    if let Err(e) = tx.commit().await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+    }
 
     if let Some(role_ids) = req.role_ids {
         let ids = match parse_role_ids(&role_ids) {
@@ -162,8 +206,99 @@ pub(crate) async fn update_user(
         None
     };
 
+    if req.status.as_deref() == Some("ACTIVE") {
+        let current = match repo.get_user(tenant_id, user_id).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return not_found("user not found").into_response(),
+            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        };
+        if current.status != "ACTIVE" {
+            let mut tx = match state.db.pool().begin().await {
+                Ok(tx) => tx,
+                Err(e) => {
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+                }
+            };
+            if let Err(error) = sqlx::query(
+                "select pg_advisory_xact_lock(hashtext($1::text), hashtext('free-seat'))",
+            )
+            .bind(tenant_id.to_string())
+            .execute(&mut *tx)
+            .await
+            {
+                let _ = tx.rollback().await;
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+            }
+            match AccessPlanRepo::new(state.db.pool())
+                .admit_new_login_seat(&mut tx, tenant_id)
+                .await
+            {
+                Ok(SeatAdmission::Admitted) => {}
+                Ok(SeatAdmission::Rejected(_)) => {
+                    let _ = tx.rollback().await;
+                    return (
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({
+                            "code": "seat_limit",
+                            "message": "login seat limit reached"
+                        })),
+                    )
+                        .into_response();
+                }
+                Err(e) => {
+                    let _ = tx.rollback().await;
+                    return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+                }
+            }
+            if let Err(e) = repo
+                .update_user_in_tx(
+                    &mut tx,
+                    tenant_id,
+                    user_id,
+                    UserUpdate {
+                        email: req.email.clone(),
+                        password_hash: password_hash.clone(),
+                        status: req.status.clone(),
+                    },
+                )
+                .await
+            {
+                let _ = tx.rollback().await;
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+            }
+            if let Err(e) = tx.commit().await {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+            }
+            let user = match repo.get_user(tenant_id, user_id).await {
+                Ok(Some(user)) => user,
+                Ok(None) => return not_found("user not found").into_response(),
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+            };
+            record_audit_log(
+                &state,
+                &ctx,
+                &req_ctx,
+                "SYS.USER.UPDATE",
+                "user",
+                Some(user.user_id.to_string()),
+                before,
+                Some(serde_json::to_value(&user).unwrap_or(Value::Null)),
+            )
+            .await;
+            return (StatusCode::OK, Json(user)).into_response();
+        }
+    }
+
+    let credentials_changed = password_hash.is_some() || req.status.as_deref() == Some("DISABLED");
+    // Disable and epoch advance commit together. A later bump would leave a
+    // window where the account is already disabled but old sessions still match.
+    let mut tx = match state.db.pool().begin().await {
+        Ok(tx) => tx,
+        Err(error) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    };
     let user = match repo
-        .update_user(
+        .update_user_in_tx(
+            &mut tx,
             tenant_id,
             user_id,
             UserUpdate {
@@ -175,9 +310,27 @@ pub(crate) async fn update_user(
         .await
     {
         Ok(Some(v)) => v,
-        Ok(None) => return not_found("user not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+        Ok(None) => {
+            let _ = tx.rollback().await;
+            return not_found("user not found").into_response();
+        }
+        Err(e) => {
+            let _ = tx.rollback().await;
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+        }
     };
+    if credentials_changed {
+        if let Err(e) = AccessPlanRepo::new(state.db.pool())
+            .bump_credentials_epoch_in_tx(&mut tx, tenant_id)
+            .await
+        {
+            let _ = tx.rollback().await;
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response();
+        }
+    }
+    if let Err(error) = tx.commit().await {
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response();
+    }
 
     record_audit_log(
         &state,

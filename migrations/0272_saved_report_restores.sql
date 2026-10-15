@@ -1,0 +1,2 @@
+-- 0272: a relogin restore writes one chart row and one export row from the stored view.
+-- Both rows keep the saved query. This comment does not add a table.

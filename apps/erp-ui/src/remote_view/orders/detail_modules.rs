@@ -151,6 +151,7 @@ impl DetailModules {
                 ],
                 json: None,
                 bearer: Some(session.token.clone()),
+                idempotency_key: None,
             },
             ctx,
         );

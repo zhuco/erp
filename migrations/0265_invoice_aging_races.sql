@@ -1,0 +1,2 @@
+-- 0265: a second invoice of the same issuer and number is refused after the first row is stored.
+-- A second aging snapshot of the same cutoff is refused. This comment does not add a table.

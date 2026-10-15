@@ -1,4 +1,5 @@
 use super::*;
+use erp_common::telemetry::metrics;
 
 pub(super) struct AdapterRegistry {
     taobao: erp_adapter_taobao::Adapter,
@@ -49,6 +50,30 @@ pub(super) async fn feature_flag_enabled(
 pub(super) async fn read_only_enabled(db: &Db, tenant_id: TenantId) -> anyhow::Result<bool> {
     let repo = FeatureFlagsRepo::new(db.pool());
     repo.is_read_only(tenant_id, None).await
+}
+
+pub(super) async fn healthz_with_db(db: erp_repo::db::Db) -> Response {
+    let database_reachable = sqlx::query_scalar::<_, i64>("select 1::bigint")
+        .fetch_one(db.pool())
+        .await
+        .is_ok();
+    let body = erp_domain::receipt::deep_health_body(true, database_reachable);
+    metrics().set_probe(true, database_reachable);
+    tracing::info!(
+        process = "ok",
+        database = if database_reachable { "ok" } else { "down" },
+        "worker healthz"
+    );
+    let status = if database_reachable {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, "text/plain")
+        .body(Body::from(body))
+        .unwrap()
 }
 
 pub(super) async fn metrics_handler() -> Response {

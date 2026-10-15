@@ -1,0 +1,3 @@
+-- 0251: a fixed-sample cost batch is a durable task, not a finished cost receipt.
+-- Completion stores one cost run from consumed material and the frozen rate.
+-- A confirmed run is not rewritten. This comment does not apply the table.

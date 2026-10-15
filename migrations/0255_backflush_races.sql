@@ -1,0 +1,2 @@
+-- 0255: a second backflush waits on the work-order row before reading the remainder.
+-- The existing consume row is the effect. This comment does not add a table.

@@ -448,21 +448,19 @@ impl<'a> WorkflowEngineRepo<'a> {
             .await?
             .context("workflow instance not found")?;
 
-        if let Some(expected_version) = input.expected_version {
-            if expected_version != instance.version {
-                return Err(anyhow!(
-                    "workflow version conflict: expected {}, actual {}",
-                    expected_version,
-                    instance.version
-                ));
-            }
+        if let Some(expected_version) = input.expected_version
+            && expected_version != instance.version
+        {
+            return Err(anyhow!(
+                "workflow version conflict: expected {}, actual {}",
+                expected_version,
+                instance.version
+            ));
         }
 
         let from_status = instance.status.clone();
         let mut to_status = from_status.clone();
-        let action_metadata: Value;
-
-        match input.action {
+        let action_metadata = match input.action {
             WorkflowAction::Approve => {
                 if instance.status != WORKFLOW_STATUS_PENDING {
                     return Err(anyhow!("workflow status does not allow approve"));
@@ -549,10 +547,10 @@ impl<'a> WorkflowEngineRepo<'a> {
                     }
                 }
 
-                action_metadata = serde_json::json!({
+                serde_json::json!({
                     "step_seq": instance.current_step_seq,
                     "note": input.note,
-                });
+                })
             }
             WorkflowAction::Reject => {
                 if instance.status != WORKFLOW_STATUS_PENDING {
@@ -603,9 +601,9 @@ impl<'a> WorkflowEngineRepo<'a> {
                 )
                 .await?;
 
-                action_metadata = serde_json::json!({
+                serde_json::json!({
                     "note": input.note,
-                });
+                })
             }
             WorkflowAction::Withdraw => {
                 if instance.status != WORKFLOW_STATUS_PENDING {
@@ -637,9 +635,9 @@ impl<'a> WorkflowEngineRepo<'a> {
                 )
                 .await?;
 
-                action_metadata = serde_json::json!({
+                serde_json::json!({
                     "note": input.note,
-                });
+                })
             }
             WorkflowAction::Transfer => {
                 if instance.status != WORKFLOW_STATUS_PENDING {
@@ -673,10 +671,10 @@ impl<'a> WorkflowEngineRepo<'a> {
                 )
                 .await?;
 
-                action_metadata = serde_json::json!({
+                serde_json::json!({
                     "target_user_id": target_user,
                     "note": input.note,
-                });
+                })
             }
             WorkflowAction::AddSign => {
                 if instance.status != WORKFLOW_STATUS_PENDING {
@@ -717,12 +715,12 @@ impl<'a> WorkflowEngineRepo<'a> {
                 )
                 .await?;
 
-                action_metadata = serde_json::json!({
+                serde_json::json!({
                     "target_user_id": target_user,
                     "note": input.note,
-                });
+                })
             }
-        }
+        };
 
         insert_action_log(
             &mut tx,

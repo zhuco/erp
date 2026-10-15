@@ -30,6 +30,27 @@ pub async fn idempotency_middleware(
     req: Request<Body>,
     next: Next,
 ) -> Response {
+    // Authorization precedes both handler extraction and any cached response.
+    // Turning off HTTP idempotency must never turn off manufacturing permissions.
+    let parts: Vec<&str> = req
+        .uri()
+        .path()
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect();
+    if parts.len() >= 4
+        && parts[0] == "v1"
+        && parts[1] == "tenants"
+        && parts[3] == "manufacturing"
+        && is_idempotent_method(req.method())
+    {
+        let Some(ctx) = req.extensions().get::<crate::AuthContext>() else {
+            return (StatusCode::UNAUTHORIZED, "authentication required").into_response();
+        };
+        if let Err(response) = crate::manufacturing::require_tenant(parts[2], ctx) {
+            return response;
+        }
+    }
     if idempotency_disabled() {
         return next.run(req).await;
     }
@@ -113,6 +134,9 @@ pub async fn idempotency_middleware(
 }
 
 fn match_idempotency_tenant(path: &str) -> Option<TenantId> {
+    // Inventory movements/reservations/releases own a transactional command
+    // receipt. A response cache must not bypass actor/scope checks, reject a
+    // normalized retry, or retain a transient failure for those routes.
     let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
     if segments.len() < 4 {
         return None;
@@ -141,6 +165,7 @@ fn match_idempotency_tenant(path: &str) -> Option<TenantId> {
         | ["v1", "tenants", _, "oms", "shipments", _, "ship"]
         | ["v1", "tenants", _, "oms", "shipments", _, "cancel-request"]
         | ["v1", "tenants", _, "orders", _, "ship"]
+        | ["v1", "tenants", _, "orders", _]
         | ["v1", "tenants", _, "shipments"]
         | ["v1", "tenants", _, "after-sale-cases"]
         | ["v1", "tenants", _, "after-sales"]
@@ -151,11 +176,6 @@ fn match_idempotency_tenant(path: &str) -> Option<TenantId> {
         | ["v1", "tenants", _, "after-sales", _, "resend"]
         | ["v1", "tenants", _, "after-sales", _, "receive"]
         | ["v1", "tenants", _, "after-sales", _, "refund"]
-        | ["v1", "tenants", _, "inventory", "adjustments"]
-        | ["v1", "tenants", _, "inventory", "inbounds"]
-        | ["v1", "tenants", _, "inventory", "outbounds"]
-        | ["v1", "tenants", _, "inventory", "reservations"]
-        | ["v1", "tenants", _, "inventory", "releases"]
         | ["v1", "tenants", _, "inventory", "freezes"]
         | ["v1", "tenants", _, "inventory", "freezes", _, "cancel"]
         | ["v1", "tenants", _, "stock-counts"]
@@ -373,6 +393,7 @@ mod tests {
             format!("/v1/tenants/{tenant}/wms/outbounds/OUT-1/verify/start"),
             format!("/v1/tenants/{tenant}/wms/outbounds/OUT-1/verify/scan-item"),
             format!("/v1/tenants/{tenant}/wms/outbounds/OUT-1/verify/finish"),
+            format!("/v1/tenants/{tenant}/orders/ORDER-1"),
         ];
         for path in should_match {
             let parsed = match_idempotency_tenant(&path)

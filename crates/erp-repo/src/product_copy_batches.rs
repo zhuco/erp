@@ -14,6 +14,9 @@ use std::{
 };
 use uuid::Uuid;
 
+mod status_row;
+use status_row::BatchStatusRow;
+
 const MAX_EXCLUSIONS: usize = 10_000;
 const MAX_TARGETS: u64 = 100_000;
 const MAX_ACTIVE_BATCHES: i64 = 4;
@@ -387,38 +390,14 @@ pub async fn list(
     tenant: TenantId,
     actor: UserId,
 ) -> Result<Vec<Status>, BatchError> {
-    let rows: Vec<(Uuid, i64, i64, i64, i64, i64, i64, bool)> = sqlx::query_as(
+    let rows: Vec<BatchStatusRow> = sqlx::query_as(
         "select batch_id,total,applied,rejected,cancelled,pending,unknown,cancel_requested from grid_product_copy_batches where tenant_id=$1 and actor_user_id=$2 order by (completed_at is null) desc,coalesce(completed_at,updated_at) desc,batch_id limit 20",
     )
     .bind(Uuid::from(tenant))
     .bind(Uuid::from(actor))
     .fetch_all(pool)
     .await?;
-    rows.into_iter()
-        .map(
-            |(
-                batch_id,
-                total,
-                applied,
-                rejected,
-                cancelled,
-                pending,
-                unknown,
-                cancel_requested,
-            )| {
-                Ok(Status {
-                    batch_id,
-                    total: count(total)?,
-                    applied: count(applied)?,
-                    rejected: count(rejected)?,
-                    cancelled: count(cancelled)?,
-                    pending: count(pending)?,
-                    unknown: count(unknown)?,
-                    cancel_requested,
-                })
-            },
-        )
-        .collect()
+    rows.into_iter().map(Status::try_from).collect()
 }
 
 #[cfg(test)]

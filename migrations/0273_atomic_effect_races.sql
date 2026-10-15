@@ -1,0 +1,2 @@
+-- 0273: a second commit of the same source action and action number is refused after the first effect is stored.
+-- The action is locked. This comment does not add a table.

@@ -83,7 +83,6 @@ struct ExportParams {
     end_at: Option<String>,
     platform: Option<String>,
     shop_id: Option<String>,
-    warehouse_id: Option<String>,
     job_id: Option<String>,
     diff_only: Option<bool>,
 }
@@ -109,6 +108,9 @@ async fn process_job(
     config: &ExportJobConfig,
     job: ExportJob,
 ) -> anyhow::Result<()> {
+    if job.job_type == "INVENTORY_EXPORT" {
+        return super::inventory_export::execute_inventory_job(pool, &job, config.page_size).await;
+    }
     let params: ExportParams = serde_json::from_value(job.params_json.clone()).unwrap_or_default();
 
     let result = match job.job_type.as_str() {
@@ -124,7 +126,6 @@ async fn process_job(
             }
             Err(err) => Err(err),
         },
-        "INVENTORY_EXPORT" => export_inventory(pool, repo, config, &job, &params).await,
         "PRODUCT_EXPORT" => export_products(pool, repo, &job).await,
         "SKU_IMPORT" => import_skus(pool, repo, &job).await,
         other => Err(anyhow::anyhow!("unsupported export type: {other}")),
@@ -349,53 +350,6 @@ async fn export_reconcile(
     Ok(())
 }
 
-async fn export_inventory(
-    pool: &PgPool,
-    repo: &ExportJobsRepo<'_>,
-    config: &ExportJobConfig,
-    job: &ExportJob,
-    params: &ExportParams,
-) -> anyhow::Result<()> {
-    let warehouse_id = parse_uuid(params.warehouse_id.as_deref())?;
-    let total = count_inventory(pool, job, warehouse_id).await?;
-
-    let mut writer = build_writer(job)?;
-    writer.write_record([
-        "sku_id",
-        "sku_code",
-        "warehouse_id",
-        "on_hand",
-        "reserved",
-        "available",
-    ])?;
-
-    let mut offset = 0_i64;
-    let mut processed = 0_i64;
-    loop {
-        let rows = fetch_inventory_rows(pool, job, warehouse_id, config.page_size, offset).await?;
-        if rows.is_empty() {
-            break;
-        }
-        for row in &rows {
-            let available = row.on_hand - row.reserved;
-            writer.write_record([
-                row.sku_id.to_string(),
-                row.sku_code.clone().unwrap_or_default(),
-                row.warehouse_id.to_string(),
-                row.on_hand.to_string(),
-                row.reserved.to_string(),
-                available.to_string(),
-            ])?;
-        }
-        processed += rows.len() as i64;
-        offset += rows.len() as i64;
-        update_progress(repo, job, processed, total).await?;
-    }
-
-    finalize_job(repo, job).await?;
-    Ok(())
-}
-
 async fn export_products(
     pool: &PgPool,
     repo: &ExportJobsRepo<'_>,
@@ -552,7 +506,7 @@ impl<W: Write> Write for ByteLimitWriter<W> {
     }
 }
 
-fn csv_safe_cell(value: &str) -> String {
+pub(super) fn csv_safe_cell(value: &str) -> String {
     let trimmed = value.trim_start_matches([' ', '\t', '\r', '\n']);
     let begins_with_control = matches!(value.as_bytes().first(), Some(b'\t' | b'\r' | b'\n'));
     let numeric_identifier = trimmed.bytes().all(|byte| byte.is_ascii_digit())
@@ -1899,68 +1853,6 @@ async fn fetch_reconcile_items(
     qb.push_bind(offset);
 
     let rows: Vec<ReconcileItemRow> = qb.build_query_as().fetch_all(pool).await?;
-    Ok(rows)
-}
-
-#[derive(Debug, sqlx::FromRow)]
-struct InventoryRow {
-    sku_id: uuid::Uuid,
-    sku_code: Option<String>,
-    warehouse_id: uuid::Uuid,
-    on_hand: i64,
-    reserved: i64,
-}
-
-async fn count_inventory(
-    pool: &PgPool,
-    job: &ExportJob,
-    warehouse_id: Option<uuid::Uuid>,
-) -> anyhow::Result<i64> {
-    let mut qb =
-        QueryBuilder::<Postgres>::new("select count(*) from inventory_balances where tenant_id = ");
-    qb.push_bind(uuid::Uuid::from(job.tenant_id));
-    if let Some(warehouse_id) = warehouse_id {
-        qb.push(" and warehouse_id = ");
-        qb.push_bind(warehouse_id);
-    }
-    let total: i64 = qb.build_query_scalar().fetch_one(pool).await?;
-    Ok(total)
-}
-
-async fn fetch_inventory_rows(
-    pool: &PgPool,
-    job: &ExportJob,
-    warehouse_id: Option<uuid::Uuid>,
-    limit: i64,
-    offset: i64,
-) -> anyhow::Result<Vec<InventoryRow>> {
-    let mut qb = QueryBuilder::<Postgres>::new(
-        r#"
-        select
-            b.sku_id,
-            s.sku_code,
-            b.warehouse_id,
-            b.on_hand,
-            b.reserved
-        from inventory_balances b
-        join skus s
-          on s.tenant_id = b.tenant_id
-         and s.sku_id = b.sku_id
-        where b.tenant_id =
-        "#,
-    );
-    qb.push_bind(uuid::Uuid::from(job.tenant_id));
-    if let Some(warehouse_id) = warehouse_id {
-        qb.push(" and b.warehouse_id = ");
-        qb.push_bind(warehouse_id);
-    }
-    qb.push(" order by s.sku_code nulls last, b.sku_id");
-    qb.push(" limit ");
-    qb.push_bind(limit);
-    qb.push(" offset ");
-    qb.push_bind(offset);
-
-    let rows: Vec<InventoryRow> = qb.build_query_as().fetch_all(pool).await?;
     Ok(rows)
 }
 

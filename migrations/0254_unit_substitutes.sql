@@ -1,0 +1,2 @@
+-- 0254: a cross-unit substitute stores the saved conversion ratio.
+-- The caller does not supply that ratio. This comment does not apply the columns.

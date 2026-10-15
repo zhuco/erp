@@ -1,0 +1,1 @@
+async page => { globalThis.batchMaterialResponses=[]; page.on('response',async r=>{if(r.url().includes('/manufacturing/')){let body;try{body=await r.json();}catch{}globalThis.batchMaterialResponses.push({url:r.url(),method:r.request().method(),status:r.status(),body});}}); await page.mouse.click(195,154); await page.mouse.click(225,367); }

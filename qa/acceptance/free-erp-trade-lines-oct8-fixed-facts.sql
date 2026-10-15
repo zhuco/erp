@@ -1,0 +1,5 @@
+\set ON_ERROR_STOP on
+begin read only;
+do $$ begin if current_database()<>'erp_shared_contract_test' or current_user<>'erp_grid_test' or inet_server_port()<>15438 or inet_server_addr()<>inet '127.0.0.1' then raise exception 'QA identity mismatch'; end if; end $$;
+select jsonb_build_object('tenant',t.tenant_id,'facts',jsonb_build_object('shared_sales_revisions',coalesce((select jsonb_agg(to_jsonb(x)) from shared_sales_revisions x where x.tenant_id=t.tenant_id),'[]'::jsonb),'shared_sales_lines',coalesce((select jsonb_agg(to_jsonb(x)) from shared_sales_lines x where x.tenant_id=t.tenant_id),'[]'::jsonb),'command_receipts',coalesce((select jsonb_agg(to_jsonb(x)) from command_receipts x where x.tenant_id=t.tenant_id),'[]'::jsonb),'shared_sales_demands',coalesce((select jsonb_agg(to_jsonb(x)) from shared_sales_demands x where x.tenant_id=t.tenant_id),'[]'::jsonb))) from tenants t where t.tenant_id in ('60ddd530-d13b-4a75-8012-da16991eb138'::uuid,'6b02aa97-a545-4b66-9ce4-146e64d49df7'::uuid,'9f133c88-3c93-4b72-a932-de1d5d91008e'::uuid,'a2f2c3c3-e236-4d00-8914-d8ac9672d6fc'::uuid) order by t.tenant_id;
+commit;

@@ -15,6 +15,8 @@ pub(crate) fn normalize_permission_code(perm: &str) -> String {
         "aftersales.read" => PermissionCode::OmsAfterSalesRead.as_str().to_string(),
         "aftersales.write" => PermissionCode::OmsAfterSalesWrite.as_str().to_string(),
         "aftersales.read_raw" => PermissionCode::OmsAfterSalesRaw.as_str().to_string(),
+        "manufacturing.write" => PermissionCode::ManufacturingWrite.as_str().to_string(),
+        "quality.concession" => PermissionCode::QualityConcession.as_str().to_string(),
         "inventory.read" => PermissionCode::WmsInventoryRead.as_str().to_string(),
         "inventory.write" => PermissionCode::WmsInventoryWrite.as_str().to_string(),
         "wms.read" => PermissionCode::WmsInventoryRead.as_str().to_string(),

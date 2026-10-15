@@ -130,17 +130,17 @@ fn apply_filters<'a>(qb: &mut QueryBuilder<'a, Postgres>, filters: &'a SyncJobRu
     if let Some(shop_id) = filters.shop_id {
         qb.push(" and shop_id = ");
         qb.push_bind(uuid::Uuid::from(shop_id));
-    } else if let Some(shop_ids) = &filters.shop_ids {
-        if !shop_ids.is_empty() {
-            qb.push(" and shop_id = any(");
-            qb.push_bind(
-                shop_ids
-                    .iter()
-                    .map(|id| uuid::Uuid::from(*id))
-                    .collect::<Vec<_>>(),
-            );
-            qb.push(")");
-        }
+    } else if let Some(shop_ids) = &filters.shop_ids
+        && !shop_ids.is_empty()
+    {
+        qb.push(" and shop_id = any(");
+        qb.push_bind(
+            shop_ids
+                .iter()
+                .map(|id| uuid::Uuid::from(*id))
+                .collect::<Vec<_>>(),
+        );
+        qb.push(")");
     }
     if let Some(job_type) = &filters.job_type {
         qb.push(" and job_type = ");

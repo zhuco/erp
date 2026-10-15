@@ -157,6 +157,7 @@ impl ProductOptions {
                                         query: vec![],
                                         json: Some(wire.body.clone()),
                                         bearer: Some(session.token.clone()),
+                                        idempotency_key: None,
                                     },
                                     ctx,
                                 )

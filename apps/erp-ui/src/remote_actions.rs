@@ -357,6 +357,7 @@ impl ActionRunner {
                     query: vec![],
                     json: None,
                     bearer: Some(token.into()),
+                    idempotency_key: None,
                 },
                 ctx,
             )
@@ -479,6 +480,7 @@ impl ActionRunner {
                                 query: vec![],
                                 json: Some(body),
                                 bearer: Some(token.into()),
+                                idempotency_key: None,
                             },
                             ctx,
                         )

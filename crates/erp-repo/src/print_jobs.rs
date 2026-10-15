@@ -552,26 +552,26 @@ impl<'a> PrintJobsRepo<'a> {
         }
 
         let row: Row = qb.build_query_as().fetch_one(&mut *tx).await?;
-        if let Some(new_status) = status_value.as_deref() {
-            if new_status != current.status {
-                let actor_type = if actor_user_id.is_some() {
-                    "USER"
-                } else {
-                    "SYSTEM"
-                };
-                self.insert_job_event(
-                    &mut tx,
-                    PrintJobEventInput {
-                        tenant_id,
-                        job_id,
-                        status: new_status.to_string(),
-                        actor_type: actor_type.to_string(),
-                        actor_user_id,
-                        error: last_error,
-                    },
-                )
-                .await?;
-            }
+        if let Some(new_status) = status_value.as_deref()
+            && new_status != current.status
+        {
+            let actor_type = if actor_user_id.is_some() {
+                "USER"
+            } else {
+                "SYSTEM"
+            };
+            self.insert_job_event(
+                &mut tx,
+                PrintJobEventInput {
+                    tenant_id,
+                    job_id,
+                    status: new_status.to_string(),
+                    actor_type: actor_type.to_string(),
+                    actor_user_id,
+                    error: last_error,
+                },
+            )
+            .await?;
         }
 
         tx.commit().await?;

@@ -80,13 +80,13 @@ impl<'a> ShopsRepo<'a> {
             offset,
             limit,
         } = filters;
-        if let Some(ids) = &shop_ids {
-            if ids.is_empty() {
-                return Ok(ShopListResult {
-                    items: vec![],
-                    total: 0,
-                });
-            }
+        if let Some(ids) = &shop_ids
+            && ids.is_empty()
+        {
+            return Ok(ShopListResult {
+                items: vec![],
+                total: 0,
+            });
         }
         let mut total_qb =
             QueryBuilder::<Postgres>::new("select count(*) from shops where tenant_id = ");

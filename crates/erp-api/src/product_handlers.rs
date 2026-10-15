@@ -534,6 +534,22 @@ pub(crate) async fn delete_product(
         Err(_) => return bad_request("bad product_id").into_response(),
     };
 
+    let referenced = match sqlx::query_scalar::<_, i64>(
+        "select count(*) from shared_item_refs where tenant_id = $1 and item_id = $2",
+    )
+    .bind(uuid::Uuid::from(tenant_id))
+    .bind(product_id)
+    .fetch_one(state.db.pool())
+    .await
+    {
+        Ok(count) => count,
+        Err(error) if error.to_string().contains("shared_item_refs") => 0,
+        Err(error) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{error}")).into_response(),
+    };
+    if erp_domain::trade::item_removal_decision(referenced > 0, "DELETE").is_err() {
+        return conflict("referenced item cannot be deleted").into_response();
+    }
+
     let product = match state
         .products_repo
         .delete_product(tenant_id, product_id)
@@ -541,7 +557,7 @@ pub(crate) async fn delete_product(
     {
         Ok(Some(v)) => v,
         Ok(None) => return not_found("product not found").into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
+    Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")).into_response(),
     };
 
     record_audit_log(

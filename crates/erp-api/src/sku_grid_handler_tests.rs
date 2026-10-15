@@ -8,7 +8,13 @@ use tower::ServiceExt;
 #[derive(Default)]
 struct Repo {
     calls: Mutex<Vec<(TenantId, uuid::Uuid)>>,
-    range_calls: Mutex<Vec<(TenantId, uuid::Uuid, erp_repo::sku_grid::SkuGridRangesRequest)>>,
+    range_calls: Mutex<
+        Vec<(
+            TenantId,
+            uuid::Uuid,
+            erp_repo::sku_grid::SkuGridRangesRequest,
+        )>,
+    >,
     action_calls: Mutex<Vec<(TenantId, UserId, erp_grid_core::actions::ActionCommand)>>,
     receipt_calls: Mutex<Vec<(TenantId, UserId, erp_grid_core::RowId)>>,
 }
@@ -151,6 +157,7 @@ fn auth(tenant: TenantId, perms: &[&str]) -> AuthContext {
         warehouse_ids: Vec::new(),
         merchant_ids: Vec::new(),
         organization_ids: Vec::new(),
+    session_id: None,
     }
 }
 
@@ -365,9 +372,7 @@ async fn sku_ranges_validate_bounds_and_pass_fixed_query_to_repo() {
     let repo = Arc::new(Repo::default());
     let tenant = TenantId(uuid::Uuid::from_u128(1));
     let product = uuid::Uuid::from_u128(3);
-    let uri = format!(
-        "/v1/tenants/{tenant}/products/{product}/skus/query-ranges"
-    );
+    let uri = format!("/v1/tenants/{tenant}/products/{product}/skus/query-ranges");
     let invalid = serde_json::json!({
         "query": body(0),
         "ranges": [{"offset": 0, "limit": 1001}]

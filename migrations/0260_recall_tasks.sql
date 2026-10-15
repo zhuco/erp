@@ -1,0 +1,2 @@
+-- 0260: one open recall is a leased task. A second open recall is refused.
+-- The existing recall table keeps its task id. This comment does not add a table.

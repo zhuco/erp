@@ -195,7 +195,7 @@ pub(crate) fn show(
                         erp_grid_core::DateTimeParts::parse(&editor.draft).unwrap_or_default();
                     let before = date;
                     let with_time = matches!(column.edit_kind, erp_grid_core::EditKind::DateTime);
-                    crate::quick_search::calendar(ui, &mut date, with_time);
+                    let _ = crate::quick_search::calendar(ui, &mut date, with_time);
                     let confirm = ui.button("选择").clicked();
                     if date != before || confirm {
                         editor.draft = if with_time {
